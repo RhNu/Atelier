@@ -1,5 +1,11 @@
 # 可继承方案与取舍
 
+## 定位
+
+NAI Atelier 是对 `nait` 产品经验的重构，不是对 `nait` 分层架构的延续。
+
+`nait` 已经验证了大量 NovelAI 桌面工作流细节，但它的固定横向链路和聚合服务在迭代后变得过重。新项目应继承已验证的产品判断、安全边界和交互经验，同时反继承容易导致大 `core`、大 `app`、大 `protocol` 的架构模式。
+
 ## 从 `nait` 继承
 
 ### 可以继承的思路
@@ -10,12 +16,16 @@
 - Prompt 解析、诊断和词库检索由后端提供，前端只处理编辑器交互。
 - 受控相对路径是可视资产解析与导出的基础。
 - `work/event` 一类事件通道适合承载任务进度和通知。
+- Prompt、Gallery、Vibe、Director、多 key 等产品经验可以作为行为参考。
+- artifact replay、batch/job 事件、可视资产导出等已验证概念可以重新设计后继承。
 
 ### 不建议继承的部分
 
 - `nait-gateway` / `nait-sdk` 内置 NovelAI 链路；新项目应交给 `novelai-bridge`。
+- 固定横向链路 `protocol -> gateway -> sdk -> core -> app -> tauri`。
 - 过重的 `ApplicationService` 门面。
 - 一个 `WorkKernel` 同时承担调度、存储、Gallery、replay、orchestration、Vibe 的模式。
+- 巨型 `protocol` / `interface` 承载所有 feature DTO 的模式。
 - 前端领域代码同时散落在 `features`、`composables`、`components/workbench` 的形态。
 - 以 `.ref` 对齐作为长期文档负担。
 
@@ -30,6 +40,13 @@
 - 历史包袱重，很多边界是演进结果，不一定适合新项目直接继承。
 - 横向分层链路太强，feature 自治不足。
 - 大文件和大服务已经说明部分职责拆分不够早。
+
+### 新项目的替代判断
+
+- 用 feature-first 边界取代固定横向链路。
+- 保留 `kernel` 作为运行时编排内核，但 `kernel` 不直接做 I/O 或持久化。
+- 由 `app/adapters` 实现 `kernel` ports，并接入文件系统、数据库、`novelai-bridge`、keyring 与系统能力。
+- 领域模型默认归属 feature，只有稳定跨 feature 复用时才提升到 `foundation/shared`。
 
 ## 从 `novelai-bridge` 继承
 
@@ -56,7 +73,7 @@
 ### 可以继承的思路
 
 - 细粒度 workspace，但每个 crate 都要有清楚职责。
-- `interface` crate 承载 CLI/app/MCP 或 shell 共享 DTO。
+- 可以参考 `interface` crate 的共享契约思路，但新项目不默认建立巨型 DTO 中心。
 - `app` crate 做用例路由，入口文件保持轻。
 - `xtask line-budget` 这类机械守卫能提前压住文件膨胀。
 - 工作流文档和 agent 指南可以放在项目内，服务长期维护。

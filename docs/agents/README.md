@@ -13,7 +13,9 @@
 ## 当前共识
 
 - NovelAI 对接优先交给 `novelai-bridge`。
-- 新项目应吸收 `nait` 的产品经验，但不沿用其 gateway/sdk/core/app 主链路。
+- 新项目应吸收 `nait` 的产品经验，但不沿用其 `protocol -> gateway -> sdk -> core -> app -> tauri` 横向主链路。
+- 后端采用 feature-first 方向：少量 `foundation/shared` 基础抽象，各 feature 自治，`kernel` 负责运行时状态与跨 feature 编排，`app/adapters` 负责 I/O、持久化和 Tauri-facing 收束。
+- `kernel` 可以定义所需 ports，但不直接读写文件、数据库、keyring、HTTP 或 Tauri API。
 - 模块拆分可以参考 `stringer` 的细粒度 workspace 风格，但不要机械复制 crate 数量。
 - 前端可以重新评估 Solid 或 React；缓存与服务端状态策略应跟随 framework 选择。
 - 任务调度、资源库、Prompt 工作区、Gallery、Vibe 管理应按 feature 独立演进。
