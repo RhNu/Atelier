@@ -1,0 +1,18 @@
+[package]
+name = "nai-atelier-adapter-storage-fs"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = "0.1"
+nai-atelier-resource-catalog = { path = "../../features/resource-catalog" }
+nai-atelier-workspace = { path = "../../features/workspace" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+
+[dev-dependencies]
+futures-executor = "0.3"
+tempfile = "3"
