@@ -136,7 +136,7 @@ app -> apps/desktop/src-tauri
 职责：
 
 - 定义前端客户端可见的稳定 contract。
-- 按 domain 分模块：`runtime`、`settings`、`api_keys`、`subscription`、`work`、`gallery`、`visual_asset`、`prompt`、`resources`、`vibe`、`director`。
+- 按 domain 分模块：`runtime`、`settings`、`api_keys`、`subscription`、`work`、`gallery`、`visual_asset`、`prompt`、`prompt_resources`、`resources`、`vibe`、`director`。
 - 提供后续 TS 类型导出入口。
 
 不做：
@@ -151,14 +151,14 @@ app -> apps/desktop/src-tauri
 - 运行时状态：`booting | ready | failed`、session、event hub。
 - job queue、concurrency、cancel token、retry policy、progress/event stream。
 - 跨 feature workflow：
-  - Prompt/resources compile。
+  - Prompt resources compile。
   - generation submit。
   - artifact persist request。
   - gallery index update。
   - replay payload assembly。
   - Vibe encode/cache workflow。
   - Director result registration。
-- 定义编排需要的 ports，例如 `GenerationClient`、`JobRepository`、`ArtifactStore`、`GalleryIndex`、`WorkspaceStore`、`SecretResolver`、`SafetyScanner`、`Clock`、`EventSink`。
+- 定义编排需要的 ports，例如 `GenerationClient`、`JobRepository`、`ArtifactRepository`、`GalleryIndex`、`WorkspaceStore`、`SecretResolver`、`SafetyScanner`、`Clock`、`EventSink`。
 
 不做：
 
@@ -480,7 +480,7 @@ let runtime = TestAppRuntimeBuilder::new()
 
 用 fake ports 组合完整 workflow：
 
-- submit work：compile -> enqueue -> fake generation -> fake resource store -> fake gallery index。
+- submit work：compile -> enqueue -> fake generation -> fake resource catalog -> fake gallery index。
 - cancel/retry：状态机和事件顺序。
 - replay：从 fake artifact manifest 回填请求。
 - Vibe ensure encoding：cache miss -> fake NovelAI encode -> store bucket。

@@ -15,7 +15,7 @@
 
 ## 当前共识
 
-- 项目已进入最小可运行 scaffold 阶段，见 `scaffold-decision.md`。
+- 最小可运行 scaffold 已完成并作为历史记录保留，见 `scaffold-decision.md`。
 - Rust 工作完成前必须跑通 `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`。
 - pnpm 前端工作完成前必须跑通 `pnpm fmt:check`、`pnpm lint`、`pnpm test`；前端格式化与 lint 使用 Oxc 系列的 `oxfmt`、`oxlint`。
 - NovelAI 对接优先交给 `novelai-bridge`。

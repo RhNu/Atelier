@@ -129,9 +129,9 @@ Gallery、Vibe、artifacts、Prompt thumb 等 feature 保存 `ResourceRef` 和�
 
 如果这些答案说不清，先不要拆成独立 crate。
 
-## 后端 feature 候选
+## 后端 feature 边界
 
-后端优先围绕这些 feature 边界思考；具体 crate 布局见 `backend-crate-layout.md`：
+后端优先围绕这些 feature 边界思考；具体 crate 布局和建议名称见 `backend-crate-layout.md`：
 
 - `workspace`：项目目录、设置、路径、安全读写、锁。
 - `settings`：应用设置、patch、validate、restart-required 字段。

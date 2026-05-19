@@ -274,4 +274,3 @@ use case group：
 - 它的 fake 或 in-memory 替代在哪里？
 - 它是否需要接入 `resource-catalog`？
 - 它的测试不启动 Tauri 能否验证主要行为？
-

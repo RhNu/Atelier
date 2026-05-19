@@ -1,8 +1,8 @@
-# Scaffold 决策记录
+# Scaffold 决策记录（历史）
 
 ## 2026-05-19
 
-NAI Atelier 进入最小可运行 scaffold 阶段。当前目标不是固定完整架构，而是把后续开发需要的仓库、包管理器和本地验证入口准备好。
+NAI Atelier 在此阶段进入最小可运行 scaffold。该阶段目标不是固定完整架构，而是把后续开发需要的仓库、包管理器和本地验证入口准备好。
 
 已确定：
 
@@ -18,7 +18,7 @@ NAI Atelier 进入最小可运行 scaffold 阶段。当前目标不是固定完�
 - Rust 工作完成前运行 `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`。
 - pnpm 前端工作完成前运行 `pnpm fmt:check`、`pnpm lint`、`pnpm test`。
 
-本记录只描述 scaffold 阶段决定。后续后端 crate 布局设计已进入 `backend-crate-layout.md`，以该文档为当前设计方向。
+本记录只描述 scaffold 阶段决定，是历史记录。后续后端 crate 布局设计已进入 `backend-crate-layout.md`，以该文档为当前设计方向。
 
 仍然不承诺：
 

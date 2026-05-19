@@ -16,12 +16,13 @@
 
 - 产品语言要承认它是 NovelAI 专用工具。
 - 后端应把 NovelAI 网络协议细节隔离到 `novelai-bridge` adapter 后面。
-- 应用内部使用自己的领域语言，例如 workspace、job、artifact、prompt resource、gallery item。
+- 应用内部使用自己的领域语言，例如 workspace、job、artifact、resource ref、prompt resource、gallery item。
+- 长期可持久资源应通过统一 resource catalog 接入，避免每个 feature 自行管理目录和索引。
 - UI 不应只是旧 `nait` 页面复刻；应围绕高频创作路径重新组织。
 
 ## 暂不承诺
 
 - 不承诺兼容旧 `nait` 的所有命令名或 DTO。
 - 不承诺迁移旧数据库或工作目录。
-- 不承诺第一版包含完整 orchestration、NSFW 检测、Director、Vibe 全量能力。
+- 不承诺首个可运行切片一次性交付完整 orchestration、NSFW 检测、Director、Vibe 全量能力；但后端边界按完整能力设计，不以半成品 MVP 作为架构目标。
 - 不承诺前端必须选择 Solid 或 React；需要单独比较生态、状态管理、测试和 Tauri 集成成本。
