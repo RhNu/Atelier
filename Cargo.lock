@@ -2834,6 +2834,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nai-atelier-gallery"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "nai-atelier-artifacts",
+ "nai-atelier-resource-catalog",
+ "nai-atelier-safety",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nai-atelier-generation"
 version = "0.1.0"
 dependencies = [

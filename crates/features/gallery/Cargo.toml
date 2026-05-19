@@ -1,0 +1,15 @@
+[package]
+name = "nai-atelier-gallery"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = "0.1"
+nai-atelier-artifacts = { path = "../artifacts" }
+nai-atelier-resource-catalog = { path = "../resource-catalog" }
+nai-atelier-safety = { path = "../safety" }
+thiserror = "2"
+
+[dev-dependencies]
+futures-executor = "0.3"
