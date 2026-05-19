@@ -47,10 +47,12 @@ impl FunctionRegistry {
 
     #[must_use]
     pub fn atelier_defaults() -> Self {
-        Self::from_descriptors([
-            FunctionDescriptor::new("chunk", 1, 1, ["name"]),
-            FunctionDescriptor::new("preset", 1, 1, ["name"]),
-        ])
+        Self::from_descriptors([FunctionDescriptor::new(
+            "chunk",
+            1,
+            1,
+            std::iter::empty::<&str>(),
+        )])
     }
 
     #[must_use]

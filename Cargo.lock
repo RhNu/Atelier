@@ -2841,6 +2841,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nai-atelier-prompt-resources"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "nai-atelier-prompt",
+ "nai-atelier-resource-catalog",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nai-atelier-resource-catalog"
 version = "0.1.0"
 dependencies = [

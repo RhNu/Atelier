@@ -1,6 +1,6 @@
 use nai_atelier_prompt::{
-    FormatterOptions, FunctionArg, FunctionRegistry, FunctionValue, PromptDiagnosticKind,
-    PromptSyntaxProfile, format_prompt, parse_prompt,
+    FormatterOptions, FunctionArg, FunctionDescriptor, FunctionRegistry, FunctionValue,
+    PromptDiagnosticKind, PromptSyntaxProfile, format_prompt, parse_prompt,
 };
 
 #[test]
@@ -25,14 +25,17 @@ fn parses_and_validates_atelier_extension_calls() {
 
     let diagnostics = parsed.diagnostics_with_functions(
         &PromptSyntaxProfile::novelai_v45(),
-        &FunctionRegistry::atelier_defaults(),
+        &FunctionRegistry::from_descriptors([
+            FunctionDescriptor::new("chunk", 1, 1, ["name"]),
+            FunctionDescriptor::new("preset", 1, 1, ["name"]),
+        ]),
     );
     assert!(diagnostics.is_empty());
 }
 
 #[test]
 fn reports_extension_function_signature_errors() {
-    let parsed = parse_prompt(r#"@unknown("x"), @chunk(), @preset(other = "v4")"#);
+    let parsed = parse_prompt(r#"@unknown("x"), @chunk(), @chunk(other = "v4")"#);
     let diagnostics = parsed.diagnostics_with_functions(
         &PromptSyntaxProfile::novelai_v45(),
         &FunctionRegistry::atelier_defaults(),
@@ -72,10 +75,32 @@ fn named_function_arguments_allow_surrounding_whitespace() {
         parsed
             .diagnostics_with_functions(
                 &PromptSyntaxProfile::novelai_v45(),
-                &FunctionRegistry::atelier_defaults(),
+                &FunctionRegistry::from_descriptors([FunctionDescriptor::new(
+                    "preset",
+                    1,
+                    1,
+                    ["name"],
+                )]),
             )
             .is_empty()
     );
+}
+
+#[test]
+fn atelier_defaults_only_accept_chunk_function() {
+    let parsed = parse_prompt(r"@preset(v4), @chunk(face), @chunk(name = face)");
+    let diagnostics = parsed.diagnostics_with_functions(
+        &PromptSyntaxProfile::novelai_v45(),
+        &FunctionRegistry::atelier_defaults(),
+    );
+
+    assert!(diagnostics.iter().any(|item| {
+        item.kind == PromptDiagnosticKind::UnknownFunction && item.message.contains("preset")
+    }));
+    assert!(diagnostics.iter().any(|item| {
+        item.kind == PromptDiagnosticKind::InvalidFunctionArgument && item.message.contains("name")
+    }));
+    assert_eq!(diagnostics.len(), 2);
 }
 
 #[test]

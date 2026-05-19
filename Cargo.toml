@@ -7,6 +7,7 @@ members = [
     "crates/features/director",
     "crates/features/generation",
     "crates/features/prompt",
+    "crates/features/prompt-resources",
     "crates/features/resource-catalog",
     "crates/features/secrets",
     "crates/features/vibe",
