@@ -19,7 +19,7 @@ features/kernel/app-api/adapters -> app
 app -> Tauri shell / frontend
 ```
 
-这是职责方向。具体后端 crate 布局见 `backend-crate-layout.md`，实现前仍可按真实复杂度决定边界是独立 crate 还是模块。
+这是职责方向。具体后端 crate 布局见 `backend-crate-layout.md`，落地顺序见 `backend-rollout-plan.md`。实现前仍可按真实复杂度决定边界是独立 crate 还是模块。
 
 新项目应避免两类极端：
 
@@ -148,7 +148,7 @@ Gallery、Vibe、artifacts、Prompt thumb 等 feature 保存 `ResourceRef` 和�
 - `director`：Director tool 请求、输入校验、结果登记计划。
 - `safety`：安全元数据、scan policy、manual override、risk band。
 
-这些边界可以逐步落地，不要求一次性实现完整链路。
+这些边界可以逐步落地，不要求一次性实现完整链路。落地时应先验证边界和测试替换性，再接真实 I/O 和 Tauri host。
 
 ## 前端方向
 

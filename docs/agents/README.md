@@ -9,8 +9,9 @@
 1. `project-intent.md`
 2. `architecture-guidance.md`
 3. `backend-crate-layout.md`
-4. `inheritance-options.md`
-5. `scaffold-decision.md`
+4. `backend-rollout-plan.md`
+5. `inheritance-options.md`
+6. `scaffold-decision.md`
 
 ## 当前共识
 
@@ -26,6 +27,7 @@
 - 模块拆分可以参考 `stringer` 的细粒度 workspace 风格，但每个 crate 必须有明确职责、依赖方向和测试替换边界。
 - 前端可以重新评估 Solid 或 React；缓存与服务端状态策略应跟随 framework 选择。
 - 任务调度、Prompt 工作区、Gallery、Vibe 管理应按 feature 独立演进，并通过 trait/port 与集中 adapters 连接真实 I/O。
+- 后端落地顺序以边界和测试替换性为验收目标，不以打通最短 MVP 链路为目标。
 
 ## 非目标
 
