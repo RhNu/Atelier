@@ -5,6 +5,7 @@ members = [
     "crates/foundation",
     "crates/features/director",
     "crates/features/generation",
+    "crates/features/resource-catalog",
     "crates/features/secrets",
     "crates/features/vibe",
     "xtask",

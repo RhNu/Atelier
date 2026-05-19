@@ -2758,6 +2758,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nai-atelier-resource-catalog"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nai-atelier-secrets"
 version = "0.1.0"
 dependencies = [
