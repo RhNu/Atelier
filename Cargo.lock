@@ -2833,6 +2833,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nai-atelier-jobs"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "nai-atelier-foundation",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nai-atelier-prompt"
 version = "0.1.0"
 dependencies = [
