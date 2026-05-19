@@ -2,7 +2,7 @@
 
 ## 总原则
 
-当前阶段固定架构方向，但不固定 crate 名、目录结构、持久化格式或 Tauri command 名。
+当前阶段固定架构方向，并记录后端 crate 布局设计方向；但不冻结最终 crate 名、持久化格式、前端框架或 Tauri command 名。
 
 NAI Atelier 是对 `nait` 产品经验的重构，不继承 `nait` 的固定横向链路：
 
@@ -13,30 +13,31 @@ protocol -> gateway -> sdk -> core -> app -> tauri
 新项目采用 feature-first 架构：
 
 ```text
-foundation/shared -> features -> kernel -> app/adapters -> Tauri shell / frontend
+foundation -> features -> kernel
+foundation -> app-api
+features/kernel/app-api/adapters -> app
+app -> Tauri shell / frontend
 ```
 
-这是一条职责方向，不是最终 crate 清单。后续可以按真实复杂度决定哪些边界需要独立 crate，哪些只需要模块。
+这是职责方向。具体后端 crate 布局见 `backend-crate-layout.md`，实现前仍可按真实复杂度决定边界是独立 crate 还是模块。
 
 新项目应避免两类极端：
 
 - 把所有领域能力堆进一个巨大的 `core` 或 `app` crate。
-- 过早创建大量 crate，导致每个边界都还没有真实职责却已经增加维护成本。
+- 让 feature 自行创建长期资源目录、私有二进制索引和不可替换 I/O。
 
-更合适的方式是先按 feature 定义边界，再由 `kernel` 组合运行时流程，最后在 `app/adapters` 层收束 I/O、持久化和 Tauri-facing 用例。
+更合适的方式是先按 feature 定义边界，再由 `kernel` 组合运行时流程，由 host-neutral `app` 暴露 use case，最后由 `adapters` 集中实现 I/O、持久化和外部库接入。
 
 ## 架构层次
 
-### `foundation/shared`
+### `foundation`
 
-`foundation/shared` 只放稳定复用的基础抽象与跨 feature 原语。
+`foundation` 只放稳定复用的基础抽象与跨 feature 原语。
 
 可以进入这里：
 
 - error envelope、diagnostic、event 基础结构。
 - ID、time、受控路径、asset locator 等跨 feature 原语。
-- `port` trait 与 adapter contract。
-- settings、secret、storage 这类基础能力接口。
 - 已经被两个以上 feature 稳定复用，且不属于某个 feature 语义核心的 helper。
 
 不应进入这里：
@@ -50,9 +51,11 @@ foundation/shared -> features -> kernel -> app/adapters -> Tauri shell / fronten
 
 ### `features`
 
-feature 是领域能力的默认归属。Prompt、generation、jobs、artifacts、resources、gallery、Vibe、secret、workspace 等能力应优先在 feature 内拥有自己的模型、规则、服务和测试。
+feature 是领域能力的默认归属。Prompt、generation、jobs、artifacts、resource catalog、prompt resources、gallery、Vibe、secrets、workspace 等能力应优先在 feature 内拥有自己的模型、规则、服务和测试。
 
-feature 可以依赖 `foundation/shared` 的基础抽象，也可以通过 `kernel` 参与跨 feature workflow，但不应把领域逻辑交给一个全局 service 代管。
+feature 可以依赖 `foundation` 的基础抽象，也可以通过 `kernel` 参与跨 feature workflow，但不应把领域逻辑交给一个全局 service 代管。
+
+feature 默认不做真实 I/O。需要持久化、网络、系统能力或外部运行库时，先定义 trait/port，再由 `adapters` 实现。
 
 ### `kernel`
 
@@ -64,7 +67,7 @@ feature 可以依赖 `foundation/shared` 的基础抽象，也可以通过 `kern
 - 维护运行中的 job、queue、selection、session、progress、cancellation、retry 等状态。
 - 编排跨 feature workflow，例如 prompt 编译、Vibe 解析、generation 提交、artifact 注册、gallery 更新。
 - 发出领域事件或应用事件。
-- 定义它需要的 `port` trait，例如 `JobRepository`、`ArtifactStore`、`NovelAiAdapter`、`SecretProvider`、`WorkspaceStore`。
+- 定义它需要的 `port` trait，例如 `JobRepository`、`ArtifactRepository`、`NovelAiGenerationClient`、`SecretResolver`、`WorkspaceStore`。
 
 `kernel` 不可以：
 
@@ -73,19 +76,46 @@ feature 可以依赖 `foundation/shared` 的基础抽象，也可以通过 `kern
 - 承载具体持久化 schema 或迁移逻辑。
 - 变成所有 feature 的唯一实现位置。
 
-一句话规则：`kernel` owns orchestration and runtime state; `app/adapters` own I/O and persistence.
+一句话规则：`kernel` owns orchestration and runtime state; `adapters` own I/O and persistence.
 
-### `app/adapters`
+### `app-api`
 
-`app/adapters` 实现 `kernel` 所需 ports，并把外部能力接入应用：
+`app-api` 定义前端客户端可见 contract，例如 request/response DTO、event DTO、error envelope、分页和 query DTO。它不是旧 `nait-protocol` 的复刻，不应成为所有 feature 内部模型的唯一来源。
+
+### `app`
+
+`app` 是 host-neutral application use case 层：
+
+- 组织 settings、api key、work、resources、gallery、visual asset、director、vibe 等 use case group。
+- 把 `app-api` DTO 转换为 feature/kernel input。
+- 统一 runtime guard、错误映射、权限和预检策略。
+- 构造并持有 `kernel` 与 adapter trait objects。
+
+`app` 不依赖 Tauri API，不直接实现业务规则，不散落真实 I/O。
+
+### `adapters`
+
+`adapters` 实现 `kernel`、feature 或 `app` 所需 ports，并把外部能力接入应用：
 
 - 文件系统、数据库、索引、cache、workspace root。
 - `novelai-bridge` adapter。
 - 系统凭据后端与 API key registry。
-- Tauri-facing 用例收束。
-- 系统能力，例如文件对话框、剪贴板、通知。
+- image codec、NSFW runtime、系统能力，例如文件对话框、剪贴板、通知。
 
-这里可以编排 Tauri-facing use case，但不应重新长成一个全能 `ApplicationService`。当某个 use case 开始承载稳定领域规则，应把规则下沉到对应 feature 或 `kernel` workflow。
+真实 I/O 只应出现在 adapters 或 desktop host adapter 中。测试时应能替换为 fake 或 in-memory adapter。
+
+### `resource-catalog`
+
+长期可持久资源必须通过统一 `resource-catalog` 接入。feature 不得各自创建资源目录、命名文件、维护私有二进制索引。
+
+`resource-catalog` 负责：
+
+- `ResourceId`、`ResourceKind`、`ResourceRef`、`ResourceRecord`、`ResourceVariant`。
+- 资源 owner、metadata 边界、lifecycle。
+- blob identity、hash、mime、尺寸、受控路径策略。
+- 变体和 GC 的统一入口。
+
+Gallery、Vibe、artifacts、Prompt thumb 等 feature 保存 `ResourceRef` 和自己的领域 metadata，不保存底层物理路径规则。
 
 ## 建议的边界问题
 
@@ -101,19 +131,24 @@ feature 可以依赖 `foundation/shared` 的基础抽象，也可以通过 `kern
 
 ## 后端 feature 候选
 
-后端优先围绕这些 feature 边界思考，但不要先把它们写成固定 crate 清单：
+后端优先围绕这些 feature 边界思考；具体 crate 布局见 `backend-crate-layout.md`：
 
 - `workspace`：项目目录、设置、路径、安全读写、锁。
-- `secret`：API key registry 与系统凭据后端。
-- `novelai` adapter：把应用领域请求转换为 `novelai-bridge` 请求。
+- `settings`：应用设置、patch、validate、restart-required 字段。
+- `secrets`：API key registry、active key、secret metadata、probe policy。
+- `prompt`：Prompt 解析、格式化、诊断、函数描述。
+- `prompt-lexicon`：词库 catalog、list/search 与匹配排序。
+- `resource-catalog`：统一资源记录、blob、variant、owner 与 lifecycle。
+- `prompt-resources`：chunk、preset、thumb binding、PromptTrace、orchestration compile。
 - `generation`：生成提交、参数归一化、Anlas 估算、bridge 调用前后的转换。
 - `jobs`：排队、取消、重试、事件、进度、并发策略。
-- `artifacts`：产物落盘、metadata、replay、导出变体、路径约束。
-- `prompt`：Prompt 解析、格式化、诊断、函数描述。
-- `resources`：chunk、preset、thumb、lexicon、Vibe 资源。
+- `artifacts`：产物语义、metadata、replay、visual asset contract、导出变体。
 - `gallery`：产物索引、筛选、人工标记、跨 feature 入口。
+- `vibe`：managed Vibe resource、encoding bucket、import/export、preview。
+- `director`：Director tool 请求、输入校验、结果登记计划。
+- `safety`：安全元数据、scan policy、manual override、risk band。
 
-这些边界可以逐步演化。第一版可以少一些，等职责变重再拆。
+这些边界可以逐步落地，不要求一次性实现完整链路。
 
 ## 前端方向
 
@@ -134,11 +169,11 @@ features/<feature>/
 Tauri shell 应保持薄：
 
 - 反序列化 command 参数。
-- 调用 app service。
+- 调用 `app` use case。
 - 包装统一响应。
-- 处理系统能力，例如文件对话框、剪贴板、通知、keyring。
+- 注册或调用 desktop host adapter，例如文件对话框、剪贴板、通知。
 
-不要在 Tauri command 中实现任务调度、Prompt 编译、Gallery 聚合或 NovelAI 请求构建。
+不要在 Tauri command 中实现任务调度、Prompt 编译、Gallery 聚合、NovelAI 请求构建、keyring registry 规则或资源索引规则。
 
 ## 文档策略
 

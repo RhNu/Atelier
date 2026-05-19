@@ -45,8 +45,9 @@ NAI Atelier 是对 `nait` 产品经验的重构，不是对 `nait` 分层架构�
 
 - 用 feature-first 边界取代固定横向链路。
 - 保留 `kernel` 作为运行时编排内核，但 `kernel` 不直接做 I/O 或持久化。
-- 由 `app/adapters` 实现 `kernel` ports，并接入文件系统、数据库、`novelai-bridge`、keyring 与系统能力。
-- 领域模型默认归属 feature，只有稳定跨 feature 复用时才提升到 `foundation/shared`。
+- 由集中 `adapters` 实现 feature/kernel ports，并接入文件系统、数据库、`novelai-bridge`、keyring 与系统能力。
+- `app` 保持 host-neutral use case 层，不依赖 Tauri API。
+- 领域模型默认归属 feature，只有稳定跨 feature 复用时才提升到 `foundation`。
 
 ## 从 `novelai-bridge` 继承
 

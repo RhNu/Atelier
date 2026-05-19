@@ -14,8 +14,9 @@
 2. `docs/agents/README.md`
 3. `docs/agents/project-intent.md`
 4. `docs/agents/architecture-guidance.md`
-5. `docs/agents/inheritance-options.md`
-6. `docs/agents/scaffold-decision.md`
+5. `docs/agents/backend-crate-layout.md`
+6. `docs/agents/inheritance-options.md`
+7. `docs/agents/scaffold-decision.md`
 
 ## 工作规则
 
