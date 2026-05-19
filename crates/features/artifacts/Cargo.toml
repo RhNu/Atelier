@@ -1,0 +1,13 @@
+[package]
+name = "nai-atelier-artifacts"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = "0.1"
+nai-atelier-resource-catalog = { path = "../resource-catalog" }
+thiserror = "2"
+
+[dev-dependencies]
+futures-executor = "0.3"

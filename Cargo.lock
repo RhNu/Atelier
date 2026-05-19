@@ -2797,6 +2797,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nai-atelier-artifacts"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "nai-atelier-resource-catalog",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nai-atelier-desktop"
 version = "0.1.0"
 dependencies = [
@@ -2866,6 +2876,16 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nai-atelier-safety"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "nai-atelier-resource-catalog",
  "thiserror 2.0.18",
 ]
 
