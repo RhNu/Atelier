@@ -22,11 +22,12 @@ pnpm lint
 pnpm test
 cargo check --workspace
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy-strict
 cargo test --workspace
+cargo xtask line-budget
 ```
 
-完成 Rust 相关工作前，必须确认 `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace` 通过。
+完成 Rust 相关工作前，必须确认 `cargo fmt --all -- --check`、`cargo clippy-strict`、`cargo test --workspace`、`cargo xtask line-budget` 通过。
 
 完成 pnpm 前端相关工作前，必须确认 `pnpm fmt:check`、`pnpm lint`、`pnpm test` 通过。前端格式化和 lint 默认使用 Oxc 系列工具：`oxfmt` 与 `oxlint`。
 

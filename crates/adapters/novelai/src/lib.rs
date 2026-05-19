@@ -48,6 +48,8 @@ impl NovelAiBridgeAdapter<bridge::ReqwestTransport> {
     ///
     /// This deliberately does not read `NOVELAI_API_KEY`; secret resolution is
     /// owned by the future secrets/keyring adapters.
+    /// # Errors
+    /// Returns an error when the bridge client rejects the supplied configuration.
     pub fn new(config: NovelAiBridgeConfig) -> Result<Self, NovelAiError> {
         let options = bridge::ClientOptions {
             api_key_source: bridge::ApiKeySource::Inline {
@@ -298,7 +300,7 @@ fn map_bridge_error(error: bridge::BridgeError) -> NovelAiError {
     }
 }
 
-fn to_bridge_model(model: ImageModel) -> bridge::Model {
+const fn to_bridge_model(model: ImageModel) -> bridge::Model {
     match model {
         ImageModel::NaiDiffusion45Full => bridge::Model::NaiDiffusion45Full,
         ImageModel::NaiDiffusion45Curated => bridge::Model::NaiDiffusion45Curated,
@@ -309,7 +311,7 @@ fn to_bridge_model(model: ImageModel) -> bridge::Model {
     }
 }
 
-fn to_bridge_vibe_model(model: VibeModel) -> bridge::Model {
+const fn to_bridge_vibe_model(model: VibeModel) -> bridge::Model {
     match model {
         VibeModel::NaiDiffusion45Full => bridge::Model::NaiDiffusion45Full,
         VibeModel::NaiDiffusion45Curated => bridge::Model::NaiDiffusion45Curated,
@@ -320,14 +322,14 @@ fn to_bridge_vibe_model(model: VibeModel) -> bridge::Model {
     }
 }
 
-fn to_bridge_size(size: ImageSize) -> bridge::ImageSize {
+const fn to_bridge_size(size: ImageSize) -> bridge::ImageSize {
     bridge::ImageSize {
         width: size.width,
         height: size.height,
     }
 }
 
-fn to_bridge_sampler(sampler: Sampler) -> bridge::Sampler {
+const fn to_bridge_sampler(sampler: Sampler) -> bridge::Sampler {
     match sampler {
         Sampler::KEuler => bridge::Sampler::KEuler,
         Sampler::KEulerAncestral => bridge::Sampler::KEulerAncestral,
@@ -340,7 +342,7 @@ fn to_bridge_sampler(sampler: Sampler) -> bridge::Sampler {
     }
 }
 
-fn to_bridge_noise_schedule(schedule: NoiseSchedule) -> bridge::NoiseSchedule {
+const fn to_bridge_noise_schedule(schedule: NoiseSchedule) -> bridge::NoiseSchedule {
     match schedule {
         NoiseSchedule::Karras => bridge::NoiseSchedule::Karras,
         NoiseSchedule::Exponential => bridge::NoiseSchedule::Exponential,
@@ -348,7 +350,7 @@ fn to_bridge_noise_schedule(schedule: NoiseSchedule) -> bridge::NoiseSchedule {
     }
 }
 
-fn to_bridge_uc_preset(preset: UcPreset) -> bridge::UcPreset {
+const fn to_bridge_uc_preset(preset: UcPreset) -> bridge::UcPreset {
     match preset {
         UcPreset::Heavy => bridge::UcPreset::Heavy,
         UcPreset::Light => bridge::UcPreset::Light,
@@ -358,14 +360,14 @@ fn to_bridge_uc_preset(preset: UcPreset) -> bridge::UcPreset {
     }
 }
 
-fn to_bridge_image_format(format: ImageFormat) -> bridge::ImageFormat {
+const fn to_bridge_image_format(format: ImageFormat) -> bridge::ImageFormat {
     match format {
         ImageFormat::Png => bridge::ImageFormat::Png,
         ImageFormat::Webp => bridge::ImageFormat::Webp,
     }
 }
 
-fn to_bridge_stream_mode(mode: StreamMode) -> bridge::StreamMode {
+const fn to_bridge_stream_mode(mode: StreamMode) -> bridge::StreamMode {
     match mode {
         StreamMode::Sse => bridge::StreamMode::Sse,
     }
@@ -395,7 +397,7 @@ fn to_bridge_controlnet(config: ControlNetConfig) -> bridge::ControlNetConfig {
     }
 }
 
-fn to_bridge_character_position(position: CharacterPosition) -> bridge::CharacterPosition {
+const fn to_bridge_character_position(position: CharacterPosition) -> bridge::CharacterPosition {
     bridge::CharacterPosition {
         x: position.x,
         y: position.y,
@@ -411,7 +413,7 @@ fn to_bridge_character(character: Character) -> bridge::Character {
     }
 }
 
-fn to_bridge_character_reference_type(
+const fn to_bridge_character_reference_type(
     reference_type: CharacterReferenceType,
 ) -> bridge::CharacterReferenceType {
     match reference_type {
@@ -432,7 +434,7 @@ fn to_bridge_character_reference(reference: CharacterReference) -> bridge::Chara
     }
 }
 
-fn to_bridge_director_tool(tool: DirectorTool) -> bridge::DirectorTool {
+const fn to_bridge_director_tool(tool: DirectorTool) -> bridge::DirectorTool {
     match tool {
         DirectorTool::Lineart => bridge::DirectorTool::Lineart,
         DirectorTool::Sketch => bridge::DirectorTool::Sketch,

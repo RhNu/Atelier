@@ -2,6 +2,7 @@
 name = "nai-atelier-foundation"
 version = "0.1.0"
 edition = "2024"
+publish.workspace = true
 
 [dependencies]
 thiserror = "2"

@@ -23,7 +23,7 @@
 
 - 当前文档是指导，不是冻结的架构契约。
 - 未经过单独设计论证前，不固定 crate 名、前端框架、持久化格式或 command 名。
-- 每次 Rust 工作完成前必须运行并确认 `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`。
+- 每次 Rust 工作完成前必须运行并确认 `cargo fmt --all -- --check`、`cargo clippy-strict`、`cargo test --workspace`、`cargo xtask line-budget`。
 - 每次 pnpm 前端工作完成前必须运行并确认 `pnpm fmt:check`、`pnpm lint`、`pnpm test`。
 - 优先按 feature 划边界，避免大型横向层把领域逻辑耦合到一起。
 - 引入桌面壳时，Tauri shell 保持薄。

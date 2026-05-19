@@ -15,7 +15,7 @@ NAI Atelier 在此阶段进入最小可运行 scaffold。该阶段目标不是�
 
 完成要求：
 
-- Rust 工作完成前运行 `cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`。
+- Rust 工作完成前运行 `cargo fmt --all -- --check`、`cargo clippy-strict`、`cargo test --workspace`、`cargo xtask line-budget`。
 - pnpm 前端工作完成前运行 `pnpm fmt:check`、`pnpm lint`、`pnpm test`。
 
 本记录只描述 scaffold 阶段决定，是历史记录。后续后端 crate 布局设计已进入 `backend-crate-layout.md`，以该文档为当前设计方向。

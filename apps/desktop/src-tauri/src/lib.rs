@@ -1,4 +1,9 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// Runs the desktop shell.
+///
+/// # Panics
+///
+/// Panics if the Tauri runtime cannot start.
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {

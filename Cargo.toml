@@ -7,5 +7,9 @@ members = [
     "crates/features/generation",
     "crates/features/secrets",
     "crates/features/vibe",
+    "xtask",
 ]
 resolver = "3"
+
+[workspace.package]
+publish = false

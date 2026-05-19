@@ -14,7 +14,9 @@
     "test": "pnpm --dir apps/desktop test",
     "typecheck": "pnpm --dir apps/desktop typecheck",
     "rust:fmt": "cargo fmt --all -- --check",
-    "rust:clippy": "cargo clippy --workspace --all-targets -- -D warnings",
-    "rust:test": "cargo test --workspace"
+    "rust:clippy": "cargo clippy-strict",
+    "rust:clippy:strict": "cargo clippy-strict",
+    "rust:test": "cargo test --workspace",
+    "rust:line-budget": "cargo xtask line-budget"
   }
 }

@@ -57,7 +57,7 @@ mod tests {
         let request = EncodeVibeRequest::default();
 
         assert_eq!(request.model, VibeModel::NaiDiffusion45Full);
-        assert_eq!(request.information_extracted, 1.0);
+        assert!((request.information_extracted - 1.0).abs() < f32::EPSILON);
         assert!(request.strict_mode);
     }
 }

@@ -1,0 +1,10 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+bytecount = "0.6"
+clap = { version = "4", features = ["derive"] }
+walkdir = "2"

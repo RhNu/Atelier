@@ -40,7 +40,7 @@ impl std::fmt::Display for NovelAiErrorKind {
     }
 }
 
-/// Stable error shape returned by internal NovelAI ports.
+/// Stable error shape returned by internal `NovelAI` ports.
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 #[error("{kind}: {message}")]
 pub struct NovelAiError {
