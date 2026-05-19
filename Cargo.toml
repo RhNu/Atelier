@@ -1,7 +1,11 @@
 [workspace]
 members = [
     "apps/desktop/src-tauri",
+    "crates/adapters/novelai",
     "crates/foundation",
+    "crates/features/director",
+    "crates/features/generation",
+    "crates/features/secrets",
+    "crates/features/vibe",
 ]
 resolver = "3"
-

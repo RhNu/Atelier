@@ -1,0 +1,2 @@
+[alias]
+clippy-strict = "clippy --workspace --all-targets -- -D warnings"

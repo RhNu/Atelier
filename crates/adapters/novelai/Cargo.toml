@@ -1,0 +1,15 @@
+[package]
+name = "nai-atelier-adapter-novelai"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+async-trait = "0.1"
+futures-core = "0.3"
+futures-util = "0.3"
+nai-atelier-director = { path = "../../features/director" }
+nai-atelier-foundation = { path = "../../foundation" }
+nai-atelier-generation = { path = "../../features/generation" }
+nai-atelier-secrets = { path = "../../features/secrets" }
+nai-atelier-vibe = { path = "../../features/vibe" }
+novelai-bridge = "0.2.1"
