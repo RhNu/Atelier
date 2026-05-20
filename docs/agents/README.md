@@ -20,6 +20,7 @@ For task-specific context, read only the relevant decision records:
 - `kernel-generation-workflow.md`: implemented `kernel` generation, streaming, Vibe, and precise-reference workflow boundaries.
 - `sqlite-database-adapter.md`: SQLite adapter choice, schema scope, and adapter-local DTO boundary.
 - `secrets-keyring-pipeline.md`: API key registry, keyring storage, explicit subscription probe, and resolver-backed NovelAI adapter.
+- `prompt-lexicon-workflow.md`: prompt lexicon source assets, Rust `xtask` build/check workflow, v1 generated schema, and `nait` source notes.
 
 ## Current Consensus
 
@@ -41,6 +42,7 @@ Implemented or partially implemented:
 - `crates/features/resource-catalog`
 - `crates/features/prompt`
 - `crates/features/prompt-resources`
+- `crates/features/prompt-lexicon`
 - `crates/features/generation`
 - `crates/features/jobs`
 - `crates/features/artifacts`
@@ -60,7 +62,6 @@ Still planned or intentionally not present:
 - `app`
 - `app-api`
 - `features/settings`
-- `features/prompt-lexicon`
 - `adapters/image-codec`
 - `adapters/safety-onnx`
 - `adapters/desktop-system`

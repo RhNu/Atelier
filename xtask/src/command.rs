@@ -3,7 +3,10 @@ use std::path::Path;
 
 use clap::{Args, Parser, Subcommand, error::ErrorKind};
 
-use crate::{LineBudgetConfig, LineBudgetLevel, check_line_budget};
+use crate::{
+    LineBudgetConfig, LineBudgetLevel, PromptLexiconBuildConfig, build_prompt_lexicon,
+    check_line_budget, check_prompt_lexicon,
+};
 
 const DEFAULT_WARN_LINES: usize = 600;
 const DEFAULT_DENY_LINES: usize = 1200;
@@ -19,6 +22,8 @@ struct Xtask {
 enum XtaskCommand {
     #[command(about = "Check Rust source files against warning and deny line budgets")]
     LineBudget(LineBudgetArgs),
+    #[command(about = "Build or check prompt lexicon assets")]
+    Lexicon(LexiconArgs),
 }
 
 #[derive(Copy, Clone, Debug, Args)]
@@ -27,6 +32,20 @@ struct LineBudgetArgs {
     warn_lines: usize,
     #[arg(long, default_value_t = DEFAULT_DENY_LINES)]
     deny_lines: usize,
+}
+
+#[derive(Debug, Args)]
+struct LexiconArgs {
+    #[command(subcommand)]
+    command: LexiconCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum LexiconCommand {
+    #[command(about = "Build the generated prompt lexicon asset")]
+    Build,
+    #[command(about = "Check the generated prompt lexicon asset is up to date")]
+    Check,
 }
 
 /// Runs `xtask` using process arguments and the current working directory.
@@ -71,6 +90,7 @@ pub fn run_in_workspace(
 
     match xtask.command {
         XtaskCommand::LineBudget(args) => run_line_budget(workspace_root, &args),
+        XtaskCommand::Lexicon(args) => run_lexicon(workspace_root, &args),
     }
 }
 
@@ -121,5 +141,30 @@ fn run_line_budget(workspace_root: impl AsRef<Path>, args: &LineBudgetArgs) -> R
         Err("line budget check failed".to_owned())
     } else {
         Ok(())
+    }
+}
+
+fn run_lexicon(workspace_root: impl AsRef<Path>, args: &LexiconArgs) -> Result<(), String> {
+    let config = PromptLexiconBuildConfig::default_for_workspace(workspace_root);
+    match args.command {
+        LexiconCommand::Build => {
+            let summary = build_prompt_lexicon(&config)?;
+            println!(
+                "Prompt lexicon built: {} total={} categorized={} other={} weighted={} translations={} aliased={}",
+                summary.output_file.display(),
+                summary.total_tags,
+                summary.categorized_tags,
+                summary.uncategorized_tags,
+                summary.matched_weights,
+                summary.total_translations,
+                summary.tags_with_aliases
+            );
+            Ok(())
+        }
+        LexiconCommand::Check => {
+            check_prompt_lexicon(&config)?;
+            println!("Generated prompt lexicon is up to date.");
+            Ok(())
+        }
     }
 }

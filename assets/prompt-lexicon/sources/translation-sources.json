@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "aaalice_danbooru",
+      "path": "translations/aaalice/danbooru.csv",
+      "parser": "simple_csv",
+      "priority": 400,
+      "allow_primary": true
+    },
+    {
+      "id": "aaalice_danbooru_zh",
+      "path": "translations/aaalice/danbooru_zh.csv",
+      "parser": "simple_csv",
+      "priority": 390,
+      "allow_primary": true
+    },
+    {
+      "id": "aaalice_wai_characters",
+      "path": "translations/aaalice/wai_characters.csv",
+      "parser": "reversed_csv",
+      "priority": 380,
+      "allow_primary": true
+    },
+    {
+      "id": "aaalice_github_chening233",
+      "path": "translations/aaalice/github_chening233.csv",
+      "parser": "github_csv",
+      "priority": 370,
+      "allow_primary": true
+    },
+    {
+      "id": "aaalice_hf_danbooru_tags",
+      "path": "translations/aaalice/hf_danbooru_tags.csv",
+      "parser": "alias_csv",
+      "priority": 200,
+      "alias_only": true,
+      "allow_primary": false
+    },
+    {
+      "id": "repo_weighted_danbooru",
+      "path": "danbooru.csv",
+      "parser": "weighted_csv",
+      "priority": 100,
+      "allow_primary": true
+    }
+  ]
+}
