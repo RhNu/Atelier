@@ -2852,6 +2852,7 @@ dependencies = [
  "async-trait",
  "futures-core",
  "nai-atelier-foundation",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

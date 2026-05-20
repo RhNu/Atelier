@@ -8,3 +8,4 @@ publish.workspace = true
 async-trait = "0.1"
 futures-core = "0.3"
 nai-atelier-foundation = { path = "../../foundation" }
+thiserror = "2"
