@@ -7,20 +7,36 @@ use nai_atelier_kernel::{KernelEvent, KernelEventKind};
 use crate::mapping::resource_ref_to_dto;
 
 const MAX_RETAINED_EVENTS: usize = 1024;
+pub type AppEventListener = Arc<dyn Fn(AppEventDto) + Send + Sync + 'static>;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct AppEventHub {
     events: Arc<Mutex<Vec<AppEventDto>>>,
+    listeners: Arc<Mutex<Vec<AppEventListener>>>,
 }
 
 impl AppEventHub {
     pub fn push_kernel_event(&self, event: KernelEvent) {
+        let event = kernel_event_to_dto(event);
         if let Ok(mut events) = self.events.lock() {
-            events.push(kernel_event_to_dto(event));
+            events.push(event.clone());
             let overflow = events.len().saturating_sub(MAX_RETAINED_EVENTS);
             if overflow > 0 {
                 events.drain(..overflow);
             }
+        }
+        let listeners = self
+            .listeners
+            .lock()
+            .map_or_else(|_| Vec::new(), |listeners| listeners.clone());
+        for listener in listeners {
+            listener(event.clone());
+        }
+    }
+
+    pub fn subscribe(&self, listener: AppEventListener) {
+        if let Ok(mut listeners) = self.listeners.lock() {
+            listeners.push(listener);
         }
     }
 

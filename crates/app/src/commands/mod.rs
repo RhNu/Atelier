@@ -15,12 +15,12 @@ use nai_atelier_adapter_keyring::KeyringSecretStore;
 use nai_atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory,
 };
-use nai_atelier_app_api::error::ErrorEnvelopeDto;
+use nai_atelier_app_api::{error::ErrorEnvelopeDto, event::AppEventDto};
 use nai_atelier_safety::SafetyScanner;
 use nai_atelier_secrets::SecretStore;
 use nai_atelier_vibe::EmbeddedVibeDocumentExtractor;
 
-use crate::{AppError, AppResult, AtelierApp};
+use crate::{AppError, AppEventListener, AppResult, AtelierApp};
 
 pub type CommandResult<T> = Result<T, ErrorEnvelopeDto>;
 type Session<S, F, E> = Option<Arc<AtelierApp<S, F, E>>>;
@@ -36,6 +36,7 @@ pub struct AppCommandHost<
     factory: F,
     extractor: E,
     safety_scanner: Option<Arc<dyn SafetyScanner>>,
+    event_listeners: Mutex<Vec<AppEventListener>>,
 }
 
 impl AppCommandHost<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbeddedVibeExtractor> {
@@ -67,6 +68,7 @@ impl<S, F, E> AppCommandHost<S, F, E> {
             factory,
             extractor,
             safety_scanner: None,
+            event_listeners: Mutex::new(Vec::new()),
         }
     }
 
@@ -83,6 +85,7 @@ impl<S, F, E> AppCommandHost<S, F, E> {
             factory,
             extractor,
             safety_scanner,
+            event_listeners: Mutex::new(Vec::new()),
         }
     }
 
@@ -100,6 +103,29 @@ impl<S, F, E> AppCommandHost<S, F, E> {
                 "app command session state is unavailable",
             )
         })
+    }
+
+    /// Subscribes to app events from the current and future workspace sessions.
+    ///
+    /// # Errors
+    /// Returns an error envelope when event listener or session state is unavailable.
+    pub fn subscribe_events(
+        &self,
+        listener: Arc<dyn Fn(AppEventDto) + Send + Sync + 'static>,
+    ) -> CommandResult<()> {
+        self.event_listeners
+            .lock()
+            .map_err(|_| {
+                ErrorEnvelopeDto::new(
+                    "command_state_poisoned",
+                    "app event listener state is unavailable",
+                )
+            })?
+            .push(listener.clone());
+        if let Some(app) = self.lock_session()?.as_ref() {
+            app.inner.events.subscribe(listener);
+        }
+        Ok(())
     }
 
     pub(crate) fn command_result<T>(result: AppResult<T>) -> CommandResult<T> {
@@ -136,6 +162,19 @@ where
             .await
             .map_err(|error| error.envelope())?,
         );
+        let listeners = self
+            .event_listeners
+            .lock()
+            .map_err(|_| {
+                ErrorEnvelopeDto::new(
+                    "command_state_poisoned",
+                    "app event listener state is unavailable",
+                )
+            })?
+            .clone();
+        for listener in listeners {
+            app.inner.events.subscribe(listener);
+        }
         *self.lock_session()? = Some(app.clone());
         Ok(app)
     }

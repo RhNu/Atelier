@@ -1,14 +1,16 @@
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use futures_executor::block_on;
 use nai_atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
 use nai_atelier_app::AppCommandHost;
+use nai_atelier_app::GenerationWorkerCancel;
 use nai_atelier_app_api::account::{
     CreateApiKeyRequestDto, ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto,
 };
 use nai_atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
-use nai_atelier_app_api::event::EventsSinceRequestDto;
+use nai_atelier_app_api::event::{AppEventDto, AppEventKindDto, EventsSinceRequestDto};
 use nai_atelier_app_api::gallery::{
     GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto, GalleryQueryDto,
     GallerySafetyOverrideDto, SetGallerySafetyOverrideRequestDto,
@@ -38,8 +40,8 @@ use nai_atelier_director::{
     DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
 use nai_atelier_generation::{
-    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
-    ImageStreamResult, NovelAiGenerationClient,
+    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationClientError,
+    GenerationResult, ImageStreamResult, NovelAiGenerationClient,
 };
 use nai_atelier_secrets::{
     SecretRecordId, SecretStore, SecretValue, SecretsResult, SubscriptionClient,
@@ -351,6 +353,147 @@ fn generation_events_and_gallery_commands_share_session() {
 }
 
 #[test]
+fn generation_worker_drives_submitted_job_to_idle() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let factory = RecordingFactory::default();
+        let host = test_host_with_factory(factory.clone());
+        open_workspace(&host, &temp).await;
+        create_active_key(&host).await;
+        upsert_hero_chunk(&host).await;
+
+        let directive = host
+            .submit_generation(submit_request("batch-worker", "job-worker"))
+            .await
+            .unwrap();
+        let final_directive = host
+            .drive_generation_queue(directive, GenerationWorkerCancel::new())
+            .await
+            .unwrap();
+
+        assert_eq!(final_directive, QueueDirectiveDto::Idle);
+        assert_eq!(factory.secrets(), vec!["active-secret".to_owned()]);
+        let status = host
+            .generation_status(GenerationStatusQueryDto {
+                job_id: Some("job-worker".to_owned()),
+            })
+            .await
+            .unwrap();
+        assert_eq!(status.batch_status.as_deref(), Some("succeeded"));
+        assert_eq!(status.job_status.as_deref(), Some("succeeded"));
+        assert_eq!(
+            host.query_gallery(GalleryQueryDto::default())
+                .await
+                .unwrap()
+                .total,
+            1
+        );
+    });
+}
+
+#[test]
+fn generation_worker_advances_zero_delay() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host_with_factory(RecordingFactory::rate_limited_once());
+        open_workspace(&host, &temp).await;
+        create_active_key(&host).await;
+        upsert_hero_chunk(&host).await;
+
+        let directive = host
+            .submit_generation(submit_request("batch-delay", "job-delay"))
+            .await
+            .unwrap();
+        let final_directive = host
+            .drive_generation_queue(directive, GenerationWorkerCancel::new())
+            .await
+            .unwrap();
+
+        assert_eq!(final_directive, QueueDirectiveDto::Idle);
+    });
+}
+
+#[test]
+fn generation_worker_cancel_stops_during_wait_without_advancing_queue() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host_with_factory(RecordingFactory::rate_limited_once());
+        open_workspace(&host, &temp).await;
+        create_active_key(&host).await;
+        upsert_hero_chunk(&host).await;
+
+        host.submit_generation(submit_request("batch-cancel", "job-cancel"))
+            .await
+            .unwrap();
+        let wait = host
+            .run_generation_job(RunGenerationJobRequestDto {
+                job_id: "job-cancel".to_owned(),
+            })
+            .await
+            .unwrap();
+        assert!(matches!(wait, QueueDirectiveDto::Wait { .. }));
+        let cancel = GenerationWorkerCancel::new();
+        cancel.cancel();
+
+        let returned = host
+            .drive_generation_queue(wait.clone(), cancel)
+            .await
+            .unwrap();
+
+        assert_eq!(returned, wait);
+        let status = host
+            .generation_status(GenerationStatusQueryDto {
+                job_id: Some("job-cancel".to_owned()),
+            })
+            .await
+            .unwrap();
+        assert_eq!(status.batch_status.as_deref(), Some("waiting"));
+    });
+}
+
+#[test]
+fn event_subscription_receives_same_events_as_events_since() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host();
+        let received = Arc::new(Mutex::new(Vec::<AppEventDto>::new()));
+        let received_events = Arc::clone(&received);
+        host.subscribe_events(Arc::new(move |event| {
+            received_events.lock().unwrap().push(event);
+        }))
+        .unwrap();
+
+        open_workspace(&host, &temp).await;
+        create_active_key(&host).await;
+        upsert_hero_chunk(&host).await;
+        let directive = host
+            .submit_generation(submit_request("batch-events", "job-events"))
+            .await
+            .unwrap();
+        host.drive_generation_queue(directive, GenerationWorkerCancel::new())
+            .await
+            .unwrap();
+
+        let events = host
+            .events_since(EventsSinceRequestDto {
+                sequence: 0,
+                limit: 100,
+            })
+            .unwrap()
+            .items;
+        let pushed = received.lock().unwrap().clone();
+
+        assert_eq!(pushed, events);
+        assert!(pushed.iter().any(|event| {
+            matches!(
+                &event.kind,
+                AppEventKindDto::JobSucceeded { job_id, .. } if job_id == "job-events"
+            )
+        }));
+    });
+}
+
+#[test]
 fn prompt_lexicon_and_vibe_commands_are_available_through_facade() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
@@ -583,9 +726,19 @@ impl SecretStore for MemorySecretStore {
 #[derive(Clone, Default)]
 struct RecordingFactory {
     secrets: Arc<Mutex<Vec<String>>>,
+    rate_limit_first_generate: bool,
+    attempts: Arc<Mutex<u32>>,
 }
 
 impl RecordingFactory {
+    fn rate_limited_once() -> Self {
+        Self {
+            secrets: Arc::default(),
+            rate_limit_first_generate: true,
+            attempts: Arc::default(),
+        }
+    }
+
     fn secrets(&self) -> Vec<String> {
         self.secrets.lock().unwrap().clone()
     }
@@ -603,12 +756,18 @@ impl NovelAiClientFactory for RecordingFactory {
             .lock()
             .unwrap()
             .push(secret.expose_secret().to_owned());
-        Ok(RecordingClient)
+        Ok(RecordingClient {
+            rate_limit_first_generate: self.rate_limit_first_generate,
+            attempts: Arc::clone(&self.attempts),
+        })
     }
 }
 
 #[derive(Clone)]
-struct RecordingClient;
+struct RecordingClient {
+    rate_limit_first_generate: bool,
+    attempts: Arc<Mutex<u32>>,
+}
 
 #[async_trait]
 impl NovelAiGenerationClient for RecordingClient {
@@ -616,6 +775,19 @@ impl NovelAiGenerationClient for RecordingClient {
         &self,
         _request: GenerateImageRequest,
     ) -> GenerationResult<Vec<GeneratedImage>> {
+        let should_rate_limit = {
+            let mut attempts = self.attempts.lock().unwrap();
+            let should_rate_limit = self.rate_limit_first_generate && *attempts == 0;
+            *attempts += 1;
+            should_rate_limit
+        };
+        if should_rate_limit {
+            return Err(GenerationClientError::rate_limited(
+                429,
+                Some(Duration::from_millis(0)),
+                "slow down",
+            ));
+        }
         Ok(vec![GeneratedImage {
             bytes: vec![1, 2, 3],
             mime_type: Some("image/png".to_owned()),

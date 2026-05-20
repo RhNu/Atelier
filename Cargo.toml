@@ -8,6 +8,7 @@ members = [
     "crates/adapters/image-codec",
     "crates/adapters/database",
     "crates/adapters/storage-fs",
+    "crates/adapters/desktop-system",
     "crates/adapters/safety-onnx",
     "crates/foundation",
     "crates/kernel",
