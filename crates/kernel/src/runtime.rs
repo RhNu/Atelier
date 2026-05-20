@@ -1,11 +1,14 @@
 use nai_atelier_jobs::{
     BatchStatus, JobId, JobKind, JobPayloadRef, JobQueue, JobStatus, QueueDirective, SubmitJob,
 };
+use nai_atelier_precise_reference::PreciseReferenceInput;
 
 use crate::{
-    GenerationPayloadStore, KernelClock, KernelError, KernelEvent, KernelEventKind,
-    KernelEventSink, KernelGenerationPorts, KernelResult, SubmitGenerationWork,
-    SubmittedGenerationPayload,
+    EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
+    GenerationPayloadStore, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
+    ImportedVibeDocuments, KernelClock, KernelError, KernelEvent, KernelEventKind, KernelEventSink,
+    KernelGenerationPorts, KernelPreciseReferencePorts, KernelResult, KernelVibePorts,
+    SubmitGenerationWork, SubmittedGenerationPayload,
 };
 
 #[derive(Clone, Debug)]
@@ -164,6 +167,76 @@ where
                 kind,
             })
             .await;
+    }
+}
+
+impl<P> KernelRuntime<P>
+where
+    P: KernelVibePorts,
+{
+    /// Imports official Vibe JSON and registers its document resources.
+    ///
+    /// # Errors
+    /// Returns an error when the document is invalid, resource registration
+    /// fails, or repository persistence fails.
+    pub async fn import_vibe_document(
+        &self,
+        request: ImportVibeDocument,
+    ) -> KernelResult<ImportedVibeDocuments> {
+        crate::workflow::vibe::import_vibe_document(self, request).await
+    }
+
+    /// Extracts an embedded Vibe document from PNG bytes and imports it.
+    ///
+    /// # Errors
+    /// Returns an error when extraction, import, resource registration, or
+    /// repository persistence fails.
+    pub async fn import_embedded_png_vibe_document(
+        &self,
+        request: ImportEmbeddedPngVibeDocument,
+    ) -> KernelResult<ImportedVibeDocuments> {
+        crate::workflow::vibe::import_embedded_png_vibe_document(self, request).await
+    }
+
+    /// Exports one or more managed Vibes as official JSON.
+    ///
+    /// # Errors
+    /// Returns an error when a Vibe cannot be found, its document resource
+    /// cannot be read, or the requested format is invalid for the selection.
+    pub async fn export_vibe_document(
+        &self,
+        request: ExportVibeDocument,
+    ) -> KernelResult<ExportedVibeDocument> {
+        crate::workflow::vibe::export_vibe_document(self, request).await
+    }
+
+    /// Ensures a model/settings-specific Vibe encoding exists for a source image.
+    ///
+    /// # Errors
+    /// Returns an error when cache lookup, `NovelAI` encoding, resource
+    /// registration, or cache persistence fails.
+    pub async fn ensure_vibe_encoding(
+        &self,
+        request: EnsureVibeEncoding,
+    ) -> KernelResult<EnsuredVibeEncoding> {
+        crate::workflow::vibe::ensure_vibe_encoding(self, request).await
+    }
+}
+
+impl<P> KernelRuntime<P>
+where
+    P: KernelPreciseReferencePorts,
+{
+    /// Resolves a resource-backed precise reference into a generation input.
+    ///
+    /// # Errors
+    /// Returns an error when the source resource cannot be resolved or is not a
+    /// valid precise-reference image.
+    pub async fn prepare_precise_reference(
+        &self,
+        input: PreciseReferenceInput,
+    ) -> KernelResult<nai_atelier_generation::CharacterReference> {
+        crate::workflow::precise_reference::prepare_precise_reference(self, input).await
     }
 }
 

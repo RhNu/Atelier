@@ -12,6 +12,7 @@ members = [
     "crates/features/jobs",
     "crates/features/prompt",
     "crates/features/prompt-resources",
+    "crates/features/precise-reference",
     "crates/features/resource-catalog",
     "crates/features/safety",
     "crates/features/secrets",

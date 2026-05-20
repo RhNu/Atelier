@@ -1,4 +1,7 @@
 #![allow(clippy::significant_drop_tightening)]
+#![allow(dead_code)]
+
+mod vibe;
 
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -16,8 +19,9 @@ use nai_atelier_generation::{
 };
 use nai_atelier_kernel::{
     GenerationPayloadStore, KernelClock, KernelEvent, KernelEventSink, KernelGenerationPorts,
-    PreparedGenerationPayload, SubmittedGenerationPayload,
+    KernelPreciseReferencePorts, PreparedGenerationPayload, SubmittedGenerationPayload,
 };
+use nai_atelier_precise_reference::{PreciseReferenceImage, PreciseReferenceResult};
 use nai_atelier_prompt_resources::{
     CompilePromptRequest, CompiledPrompt, PromptResourceResult, PromptTrace,
 };
@@ -26,6 +30,7 @@ use nai_atelier_resource_catalog::{
     ResourceRecord, ResourceRef, ResourceResult, ResourceState,
 };
 use nai_atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyError, SafetyResult};
+use nai_atelier_vibe::{VibeDocumentEntry, VibeEncodingRecord};
 
 #[derive(Clone, Default)]
 pub struct MemoryKernelPorts {
@@ -42,8 +47,13 @@ struct State {
     generated_images: Vec<GeneratedImage>,
     stream_items: VecDeque<GenerationResult<ImageStreamEvent>>,
     resources: BTreeMap<String, RegisteredResource>,
+    precise_reference_images: BTreeMap<String, PreciseReferenceImage>,
     artifacts: BTreeMap<String, ArtifactRecord>,
     gallery_items: BTreeMap<String, GalleryItem>,
+    vibe_cache: BTreeMap<String, VibeEncodingRecord>,
+    vibe_documents: BTreeMap<String, VibeDocumentEntry>,
+    embedded_vibe_document: Option<String>,
+    encoded_vibe_payload: String,
     fail_generate: Option<NovelAiError>,
     failures: HashSet<FakeFailure>,
     now_ms: u64,
@@ -83,62 +93,69 @@ impl MemoryKernelPorts {
         self
     }
 
+    pub fn with_encoded_vibe_payload(self, payload: &str) -> Self {
+        payload.clone_into(&mut self.state.lock().unwrap().encoded_vibe_payload);
+        self
+    }
+
+    pub fn with_embedded_vibe_document(self, document: &str) -> Self {
+        self.state.lock().unwrap().embedded_vibe_document = Some(document.to_owned());
+        self
+    }
+
+    pub fn with_cached_vibe_encoding(self, record: VibeEncodingRecord) -> Self {
+        let key = record.settings.cache_key(&record.source);
+        self.state.lock().unwrap().vibe_cache.insert(key, record);
+        self
+    }
+
+    pub fn with_precise_reference_image(
+        self,
+        reference: &ResourceRef,
+        kind: ResourceKind,
+        payload: &str,
+    ) -> Self {
+        self.state.lock().unwrap().precise_reference_images.insert(
+            reference.id.as_str().to_owned(),
+            PreciseReferenceImage {
+                kind,
+                payload: payload.to_owned(),
+            },
+        );
+        self
+    }
+
     pub fn failing_generate(self, error: NovelAiError) -> Self {
         self.state.lock().unwrap().fail_generate = Some(error);
         self
     }
 
     pub fn failing_compile_prompt(self) -> Self {
-        self.state
-            .lock()
-            .unwrap()
-            .failures
-            .insert(FakeFailure::CompilePrompt);
-        self
+        self.failing(FakeFailure::CompilePrompt)
     }
 
     pub fn failing_prepared_payload(self) -> Self {
-        self.state
-            .lock()
-            .unwrap()
-            .failures
-            .insert(FakeFailure::PreparedPayload);
-        self
+        self.failing(FakeFailure::PreparedPayload)
     }
 
     pub fn failing_resource(self) -> Self {
-        self.state
-            .lock()
-            .unwrap()
-            .failures
-            .insert(FakeFailure::Resource);
-        self
+        self.failing(FakeFailure::Resource)
     }
 
     pub fn failing_artifact(self) -> Self {
-        self.state
-            .lock()
-            .unwrap()
-            .failures
-            .insert(FakeFailure::Artifact);
-        self
+        self.failing(FakeFailure::Artifact)
     }
 
     pub fn failing_gallery(self) -> Self {
-        self.state
-            .lock()
-            .unwrap()
-            .failures
-            .insert(FakeFailure::Gallery);
-        self
+        self.failing(FakeFailure::Gallery)
     }
 
     pub fn failing_safety(self) -> Self {
-        self.state
-            .lock()
-            .unwrap()
-            .failures
-            .insert(FakeFailure::Safety);
+        self.failing(FakeFailure::Safety)
+    }
+
+    fn failing(self, failure: FakeFailure) -> Self {
+        self.state.lock().unwrap().failures.insert(failure);
         self
     }
 
@@ -174,6 +191,13 @@ impl MemoryKernelPorts {
         self.operations()
             .into_iter()
             .filter(|operation| operation == "generate")
+            .count()
+    }
+
+    pub fn encode_vibe_call_count(&self) -> usize {
+        self.operations()
+            .into_iter()
+            .filter(|operation| operation == "encode_vibe")
             .count()
     }
 
@@ -376,6 +400,26 @@ impl NovelAiGenerationClient for MemoryKernelPorts {
         state.operations.push("generate_stream".to_owned());
         let items = state.stream_items.drain(..).collect::<Vec<_>>();
         Ok(Box::pin(stream::iter(items)))
+    }
+}
+
+#[async_trait]
+impl KernelPreciseReferencePorts for MemoryKernelPorts {
+    async fn read_precise_reference_image(
+        &self,
+        source: &ResourceRef,
+    ) -> PreciseReferenceResult<PreciseReferenceImage> {
+        self.state
+            .lock()
+            .unwrap()
+            .precise_reference_images
+            .get(source.id.as_str())
+            .cloned()
+            .ok_or_else(|| {
+                nai_atelier_precise_reference::PreciseReferenceError::not_found(
+                    "precise reference image is missing",
+                )
+            })
     }
 }
 

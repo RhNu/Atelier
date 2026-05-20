@@ -3,9 +3,11 @@ use nai_atelier_artifacts::{ArtifactRecord, ArtifactResult, RegisterArtifactRequ
 use nai_atelier_gallery::{GalleryItem, GalleryResult};
 use nai_atelier_generation::NovelAiGenerationClient;
 use nai_atelier_jobs::JobPayloadRef;
+use nai_atelier_precise_reference::{PreciseReferenceImage, PreciseReferenceResult};
 use nai_atelier_prompt_resources::{CompilePromptRequest, CompiledPrompt, PromptResourceResult};
 use nai_atelier_resource_catalog::{RegisterResourceRequest, ResourceRef, ResourceResult};
 use nai_atelier_safety::{SafetyAssessment, SafetyResult};
+use nai_atelier_vibe::{EmbeddedVibeDocumentExtractor, NovelAiVibeClient, VibeRepository};
 
 use crate::{KernelEvent, KernelResult, PreparedGenerationPayload, SubmittedGenerationPayload};
 
@@ -56,4 +58,27 @@ pub trait KernelGenerationPorts: NovelAiGenerationClient + Send + Sync {
         indexed_at_ms: u64,
         safety_assessment: Option<SafetyAssessment>,
     ) -> GalleryResult<GalleryItem>;
+}
+
+#[async_trait]
+pub trait KernelVibePorts:
+    NovelAiVibeClient + EmbeddedVibeDocumentExtractor + VibeRepository + Send + Sync
+{
+    async fn register_vibe_resource(
+        &self,
+        request: RegisterResourceRequest,
+    ) -> ResourceResult<ResourceRef>;
+
+    async fn read_vibe_document_resource(
+        &self,
+        reference: &ResourceRef,
+    ) -> nai_atelier_vibe::VibeDomainResult<String>;
+}
+
+#[async_trait]
+pub trait KernelPreciseReferencePorts: Send + Sync {
+    async fn read_precise_reference_image(
+        &self,
+        source: &ResourceRef,
+    ) -> PreciseReferenceResult<PreciseReferenceImage>;
 }

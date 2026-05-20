@@ -2878,9 +2878,21 @@ dependencies = [
  "nai-atelier-gallery",
  "nai-atelier-generation",
  "nai-atelier-jobs",
+ "nai-atelier-precise-reference",
  "nai-atelier-prompt-resources",
  "nai-atelier-resource-catalog",
  "nai-atelier-safety",
+ "nai-atelier-vibe",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nai-atelier-precise-reference"
+version = "0.1.0"
+dependencies = [
+ "nai-atelier-generation",
+ "nai-atelier-resource-catalog",
  "thiserror 2.0.18",
 ]
 
@@ -2935,7 +2947,12 @@ name = "nai-atelier-vibe"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "nai-atelier-foundation",
+ "nai-atelier-resource-catalog",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

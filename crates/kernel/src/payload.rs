@@ -3,6 +3,10 @@ use nai_atelier_generation::{
 };
 use nai_atelier_jobs::{BatchId, JobId, JobPayloadRef};
 use nai_atelier_prompt_resources::CompiledPrompt;
+use nai_atelier_vibe::{
+    VibeDocumentEntry, VibeEncodeSettings, VibeEncodingRecord, VibeExportDocument,
+    VibeExportFormat, VibeId, VibeSourceIdentity,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GenerationWorkRequest {
@@ -55,4 +59,46 @@ pub struct PreparedGenerationPayload {
     pub request: GenerationWorkRequest,
     pub compiled_prompt: CompiledPrompt,
     pub plan: GenerationRequestPlan,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct EnsureVibeEncoding {
+    pub vibe_id: VibeId,
+    pub source: VibeSourceIdentity,
+    pub image: String,
+    pub settings: VibeEncodeSettings,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct EnsuredVibeEncoding {
+    pub record: VibeEncodingRecord,
+    pub created: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportVibeDocument {
+    pub file_name: String,
+    pub content: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImportEmbeddedPngVibeDocument {
+    pub file_name: String,
+    pub png_bytes: Vec<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ImportedVibeDocuments {
+    pub entries: Vec<VibeDocumentEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExportVibeDocument {
+    pub vibe_ids: Vec<VibeId>,
+    pub format: VibeExportFormat,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExportedVibeDocument {
+    pub document: VibeExportDocument,
 }

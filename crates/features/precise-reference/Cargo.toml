@@ -1,14 +1,10 @@
 [package]
-name = "nai-atelier-vibe"
+name = "nai-atelier-precise-reference"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
 
 [dependencies]
-async-trait = "0.1"
-base64 = "0.22"
-nai-atelier-foundation = { path = "../../foundation" }
+nai-atelier-generation = { path = "../generation" }
 nai-atelier-resource-catalog = { path = "../resource-catalog" }
-serde_json = "1"
-sha2 = "0.10"
 thiserror = "2"

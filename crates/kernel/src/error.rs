@@ -3,9 +3,11 @@ use nai_atelier_foundation::NovelAiError;
 use nai_atelier_gallery::GalleryError;
 use nai_atelier_generation::GenerationError;
 use nai_atelier_jobs::{JobPayloadRef, JobQueueError};
+use nai_atelier_precise_reference::PreciseReferenceError;
 use nai_atelier_prompt_resources::PromptResourceError;
 use nai_atelier_resource_catalog::ResourceCatalogError;
 use nai_atelier_safety::SafetyError;
+use nai_atelier_vibe::VibeError;
 use thiserror::Error;
 
 pub type KernelResult<T> = Result<T, KernelError>;
@@ -26,6 +28,10 @@ pub enum KernelError {
     Gallery(#[from] GalleryError),
     #[error("safety scan failed: {0}")]
     Safety(#[from] SafetyError),
+    #[error("vibe workflow failed: {0}")]
+    Vibe(#[from] VibeError),
+    #[error("precise reference workflow failed: {0}")]
+    PreciseReference(#[from] PreciseReferenceError),
     #[error("novelai generation failed: {0}")]
     NovelAi(#[from] NovelAiError),
     #[error("payload store failed: {0}")]

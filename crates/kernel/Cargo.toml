@@ -14,9 +14,12 @@ nai-atelier-foundation = { path = "../foundation" }
 nai-atelier-gallery = { path = "../features/gallery" }
 nai-atelier-generation = { path = "../features/generation" }
 nai-atelier-jobs = { path = "../features/jobs" }
+nai-atelier-precise-reference = { path = "../features/precise-reference" }
 nai-atelier-prompt-resources = { path = "../features/prompt-resources" }
 nai-atelier-resource-catalog = { path = "../features/resource-catalog" }
 nai-atelier-safety = { path = "../features/safety" }
+nai-atelier-vibe = { path = "../features/vibe" }
+serde_json = "1"
 thiserror = "2"
 
 [dev-dependencies]

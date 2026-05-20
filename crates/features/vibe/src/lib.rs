@@ -1,47 +1,17 @@
-use async_trait::async_trait;
-use nai_atelier_foundation::NovelAiError;
+mod document;
+mod error;
+mod model;
+mod ports;
 
-pub type VibeResult<T> = Result<T, NovelAiError>;
-
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub enum VibeModel {
-    #[default]
-    NaiDiffusion45Full,
-    NaiDiffusion45Curated,
-    NaiDiffusion4Full,
-    NaiDiffusion4Curated,
-    NaiDiffusion3,
-    NaiDiffusion3Furry,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct EncodeVibeRequest {
-    pub image: String,
-    pub information_extracted: f32,
-    pub model: VibeModel,
-    pub strict_mode: bool,
-}
-
-impl Default for EncodeVibeRequest {
-    fn default() -> Self {
-        Self {
-            image: String::new(),
-            information_extracted: 1.0,
-            model: VibeModel::default(),
-            strict_mode: true,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct EncodedVibe {
-    pub payload: String,
-}
-
-#[async_trait]
-pub trait NovelAiVibeClient: Send + Sync {
-    async fn encode_vibe(&self, request: EncodeVibeRequest) -> VibeResult<EncodedVibe>;
-}
+pub use document::VibeDocumentCodec;
+pub use error::{VibeDomainResult, VibeError, VibeErrorKind};
+pub use model::{
+    EncodeVibeRequest, EncodedVibe, VibeDocumentEntry, VibeDocumentResources, VibeDocumentSummary,
+    VibeEncodeSettings, VibeEncodingConfig, VibeEncodingRecord, VibeExportDocument,
+    VibeExportEntry, VibeExportFormat, VibeId, VibeImportDocument, VibeImportEntry,
+    VibeImportedEncoding, VibeModel, VibeResult, VibeSourceIdentity,
+};
+pub use ports::{EmbeddedVibeDocumentExtractor, NovelAiVibeClient, VibeRepository};
 
 #[cfg(test)]
 mod tests {
