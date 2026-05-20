@@ -13,6 +13,7 @@
 5. `inheritance-options.md`
 6. `scaffold-decision.md`
 7. `kernel-generation-workflow.md`
+8. `sqlite-database-adapter.md`
 
 ## 当前共识
 
@@ -30,6 +31,7 @@
 - 任务调度、Prompt 工作区、Gallery、Vibe 管理应按 feature 独立演进，并通过 trait/port 与集中 adapters 连接真实 I/O。
 - 后端落地顺序以边界和测试替换性为验收目标，不以打通最短 MVP 链路为目标。
 - `kernel-generation-workflow.md` 记录首轮 `nai-atelier-kernel` 的 generation/streaming 编排边界；`kernel` 只组合 feature service/ports，不拥有真实 I/O 或 Tauri command。
+- `sqlite-database-adapter.md` 记录当前真实持久化 adapter 的 SQLite 选型、adapter-local DTO/`JsonCodec` 边界与 v1 schema 范围。
 
 ## 非目标
 

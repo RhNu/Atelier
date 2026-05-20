@@ -19,6 +19,7 @@
 7. `docs/agents/inheritance-options.md`
 8. `docs/agents/scaffold-decision.md`
 9. `docs/agents/kernel-generation-workflow.md`
+10. `docs/agents/sqlite-database-adapter.md`
 
 ## 工作规则
 

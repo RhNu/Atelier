@@ -1,0 +1,140 @@
+use rusqlite::{Connection, params};
+
+use crate::error::DatabaseResult;
+
+const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_SQL: &str = r"
+CREATE TABLE IF NOT EXISTS resources (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    lifecycle TEXT NOT NULL,
+    state TEXT NOT NULL,
+    blob_id TEXT NOT NULL,
+    mime_type TEXT,
+    byte_size INTEGER,
+    content_hash TEXT,
+    width INTEGER,
+    height INTEGER,
+    created_at_ms INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS resource_links (
+    resource_id TEXT NOT NULL,
+    owner_kind TEXT NOT NULL,
+    owner_local_id TEXT NOT NULL,
+    relation TEXT NOT NULL,
+    PRIMARY KEY (resource_id, owner_kind, owner_local_id, relation),
+    FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_resource_links_owner
+    ON resource_links(owner_kind, owner_local_id, resource_id);
+
+CREATE TABLE IF NOT EXISTS resource_variants (
+    variant_id TEXT PRIMARY KEY,
+    resource_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    blob_id TEXT NOT NULL,
+    mime_type TEXT,
+    byte_size INTEGER,
+    content_hash TEXT,
+    width INTEGER,
+    height INTEGER,
+    created_at_ms INTEGER,
+    FOREIGN KEY (resource_id) REFERENCES resources(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS orphan_blobs (
+    blob_id TEXT PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS generation_payloads (
+    payload_ref TEXT NOT NULL,
+    payload_kind TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    PRIMARY KEY (payload_kind, payload_ref)
+);
+
+CREATE INDEX IF NOT EXISTS idx_generation_payloads_ref
+    ON generation_payloads(payload_ref);
+
+CREATE TABLE IF NOT EXISTS vibe_documents (
+    vibe_id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    has_image INTEGER NOT NULL,
+    document_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS vibe_encodings (
+    cache_key TEXT PRIMARY KEY,
+    vibe_id TEXT NOT NULL,
+    source_hash TEXT NOT NULL,
+    model TEXT NOT NULL,
+    information_extracted_key TEXT NOT NULL,
+    record_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_vibe_encodings_lookup
+    ON vibe_encodings(source_hash, model, information_extracted_key);
+
+CREATE TABLE IF NOT EXISTS artifacts (
+    artifact_id TEXT PRIMARY KEY,
+    artifact_kind TEXT NOT NULL,
+    source_kind TEXT NOT NULL,
+    primary_resource_id TEXT NOT NULL,
+    primary_variant_id TEXT,
+    record_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS gallery_items (
+    item_id TEXT PRIMARY KEY,
+    artifact_id TEXT NOT NULL,
+    artifact_kind TEXT NOT NULL,
+    source_kind TEXT NOT NULL,
+    manual_safety_override TEXT,
+    indexed_at_ms INTEGER NOT NULL,
+    item_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_gallery_items_indexed_at
+    ON gallery_items(indexed_at_ms DESC, item_id ASC);
+CREATE INDEX IF NOT EXISTS idx_gallery_items_artifact_kind
+    ON gallery_items(artifact_kind);
+CREATE INDEX IF NOT EXISTS idx_gallery_items_source_kind
+    ON gallery_items(source_kind);
+CREATE INDEX IF NOT EXISTS idx_gallery_items_manual_safety_override
+    ON gallery_items(manual_safety_override);
+";
+
+pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
+    connection.execute_batch(
+        r"
+        PRAGMA foreign_keys = ON;
+
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            version INTEGER PRIMARY KEY,
+            applied_at_ms INTEGER NOT NULL DEFAULT (
+                CAST(strftime('%s', 'now') AS INTEGER) * 1000
+            )
+        );
+        ",
+    )?;
+
+    let applied = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = ?1)",
+        params![SCHEMA_VERSION],
+        |row| row.get::<_, bool>(0),
+    )?;
+    if applied {
+        return Ok(());
+    }
+
+    let tx = connection.transaction()?;
+    tx.execute_batch(SCHEMA_SQL)?;
+    tx.execute(
+        "INSERT INTO schema_migrations(version) VALUES (?1)",
+        params![SCHEMA_VERSION],
+    )?;
+    tx.commit()?;
+    Ok(())
+}

@@ -2,6 +2,7 @@
 members = [
     "apps/desktop/src-tauri",
     "crates/adapters/novelai",
+    "crates/adapters/database",
     "crates/adapters/storage-fs",
     "crates/foundation",
     "crates/kernel",

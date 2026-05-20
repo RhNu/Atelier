@@ -156,6 +156,8 @@ fake 测试：
 
 目标：每次只接一个真实外部能力，并保留 fake 实现。
 
+当前状态：`adapters/database` 已作为第一批真实结构化持久化 adapter 落地，覆盖当前 kernel workflows 已需要的 resource catalog、generation payload、Vibe、artifact 和 Gallery 持久化。后续 settings、secrets metadata、prompt resources 与 job queue 持久化仍需单独设计。
+
 建议顺序：
 
 1. `adapters/storage-fs`
