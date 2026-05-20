@@ -9,6 +9,7 @@ mod gallery;
 mod generation_codec;
 mod generation_payload;
 mod migration;
+mod prompt_resources;
 mod resource_catalog;
 mod vibe;
 
@@ -18,5 +19,6 @@ pub use connection::DatabaseConnection;
 pub use error::{DatabaseError, DatabaseResult};
 pub use gallery::DatabaseGalleryIndex;
 pub use generation_payload::DatabaseGenerationPayloadStore;
+pub use prompt_resources::DatabasePromptResourceRepository;
 pub use resource_catalog::DatabaseResourceCatalogRepository;
 pub use vibe::DatabaseVibeRepository;

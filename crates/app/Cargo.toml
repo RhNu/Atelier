@@ -1,0 +1,36 @@
+[package]
+name = "nai-atelier-app"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+futures = "0.3"
+nai-atelier-adapter-database = { path = "../adapters/database" }
+nai-atelier-adapter-keyring = { path = "../adapters/keyring" }
+nai-atelier-adapter-novelai = { path = "../adapters/novelai" }
+nai-atelier-adapter-storage-fs = { path = "../adapters/storage-fs" }
+nai-atelier-app-api = { path = "../app-api" }
+nai-atelier-artifacts = { path = "../features/artifacts" }
+nai-atelier-gallery = { path = "../features/gallery" }
+nai-atelier-generation = { path = "../features/generation" }
+nai-atelier-jobs = { path = "../features/jobs" }
+nai-atelier-kernel = { path = "../kernel" }
+nai-atelier-precise-reference = { path = "../features/precise-reference" }
+nai-atelier-prompt-lexicon = { path = "../features/prompt-lexicon" }
+nai-atelier-prompt-resources = { path = "../features/prompt-resources" }
+nai-atelier-resource-catalog = { path = "../features/resource-catalog" }
+nai-atelier-safety = { path = "../features/safety" }
+nai-atelier-secrets = { path = "../features/secrets" }
+nai-atelier-vibe = { path = "../features/vibe" }
+nai-atelier-workspace = { path = "../features/workspace" }
+thiserror = "2"
+
+[dev-dependencies]
+async-trait = "0.1"
+futures-executor = "0.3"
+futures-util = "0.3"
+nai-atelier-director = { path = "../features/director" }
+tempfile = "3"

@@ -3876,6 +3876,7 @@ name = "nai-atelier-adapter-storage-fs"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "futures-executor",
  "nai-atelier-resource-catalog",
  "nai-atelier-workspace",
@@ -3884,6 +3885,46 @@ dependencies = [
  "sha2",
  "tempfile",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nai-atelier-app"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "futures",
+ "futures-executor",
+ "futures-util",
+ "nai-atelier-adapter-database",
+ "nai-atelier-adapter-keyring",
+ "nai-atelier-adapter-novelai",
+ "nai-atelier-adapter-storage-fs",
+ "nai-atelier-app-api",
+ "nai-atelier-artifacts",
+ "nai-atelier-director",
+ "nai-atelier-gallery",
+ "nai-atelier-generation",
+ "nai-atelier-jobs",
+ "nai-atelier-kernel",
+ "nai-atelier-precise-reference",
+ "nai-atelier-prompt-lexicon",
+ "nai-atelier-prompt-resources",
+ "nai-atelier-resource-catalog",
+ "nai-atelier-safety",
+ "nai-atelier-secrets",
+ "nai-atelier-vibe",
+ "nai-atelier-workspace",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nai-atelier-app-api"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
