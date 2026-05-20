@@ -574,6 +574,7 @@ impl JsonCodec<GalleryItem> for GalleryItemDto {
 const fn visual_asset_role_as_str(value: VisualAssetRole) -> &'static str {
     match value {
         VisualAssetRole::Original => "original",
+        VisualAssetRole::Thumbnail => "thumbnail",
         VisualAssetRole::Preview => "preview",
         VisualAssetRole::Sanitized => "sanitized",
         VisualAssetRole::Export => "export",
@@ -583,6 +584,7 @@ const fn visual_asset_role_as_str(value: VisualAssetRole) -> &'static str {
 fn visual_asset_role_from_str(value: &str) -> DatabaseResult<VisualAssetRole> {
     match value {
         "original" => Ok(VisualAssetRole::Original),
+        "thumbnail" => Ok(VisualAssetRole::Thumbnail),
         "preview" => Ok(VisualAssetRole::Preview),
         "sanitized" => Ok(VisualAssetRole::Sanitized),
         "export" => Ok(VisualAssetRole::Export),

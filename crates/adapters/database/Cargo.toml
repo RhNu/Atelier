@@ -15,6 +15,7 @@ nai-atelier-prompt-resources = { path = "../../features/prompt-resources" }
 nai-atelier-resource-catalog = { path = "../../features/resource-catalog" }
 nai-atelier-safety = { path = "../../features/safety" }
 nai-atelier-secrets = { path = "../../features/secrets" }
+nai-atelier-settings = { path = "../../features/settings" }
 nai-atelier-vibe = { path = "../../features/vibe" }
 rusqlite = { version = "0.39.0", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }

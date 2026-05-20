@@ -1,0 +1,15 @@
+[package]
+name = "nai-atelier-adapter-image-codec"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = "0.1"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp"] }
+nai-atelier-resource-catalog = { path = "../../features/resource-catalog" }
+nai-atelier-settings = { path = "../../features/settings" }
+thiserror = "2"
+
+[dev-dependencies]
+futures-executor = "0.3"

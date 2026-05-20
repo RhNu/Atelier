@@ -26,7 +26,7 @@ features/kernel/app-api/adapters -> app
 app -> desktop host / frontend
 ```
 
-Current implementation has not introduced `app` or `app-api` yet. Existing backend work is concentrated in `foundation`, feature crates, `kernel`, and adapters.
+Current implementation includes host-neutral `app` and frontend-facing `app-api` crates. Backend work is concentrated in `foundation`, feature crates, `kernel`, adapters, and the host-neutral app facade.
 
 Hard boundaries:
 
@@ -43,6 +43,8 @@ Hard boundaries:
 crates/
   foundation/
   kernel/
+  app/
+  app-api/
 
   features/
     artifacts/
@@ -56,11 +58,13 @@ crates/
     resource-catalog/
     safety/
     secrets/
+    settings/
     vibe/
     workspace/
 
   adapters/
     database/
+    image-codec/
     keyring/
     novelai/
     storage-fs/
@@ -73,15 +77,7 @@ Planned but not currently present:
 
 ```text
 crates/
-  app-api/
-  app/
-
-  features/
-    settings/
-    prompt-lexicon/
-
   adapters/
-    image-codec/
     safety-onnx/
     desktop-system/
 ```
@@ -109,6 +105,7 @@ Feature crates are the default owner for domain concepts:
 - `safety`: safety scores, assessments, scanner port.
 - `secrets`: API key registry, active key semantics, secret resolver, subscription probe.
 - `precise-reference`: precise reference input processing and image reader port.
+- `settings`: workspace-local UI defaults for NovelAI generation prefill and image variant sizing.
 
 ### `kernel`
 
@@ -120,12 +117,13 @@ Adapters are the boundary for real I/O:
 
 - `storage-fs`: workspace filesystem operations, locks, resource blob storage.
 - `database`: SQLite-backed repositories and adapter-local JSON DTOs.
+- `image-codec`: PNG/JPEG/WebP probing plus deterministic gallery/export variant encoding.
 - `keyring`: system credential storage for secret values.
 - `novelai`: `novelai-bridge` integration and resolver-backed NovelAI clients.
 
 External library types should not leak upward into feature crates, `kernel`, or future `app-api`.
 
-### Future `app` and `app-api`
+### `app` and `app-api`
 
 `app-api` should hold frontend-visible contracts only: request/response DTOs, event DTOs, error envelopes, pagination, and query DTOs.
 

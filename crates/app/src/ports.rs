@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
@@ -5,12 +6,17 @@ use nai_atelier_adapter_database::{
     DatabaseArtifactRepository, DatabaseGalleryIndex, DatabaseGenerationPayloadStore,
     DatabasePromptResourceRepository, DatabaseResourceCatalogRepository, DatabaseVibeRepository,
 };
+use nai_atelier_adapter_image_codec::{
+    ImageCodec, ImageCodecVariantBuilder, ImageMetadataBlobStore, ImageSourceReader,
+    ImageVariantSettingsProvider,
+};
 use nai_atelier_adapter_novelai::{NovelAiClientFactory, ResolverBackedNovelAiAdapter};
 use nai_atelier_adapter_storage_fs::{
     FileSystemResourceBlobStore, FileSystemResourceContentReader,
 };
 use nai_atelier_artifacts::{
-    ArtifactRecord, ArtifactResult, ArtifactService, RegisterArtifactRequest,
+    ArtifactKind, ArtifactRecord, ArtifactResult, ArtifactService, RegisterArtifactRequest,
+    VisualAssetRef, VisualAssetRole,
 };
 use nai_atelier_gallery::{GalleryItem, GalleryResult, GalleryService};
 use nai_atelier_generation::{
@@ -29,11 +35,12 @@ use nai_atelier_prompt_resources::{
     CompilePromptRequest, CompiledPrompt, PromptCompiler, PromptResourceResult,
 };
 use nai_atelier_resource_catalog::{
-    BuildVariantRequest, BuiltResourceVariant, RegisterResourceRequest, ResourceCatalog,
-    ResourceCatalogError, ResourceRef, ResourceResult, ResourceVariantBuilder,
+    BlobWriteIntent, BuiltResourceVariant, CreateVariantRequest, RegisterResourceRequest,
+    ResourceCatalog, ResourceRef, ResourceResult, ResourceVariantKind, VariantId,
 };
 use nai_atelier_safety::{SafetyAssessment, SafetyResult};
 use nai_atelier_secrets::{ApiKeyRegistryService, SecretStore};
+use nai_atelier_settings::{ImageVariantSettings, WorkspaceSettings};
 use nai_atelier_vibe::{
     EmbeddedVibeDocumentExtractor, EncodeVibeRequest, EncodedVibe, NovelAiVibeClient,
     VibeDocumentEntry, VibeDomainResult, VibeEncodeSettings, VibeEncodingRecord, VibeError,
@@ -49,11 +56,11 @@ pub type AppApiKeyService<S, F> = ApiKeyRegistryService<
 >;
 
 pub type AppNovelAiAdapter<S, F> = ResolverBackedNovelAiAdapter<AppApiKeyService<S, F>, F>;
-pub type AppResourceCatalog = ResourceCatalog<
-    DatabaseResourceCatalogRepository,
-    FileSystemResourceBlobStore,
-    NoopVariantBuilder,
->;
+pub type AppBlobStore = ImageMetadataBlobStore<FileSystemResourceBlobStore>;
+pub type AppVariantBuilder =
+    ImageCodecVariantBuilder<AppImageSourceReader, SharedWorkspaceSettings>;
+pub type AppResourceCatalog =
+    ResourceCatalog<DatabaseResourceCatalogRepository, AppBlobStore, AppVariantBuilder>;
 pub type AppArtifactService =
     ArtifactService<DatabaseArtifactRepository, DatabaseResourceCatalogRepository>;
 pub type AppGalleryService = GalleryService<DatabaseGalleryIndex>;
@@ -70,20 +77,57 @@ pub struct AppKernelPorts<S, F, E> {
     pub vibes: DatabaseVibeRepository,
     pub extractor: E,
     pub events: AppEventHub,
+    pub settings_state: SharedWorkspaceSettings,
 }
 
 #[derive(Clone, Debug)]
-pub struct NoopVariantBuilder;
+pub struct SharedWorkspaceSettings {
+    inner: Arc<StdMutex<WorkspaceSettings>>,
+}
+
+impl SharedWorkspaceSettings {
+    #[must_use]
+    pub fn new(settings: WorkspaceSettings) -> Self {
+        Self {
+            inner: Arc::new(StdMutex::new(settings)),
+        }
+    }
+
+    pub fn replace(&self, settings: WorkspaceSettings) {
+        if let Ok(mut current) = self.inner.lock() {
+            *current = settings;
+        }
+    }
+}
+
+impl ImageVariantSettingsProvider for SharedWorkspaceSettings {
+    fn image_variant_settings(&self) -> ImageVariantSettings {
+        self.inner
+            .lock()
+            .map(|settings| settings.image_variants)
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct AppImageSourceReader {
+    reader: AppResourceReader,
+}
+
+impl AppImageSourceReader {
+    #[must_use]
+    pub const fn new(reader: AppResourceReader) -> Self {
+        Self { reader }
+    }
+}
 
 #[async_trait]
-impl ResourceVariantBuilder for NoopVariantBuilder {
-    async fn build_variant(
-        &self,
-        _request: BuildVariantRequest,
-    ) -> ResourceResult<BuiltResourceVariant> {
-        Err(ResourceCatalogError::variant_builder(
-            "app does not build resource variants yet",
-        ))
+impl ImageSourceReader for AppImageSourceReader {
+    async fn read_image_source_bytes(&self, source: &ResourceRef) -> ResourceResult<Vec<u8>> {
+        self.reader
+            .read_resource_bytes(source)
+            .await
+            .map(|content| content.bytes)
     }
 }
 
@@ -185,8 +229,9 @@ where
 
     async fn register_artifact(
         &self,
-        request: RegisterArtifactRequest,
+        mut request: RegisterArtifactRequest,
     ) -> ArtifactResult<ArtifactRecord> {
+        self.add_generated_gallery_variants(&mut request).await;
         self.artifacts.register_artifact(request).await
     }
 
@@ -203,6 +248,85 @@ where
         self.gallery
             .index_artifact(artifact, indexed_at_ms, safety_assessment)
             .await
+    }
+}
+
+impl<S, F, E> AppKernelPorts<S, F, E>
+where
+    S: Send + Sync,
+    F: Send + Sync,
+    E: Send + Sync,
+{
+    async fn add_generated_gallery_variants(&self, request: &mut RegisterArtifactRequest) {
+        if request.kind != ArtifactKind::GeneratedImage {
+            return;
+        }
+        let settings = self.settings_state.image_variant_settings();
+        let Ok(content) = self
+            .resource_reader
+            .read_resource_bytes(&request.primary_resource)
+            .await
+        else {
+            return;
+        };
+        let Ok(source) = ImageCodec::decode_source(&content.bytes) else {
+            return;
+        };
+
+        for (kind, role) in [
+            (ResourceVariantKind::Thumbnail, VisualAssetRole::Thumbnail),
+            (ResourceVariantKind::Preview, VisualAssetRole::Preview),
+            (ResourceVariantKind::Sanitized, VisualAssetRole::Sanitized),
+            (ResourceVariantKind::Export, VisualAssetRole::Export),
+        ] {
+            if request
+                .assets
+                .iter()
+                .any(|asset| asset.variant_kind == Some(kind))
+            {
+                continue;
+            }
+            let Ok(encoded) = source.build_variant(kind, settings) else {
+                continue;
+            };
+            let variant_id = VariantId::new(format!(
+                "variant:{}:{}",
+                request.id.as_str(),
+                resource_variant_kind_as_str(kind)
+            ));
+            let variant = match self
+                .resources
+                .create_built_variant(
+                    CreateVariantRequest {
+                        source: request.primary_resource.clone(),
+                        variant_id,
+                        kind,
+                    },
+                    BuiltResourceVariant {
+                        blob: BlobWriteIntent::Bytes(encoded.bytes),
+                    },
+                )
+                .await
+            {
+                Ok(variant) => variant,
+                Err(_error) => continue,
+            };
+            request.assets.push(VisualAssetRef {
+                role,
+                resource: ResourceRef::new(request.primary_resource.id.clone(), Some(variant.id)),
+                variant_kind: Some(kind),
+            });
+        }
+    }
+}
+
+const fn resource_variant_kind_as_str(value: ResourceVariantKind) -> &'static str {
+    match value {
+        ResourceVariantKind::Original => "original",
+        ResourceVariantKind::Preview => "preview",
+        ResourceVariantKind::Thumbnail => "thumbnail",
+        ResourceVariantKind::Sanitized => "sanitized",
+        ResourceVariantKind::Export => "export",
     }
 }
 

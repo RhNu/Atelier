@@ -15,6 +15,9 @@ use nai_atelier_app_api::prompt::{
     PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
     PromptLexiconPageDto, UpsertPromptChunkRequestDto,
 };
+use nai_atelier_app_api::settings::{
+    ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+};
 use nai_atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
     ExportedVibeDocumentDto, ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
@@ -38,7 +41,8 @@ use crate::mapping::{
     imported_vibes_to_dto, lexicon_catalog_to_dto, lexicon_page_to_dto, lexicon_query_to_domain,
     lexicon_search_to_page, prompt_chunk_to_dto, queue_directive_to_dto, safety_override_to_domain,
     submit_generation_to_domain, subscription_to_dto, upsert_prompt_chunk_to_domain,
-    vibe_format_to_domain, vibe_model_to_domain,
+    vibe_format_to_domain, vibe_model_to_domain, workspace_settings_to_domain,
+    workspace_settings_to_dto,
 };
 use crate::{AppError, AppResult};
 
@@ -275,6 +279,59 @@ where
             self.app.inner.lexicon.search(query, limit),
             limit,
         ))
+    }
+}
+
+pub struct SettingsUseCases<'a, S, F, E> {
+    pub(crate) app: &'a AtelierApp<S, F, E>,
+}
+
+impl<S, F, E> SettingsUseCases<'_, S, F, E>
+where
+    S: Send + Sync,
+    F: Send + Sync,
+    E: Send + Sync,
+{
+    pub async fn get(&self) -> AppResult<WorkspaceSettingsDto> {
+        self.app
+            .inner
+            .settings
+            .get_workspace_settings()
+            .await
+            .map(|settings| workspace_settings_to_dto(&settings))
+            .map_err(AppError::from)
+    }
+
+    pub async fn update(
+        &self,
+        request: UpdateWorkspaceSettingsRequestDto,
+    ) -> AppResult<WorkspaceSettingsDto> {
+        let settings = workspace_settings_to_domain(&request.settings)?;
+        self.app
+            .inner
+            .settings
+            .update_workspace_settings(settings)
+            .await
+            .map(|settings| {
+                self.app.inner.settings_state.replace(settings.clone());
+                workspace_settings_to_dto(&settings)
+            })
+            .map_err(AppError::from)
+    }
+
+    pub async fn reset(&self) -> AppResult<ResetWorkspaceSettingsResponseDto> {
+        self.app
+            .inner
+            .settings
+            .reset_workspace_settings()
+            .await
+            .map(|settings| ResetWorkspaceSettingsResponseDto {
+                settings: {
+                    self.app.inner.settings_state.replace(settings.clone());
+                    workspace_settings_to_dto(&settings)
+                },
+            })
+            .map_err(AppError::from)
     }
 }
 

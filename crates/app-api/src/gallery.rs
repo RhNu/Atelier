@@ -57,6 +57,7 @@ pub struct GalleryItemDto {
     pub artifact_kind: String,
     pub source_kind: GallerySourceKindDto,
     pub primary_resource: ResourceRefDto,
+    pub assets: Vec<VisualAssetDto>,
     pub indexed_at_ms: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seed: Option<i64>,
@@ -66,6 +67,14 @@ pub struct GalleryItemDto {
     pub model_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manual_safety_override: Option<GallerySafetyOverrideDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VisualAssetDto {
+    pub role: String,
+    pub resource: ResourceRefDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variant_kind: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

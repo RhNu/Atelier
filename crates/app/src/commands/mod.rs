@@ -3,6 +3,7 @@ mod events;
 mod gallery;
 mod generation;
 mod prompt;
+mod settings;
 mod vibe;
 mod workspace;
 

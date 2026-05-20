@@ -2,7 +2,7 @@ use rusqlite::{Connection, params};
 
 use crate::error::DatabaseResult;
 
-const CURRENT_SCHEMA_VERSION: i64 = 2;
+const CURRENT_SCHEMA_VERSION: i64 = 3;
 const API_KEY_REGISTRY_SQL: &str = r"
 CREATE TABLE IF NOT EXISTS api_key_records (
     id TEXT PRIMARY KEY,
@@ -136,6 +136,13 @@ CREATE INDEX IF NOT EXISTS idx_prompt_chunks_key
     ON prompt_chunks(chunk_key);
 ";
 
+const SETTINGS_SQL: &str = r"
+CREATE TABLE IF NOT EXISTS workspace_settings (
+    setting_key TEXT PRIMARY KEY,
+    value_json TEXT NOT NULL
+);
+";
+
 pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
     connection.execute_batch(
         r"
@@ -158,11 +165,17 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
     if current_applied {
         connection.execute_batch(API_KEY_REGISTRY_SQL)?;
         connection.execute_batch(PROMPT_RESOURCES_SQL)?;
+        connection.execute_batch(SETTINGS_SQL)?;
         return Ok(());
     }
 
     let v1_applied = connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 1)",
+        [],
+        |row| row.get::<_, bool>(0),
+    )?;
+    let v2_applied = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 2)",
         [],
         |row| row.get::<_, bool>(0),
     )?;
@@ -177,8 +190,15 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
     }
     tx.execute_batch(API_KEY_REGISTRY_SQL)?;
     tx.execute_batch(PROMPT_RESOURCES_SQL)?;
+    if !v2_applied {
+        tx.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version) VALUES (2)",
+            [],
+        )?;
+    }
+    tx.execute_batch(SETTINGS_SQL)?;
     tx.execute(
-        "INSERT INTO schema_migrations(version) VALUES (?1)",
+        "INSERT OR IGNORE INTO schema_migrations(version) VALUES (?1)",
         params![CURRENT_SCHEMA_VERSION],
     )?;
     tx.commit()?;

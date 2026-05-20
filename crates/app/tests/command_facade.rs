@@ -21,6 +21,10 @@ use nai_atelier_app_api::prompt::{
     DeletePromptChunkRequestDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
 };
+use nai_atelier_app_api::settings::{
+    GenerationDefaultsDto, ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto,
+    WorkspaceSettingsDto,
+};
 use nai_atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, ExportVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
     VibeExportFormatDto, VibeModelDto,
@@ -143,6 +147,50 @@ fn account_and_prompt_chunk_commands_share_session() {
             .await
             .unwrap()
             .deleted
+        );
+    });
+}
+
+#[test]
+fn settings_commands_persist_across_workspace_reopen() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host();
+        open_workspace(&host, &temp).await;
+
+        let defaults = host.get_workspace_settings().await.unwrap();
+        assert_eq!(defaults.image_variants.thumbnail_long_edge, 320);
+        assert_eq!(defaults.image_variants.preview_long_edge, 1024);
+
+        let updated = WorkspaceSettingsDto {
+            generation: GenerationDefaultsDto {
+                model: ImageModelDto::NaiDiffusion4Curated,
+                n_samples: 2,
+                ..GenerationDefaultsDto::default()
+            },
+            image_variants: ImageVariantSettingsDto {
+                thumbnail_long_edge: 256,
+                preview_long_edge: 768,
+            },
+        };
+        assert_eq!(
+            host.update_workspace_settings(UpdateWorkspaceSettingsRequestDto {
+                settings: updated.clone(),
+            })
+            .await
+            .unwrap(),
+            updated
+        );
+
+        host.close_workspace().unwrap();
+        open_workspace(&host, &temp).await;
+        assert_eq!(host.get_workspace_settings().await.unwrap(), updated);
+
+        let reset = host.reset_workspace_settings().await.unwrap();
+        assert_eq!(reset.settings, WorkspaceSettingsDto::default());
+        assert_eq!(
+            host.get_workspace_settings().await.unwrap(),
+            WorkspaceSettingsDto::default()
         );
     });
 }

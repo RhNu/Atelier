@@ -8,5 +8,6 @@ pub mod generation;
 pub mod pagination;
 pub mod prompt;
 pub mod resource;
+pub mod settings;
 pub mod vibe;
 pub mod workspace;

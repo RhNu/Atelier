@@ -14,8 +14,9 @@
 - `VibeRepository`
 - `ArtifactRepository`
 - `GalleryIndex`
+- `SettingsRepository`
 
-本阶段不实现 settings、secrets metadata、prompt resources 或 job queue 持久化；这些需要等对应 app/use case 边界更清楚后单独设计。
+本阶段仍不实现 secrets metadata 或 job queue 持久化；这些需要等对应 app/use case 边界更清楚后单独设计。
 
 ## 编码边界
 
@@ -42,6 +43,15 @@ v1 migration 创建：
 - `vibe_encodings`
 - `artifacts`
 - `gallery_items`
+
+v2 migration 创建：
+
+- `api_key_records`
+- `prompt_chunks`
+
+v3 migration 创建：
+
+- `workspace_settings`
 
 `gallery_items` 为 `indexed_at_ms`、`artifact_kind`、`source_kind`、`manual_safety_override` 建立查询索引。`vibe_encodings` 用 `VibeEncodeSettings::cache_key(source)` 作为稳定 cache key。
 

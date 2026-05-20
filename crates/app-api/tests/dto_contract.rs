@@ -14,6 +14,10 @@ use nai_atelier_app_api::prompt::{
     DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, GetPromptChunkRequestDto,
     ListPromptChunksRequestDto, PromptChunkPageDto, PromptLexiconSearchQueryDto,
 };
+use nai_atelier_app_api::settings::{
+    GenerationDefaultsDto, ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto,
+    UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+};
 use nai_atelier_app_api::workspace::CloseWorkspaceResponseDto;
 use serde_json::json;
 
@@ -216,6 +220,73 @@ fn gallery_image_reference_target_uses_stable_wire_names() {
         json!({
             "item_id": "artifact:job-1:sample:0",
             "target": "precise_reference"
+        })
+    );
+}
+
+#[test]
+fn workspace_settings_dtos_have_stable_json_field_names() {
+    let settings = WorkspaceSettingsDto {
+        generation: GenerationDefaultsDto::default(),
+        image_variants: ImageVariantSettingsDto {
+            thumbnail_long_edge: 320,
+            preview_long_edge: 1024,
+        },
+    };
+
+    assert_eq!(
+        serde_json::to_value(UpdateWorkspaceSettingsRequestDto {
+            settings: settings.clone(),
+        })
+        .unwrap(),
+        json!({
+            "settings": {
+                "generation": {
+                    "model": "nai-diffusion-4-5-full",
+                    "size": { "width": 832, "height": 1216 },
+                    "quality": true,
+                    "uc_preset": "light",
+                    "steps": 23,
+                    "scale": 5.0,
+                    "sampler": "k_euler_ancestral",
+                    "noise_schedule": "karras",
+                    "seed": 0,
+                    "n_samples": 1,
+                    "cfg_rescale": 0.0,
+                    "variety_boost": false,
+                    "strict_mode": false
+                },
+                "image_variants": {
+                    "thumbnail_long_edge": 320,
+                    "preview_long_edge": 1024
+                }
+            }
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(ResetWorkspaceSettingsResponseDto { settings }).unwrap(),
+        json!({
+            "settings": {
+                "generation": {
+                    "model": "nai-diffusion-4-5-full",
+                    "size": { "width": 832, "height": 1216 },
+                    "quality": true,
+                    "uc_preset": "light",
+                    "steps": 23,
+                    "scale": 5.0,
+                    "sampler": "k_euler_ancestral",
+                    "noise_schedule": "karras",
+                    "seed": 0,
+                    "n_samples": 1,
+                    "cfg_rescale": 0.0,
+                    "variety_boost": false,
+                    "strict_mode": false
+                },
+                "image_variants": {
+                    "thumbnail_long_edge": 320,
+                    "preview_long_edge": 1024
+                }
+            }
         })
     );
 }

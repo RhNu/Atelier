@@ -38,6 +38,8 @@ Implemented or partially implemented:
 
 - `crates/foundation`
 - `crates/kernel`
+- `crates/app`
+- `crates/app-api`
 - `crates/features/workspace`
 - `crates/features/resource-catalog`
 - `crates/features/prompt`
@@ -52,17 +54,15 @@ Implemented or partially implemented:
 - `crates/features/safety`
 - `crates/features/secrets`
 - `crates/features/precise-reference`
+- `crates/features/settings`
 - `crates/adapters/storage-fs`
 - `crates/adapters/database`
+- `crates/adapters/image-codec`
 - `crates/adapters/keyring`
 - `crates/adapters/novelai`
 
 Still planned or intentionally not present:
 
-- `app`
-- `app-api`
-- `features/settings`
-- `adapters/image-codec`
 - `adapters/safety-onnx`
 - `adapters/desktop-system`
 

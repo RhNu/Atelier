@@ -1,13 +1,13 @@
 use nai_atelier_app_api::account::{ApiKeyRecordDto, SubscriptionSummaryDto};
 use nai_atelier_app_api::gallery::{
     GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItemDto, GalleryPageDto,
-    GalleryQueryDto, GallerySafetyOverrideDto, GallerySourceKindDto,
+    GalleryQueryDto, GallerySafetyOverrideDto, GallerySourceKindDto, VisualAssetDto,
 };
 use nai_atelier_app_api::generation::{
     GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationPlanContextDto,
-    GenerationStatusDto, GenerationWorkRequestDto, ImageFormatDto, ImageModelDto, NoiseScheduleDto,
-    QueueDelayDto, QueueDirectiveDto, SamplerDto, StreamModeDto, SubmitGenerationRequestDto,
-    UcPresetDto,
+    GenerationStatusDto, GenerationWorkRequestDto, ImageFormatDto, ImageModelDto, ImageSizeDto,
+    NoiseScheduleDto, QueueDelayDto, QueueDirectiveDto, SamplerDto, StreamModeDto,
+    SubmitGenerationRequestDto, UcPresetDto,
 };
 use nai_atelier_app_api::prompt::{
     CompiledPromptDto, PromptChunkDto, PromptFunctionTraceEntryDto, PromptLexiconCatalogDto,
@@ -16,6 +16,9 @@ use nai_atelier_app_api::prompt::{
     PromptTraceDto, UpsertPromptChunkRequestDto,
 };
 use nai_atelier_app_api::resource::ResourceRefDto;
+use nai_atelier_app_api::settings::{
+    GenerationDefaultsDto, ImageVariantSettingsDto, WorkspaceSettingsDto,
+};
 use nai_atelier_app_api::vibe::{
     EnsuredVibeEncodingDto, ExportedVibeDocumentDto, ImportedVibeDocumentsDto,
     VibeDocumentEntryDto, VibeExportFormatDto, VibeModelDto,
@@ -44,6 +47,7 @@ use nai_atelier_prompt_resources::{
 };
 use nai_atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
 use nai_atelier_secrets::{ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretValue};
+use nai_atelier_settings::{GenerationDefaults, ImageVariantSettings, WorkspaceSettings};
 use nai_atelier_vibe::{VibeDocumentEntry, VibeExportFormat, VibeModel};
 
 use crate::{AppError, AppResult};
@@ -188,6 +192,80 @@ fn generate_request_to_domain(value: GenerateImageRequestDto) -> GenerateImageRe
     }
 }
 
+pub fn workspace_settings_to_dto(value: &WorkspaceSettings) -> WorkspaceSettingsDto {
+    WorkspaceSettingsDto {
+        generation: generation_defaults_to_dto(&value.generation),
+        image_variants: image_variant_settings_to_dto(value.image_variants),
+    }
+}
+
+pub fn workspace_settings_to_domain(value: &WorkspaceSettingsDto) -> AppResult<WorkspaceSettings> {
+    let settings = WorkspaceSettings {
+        generation: generation_defaults_to_domain(&value.generation),
+        image_variants: image_variant_settings_to_domain(value.image_variants),
+    };
+    settings.validate()?;
+    Ok(settings)
+}
+
+fn generation_defaults_to_dto(value: &GenerationDefaults) -> GenerationDefaultsDto {
+    GenerationDefaultsDto {
+        model: image_model_to_dto(value.model),
+        size: ImageSizeDto {
+            width: value.size.width,
+            height: value.size.height,
+        },
+        quality: value.quality,
+        uc_preset: uc_preset_to_dto(value.uc_preset),
+        steps: value.steps,
+        scale: value.scale,
+        sampler: sampler_to_dto(value.sampler),
+        noise_schedule: noise_schedule_to_dto(value.noise_schedule),
+        seed: value.seed,
+        n_samples: value.n_samples,
+        cfg_rescale: value.cfg_rescale,
+        variety_boost: value.variety_boost,
+        image_format: value.image_format.map(image_format_to_dto),
+        strict_mode: value.strict_mode,
+    }
+}
+
+fn generation_defaults_to_domain(value: &GenerationDefaultsDto) -> GenerationDefaults {
+    GenerationDefaults {
+        model: image_model_to_domain(value.model),
+        size: ImageSize {
+            width: value.size.width,
+            height: value.size.height,
+        },
+        quality: value.quality,
+        uc_preset: uc_preset_to_domain(value.uc_preset),
+        steps: value.steps,
+        scale: value.scale,
+        sampler: sampler_to_domain(value.sampler),
+        noise_schedule: noise_schedule_to_domain(value.noise_schedule),
+        seed: value.seed,
+        n_samples: value.n_samples,
+        cfg_rescale: value.cfg_rescale,
+        variety_boost: value.variety_boost,
+        image_format: value.image_format.map(image_format_to_domain),
+        strict_mode: value.strict_mode,
+    }
+}
+
+const fn image_variant_settings_to_dto(value: ImageVariantSettings) -> ImageVariantSettingsDto {
+    ImageVariantSettingsDto {
+        thumbnail_long_edge: value.thumbnail_long_edge,
+        preview_long_edge: value.preview_long_edge,
+    }
+}
+
+const fn image_variant_settings_to_domain(value: ImageVariantSettingsDto) -> ImageVariantSettings {
+    ImageVariantSettings {
+        thumbnail_long_edge: value.thumbnail_long_edge,
+        preview_long_edge: value.preview_long_edge,
+    }
+}
+
 const fn image_model_to_domain(value: ImageModelDto) -> ImageModel {
     match value {
         ImageModelDto::NaiDiffusion45Full => ImageModel::NaiDiffusion45Full,
@@ -196,6 +274,17 @@ const fn image_model_to_domain(value: ImageModelDto) -> ImageModel {
         ImageModelDto::NaiDiffusion4Curated => ImageModel::NaiDiffusion4Curated,
         ImageModelDto::NaiDiffusion3 => ImageModel::NaiDiffusion3,
         ImageModelDto::NaiDiffusion3Furry => ImageModel::NaiDiffusion3Furry,
+    }
+}
+
+const fn image_model_to_dto(value: ImageModel) -> ImageModelDto {
+    match value {
+        ImageModel::NaiDiffusion45Full => ImageModelDto::NaiDiffusion45Full,
+        ImageModel::NaiDiffusion45Curated => ImageModelDto::NaiDiffusion45Curated,
+        ImageModel::NaiDiffusion4Full => ImageModelDto::NaiDiffusion4Full,
+        ImageModel::NaiDiffusion4Curated => ImageModelDto::NaiDiffusion4Curated,
+        ImageModel::NaiDiffusion3 => ImageModelDto::NaiDiffusion3,
+        ImageModel::NaiDiffusion3Furry => ImageModelDto::NaiDiffusion3Furry,
     }
 }
 
@@ -212,11 +301,32 @@ const fn sampler_to_domain(value: SamplerDto) -> Sampler {
     }
 }
 
+const fn sampler_to_dto(value: Sampler) -> SamplerDto {
+    match value {
+        Sampler::KEuler => SamplerDto::KEuler,
+        Sampler::KEulerAncestral => SamplerDto::KEulerAncestral,
+        Sampler::KDpm2 => SamplerDto::KDpm2,
+        Sampler::KDpm2Ancestral => SamplerDto::KDpm2Ancestral,
+        Sampler::KDpmpp2m => SamplerDto::KDpmpp2m,
+        Sampler::KDpmpp2sAncestral => SamplerDto::KDpmpp2sAncestral,
+        Sampler::KDpmppSde => SamplerDto::KDpmppSde,
+        Sampler::Ddim => SamplerDto::Ddim,
+    }
+}
+
 const fn noise_schedule_to_domain(value: NoiseScheduleDto) -> NoiseSchedule {
     match value {
         NoiseScheduleDto::Karras => NoiseSchedule::Karras,
         NoiseScheduleDto::Exponential => NoiseSchedule::Exponential,
         NoiseScheduleDto::Polyexponential => NoiseSchedule::Polyexponential,
+    }
+}
+
+const fn noise_schedule_to_dto(value: NoiseSchedule) -> NoiseScheduleDto {
+    match value {
+        NoiseSchedule::Karras => NoiseScheduleDto::Karras,
+        NoiseSchedule::Exponential => NoiseScheduleDto::Exponential,
+        NoiseSchedule::Polyexponential => NoiseScheduleDto::Polyexponential,
     }
 }
 
@@ -230,10 +340,27 @@ const fn uc_preset_to_domain(value: UcPresetDto) -> UcPreset {
     }
 }
 
+const fn uc_preset_to_dto(value: UcPreset) -> UcPresetDto {
+    match value {
+        UcPreset::Heavy => UcPresetDto::Heavy,
+        UcPreset::Light => UcPresetDto::Light,
+        UcPreset::FurryFocus => UcPresetDto::FurryFocus,
+        UcPreset::HumanFocus => UcPresetDto::HumanFocus,
+        UcPreset::None => UcPresetDto::None,
+    }
+}
+
 const fn image_format_to_domain(value: ImageFormatDto) -> ImageFormat {
     match value {
         ImageFormatDto::Png => ImageFormat::Png,
         ImageFormatDto::Webp => ImageFormat::Webp,
+    }
+}
+
+const fn image_format_to_dto(value: ImageFormat) -> ImageFormatDto {
+    match value {
+        ImageFormat::Png => ImageFormatDto::Png,
+        ImageFormat::Webp => ImageFormatDto::Webp,
     }
 }
 
@@ -438,11 +565,22 @@ pub fn gallery_item_to_dto(value: GalleryItem) -> GalleryItemDto {
         artifact_kind: artifact_kind_as_str(value.artifact_kind).to_owned(),
         source_kind: source_kind_to_dto(value.source_kind()),
         primary_resource: resource_ref_to_dto(&value.primary_resource),
+        assets: value.assets.iter().map(visual_asset_ref_to_dto).collect(),
         indexed_at_ms: value.indexed_at_ms,
         seed: value.metadata.seed,
         sample_index: value.metadata.sample_index,
         model_name: value.metadata.model_name,
         manual_safety_override: value.manual_safety_override.map(safety_override_to_dto),
+    }
+}
+
+fn visual_asset_ref_to_dto(value: &nai_atelier_artifacts::VisualAssetRef) -> VisualAssetDto {
+    VisualAssetDto {
+        role: visual_asset_role_as_str(value.role).to_owned(),
+        resource: resource_ref_to_dto(&value.resource),
+        variant_kind: value
+            .variant_kind
+            .map(|kind| resource_variant_kind_as_str(kind).to_owned()),
     }
 }
 
@@ -511,6 +649,7 @@ const fn image_reference_target_to_dto(
 const fn visual_asset_role_as_str(value: VisualAssetRole) -> &'static str {
     match value {
         VisualAssetRole::Original => "original",
+        VisualAssetRole::Thumbnail => "thumbnail",
         VisualAssetRole::Preview => "preview",
         VisualAssetRole::Sanitized => "sanitized",
         VisualAssetRole::Export => "export",

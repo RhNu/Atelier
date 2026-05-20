@@ -3836,11 +3836,24 @@ dependencies = [
  "nai-atelier-resource-catalog",
  "nai-atelier-safety",
  "nai-atelier-secrets",
+ "nai-atelier-settings",
  "nai-atelier-vibe",
  "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nai-atelier-adapter-image-codec"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "image",
+ "nai-atelier-resource-catalog",
+ "nai-atelier-settings",
  "thiserror 2.0.18",
 ]
 
@@ -3896,7 +3909,9 @@ dependencies = [
  "futures",
  "futures-executor",
  "futures-util",
+ "image",
  "nai-atelier-adapter-database",
+ "nai-atelier-adapter-image-codec",
  "nai-atelier-adapter-keyring",
  "nai-atelier-adapter-novelai",
  "nai-atelier-adapter-storage-fs",
@@ -3913,6 +3928,7 @@ dependencies = [
  "nai-atelier-resource-catalog",
  "nai-atelier-safety",
  "nai-atelier-secrets",
+ "nai-atelier-settings",
  "nai-atelier-vibe",
  "nai-atelier-workspace",
  "tempfile",
@@ -4074,6 +4090,16 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "nai-atelier-settings"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "nai-atelier-generation",
  "thiserror 2.0.18",
 ]
 

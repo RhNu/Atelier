@@ -194,6 +194,20 @@ where
                 kind: request.kind,
             })
             .await?;
+        self.create_built_variant(request, built).await
+    }
+
+    /// Stores a caller-built derived variant for a ready resource.
+    ///
+    /// # Errors
+    /// Returns an error when the source resource is not ready, blob staging
+    /// fails, or catalog persistence fails.
+    pub async fn create_built_variant(
+        &self,
+        request: CreateVariantRequest,
+        built: crate::BuiltResourceVariant,
+    ) -> ResourceResult<ResourceVariant> {
+        self.ready_record(&request.source.id).await?;
         let staged = self.blob_store.stage_blob(built.blob).await?;
         let variant = ResourceVariant {
             id: request.variant_id,

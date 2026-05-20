@@ -104,6 +104,12 @@ impl From<nai_atelier_resource_catalog::ResourceCatalogError> for AppError {
     }
 }
 
+impl From<nai_atelier_settings::SettingsError> for AppError {
+    fn from(error: nai_atelier_settings::SettingsError) -> Self {
+        Self::new(error.kind.to_string(), error.message)
+    }
+}
+
 impl From<nai_atelier_vibe::VibeError> for AppError {
     fn from(error: nai_atelier_vibe::VibeError) -> Self {
         Self::new(error.kind().to_string(), error.to_string())

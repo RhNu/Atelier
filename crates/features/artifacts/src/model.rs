@@ -76,6 +76,7 @@ pub struct ArtifactReplayManifest {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum VisualAssetRole {
     Original,
+    Thumbnail,
     Preview,
     Sanitized,
     Export,

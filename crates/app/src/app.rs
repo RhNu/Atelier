@@ -5,8 +5,9 @@ use futures::lock::Mutex;
 use nai_atelier_adapter_database::{
     DatabaseApiKeyRegistryStore, DatabaseArtifactRepository, DatabaseConnection,
     DatabaseGalleryIndex, DatabaseGenerationPayloadStore, DatabasePromptResourceRepository,
-    DatabaseResourceCatalogRepository, DatabaseVibeRepository,
+    DatabaseResourceCatalogRepository, DatabaseSettingsRepository, DatabaseVibeRepository,
 };
+use nai_atelier_adapter_image_codec::ImageMetadataBlobStore;
 use nai_atelier_adapter_keyring::KeyringSecretStore;
 use nai_atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, NovelAiSubscriptionProbeClient,
@@ -24,6 +25,7 @@ use nai_atelier_prompt_lexicon::PromptLexicon;
 use nai_atelier_prompt_resources::{PromptChunkService, PromptCompiler};
 use nai_atelier_resource_catalog::ResourceCatalog;
 use nai_atelier_secrets::{ApiKeyRegistryService, SecretStore};
+use nai_atelier_settings::SettingsService;
 use nai_atelier_vibe::EmbeddedVibeDocumentExtractor;
 use nai_atelier_workspace::{
     WorkspaceLayout, WorkspaceLock, WorkspaceLockLease, WorkspaceLockRequest, WorkspaceRoot,
@@ -32,12 +34,12 @@ use nai_atelier_workspace::{
 
 use crate::events::AppEventHub;
 use crate::ports::{
-    AppApiKeyService, AppArtifactService, AppGalleryService, AppKernelPorts, AppResourceCatalog,
-    NoopVariantBuilder,
+    AppApiKeyService, AppArtifactService, AppGalleryService, AppImageSourceReader, AppKernelPorts,
+    AppResourceCatalog, SharedWorkspaceSettings,
 };
 use crate::usecases::{
     AccountUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases, PromptUseCases,
-    VibeUseCases, WorkspaceUseCases,
+    SettingsUseCases, VibeUseCases, WorkspaceUseCases,
 };
 use crate::{AppResult, error::AppError};
 
@@ -54,6 +56,8 @@ pub struct AppInner<S, F, E> {
     pub schema_version: u32,
     pub _lease: StdMutex<Box<dyn WorkspaceLockLease>>,
     pub api_keys: AppApiKeyService<S, F>,
+    pub settings: SettingsService<DatabaseSettingsRepository>,
+    pub settings_state: SharedWorkspaceSettings,
     pub prompt_chunks: PromptChunkService<DatabasePromptResourceRepository>,
     pub prompt_compiler: PromptCompiler<DatabasePromptResourceRepository>,
     pub lexicon: PromptLexicon,
@@ -137,11 +141,21 @@ where
         );
         let resource_repository = DatabaseResourceCatalogRepository::new(connection.clone());
         let prompt_repository = DatabasePromptResourceRepository::new(connection.clone());
+        let settings_repository = DatabaseSettingsRepository::new(connection.clone());
+        let settings = SettingsService::new(settings_repository);
+        let settings_state = SharedWorkspaceSettings::new(settings.get_workspace_settings().await?);
         let blob_store = FileSystemResourceBlobStore::new(root.clone(), layout);
         let resource_reader =
             FileSystemResourceContentReader::new(resource_repository.clone(), blob_store.clone());
-        let resources: AppResourceCatalog =
-            ResourceCatalog::new(resource_repository.clone(), blob_store, NoopVariantBuilder);
+        let variant_builder = nai_atelier_adapter_image_codec::ImageCodecVariantBuilder::new(
+            AppImageSourceReader::new(resource_reader.clone()),
+            settings_state.clone(),
+        );
+        let resources: AppResourceCatalog = ResourceCatalog::new(
+            resource_repository.clone(),
+            ImageMetadataBlobStore::new(blob_store),
+            variant_builder,
+        );
         let artifacts: AppArtifactService = ArtifactService::new(
             DatabaseArtifactRepository::new(connection.clone()),
             resource_repository,
@@ -160,6 +174,7 @@ where
             vibes: DatabaseVibeRepository::new(connection),
             extractor,
             events: events.clone(),
+            settings_state: settings_state.clone(),
         };
 
         Ok(Self {
@@ -168,6 +183,8 @@ where
                 schema_version: manifest.schema_version,
                 _lease: StdMutex::new(lease),
                 api_keys,
+                settings,
+                settings_state,
                 prompt_chunks: PromptChunkService::new(prompt_repository),
                 prompt_compiler,
                 lexicon: PromptLexicon::load_embedded().map_err(AppError::from)?,
@@ -193,6 +210,11 @@ impl<S, F, E> AtelierApp<S, F, E> {
     #[must_use]
     pub const fn prompt(&self) -> PromptUseCases<'_, S, F, E> {
         PromptUseCases { app: self }
+    }
+
+    #[must_use]
+    pub const fn settings(&self) -> SettingsUseCases<'_, S, F, E> {
+        SettingsUseCases { app: self }
     }
 
     #[must_use]

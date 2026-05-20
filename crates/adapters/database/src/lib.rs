@@ -11,6 +11,7 @@ mod generation_payload;
 mod migration;
 mod prompt_resources;
 mod resource_catalog;
+mod settings;
 mod vibe;
 
 pub use api_keys::DatabaseApiKeyRegistryStore;
@@ -21,4 +22,5 @@ pub use gallery::DatabaseGalleryIndex;
 pub use generation_payload::DatabaseGenerationPayloadStore;
 pub use prompt_resources::DatabasePromptResourceRepository;
 pub use resource_catalog::DatabaseResourceCatalogRepository;
+pub use settings::DatabaseSettingsRepository;
 pub use vibe::DatabaseVibeRepository;
