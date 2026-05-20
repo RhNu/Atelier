@@ -13,7 +13,10 @@ use nai_atelier_secrets::{
     SecretResolver, SecretValue, SecretsError, SubscriptionClient, SubscriptionProbeClient,
     SubscriptionResult, SubscriptionSummary,
 };
-use nai_atelier_vibe::{EncodeVibeRequest, EncodedVibe, NovelAiVibeClient, VibeModel, VibeResult};
+use nai_atelier_vibe::{
+    EmbeddedVibeDocumentExtractor, EncodeVibeRequest, EncodedVibe, NovelAiVibeClient,
+    VibeDomainResult, VibeError, VibeModel, VibeResult,
+};
 use novelai_bridge as bridge;
 
 mod error;
@@ -52,6 +55,20 @@ impl NovelAiBridgeConfig {
 
 pub struct NovelAiBridgeAdapter<T: bridge::Transport = bridge::ReqwestTransport> {
     client: bridge::Client<T>,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct NovelAiEmbeddedVibeExtractor;
+
+#[async_trait]
+impl EmbeddedVibeDocumentExtractor for NovelAiEmbeddedVibeExtractor {
+    async fn extract_embedded_vibe_document_from_png(
+        &self,
+        png_bytes: &[u8],
+    ) -> VibeDomainResult<Option<String>> {
+        bridge::extract_embedded_vibe_document_from_png_bytes(png_bytes)
+            .map_err(|error| VibeError::invalid_document(error.to_string()))
+    }
 }
 
 impl NovelAiBridgeAdapter<bridge::ReqwestTransport> {

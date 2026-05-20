@@ -7,9 +7,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use nai_atelier_resource_catalog::{
-    BlobId, BlobWriteIntent, ResourceBlobStore, ResourceCatalogError, ResourceMetadata,
-    ResourceResult, StagedBlob, StagedBlobToken,
+    BlobId, BlobWriteIntent, ResourceBlobStore, ResourceCatalogError, ResourceCatalogRepository,
+    ResourceKind, ResourceMetadata, ResourceRef, ResourceResult, StagedBlob, StagedBlobToken,
 };
 use nai_atelier_workspace::{
     WORKSPACE_SCHEMA_VERSION, WorkspaceError, WorkspaceLayout, WorkspaceLock, WorkspaceLockLease,
@@ -22,6 +24,21 @@ use thiserror::Error;
 
 static STAGING_COUNTER: AtomicU64 = AtomicU64::new(0);
 static LOCK_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+#[must_use]
+pub fn workspace_relative_path_for(slot: WorkspaceSlot) -> WorkspaceRelativePath {
+    storage_path_for(slot)
+}
+
+#[must_use]
+pub fn workspace_slot_path(root: &WorkspaceRoot, slot: WorkspaceSlot) -> PathBuf {
+    root.join_relative(&storage_path_for(slot))
+}
+
+#[must_use]
+pub fn workspace_database_path(root: &WorkspaceRoot) -> PathBuf {
+    workspace_slot_path(root, WorkspaceSlot::Database).join("nai-atelier.sqlite3")
+}
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct FileSystemWorkspaceStore;
@@ -191,6 +208,92 @@ impl FileSystemResourceBlobStore {
             .root
             .join_relative(&storage_path_for(WorkspaceSlot::ResourceStaging))
             .join(format!("{}.{}", token.as_str(), extension)))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FileSystemResourceContentReader<R> {
+    repository: R,
+    blob_store: FileSystemResourceBlobStore,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResourceContent {
+    pub kind: ResourceKind,
+    pub bytes: Vec<u8>,
+}
+
+impl<R> FileSystemResourceContentReader<R> {
+    #[must_use]
+    pub const fn new(repository: R, blob_store: FileSystemResourceBlobStore) -> Self {
+        Self {
+            repository,
+            blob_store,
+        }
+    }
+}
+
+impl<R> FileSystemResourceContentReader<R>
+where
+    R: ResourceCatalogRepository,
+{
+    /// Reads the byte payload for a ready catalog resource or one of its
+    /// variants.
+    ///
+    /// # Errors
+    /// Returns an error when the resource cannot be resolved or blob I/O fails.
+    pub async fn read_resource_bytes(
+        &self,
+        reference: &ResourceRef,
+    ) -> ResourceResult<ResourceContent> {
+        let record = self
+            .repository
+            .get_ready_record(&reference.id)
+            .await?
+            .ok_or_else(|| ResourceCatalogError::not_found("resource does not exist"))?;
+        let blob_id = if let Some(variant_id) = &reference.variant_id {
+            let variant = self
+                .repository
+                .get_variant(variant_id)
+                .await?
+                .ok_or_else(|| {
+                    ResourceCatalogError::not_found("resource variant does not exist")
+                })?;
+            if variant.resource_id != reference.id {
+                return Err(ResourceCatalogError::invalid_state(
+                    "resource variant belongs to another resource",
+                ));
+            }
+            variant.blob_id
+        } else {
+            record.blob_id
+        };
+        let path = self.blob_store.blob_path(&blob_id)?;
+        let bytes = fs::read(&path).map_err(|source| resource_fs_error(&path, source))?;
+        Ok(ResourceContent {
+            kind: record.kind,
+            bytes,
+        })
+    }
+
+    /// Reads a resource payload as UTF-8 text.
+    ///
+    /// # Errors
+    /// Returns an error when bytes are not valid UTF-8.
+    pub async fn read_resource_text(&self, reference: &ResourceRef) -> ResourceResult<String> {
+        let content = self.read_resource_bytes(reference).await?;
+        String::from_utf8(content.bytes)
+            .map_err(|error| ResourceCatalogError::blob_store(error.to_string()))
+    }
+
+    /// Reads a resource payload and returns a base64 representation.
+    ///
+    /// # Errors
+    /// Returns an error when the resource cannot be resolved or read.
+    pub async fn read_resource_base64(&self, reference: &ResourceRef) -> ResourceResult<String> {
+        self.read_resource_bytes(reference)
+            .await
+            .map(|content| STANDARD.encode(content.bytes))
     }
 }
 

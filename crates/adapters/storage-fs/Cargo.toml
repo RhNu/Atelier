@@ -6,6 +6,7 @@ publish.workspace = true
 
 [dependencies]
 async-trait = "0.1"
+base64 = "0.22"
 nai-atelier-resource-catalog = { path = "../../features/resource-catalog" }
 nai-atelier-workspace = { path = "../../features/workspace" }
 serde = { version = "1", features = ["derive"] }
