@@ -1,13 +1,13 @@
 use nai_atelier_app_api::account::{ApiKeyRecordDto, SubscriptionSummaryDto};
 use nai_atelier_app_api::gallery::{
     GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItemDto, GalleryPageDto,
-    GalleryQueryDto, GallerySafetyOverrideDto, GallerySourceKindDto, VisualAssetDto,
+    GalleryQueryDto, GallerySafetyDto, GallerySafetyLabelDto, GallerySafetyOverrideDto,
+    GallerySafetyRiskBandDto, GallerySafetyScanStateDto, GallerySafetyScoreDto,
+    GallerySourceKindDto, VisualAssetDto,
 };
 use nai_atelier_app_api::generation::{
-    GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationPlanContextDto,
-    GenerationStatusDto, GenerationWorkRequestDto, ImageFormatDto, ImageModelDto, ImageSizeDto,
-    NoiseScheduleDto, QueueDelayDto, QueueDirectiveDto, SamplerDto, StreamModeDto,
-    SubmitGenerationRequestDto, UcPresetDto,
+    GenerationPlanContextDto, GenerationStatusDto, ImageFormatDto, ImageModelDto, ImageSizeDto,
+    NoiseScheduleDto, QueueDelayDto, QueueDirectiveDto, SamplerDto, StreamModeDto, UcPresetDto,
 };
 use nai_atelier_app_api::prompt::{
     CompiledPromptDto, PromptChunkDto, PromptFunctionTraceEntryDto, PromptLexiconCatalogDto,
@@ -29,14 +29,11 @@ use nai_atelier_gallery::{
     ImageReferenceTarget,
 };
 use nai_atelier_generation::{
-    GenerateImageRequest, GenerateImageStreamRequest, GenerationPlanContext, ImageFormat,
-    ImageModel, ImageSize, NoiseSchedule, Sampler, StreamMode, UcPreset,
+    GenerationPlanContext, ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, StreamMode,
+    UcPreset,
 };
 use nai_atelier_jobs::{BatchStatus, QueueDelay, QueueDirective};
-use nai_atelier_kernel::{
-    EnsuredVibeEncoding, ExportedVibeDocument, GenerationWorkRequest, ImportedVibeDocuments,
-    SubmitGenerationWork,
-};
+use nai_atelier_kernel::{EnsuredVibeEncoding, ExportedVibeDocument, ImportedVibeDocuments};
 use nai_atelier_prompt_lexicon::{
     PromptLexiconCatalog, PromptLexiconEntry, PromptLexiconListPage, PromptLexiconListQuery,
     PromptLexiconMatchField, PromptLexiconMatchRank,
@@ -46,6 +43,7 @@ use nai_atelier_prompt_resources::{
     PromptTrace, UpsertPromptChunkRequest,
 };
 use nai_atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
+use nai_atelier_safety::{SafetyAssessment, SafetyLabel, SafetyRiskBand};
 use nai_atelier_secrets::{ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretValue};
 use nai_atelier_settings::{GenerationDefaults, ImageVariantSettings, WorkspaceSettings};
 use nai_atelier_vibe::{VibeDocumentEntry, VibeExportFormat, VibeModel};
@@ -79,15 +77,6 @@ pub fn subscription_to_dto(
         tier: value.tier,
         tier_name: value.tier_name.clone(),
         expires_at_ms: value.expires_at_ms,
-    }
-}
-
-pub fn submit_generation_to_domain(request: SubmitGenerationRequestDto) -> SubmitGenerationWork {
-    SubmitGenerationWork {
-        batch_id: nai_atelier_jobs::BatchId::new(request.batch_id),
-        job_id: nai_atelier_jobs::JobId::new(request.job_id),
-        request: work_request_to_domain(request.work),
-        context: plan_context_to_domain(request.context),
     }
 }
 
@@ -142,53 +131,6 @@ fn queue_delay_to_dto(value: QueueDelay) -> QueueDelayDto {
     QueueDelayDto {
         min_ms: value.min.as_millis().try_into().unwrap_or(u64::MAX),
         max_ms: value.max.as_millis().try_into().unwrap_or(u64::MAX),
-    }
-}
-
-fn work_request_to_domain(value: GenerationWorkRequestDto) -> GenerationWorkRequest {
-    match value {
-        GenerationWorkRequestDto::Image(request) => {
-            GenerationWorkRequest::Image(generate_request_to_domain(request))
-        }
-        GenerationWorkRequestDto::Stream(request) => {
-            GenerationWorkRequest::Stream(stream_request_to_domain(request))
-        }
-    }
-}
-
-fn stream_request_to_domain(value: GenerateImageStreamRequestDto) -> GenerateImageStreamRequest {
-    GenerateImageStreamRequest {
-        base: generate_request_to_domain(value.base),
-        stream: stream_mode_to_domain(value.stream),
-    }
-}
-
-fn generate_request_to_domain(value: GenerateImageRequestDto) -> GenerateImageRequest {
-    GenerateImageRequest {
-        prompt: value.prompt,
-        model: image_model_to_domain(value.model),
-        size: ImageSize {
-            width: value.size.width,
-            height: value.size.height,
-        },
-        negative_prompt: value.negative_prompt,
-        quality: value.quality,
-        uc_preset: uc_preset_to_domain(value.uc_preset),
-        steps: value.steps,
-        scale: value.scale,
-        sampler: sampler_to_domain(value.sampler),
-        noise_schedule: noise_schedule_to_domain(value.noise_schedule),
-        seed: value.seed,
-        n_samples: value.n_samples,
-        cfg_rescale: value.cfg_rescale,
-        variety_boost: value.variety_boost,
-        i2i: None,
-        controlnet: None,
-        character_references: None,
-        characters: None,
-        use_coords: None,
-        image_format: value.image_format.map(image_format_to_domain),
-        strict_mode: value.strict_mode,
     }
 }
 
@@ -266,7 +208,7 @@ const fn image_variant_settings_to_domain(value: ImageVariantSettingsDto) -> Ima
     }
 }
 
-const fn image_model_to_domain(value: ImageModelDto) -> ImageModel {
+pub const fn image_model_to_domain(value: ImageModelDto) -> ImageModel {
     match value {
         ImageModelDto::NaiDiffusion45Full => ImageModel::NaiDiffusion45Full,
         ImageModelDto::NaiDiffusion45Curated => ImageModel::NaiDiffusion45Curated,
@@ -288,7 +230,7 @@ const fn image_model_to_dto(value: ImageModel) -> ImageModelDto {
     }
 }
 
-const fn sampler_to_domain(value: SamplerDto) -> Sampler {
+pub const fn sampler_to_domain(value: SamplerDto) -> Sampler {
     match value {
         SamplerDto::KEuler => Sampler::KEuler,
         SamplerDto::KEulerAncestral => Sampler::KEulerAncestral,
@@ -314,7 +256,7 @@ const fn sampler_to_dto(value: Sampler) -> SamplerDto {
     }
 }
 
-const fn noise_schedule_to_domain(value: NoiseScheduleDto) -> NoiseSchedule {
+pub const fn noise_schedule_to_domain(value: NoiseScheduleDto) -> NoiseSchedule {
     match value {
         NoiseScheduleDto::Karras => NoiseSchedule::Karras,
         NoiseScheduleDto::Exponential => NoiseSchedule::Exponential,
@@ -330,7 +272,7 @@ const fn noise_schedule_to_dto(value: NoiseSchedule) -> NoiseScheduleDto {
     }
 }
 
-const fn uc_preset_to_domain(value: UcPresetDto) -> UcPreset {
+pub const fn uc_preset_to_domain(value: UcPresetDto) -> UcPreset {
     match value {
         UcPresetDto::Heavy => UcPreset::Heavy,
         UcPresetDto::Light => UcPreset::Light,
@@ -350,7 +292,7 @@ const fn uc_preset_to_dto(value: UcPreset) -> UcPresetDto {
     }
 }
 
-const fn image_format_to_domain(value: ImageFormatDto) -> ImageFormat {
+pub const fn image_format_to_domain(value: ImageFormatDto) -> ImageFormat {
     match value {
         ImageFormatDto::Png => ImageFormat::Png,
         ImageFormatDto::Webp => ImageFormat::Webp,
@@ -364,13 +306,13 @@ const fn image_format_to_dto(value: ImageFormat) -> ImageFormatDto {
     }
 }
 
-const fn stream_mode_to_domain(value: StreamModeDto) -> StreamMode {
+pub const fn stream_mode_to_domain(value: StreamModeDto) -> StreamMode {
     match value {
         StreamModeDto::Sse => StreamMode::Sse,
     }
 }
 
-const fn plan_context_to_domain(value: GenerationPlanContextDto) -> GenerationPlanContext {
+pub const fn plan_context_to_domain(value: GenerationPlanContextDto) -> GenerationPlanContext {
     GenerationPlanContext {
         request_count: value.request_count,
         pending_vibe_encode_count: value.pending_vibe_encode_count,
@@ -559,6 +501,10 @@ pub fn gallery_page_to_dto(
 }
 
 pub fn gallery_item_to_dto(value: GalleryItem) -> GalleryItemDto {
+    let safety = value
+        .safety_assessment
+        .as_ref()
+        .map(|assessment| safety_assessment_to_dto(assessment, value.manual_safety_override));
     GalleryItemDto {
         item_id: value.id.as_str().to_owned(),
         artifact_id: value.artifact_id.as_str().to_owned(),
@@ -570,7 +516,57 @@ pub fn gallery_item_to_dto(value: GalleryItem) -> GalleryItemDto {
         seed: value.metadata.seed,
         sample_index: value.metadata.sample_index,
         model_name: value.metadata.model_name,
+        safety,
         manual_safety_override: value.manual_safety_override.map(safety_override_to_dto),
+    }
+}
+
+fn safety_assessment_to_dto(
+    value: &SafetyAssessment,
+    manual_override: Option<GallerySafetyOverride>,
+) -> GallerySafetyDto {
+    GallerySafetyDto {
+        scan_state: GallerySafetyScanStateDto::Scanned,
+        risk_band: Some(safety_risk_band_to_dto(value.risk_band())),
+        auto_label: Some(safety_label_to_dto(value.auto_label())),
+        effective_label: safety_label_to_dto(value.effective_label(manual_override.map(|value| {
+            match value {
+                GallerySafetyOverride::Safe => SafetyLabel::Safe,
+                GallerySafetyOverride::Sensitive => SafetyLabel::Sensitive,
+                GallerySafetyOverride::Hidden => SafetyLabel::Hidden,
+            }
+        }))),
+        nsfw_score: Some(value.score.value()),
+        safe_score: value
+            .safe_score
+            .map(nai_atelier_safety::ImageSafetyScore::value),
+        raw_scores: value
+            .raw_scores
+            .iter()
+            .map(|score| GallerySafetyScoreDto {
+                label: score.label.clone(),
+                score: score.score.value(),
+            })
+            .collect(),
+        model_id: value.scorer_label.clone(),
+        scorer_version: value.scorer_version.clone(),
+        assessed_at_ms: value.assessed_at_ms,
+    }
+}
+
+const fn safety_risk_band_to_dto(value: SafetyRiskBand) -> GallerySafetyRiskBandDto {
+    match value {
+        SafetyRiskBand::Low => GallerySafetyRiskBandDto::Low,
+        SafetyRiskBand::Medium => GallerySafetyRiskBandDto::Medium,
+        SafetyRiskBand::High => GallerySafetyRiskBandDto::High,
+    }
+}
+
+const fn safety_label_to_dto(value: SafetyLabel) -> GallerySafetyLabelDto {
+    match value {
+        SafetyLabel::Safe => GallerySafetyLabelDto::Safe,
+        SafetyLabel::Sensitive => GallerySafetyLabelDto::Sensitive,
+        SafetyLabel::Hidden => GallerySafetyLabelDto::Hidden,
     }
 }
 

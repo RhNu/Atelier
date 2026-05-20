@@ -1,4 +1,5 @@
 use nai_atelier_artifacts::ArtifactError;
+use nai_atelier_director::DirectorClientError;
 use nai_atelier_gallery::GalleryError;
 use nai_atelier_generation::{GenerationClientError, GenerationError};
 use nai_atelier_jobs::{JobPayloadRef, JobQueueError};
@@ -33,6 +34,8 @@ pub enum KernelError {
     PreciseReference(#[from] PreciseReferenceError),
     #[error("generation client failed: {0}")]
     GenerationClient(#[from] GenerationClientError),
+    #[error("director client failed: {0}")]
+    DirectorClient(#[from] DirectorClientError),
     #[error("vibe client failed: {0}")]
     VibeClient(#[from] VibeClientError),
     #[error("payload store failed: {0}")]

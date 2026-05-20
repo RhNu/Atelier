@@ -57,6 +57,11 @@ pub enum KernelEventKind {
         resource: ResourceRef,
         message: String,
     },
+    DirectorSafetyScanFailed {
+        run_id: String,
+        resource: ResourceRef,
+        message: String,
+    },
     JobSucceeded {
         batch_id: BatchId,
         job_id: JobId,

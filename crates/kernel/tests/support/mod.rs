@@ -12,14 +12,18 @@ use nai_atelier_artifacts::{
     ArtifactError, ArtifactRecord, ArtifactRepository, ArtifactResourceReader, ArtifactResult,
     RegisterArtifactRequest,
 };
+use nai_atelier_director::{
+    DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
+};
 use nai_atelier_gallery::{GalleryIndex, GalleryItem, GalleryItemId, GalleryResult};
 use nai_atelier_generation::{
     GeneratedImage, GenerationClientError, GenerationResult, ImageStreamEvent, ImageStreamResult,
     NovelAiGenerationClient,
 };
 use nai_atelier_kernel::{
-    GenerationPayloadStore, KernelClock, KernelEvent, KernelEventSink, KernelGenerationPorts,
-    KernelPreciseReferencePorts, PreparedGenerationPayload, SubmittedGenerationPayload,
+    GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEvent, KernelEventSink,
+    KernelGenerationPorts, KernelPreciseReferencePorts, PreparedGenerationPayload,
+    SubmittedGenerationPayload,
 };
 use nai_atelier_precise_reference::{PreciseReferenceImage, PreciseReferenceResult};
 use nai_atelier_prompt_resources::{
@@ -45,6 +49,7 @@ struct State {
     operations: Vec<String>,
     expanded_prompt: String,
     generated_images: Vec<GeneratedImage>,
+    director_output: Option<DirectorToolOutput>,
     stream_items: VecDeque<GenerationResult<ImageStreamEvent>>,
     resources: BTreeMap<String, RegisteredResource>,
     precise_reference_images: BTreeMap<String, PreciseReferenceImage>,
@@ -85,6 +90,15 @@ impl MemoryKernelPorts {
 
     pub fn with_generated_images(self, images: Vec<GeneratedImage>) -> Self {
         self.state.lock().unwrap().generated_images = images;
+        self
+    }
+
+    pub fn with_director_output(self, bytes: Vec<u8>, seed: Option<i64>) -> Self {
+        self.state.lock().unwrap().director_output = Some(DirectorToolOutput {
+            bytes,
+            mime_type: Some("image/png".to_owned()),
+            seed,
+        });
         self
     }
 
@@ -375,6 +389,59 @@ impl KernelGenerationPorts for MemoryKernelPorts {
             .gallery_items
             .insert(item.id.as_str().to_owned(), item.clone());
         Ok(item)
+    }
+}
+
+#[async_trait]
+impl NovelAiDirectorClient for MemoryKernelPorts {
+    async fn run_director_tool(
+        &self,
+        _request: RunDirectorToolRequest,
+    ) -> DirectorResult<DirectorToolOutput> {
+        let mut state = self.state.lock().unwrap();
+        state.operations.push("run_director_tool".to_owned());
+        Ok(state
+            .director_output
+            .clone()
+            .unwrap_or_else(|| DirectorToolOutput {
+                bytes: vec![4, 5, 6],
+                mime_type: Some("image/png".to_owned()),
+                seed: None,
+            }))
+    }
+}
+
+#[async_trait]
+impl KernelDirectorPorts for MemoryKernelPorts {
+    async fn register_director_resource(
+        &self,
+        request: RegisterResourceRequest,
+    ) -> ResourceResult<ResourceRef> {
+        KernelGenerationPorts::register_resource(self, request).await
+    }
+
+    async fn register_director_artifact(
+        &self,
+        request: RegisterArtifactRequest,
+    ) -> ArtifactResult<ArtifactRecord> {
+        KernelGenerationPorts::register_artifact(self, request).await
+    }
+
+    async fn score_director_image(
+        &self,
+        resource: ResourceRef,
+    ) -> SafetyResult<Option<SafetyAssessment>> {
+        KernelGenerationPorts::score_image(self, resource).await
+    }
+
+    async fn index_director_gallery_item(
+        &self,
+        artifact: ArtifactRecord,
+        indexed_at_ms: u64,
+        safety_assessment: Option<SafetyAssessment>,
+    ) -> GalleryResult<GalleryItem> {
+        KernelGenerationPorts::index_gallery_item(self, artifact, indexed_at_ms, safety_assessment)
+            .await
     }
 }
 

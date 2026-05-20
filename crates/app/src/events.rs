@@ -115,6 +115,15 @@ fn kernel_event_to_dto(event: KernelEvent) -> AppEventDto {
             resource: resource_ref_to_dto(&resource),
             message,
         },
+        KernelEventKind::DirectorSafetyScanFailed {
+            run_id,
+            resource,
+            message,
+        } => AppEventKindDto::DirectorSafetyScanFailed {
+            run_id,
+            resource: resource_ref_to_dto(&resource),
+            message,
+        },
         KernelEventKind::JobSucceeded { batch_id, job_id } => AppEventKindDto::JobSucceeded {
             batch_id: batch_id.as_str().to_owned(),
             job_id: job_id.as_str().to_owned(),
@@ -142,8 +151,10 @@ const fn output_mode_as_str(mode: GenerationOutputMode) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use nai_atelier_app_api::event::AppEventKindDto;
     use nai_atelier_jobs::BatchId;
     use nai_atelier_kernel::{KernelEvent, KernelEventKind};
+    use nai_atelier_resource_catalog::{ResourceId, ResourceRef};
 
     use super::{AppEventHub, MAX_RETAINED_EVENTS};
 
@@ -168,5 +179,27 @@ mod tests {
             events.last().map(|event| event.sequence),
             Some(u64::try_from(MAX_RETAINED_EVENTS).unwrap_or(u64::MAX) + 1)
         );
+    }
+
+    #[test]
+    fn event_hub_maps_director_safety_scan_failures() {
+        let hub = AppEventHub::default();
+
+        hub.push_kernel_event(KernelEvent {
+            sequence: 1,
+            kind: KernelEventKind::DirectorSafetyScanFailed {
+                run_id: "director-1".to_owned(),
+                resource: ResourceRef::base(ResourceId::new("resource:director:director-1")),
+                message: "scanner unavailable".to_owned(),
+            },
+        });
+
+        let events = hub.events_since(0, 10);
+
+        assert!(matches!(
+            &events[0].kind,
+            AppEventKindDto::DirectorSafetyScanFailed { run_id, .. }
+                if run_id == "director-1"
+        ));
     }
 }

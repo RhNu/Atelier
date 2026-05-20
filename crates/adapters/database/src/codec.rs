@@ -9,7 +9,7 @@ use nai_atelier_resource_catalog::{
     ResourceId, ResourceKind, ResourceLifecycle, ResourceMetadata, ResourceOwnerKind, ResourceRef,
     ResourceRelation, ResourceState, ResourceVariantKind, VariantId,
 };
-use nai_atelier_safety::{ImageSafetyScore, SafetyAssessment};
+use nai_atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyModelScore};
 use nai_atelier_vibe::{
     VibeDocumentEntry, VibeDocumentResources, VibeDocumentSummary, VibeEncodeSettings,
     VibeEncodingConfig, VibeEncodingRecord, VibeId, VibeModel, VibeSourceIdentity,
@@ -475,9 +475,19 @@ impl JsonCodec<ArtifactRecord> for ArtifactRecordDto {
 struct SafetyAssessmentDto {
     resource: ResourceRefDto,
     score: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    safe_score: Option<f32>,
+    #[serde(default)]
+    raw_scores: Vec<SafetyModelScoreDto>,
     scorer_label: Option<String>,
     scorer_version: Option<String>,
     assessed_at_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct SafetyModelScoreDto {
+    label: String,
+    score: f32,
 }
 
 impl From<&SafetyAssessment> for SafetyAssessmentDto {
@@ -485,10 +495,32 @@ impl From<&SafetyAssessment> for SafetyAssessmentDto {
         Self {
             resource: ResourceRefDto::from(&value.resource),
             score: value.score.value(),
+            safe_score: value.safe_score.map(ImageSafetyScore::value),
+            raw_scores: value
+                .raw_scores
+                .iter()
+                .map(SafetyModelScoreDto::from)
+                .collect(),
             scorer_label: value.scorer_label.clone(),
             scorer_version: value.scorer_version.clone(),
             assessed_at_ms: value.assessed_at_ms,
         }
+    }
+}
+
+impl From<&SafetyModelScore> for SafetyModelScoreDto {
+    fn from(value: &SafetyModelScore) -> Self {
+        Self {
+            label: value.label.clone(),
+            score: value.score.value(),
+        }
+    }
+}
+
+impl SafetyModelScoreDto {
+    fn into_domain(self) -> DatabaseResult<SafetyModelScore> {
+        SafetyModelScore::new(self.label, self.score)
+            .map_err(|error| DatabaseError::new(error.to_string()))
     }
 }
 
@@ -498,6 +530,16 @@ impl SafetyAssessmentDto {
             resource: self.resource.into_domain(),
             score: ImageSafetyScore::new(self.score)
                 .map_err(|error| DatabaseError::new(error.to_string()))?,
+            safe_score: self
+                .safe_score
+                .map(ImageSafetyScore::new)
+                .transpose()
+                .map_err(|error| DatabaseError::new(error.to_string()))?,
+            raw_scores: self
+                .raw_scores
+                .into_iter()
+                .map(SafetyModelScoreDto::into_domain)
+                .collect::<DatabaseResult<Vec<_>>>()?,
             scorer_label: self.scorer_label,
             scorer_version: self.scorer_version,
             assessed_at_ms: self.assessed_at_ms,

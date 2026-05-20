@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use nai_atelier_artifacts::{ArtifactRecord, ArtifactResult, RegisterArtifactRequest};
+use nai_atelier_director::NovelAiDirectorClient;
 use nai_atelier_gallery::{GalleryItem, GalleryResult};
 use nai_atelier_generation::NovelAiGenerationClient;
 use nai_atelier_jobs::JobPayloadRef;
@@ -53,6 +54,31 @@ pub trait KernelGenerationPorts: NovelAiGenerationClient + Send + Sync {
     async fn score_image(&self, resource: ResourceRef) -> SafetyResult<Option<SafetyAssessment>>;
 
     async fn index_gallery_item(
+        &self,
+        artifact: ArtifactRecord,
+        indexed_at_ms: u64,
+        safety_assessment: Option<SafetyAssessment>,
+    ) -> GalleryResult<GalleryItem>;
+}
+
+#[async_trait]
+pub trait KernelDirectorPorts: NovelAiDirectorClient + Send + Sync {
+    async fn register_director_resource(
+        &self,
+        request: RegisterResourceRequest,
+    ) -> ResourceResult<ResourceRef>;
+
+    async fn register_director_artifact(
+        &self,
+        request: RegisterArtifactRequest,
+    ) -> ArtifactResult<ArtifactRecord>;
+
+    async fn score_director_image(
+        &self,
+        resource: ResourceRef,
+    ) -> SafetyResult<Option<SafetyAssessment>>;
+
+    async fn index_director_gallery_item(
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,

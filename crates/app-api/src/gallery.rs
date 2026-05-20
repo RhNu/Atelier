@@ -42,7 +42,7 @@ impl Default for GalleryQueryDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GalleryPageDto {
     pub items: Vec<GalleryItemDto>,
     pub total: usize,
@@ -50,7 +50,7 @@ pub struct GalleryPageDto {
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GalleryItemDto {
     pub item_id: String,
     pub artifact_id: String,
@@ -66,7 +66,61 @@ pub struct GalleryItemDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub safety: Option<GallerySafetyDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub manual_safety_override: Option<GallerySafetyOverrideDto>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GallerySafetyScanStateDto {
+    Unscanned,
+    Scanned,
+    Failed,
+    Unavailable,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GallerySafetyRiskBandDto {
+    Low,
+    Medium,
+    High,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GallerySafetyLabelDto {
+    Safe,
+    Sensitive,
+    Hidden,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GallerySafetyScoreDto {
+    pub label: String,
+    pub score: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GallerySafetyDto {
+    pub scan_state: GallerySafetyScanStateDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk_band: Option<GallerySafetyRiskBandDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auto_label: Option<GallerySafetyLabelDto>,
+    pub effective_label: GallerySafetyLabelDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nsfw_score: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub safe_score: Option<f32>,
+    pub raw_scores: Vec<GallerySafetyScoreDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scorer_version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assessed_at_ms: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

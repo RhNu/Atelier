@@ -339,6 +339,7 @@ where
         &self,
         request: RunDirectorToolRequest,
     ) -> DirectorResult<DirectorToolOutput> {
+        let request = request.normalize_for_tool()?;
         self.client
             .run_director_tool(to_bridge_director_request(request))
             .await
@@ -606,11 +607,18 @@ const fn to_bridge_director_tool(tool: DirectorTool) -> bridge::DirectorTool {
 
 #[cfg(test)]
 mod tests {
+    use std::pin::Pin;
     use std::sync::{Arc, Mutex};
-    use std::{io, time::Duration};
+    use std::{
+        io::{self, Cursor},
+        time::Duration,
+    };
 
     use async_trait::async_trait;
+    use base64::{Engine, engine::general_purpose::STANDARD};
+    use futures_core::Stream;
     use futures_executor::block_on;
+    use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
     use nai_atelier_generation::{
         ClientApiErrorReason as GenerationApiErrorReason,
         ClientInvalidRequestKind as GenerationInvalidRequestKind, GenerateImageRequest,
@@ -622,6 +630,8 @@ mod tests {
         SubscriptionClientError, SubscriptionProbeClient, SubscriptionResult,
     };
     use novelai_bridge::{ApiError, ApiErrorKind, ApiErrorReason, BridgeError};
+    use serde::{Serialize, de::DeserializeOwned};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::error::{
@@ -926,6 +936,34 @@ mod tests {
     }
 
     #[test]
+    fn director_adapter_normalizes_lineart_options_before_bridge_validation() {
+        block_on(async {
+            let response = png_bytes(1, 1);
+            let transport = RecordingDirectorTransport::new(response.clone());
+            let adapter = NovelAiBridgeAdapter::from_client(bridge::Client::with_transport(
+                transport.clone(),
+            ));
+
+            let output = adapter
+                .run_director_tool(RunDirectorToolRequest {
+                    tool: DirectorTool::Lineart,
+                    image: png_base64(2, 1),
+                    prompt: Some(" clean lines ".to_owned()),
+                    defry: Some(2),
+                    strict_mode: true,
+                })
+                .await
+                .unwrap();
+
+            assert_eq!(output.bytes, response);
+            let body = transport.last_body().expect("director request body");
+            assert_eq!(body["req_type"], json!("lineart"));
+            assert!(body.get("prompt").is_none());
+            assert!(body.get("defry").is_none());
+        });
+    }
+
+    #[test]
     fn resolver_backed_generation_resolves_active_secret_before_calling_client() {
         block_on(async {
             let resolver = FakeResolver::active("active-secret");
@@ -1087,5 +1125,72 @@ mod tests {
                 expires_at_ms: None,
             })
         }
+    }
+
+    #[derive(Clone)]
+    struct RecordingDirectorTransport {
+        bytes_response: Arc<Vec<u8>>,
+        last_body: Arc<Mutex<Option<Value>>>,
+    }
+
+    impl RecordingDirectorTransport {
+        fn new(bytes_response: Vec<u8>) -> Self {
+            Self {
+                bytes_response: Arc::new(bytes_response),
+                last_body: Arc::default(),
+            }
+        }
+
+        fn last_body(&self) -> Option<Value> {
+            self.last_body.lock().unwrap().clone()
+        }
+    }
+
+    #[async_trait]
+    impl bridge::Transport for RecordingDirectorTransport {
+        async fn get_json<TRes: DeserializeOwned + Send>(
+            &self,
+            _endpoint: &str,
+        ) -> Result<TRes, BridgeError> {
+            panic!("director adapter test does not use JSON GET")
+        }
+
+        async fn post_bytes<TReq: Serialize + Send + Sync>(
+            &self,
+            _endpoint: &str,
+            body: &TReq,
+        ) -> Result<Vec<u8>, BridgeError> {
+            *self.last_body.lock().unwrap() = Some(serde_json::to_value(body).unwrap());
+            Ok((*self.bytes_response).clone())
+        }
+
+        async fn post_sse<TReq: Serialize + Send + Sync>(
+            &self,
+            _endpoint: &str,
+            _body: &TReq,
+        ) -> Result<
+            Pin<Box<dyn Stream<Item = Result<bridge::ImageStreamChunk, BridgeError>> + Send>>,
+            BridgeError,
+        > {
+            panic!("director adapter test does not use SSE POST")
+        }
+    }
+
+    fn png_base64(width: u32, height: u32) -> String {
+        STANDARD.encode(png_bytes(width, height))
+    }
+
+    fn png_bytes(width: u32, height: u32) -> Vec<u8> {
+        let image = DynamicImage::ImageRgba8(ImageBuffer::from_fn(width, height, |x, y| {
+            Rgba([
+                u8::try_from(x % 256).unwrap(),
+                u8::try_from(y % 256).unwrap(),
+                255,
+                255,
+            ])
+        }));
+        let mut bytes = Cursor::new(Vec::new());
+        image.write_to(&mut bytes, ImageFormat::Png).unwrap();
+        bytes.into_inner()
     }
 }

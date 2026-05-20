@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 use futures_executor::block_on;
 use nai_atelier_resource_catalog::{ResourceId, ResourceRef};
-use nai_atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyErrorKind, SafetyScanner};
+use nai_atelier_safety::{
+    ImageSafetyScore, SafetyAssessment, SafetyErrorKind, SafetyLabel, SafetyModelScore,
+    SafetyRiskBand, SafetyScanInput, SafetyScanner,
+};
 
 #[test]
 fn image_safety_score_accepts_range_boundaries() {
@@ -36,6 +39,50 @@ fn safety_assessment_attaches_score_to_resource_ref() {
 }
 
 #[test]
+fn scanned_assessment_preserves_model_scores_and_derives_safety_labels() {
+    let resource = ResourceRef::base(ResourceId::new("resource-1"));
+    let assessment = SafetyAssessment::from_model_scores(
+        resource.clone(),
+        vec![
+            SafetyModelScore::new("safe", 0.09).unwrap(),
+            SafetyModelScore::new("nsfw", 0.91).unwrap(),
+        ],
+    )
+    .unwrap()
+    .with_scorer("open_nsfw@onnx", Some("1"))
+    .with_assessed_at_ms(123);
+
+    assert_eq!(assessment.resource, resource);
+    assert_score(assessment.score, 0.91);
+    assert_eq!(
+        assessment.safe_score.map(ImageSafetyScore::value),
+        Some(0.09)
+    );
+    assert_eq!(assessment.raw_scores.len(), 2);
+    assert_eq!(assessment.risk_band(), SafetyRiskBand::High);
+    assert_eq!(assessment.auto_label(), SafetyLabel::Sensitive);
+    assert_eq!(
+        assessment.effective_label(Some(SafetyLabel::Hidden)),
+        SafetyLabel::Hidden
+    );
+}
+
+#[test]
+fn safety_thresholds_keep_medium_scores_visible_by_default() {
+    let resource = ResourceRef::base(ResourceId::new("resource-1"));
+    let low = SafetyAssessment::new(resource.clone(), ImageSafetyScore::new(0.19).unwrap());
+    let medium = SafetyAssessment::new(resource.clone(), ImageSafetyScore::new(0.20).unwrap());
+    let high = SafetyAssessment::new(resource, ImageSafetyScore::new(0.80).unwrap());
+
+    assert_eq!(low.risk_band(), SafetyRiskBand::Low);
+    assert_eq!(low.auto_label(), SafetyLabel::Safe);
+    assert_eq!(medium.risk_band(), SafetyRiskBand::Medium);
+    assert_eq!(medium.auto_label(), SafetyLabel::Safe);
+    assert_eq!(high.risk_band(), SafetyRiskBand::High);
+    assert_eq!(high.auto_label(), SafetyLabel::Sensitive);
+}
+
+#[test]
 fn fake_safety_scanner_returns_deterministic_score_without_io() {
     block_on(async {
         let scanner = FakeSafetyScanner {
@@ -43,7 +90,14 @@ fn fake_safety_scanner_returns_deterministic_score_without_io() {
         };
         let resource = ResourceRef::base(ResourceId::new("resource-1"));
 
-        let assessment = scanner.score_image(resource.clone()).await.unwrap();
+        let assessment = scanner
+            .scan_image(SafetyScanInput {
+                resource: resource.clone(),
+                bytes: vec![1, 2, 3],
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap();
 
         assert_eq!(assessment.resource, resource);
         assert_score(assessment.score, 0.2);
@@ -61,10 +115,10 @@ struct FakeSafetyScanner {
 
 #[async_trait]
 impl SafetyScanner for FakeSafetyScanner {
-    async fn score_image(
+    async fn scan_image(
         &self,
-        resource: ResourceRef,
+        input: SafetyScanInput,
     ) -> nai_atelier_safety::SafetyResult<SafetyAssessment> {
-        Ok(SafetyAssessment::new(resource, self.score).with_scorer("fake", None))
+        Ok(SafetyAssessment::new(input.resource, self.score).with_scorer("fake", None))
     }
 }

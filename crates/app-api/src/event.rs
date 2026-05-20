@@ -68,6 +68,11 @@ pub enum AppEventKindDto {
         resource: ResourceRefDto,
         message: String,
     },
+    DirectorSafetyScanFailed {
+        run_id: String,
+        resource: ResourceRefDto,
+        message: String,
+    },
     JobSucceeded {
         batch_id: String,
         job_id: String,

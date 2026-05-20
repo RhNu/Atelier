@@ -7,9 +7,10 @@ use nai_atelier_precise_reference::PreciseReferenceInput;
 use crate::{
     EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
     GenerationPayloadStore, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
-    ImportedVibeDocuments, KernelClock, KernelError, KernelEvent, KernelEventKind, KernelEventSink,
-    KernelGenerationPorts, KernelPreciseReferencePorts, KernelResult, KernelVibePorts,
-    SubmitGenerationWork, SubmittedGenerationPayload,
+    ImportedVibeDocuments, KernelClock, KernelDirectorPorts, KernelError, KernelEvent,
+    KernelEventKind, KernelEventSink, KernelGenerationPorts, KernelPreciseReferencePorts,
+    KernelResult, KernelVibePorts, RanDirectorTool, RunDirectorTool, SubmitGenerationWork,
+    SubmittedGenerationPayload,
 };
 
 #[derive(Clone, Debug)]
@@ -79,6 +80,21 @@ impl<P> KernelRuntime<P> {
     /// Returns an error when the active queue is not waiting on a delay.
     pub fn delay_elapsed(&mut self) -> KernelResult<QueueDirective> {
         self.queue.delay_elapsed().map_err(KernelError::from)
+    }
+}
+
+impl<P> KernelRuntime<P>
+where
+    P: KernelEventSink,
+{
+    pub(crate) async fn emit(&mut self, kind: KernelEventKind) {
+        self.next_event_sequence += 1;
+        self.ports
+            .emit(KernelEvent {
+                sequence: self.next_event_sequence,
+                kind,
+            })
+            .await;
     }
 }
 
@@ -168,15 +184,22 @@ where
     pub(crate) const fn ports_ref(&self) -> &P {
         &self.ports
     }
+}
 
-    pub(crate) async fn emit(&mut self, kind: KernelEventKind) {
-        self.next_event_sequence += 1;
-        self.ports
-            .emit(KernelEvent {
-                sequence: self.next_event_sequence,
-                kind,
-            })
-            .await;
+impl<P> KernelRuntime<P>
+where
+    P: KernelClock + KernelDirectorPorts + KernelEventSink,
+{
+    /// Runs one Director tool request and indexes the produced image.
+    ///
+    /// # Errors
+    /// Returns an error when the Director client fails or persistence/indexing
+    /// cannot complete.
+    pub async fn run_director_tool(
+        &mut self,
+        request: RunDirectorTool,
+    ) -> KernelResult<RanDirectorTool> {
+        crate::workflow::director::run_director_tool(self, request).await
     }
 }
 

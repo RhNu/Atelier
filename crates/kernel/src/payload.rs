@@ -1,8 +1,12 @@
+use nai_atelier_artifacts::ArtifactId;
+use nai_atelier_director::RunDirectorToolRequest;
+use nai_atelier_gallery::GalleryItem;
 use nai_atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GenerationPlanContext, GenerationRequestPlan,
 };
 use nai_atelier_jobs::{BatchId, JobId, JobPayloadRef};
 use nai_atelier_prompt_resources::CompiledPrompt;
+use nai_atelier_resource_catalog::ResourceRef;
 use nai_atelier_vibe::{
     VibeDocumentEntry, VibeEncodeSettings, VibeEncodingRecord, VibeExportDocument,
     VibeExportFormat, VibeId, VibeSourceIdentity,
@@ -59,6 +63,19 @@ pub struct PreparedGenerationPayload {
     pub request: GenerationWorkRequest,
     pub compiled_prompt: CompiledPrompt,
     pub plan: GenerationRequestPlan,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunDirectorTool {
+    pub run_id: String,
+    pub request: RunDirectorToolRequest,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RanDirectorTool {
+    pub resource: ResourceRef,
+    pub artifact_id: ArtifactId,
+    pub item: GalleryItem,
 }
 
 #[derive(Clone, Debug, PartialEq)]

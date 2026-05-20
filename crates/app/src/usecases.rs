@@ -4,16 +4,26 @@ use nai_atelier_adapter_novelai::NovelAiClientFactory;
 use nai_atelier_app_api::account::{
     ApiKeyRecordDto, CreateApiKeyRequestDto, SubscriptionSummaryDto, UpdateApiKeyRequestDto,
 };
+use nai_atelier_app_api::director::{
+    DirectorToolDto, DirectorToolResultDto, RunDirectorToolRequestDto,
+};
 use nai_atelier_app_api::event::AppEventDto;
 use nai_atelier_app_api::gallery::{GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto};
 use nai_atelier_app_api::generation::{
-    GenerationStatusDto, QueueDirectiveDto, SubmitGenerationRequestDto,
+    CharacterDto, CharacterReferenceDto, CharacterReferenceTypeDto, ControlNetConfigDto,
+    ControlNetInputDto, GenerateImageRequestDto, GenerateImageStreamRequestDto,
+    GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto, QueueDirectiveDto,
+    SubmitGenerationRequestDto,
 };
 use nai_atelier_app_api::prompt::{
     CompilePromptRequestDto, CompiledPromptDto, DeletePromptChunkRequestDto,
     DeletePromptChunkResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
     PromptLexiconPageDto, UpsertPromptChunkRequestDto,
+};
+use nai_atelier_app_api::resource::{
+    ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
+    ImportImageResourceResponseDto,
 };
 use nai_atelier_app_api::settings::{
     ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
@@ -24,23 +34,36 @@ use nai_atelier_app_api::vibe::{
     ImportedVibeDocumentsDto,
 };
 use nai_atelier_app_api::workspace::WorkspaceStatusDto;
+use nai_atelier_director::{DirectorTool, RunDirectorToolRequest};
 use nai_atelier_gallery::GalleryItemId;
-use nai_atelier_jobs::JobId;
+use nai_atelier_generation::{
+    Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
+    ControlNetInput, GenerateImageRequest, GenerateImageStreamRequest, ImageSize, Img2ImgRequest,
+};
+use nai_atelier_jobs::{BatchId, JobId};
 use nai_atelier_kernel::{
-    EnsureVibeEncoding, ExportVibeDocument, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
+    EnsureVibeEncoding, ExportVibeDocument, GenerationWorkRequest, ImportEmbeddedPngVibeDocument,
+    ImportVibeDocument, RunDirectorTool, SubmitGenerationWork,
 };
 use nai_atelier_prompt_resources::{CompilePromptRequest, PromptChunkId, PromptChunkKey};
+use nai_atelier_resource_catalog::{
+    BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
+    ResourceOwner, ResourceOwnerKind, ResourceRelation,
+};
 use nai_atelier_secrets::{ApiKeyId, SecretStore, SecretValue, SecretsErrorKind};
 use nai_atelier_vibe::{VibeEncodeSettings, VibeId, VibeSourceIdentity};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::app::AtelierApp;
 use crate::mapping::{
     api_key_record_to_dto, compiled_prompt_to_dto, create_api_key_to_domain, ensured_vibe_to_dto,
     exported_vibe_to_dto, gallery_image_reference_to_dto, gallery_item_to_dto, gallery_page_to_dto,
-    gallery_query_to_domain, generation_status_to_dto, image_reference_target_to_domain,
-    imported_vibes_to_dto, lexicon_catalog_to_dto, lexicon_page_to_dto, lexicon_query_to_domain,
-    lexicon_search_to_page, prompt_chunk_to_dto, queue_directive_to_dto, safety_override_to_domain,
-    submit_generation_to_domain, subscription_to_dto, upsert_prompt_chunk_to_domain,
+    gallery_query_to_domain, generation_status_to_dto, image_format_to_domain,
+    image_model_to_domain, image_reference_target_to_domain, imported_vibes_to_dto,
+    lexicon_catalog_to_dto, lexicon_page_to_dto, lexicon_query_to_domain, lexicon_search_to_page,
+    noise_schedule_to_domain, plan_context_to_domain, prompt_chunk_to_dto, queue_directive_to_dto,
+    resource_ref_from_dto, resource_ref_to_dto, safety_override_to_domain, sampler_to_domain,
+    stream_mode_to_domain, subscription_to_dto, uc_preset_to_domain, upsert_prompt_chunk_to_domain,
     vibe_format_to_domain, vibe_model_to_domain, workspace_settings_to_domain,
     workspace_settings_to_dto,
 };
@@ -286,6 +309,47 @@ pub struct SettingsUseCases<'a, S, F, E> {
     pub(crate) app: &'a AtelierApp<S, F, E>,
 }
 
+pub struct ResourceUseCases<'a, S, F, E> {
+    pub(crate) app: &'a AtelierApp<S, F, E>,
+}
+
+impl<S, F, E> ResourceUseCases<'_, S, F, E>
+where
+    S: Send + Sync,
+    F: Send + Sync,
+    E: Send + Sync,
+{
+    pub async fn import_image(
+        &self,
+        request: ImportImageResourceRequestDto,
+    ) -> AppResult<ImportImageResourceResponseDto> {
+        let bytes = STANDARD.decode(request.image_base64.trim())?;
+        let kind = image_resource_kind_to_domain(request.kind);
+        let resource_id = ResourceId::new(format!(
+            "resource:import:{}:{}",
+            resource_kind_slug(kind),
+            unix_timestamp_nanos()
+        ));
+        let kernel = self.app.inner.kernel.lock().await;
+        let resource = kernel
+            .ports()
+            .resources
+            .register_resource(RegisterResourceRequest {
+                resource_id,
+                kind,
+                lifecycle: ResourceLifecycle::WorkspaceScoped,
+                owner: ResourceOwner::new(ResourceOwnerKind::Workspace, "workspace"),
+                relation: image_resource_relation(request.kind),
+                blob: BlobWriteIntent::Bytes(bytes),
+            })
+            .await?;
+        drop(kernel);
+        Ok(ImportImageResourceResponseDto {
+            resource: resource_ref_to_dto(&resource),
+        })
+    }
+}
+
 impl<S, F, E> SettingsUseCases<'_, S, F, E>
 where
     S: Send + Sync,
@@ -361,7 +425,7 @@ where
                     AppError::from(error)
                 }
             })?;
-        let work = submit_generation_to_domain(request);
+        let work = self.submit_request_to_domain(request).await?;
         let mut kernel = self.app.inner.kernel.lock().await;
         kernel
             .submit_generation_work(work)
@@ -418,6 +482,295 @@ where
             job_id.and_then(|id| kernel.job_status(&JobId::new(id))),
         )
     }
+
+    async fn submit_request_to_domain(
+        &self,
+        request: SubmitGenerationRequestDto,
+    ) -> AppResult<SubmitGenerationWork> {
+        Ok(SubmitGenerationWork {
+            batch_id: BatchId::new(request.batch_id),
+            job_id: JobId::new(request.job_id),
+            request: self.work_request_to_domain(request.work).await?,
+            context: plan_context_to_domain(request.context),
+        })
+    }
+
+    async fn work_request_to_domain(
+        &self,
+        value: GenerationWorkRequestDto,
+    ) -> AppResult<GenerationWorkRequest> {
+        match value {
+            GenerationWorkRequestDto::Image(request) => Ok(GenerationWorkRequest::Image(
+                self.generate_request_to_domain(request).await?,
+            )),
+            GenerationWorkRequestDto::Stream(request) => Ok(GenerationWorkRequest::Stream(
+                self.stream_request_to_domain(request).await?,
+            )),
+        }
+    }
+
+    async fn stream_request_to_domain(
+        &self,
+        value: GenerateImageStreamRequestDto,
+    ) -> AppResult<GenerateImageStreamRequest> {
+        Ok(GenerateImageStreamRequest {
+            base: self.generate_request_to_domain(value.base).await?,
+            stream: stream_mode_to_domain(value.stream),
+        })
+    }
+
+    async fn generate_request_to_domain(
+        &self,
+        value: GenerateImageRequestDto,
+    ) -> AppResult<GenerateImageRequest> {
+        Ok(GenerateImageRequest {
+            prompt: value.prompt,
+            model: image_model_to_domain(value.model),
+            size: ImageSize {
+                width: value.size.width,
+                height: value.size.height,
+            },
+            negative_prompt: value.negative_prompt,
+            quality: value.quality,
+            uc_preset: uc_preset_to_domain(value.uc_preset),
+            steps: value.steps,
+            scale: value.scale,
+            sampler: sampler_to_domain(value.sampler),
+            noise_schedule: noise_schedule_to_domain(value.noise_schedule),
+            seed: value.seed,
+            n_samples: value.n_samples,
+            cfg_rescale: value.cfg_rescale,
+            variety_boost: value.variety_boost,
+            i2i: self.optional_i2i_to_domain(value.i2i).await?,
+            controlnet: value.controlnet.map(controlnet_to_domain),
+            character_references: self
+                .optional_character_references_to_domain(value.character_references)
+                .await?,
+            characters: value.characters.map(characters_to_domain),
+            use_coords: value.use_coords,
+            image_format: value.image_format.map(image_format_to_domain),
+            strict_mode: value.strict_mode,
+        })
+    }
+
+    async fn optional_i2i_to_domain(
+        &self,
+        value: Option<Img2ImgRequestDto>,
+    ) -> AppResult<Option<Img2ImgRequest>> {
+        match value {
+            Some(request) => self.i2i_to_domain(request).await.map(Some),
+            None => Ok(None),
+        }
+    }
+
+    async fn i2i_to_domain(&self, value: Img2ImgRequestDto) -> AppResult<Img2ImgRequest> {
+        let mask = match value.mask {
+            Some(mask) => Some(self.image_input_to_base64(mask).await?),
+            None => None,
+        };
+        Ok(Img2ImgRequest {
+            image: self.image_input_to_base64(value.image).await?,
+            strength: value.strength,
+            noise: value.noise,
+            mask,
+        })
+    }
+
+    async fn optional_character_references_to_domain(
+        &self,
+        value: Option<Vec<CharacterReferenceDto>>,
+    ) -> AppResult<Option<Vec<CharacterReference>>> {
+        let Some(references) = value else {
+            return Ok(None);
+        };
+        let mut resolved = Vec::with_capacity(references.len());
+        for reference in references {
+            resolved.push(self.character_reference_to_domain(reference).await?);
+        }
+        Ok(Some(resolved))
+    }
+
+    async fn character_reference_to_domain(
+        &self,
+        value: CharacterReferenceDto,
+    ) -> AppResult<CharacterReference> {
+        Ok(CharacterReference {
+            image: self.image_input_to_base64(value.image).await?,
+            reference_type: character_reference_type_to_domain(value.reference_type),
+            fidelity: value.fidelity,
+            strength: value.strength,
+        })
+    }
+
+    async fn image_input_to_base64(&self, input: ImageInputDto) -> AppResult<String> {
+        match input {
+            ImageInputDto::InlineBase64 { image_base64 } => Ok(image_base64),
+            ImageInputDto::ResourceRef { resource } => {
+                let reference = resource_ref_from_dto(resource);
+                let kernel = self.app.inner.kernel.lock().await;
+                kernel
+                    .ports()
+                    .resource_reader
+                    .read_resource_base64(&reference)
+                    .await
+                    .map_err(AppError::from)
+            }
+        }
+    }
+}
+
+pub struct DirectorUseCases<'a, S, F, E> {
+    pub(crate) app: &'a AtelierApp<S, F, E>,
+}
+
+impl<S, F, E> DirectorUseCases<'_, S, F, E>
+where
+    S: SecretStore + Clone + Send + Sync,
+    F: NovelAiClientFactory + Clone + Send + Sync,
+    E: Send + Sync,
+{
+    pub async fn run_tool(
+        &self,
+        request: RunDirectorToolRequestDto,
+    ) -> AppResult<DirectorToolResultDto> {
+        self.app
+            .inner
+            .api_keys
+            .resolve_active_secret()
+            .await
+            .map_err(|error| {
+                if error.kind == SecretsErrorKind::MissingActiveKey {
+                    AppError::missing_active_key()
+                } else {
+                    AppError::from(error)
+                }
+            })?;
+        let work = RunDirectorTool {
+            run_id: request.run_id,
+            request: RunDirectorToolRequest {
+                tool: director_tool_to_domain(request.tool),
+                image: self.image_input_to_base64(request.image).await?,
+                prompt: request.prompt,
+                defry: request.defry,
+                strict_mode: request.strict_mode,
+            },
+        };
+        let mut kernel = self.app.inner.kernel.lock().await;
+        kernel
+            .run_director_tool(work)
+            .await
+            .map(|result| DirectorToolResultDto {
+                item_id: result.item.id.as_str().to_owned(),
+                artifact_id: result.artifact_id.as_str().to_owned(),
+                resource: resource_ref_to_dto(&result.resource),
+                item: gallery_item_to_dto(result.item),
+            })
+            .map_err(AppError::from)
+    }
+
+    async fn image_input_to_base64(&self, input: ImageInputDto) -> AppResult<String> {
+        match input {
+            ImageInputDto::InlineBase64 { image_base64 } => Ok(image_base64),
+            ImageInputDto::ResourceRef { resource } => {
+                let reference = resource_ref_from_dto(resource);
+                let kernel = self.app.inner.kernel.lock().await;
+                kernel
+                    .ports()
+                    .resource_reader
+                    .read_resource_base64(&reference)
+                    .await
+                    .map_err(AppError::from)
+            }
+        }
+    }
+}
+
+fn controlnet_to_domain(value: ControlNetConfigDto) -> ControlNetConfig {
+    ControlNetConfig {
+        images: value
+            .images
+            .into_iter()
+            .map(controlnet_input_to_domain)
+            .collect(),
+        strength: value.strength,
+    }
+}
+
+fn controlnet_input_to_domain(value: ControlNetInputDto) -> ControlNetInput {
+    ControlNetInput {
+        vibe_data_cache: value.vibe_data_cache,
+        info_extracted: value.info_extracted,
+        strength: value.strength,
+    }
+}
+
+fn characters_to_domain(value: Vec<CharacterDto>) -> Vec<Character> {
+    value
+        .into_iter()
+        .map(|character| Character {
+            prompt: character.prompt,
+            negative_prompt: character.negative_prompt,
+            position: CharacterPosition {
+                x: character.position.x,
+                y: character.position.y,
+            },
+            enabled: character.enabled,
+        })
+        .collect()
+}
+
+const fn character_reference_type_to_domain(
+    value: CharacterReferenceTypeDto,
+) -> CharacterReferenceType {
+    match value {
+        CharacterReferenceTypeDto::Character => CharacterReferenceType::Character,
+        CharacterReferenceTypeDto::Style => CharacterReferenceType::Style,
+        CharacterReferenceTypeDto::CharacterAndStyle => CharacterReferenceType::CharacterAndStyle,
+    }
+}
+
+const fn director_tool_to_domain(value: DirectorToolDto) -> DirectorTool {
+    match value {
+        DirectorToolDto::Lineart => DirectorTool::Lineart,
+        DirectorToolDto::Sketch => DirectorTool::Sketch,
+        DirectorToolDto::BgRemoval => DirectorTool::BgRemoval,
+        DirectorToolDto::Emotion => DirectorTool::Emotion,
+        DirectorToolDto::Declutter => DirectorTool::Declutter,
+        DirectorToolDto::Colorize => DirectorTool::Colorize,
+    }
+}
+
+const fn image_resource_kind_to_domain(value: ImageResourceKindDto) -> ResourceKind {
+    match value {
+        ImageResourceKindDto::SourceImage => ResourceKind::SourceImage,
+        ImageResourceKindDto::ReferenceImage => ResourceKind::ReferenceImage,
+        ImageResourceKindDto::ControlNetImage => ResourceKind::ControlNetImage,
+    }
+}
+
+const fn image_resource_relation(value: ImageResourceKindDto) -> ResourceRelation {
+    match value {
+        ImageResourceKindDto::SourceImage => ResourceRelation::Source,
+        ImageResourceKindDto::ReferenceImage | ImageResourceKindDto::ControlNetImage => {
+            ResourceRelation::Reference
+        }
+    }
+}
+
+const fn resource_kind_slug(value: ResourceKind) -> &'static str {
+    match value {
+        ResourceKind::SourceImage => "source",
+        ResourceKind::ReferenceImage => "reference",
+        ResourceKind::ControlNetImage => "controlnet",
+        _ => "image",
+    }
+}
+
+fn unix_timestamp_nanos() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos()
 }
 
 pub struct VibeUseCases<'a, S, F, E> {

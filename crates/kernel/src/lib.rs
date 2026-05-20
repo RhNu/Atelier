@@ -12,11 +12,11 @@ pub use event::{KernelEvent, KernelEventKind, KernelFailureDetail};
 pub use payload::{
     EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
     GenerationWorkRequest, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
-    ImportedVibeDocuments, PreparedGenerationPayload, SubmitGenerationWork,
-    SubmittedGenerationPayload,
+    ImportedVibeDocuments, PreparedGenerationPayload, RanDirectorTool, RunDirectorTool,
+    SubmitGenerationWork, SubmittedGenerationPayload,
 };
 pub use ports::{
-    GenerationPayloadStore, KernelClock, KernelEventSink, KernelGenerationPorts,
-    KernelPreciseReferencePorts, KernelVibePorts,
+    GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEventSink,
+    KernelGenerationPorts, KernelPreciseReferencePorts, KernelVibePorts,
 };
 pub use runtime::KernelRuntime;

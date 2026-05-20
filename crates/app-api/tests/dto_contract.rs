@@ -2,17 +2,28 @@ use nai_atelier_app_api::account::{
     ApiKeyRecordDto, CreateApiKeyRequestDto, DeleteApiKeyRequestDto, DeleteApiKeyResponseDto,
     ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto,
 };
+use nai_atelier_app_api::director::{
+    DirectorToolDto, DirectorToolResultDto, RunDirectorToolRequestDto,
+};
 use nai_atelier_app_api::error::ErrorEnvelopeDto;
 use nai_atelier_app_api::event::{AppEventKindDto, AppEventPageDto, EventsSinceRequestDto};
 use nai_atelier_app_api::gallery::{
-    GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto,
+    GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto, GalleryItemDto,
+    GallerySafetyDto, GallerySafetyLabelDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
+    GallerySourceKindDto,
 };
 use nai_atelier_app_api::generation::{
-    GenerationStatusQueryDto, ImageModelDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
+    ControlNetConfigDto, ControlNetInputDto, GenerateImageRequestDto, GenerationStatusQueryDto,
+    ImageModelDto, Img2ImgRequestDto, QueueDirectiveDto, RunGenerationJobRequestDto,
 };
 use nai_atelier_app_api::prompt::{
     DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, GetPromptChunkRequestDto,
     ListPromptChunksRequestDto, PromptChunkPageDto, PromptLexiconSearchQueryDto,
+};
+use nai_atelier_app_api::resource::{
+    ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
+    ImportImageResourceResponseDto, ResourceRefDto,
 };
 use nai_atelier_app_api::settings::{
     GenerationDefaultsDto, ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto,
@@ -205,6 +216,256 @@ fn generation_workspace_and_event_command_dtos_are_command_friendly() {
                 }
             }],
             "next_sequence": 8
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(AppEventKindDto::DirectorSafetyScanFailed {
+            run_id: "director-1".to_owned(),
+            resource: ResourceRefDto {
+                id: "resource:director:director-1".to_owned(),
+                variant_id: None,
+            },
+            message: "scanner unavailable".to_owned(),
+        })
+        .unwrap(),
+        json!({
+            "kind": "director_safety_scan_failed",
+            "run_id": "director-1",
+            "resource": {
+                "id": "resource:director:director-1"
+            },
+            "message": "scanner unavailable"
+        })
+    );
+}
+
+#[test]
+fn generation_request_exposes_resource_backed_drawing_inputs() {
+    let request = GenerateImageRequestDto {
+        prompt: "1girl".to_owned(),
+        i2i: Some(Img2ImgRequestDto {
+            image: ImageInputDto::resource("source-image"),
+            strength: 0.45,
+            noise: 0.2,
+            mask: Some(ImageInputDto::resource("mask-image")),
+        }),
+        controlnet: Some(ControlNetConfigDto {
+            images: vec![ControlNetInputDto {
+                vibe_data_cache: "cache-key".to_owned(),
+                info_extracted: 0.7,
+                strength: 0.8,
+            }],
+            strength: 0.5,
+        }),
+        character_references: Some(vec![CharacterReferenceDto {
+            image: ImageInputDto::resource("character-ref"),
+            reference_type: CharacterReferenceTypeDto::CharacterAndStyle,
+            fidelity: 0.6,
+            strength: 0.75,
+        }]),
+        characters: Some(vec![CharacterDto {
+            prompt: "hero".to_owned(),
+            negative_prompt: Some("lowres".to_owned()),
+            position: CharacterPositionDto { x: 0.25, y: 0.75 },
+            enabled: true,
+        }]),
+        use_coords: Some(true),
+        ..GenerateImageRequestDto::default()
+    };
+
+    assert_eq!(
+        serde_json::to_value(request).unwrap(),
+        json!({
+            "prompt": "1girl",
+            "model": "nai-diffusion-4-5-full",
+            "size": { "width": 832, "height": 1216 },
+            "quality": true,
+            "uc_preset": "light",
+            "steps": 23,
+            "scale": 5.0,
+            "sampler": "k_euler_ancestral",
+            "noise_schedule": "karras",
+            "seed": 0,
+            "n_samples": 1,
+            "cfg_rescale": 0.0,
+            "variety_boost": false,
+            "strict_mode": false,
+            "i2i": {
+                "image": {
+                    "kind": "resource_ref",
+                    "resource": { "id": "source-image" }
+                },
+                "strength": 0.45_f32,
+                "noise": 0.2_f32,
+                "mask": {
+                    "kind": "resource_ref",
+                    "resource": { "id": "mask-image" }
+                }
+            },
+            "controlnet": {
+                "images": [{
+                    "vibe_data_cache": "cache-key",
+                    "info_extracted": 0.7_f32,
+                    "strength": 0.8_f32
+                }],
+                "strength": 0.5_f32
+            },
+            "character_references": [{
+                "image": {
+                    "kind": "resource_ref",
+                    "resource": { "id": "character-ref" }
+                },
+                "reference_type": "character_and_style",
+                "fidelity": 0.6_f32,
+                "strength": 0.75_f32
+            }],
+            "characters": [{
+                "prompt": "hero",
+                "negative_prompt": "lowres",
+                "position": { "x": 0.25_f32, "y": 0.75_f32 },
+                "enabled": true
+            }],
+            "use_coords": true
+        })
+    );
+}
+
+#[test]
+fn image_resource_import_dtos_are_resource_catalog_oriented() {
+    assert_eq!(
+        serde_json::to_value(ImportImageResourceRequestDto {
+            kind: ImageResourceKindDto::ReferenceImage,
+            image_base64: "AQID".to_owned(),
+            mime_type: Some("image/png".to_owned()),
+        })
+        .unwrap(),
+        json!({
+            "kind": "reference_image",
+            "image_base64": "AQID",
+            "mime_type": "image/png"
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(ImportImageResourceResponseDto {
+            resource: ResourceRefDto {
+                id: "resource:image:1".to_owned(),
+                variant_id: None,
+            },
+        })
+        .unwrap(),
+        json!({ "resource": { "id": "resource:image:1" } })
+    );
+}
+
+#[test]
+fn director_command_dtos_use_resource_inputs_and_gallery_results() {
+    let result = DirectorToolResultDto {
+        item_id: "artifact:director:run-1".to_owned(),
+        artifact_id: "director:run-1".to_owned(),
+        resource: ResourceRefDto {
+            id: "resource:director:run-1".to_owned(),
+            variant_id: None,
+        },
+        item: GalleryItemDto {
+            item_id: "artifact:director:run-1".to_owned(),
+            artifact_id: "director:run-1".to_owned(),
+            artifact_kind: "director_result".to_owned(),
+            source_kind: GallerySourceKindDto::Director,
+            primary_resource: ResourceRefDto {
+                id: "resource:director:run-1".to_owned(),
+                variant_id: None,
+            },
+            assets: Vec::new(),
+            indexed_at_ms: 123,
+            seed: None,
+            sample_index: None,
+            model_name: None,
+            safety: None,
+            manual_safety_override: None,
+        },
+    };
+
+    assert_eq!(
+        serde_json::to_value(RunDirectorToolRequestDto {
+            run_id: "run-1".to_owned(),
+            tool: DirectorToolDto::Lineart,
+            image: ImageInputDto::resource("source-image"),
+            prompt: Some("clean lineart".to_owned()),
+            defry: Some(2),
+            strict_mode: true,
+        })
+        .unwrap(),
+        json!({
+            "run_id": "run-1",
+            "tool": "lineart",
+            "image": {
+                "kind": "resource_ref",
+                "resource": { "id": "source-image" }
+            },
+            "prompt": "clean lineart",
+            "defry": 2,
+            "strict_mode": true
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(result).unwrap(),
+        json!({
+            "item_id": "artifact:director:run-1",
+            "artifact_id": "director:run-1",
+            "resource": { "id": "resource:director:run-1" },
+            "item": {
+                "item_id": "artifact:director:run-1",
+                "artifact_id": "director:run-1",
+                "artifact_kind": "director_result",
+                "source_kind": "director",
+                "primary_resource": { "id": "resource:director:run-1" },
+                "assets": [],
+                "indexed_at_ms": 123
+            }
+        })
+    );
+}
+
+#[test]
+fn gallery_item_can_report_complete_safety_assessment() {
+    let safety = GallerySafetyDto {
+        scan_state: GallerySafetyScanStateDto::Scanned,
+        risk_band: Some(GallerySafetyRiskBandDto::High),
+        auto_label: Some(GallerySafetyLabelDto::Sensitive),
+        effective_label: GallerySafetyLabelDto::Sensitive,
+        nsfw_score: Some(0.91),
+        safe_score: Some(0.09),
+        raw_scores: vec![
+            nai_atelier_app_api::gallery::GallerySafetyScoreDto {
+                label: "safe".to_owned(),
+                score: 0.09,
+            },
+            nai_atelier_app_api::gallery::GallerySafetyScoreDto {
+                label: "nsfw".to_owned(),
+                score: 0.91,
+            },
+        ],
+        model_id: Some("open_nsfw@onnx".to_owned()),
+        scorer_version: Some("1".to_owned()),
+        assessed_at_ms: Some(123),
+    };
+
+    assert_eq!(
+        serde_json::to_value(safety).unwrap(),
+        json!({
+            "scan_state": "scanned",
+            "risk_band": "high",
+            "auto_label": "sensitive",
+            "effective_label": "sensitive",
+            "nsfw_score": 0.91_f32,
+            "safe_score": 0.09_f32,
+            "raw_scores": [
+                { "label": "safe", "score": 0.09_f32 },
+                { "label": "nsfw", "score": 0.91_f32 }
+            ],
+            "model_id": "open_nsfw@onnx",
+            "scorer_version": "1",
+            "assessed_at_ms": 123
         })
     );
 }

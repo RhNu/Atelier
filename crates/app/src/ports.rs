@@ -18,15 +18,18 @@ use nai_atelier_artifacts::{
     ArtifactKind, ArtifactRecord, ArtifactResult, ArtifactService, RegisterArtifactRequest,
     VisualAssetRef, VisualAssetRole,
 };
+use nai_atelier_director::{
+    DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
+};
 use nai_atelier_gallery::{GalleryItem, GalleryResult, GalleryService};
 use nai_atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
     ImageStreamResult, NovelAiGenerationClient,
 };
 use nai_atelier_kernel::{
-    GenerationPayloadStore, KernelClock, KernelEvent, KernelEventSink, KernelGenerationPorts,
-    KernelPreciseReferencePorts, KernelResult, KernelVibePorts, PreparedGenerationPayload,
-    SubmittedGenerationPayload,
+    GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEvent, KernelEventSink,
+    KernelGenerationPorts, KernelPreciseReferencePorts, KernelResult, KernelVibePorts,
+    PreparedGenerationPayload, SubmittedGenerationPayload,
 };
 use nai_atelier_precise_reference::{
     PreciseReferenceError, PreciseReferenceImage, PreciseReferenceResult,
@@ -38,7 +41,9 @@ use nai_atelier_resource_catalog::{
     BlobWriteIntent, BuiltResourceVariant, CreateVariantRequest, RegisterResourceRequest,
     ResourceCatalog, ResourceRef, ResourceResult, ResourceVariantKind, VariantId,
 };
-use nai_atelier_safety::{SafetyAssessment, SafetyResult};
+use nai_atelier_safety::{
+    SafetyAssessment, SafetyError, SafetyResult, SafetyScanInput, SafetyScanner,
+};
 use nai_atelier_secrets::{ApiKeyRegistryService, SecretStore};
 use nai_atelier_settings::{ImageVariantSettings, WorkspaceSettings};
 use nai_atelier_vibe::{
@@ -78,6 +83,7 @@ pub struct AppKernelPorts<S, F, E> {
     pub extractor: E,
     pub events: AppEventHub,
     pub settings_state: SharedWorkspaceSettings,
+    pub safety_scanner: Option<Arc<dyn SafetyScanner>>,
 }
 
 #[derive(Clone, Debug)]
@@ -235,11 +241,67 @@ where
         self.artifacts.register_artifact(request).await
     }
 
-    async fn score_image(&self, _resource: ResourceRef) -> SafetyResult<Option<SafetyAssessment>> {
-        Ok(None)
+    async fn score_image(&self, resource: ResourceRef) -> SafetyResult<Option<SafetyAssessment>> {
+        self.score_with_scanner(resource).await
     }
 
     async fn index_gallery_item(
+        &self,
+        artifact: ArtifactRecord,
+        indexed_at_ms: u64,
+        safety_assessment: Option<SafetyAssessment>,
+    ) -> GalleryResult<GalleryItem> {
+        self.gallery
+            .index_artifact(artifact, indexed_at_ms, safety_assessment)
+            .await
+    }
+}
+
+#[async_trait]
+impl<S, F, E> NovelAiDirectorClient for AppKernelPorts<S, F, E>
+where
+    S: SecretStore + Clone + Send + Sync,
+    F: NovelAiClientFactory + Clone + Send + Sync,
+    E: Send + Sync,
+{
+    async fn run_director_tool(
+        &self,
+        request: RunDirectorToolRequest,
+    ) -> DirectorResult<DirectorToolOutput> {
+        self.novelai.run_director_tool(request).await
+    }
+}
+
+#[async_trait]
+impl<S, F, E> KernelDirectorPorts for AppKernelPorts<S, F, E>
+where
+    S: SecretStore + Clone + Send + Sync,
+    F: NovelAiClientFactory + Clone + Send + Sync,
+    E: Send + Sync,
+{
+    async fn register_director_resource(
+        &self,
+        request: RegisterResourceRequest,
+    ) -> ResourceResult<ResourceRef> {
+        self.resources.register_resource(request).await
+    }
+
+    async fn register_director_artifact(
+        &self,
+        mut request: RegisterArtifactRequest,
+    ) -> ArtifactResult<ArtifactRecord> {
+        self.add_generated_gallery_variants(&mut request).await;
+        self.artifacts.register_artifact(request).await
+    }
+
+    async fn score_director_image(
+        &self,
+        resource: ResourceRef,
+    ) -> SafetyResult<Option<SafetyAssessment>> {
+        self.score_with_scanner(resource).await
+    }
+
+    async fn index_director_gallery_item(
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
@@ -258,7 +320,10 @@ where
     E: Send + Sync,
 {
     async fn add_generated_gallery_variants(&self, request: &mut RegisterArtifactRequest) {
-        if request.kind != ArtifactKind::GeneratedImage {
+        if !matches!(
+            request.kind,
+            ArtifactKind::GeneratedImage | ArtifactKind::DirectorResult
+        ) {
             return;
         }
         let settings = self.settings_state.image_variant_settings();
@@ -317,6 +382,28 @@ where
                 variant_kind: Some(kind),
             });
         }
+    }
+
+    async fn score_with_scanner(
+        &self,
+        resource: ResourceRef,
+    ) -> SafetyResult<Option<SafetyAssessment>> {
+        let Some(scanner) = &self.safety_scanner else {
+            return Ok(None);
+        };
+        let content = self
+            .resource_reader
+            .read_resource_bytes(&resource)
+            .await
+            .map_err(|error| SafetyError::scanner(error.to_string()))?;
+        scanner
+            .scan_image(SafetyScanInput {
+                resource,
+                bytes: content.bytes,
+                mime_type: None,
+            })
+            .await
+            .map(Some)
     }
 }
 

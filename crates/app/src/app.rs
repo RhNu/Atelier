@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::Mutex as StdMutex;
+use std::sync::{Arc, Mutex as StdMutex};
 
 use futures::lock::Mutex;
 use nai_atelier_adapter_database::{
@@ -24,6 +24,7 @@ use nai_atelier_kernel::KernelRuntime;
 use nai_atelier_prompt_lexicon::PromptLexicon;
 use nai_atelier_prompt_resources::{PromptChunkService, PromptCompiler};
 use nai_atelier_resource_catalog::ResourceCatalog;
+use nai_atelier_safety::SafetyScanner;
 use nai_atelier_secrets::{ApiKeyRegistryService, SecretStore};
 use nai_atelier_settings::SettingsService;
 use nai_atelier_vibe::EmbeddedVibeDocumentExtractor;
@@ -38,8 +39,8 @@ use crate::ports::{
     AppResourceCatalog, SharedWorkspaceSettings,
 };
 use crate::usecases::{
-    AccountUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases, PromptUseCases,
-    SettingsUseCases, VibeUseCases, WorkspaceUseCases,
+    AccountUseCases, DirectorUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases,
+    PromptUseCases, ResourceUseCases, SettingsUseCases, VibeUseCases, WorkspaceUseCases,
 };
 use crate::{AppResult, error::AppError};
 
@@ -105,6 +106,27 @@ where
         )
         .await
     }
+
+    /// Opens a workspace with injected dependencies and an optional safety scanner.
+    ///
+    /// # Errors
+    /// Returns an error when workspace initialization, locking, database
+    /// migrations, or embedded lexicon loading fails.
+    pub async fn open_workspace_with_dependencies_and_safety_scanner(
+        root: PathBuf,
+        secrets: S,
+        factory: F,
+        safety_scanner: Option<Arc<dyn SafetyScanner>>,
+    ) -> AppResult<Self> {
+        Self::open_workspace_with_dependencies_and_extractor_and_safety_scanner(
+            root,
+            secrets,
+            factory,
+            NovelAiEmbeddedVibeExtractor,
+            safety_scanner,
+        )
+        .await
+    }
 }
 
 impl<S, F, E> AtelierApp<S, F, E>
@@ -123,6 +145,24 @@ where
         secrets: S,
         factory: F,
         extractor: E,
+    ) -> AppResult<Self> {
+        Self::open_workspace_with_dependencies_and_extractor_and_safety_scanner(
+            root, secrets, factory, extractor, None,
+        )
+        .await
+    }
+
+    /// Opens a workspace with all host-neutral dependencies injected.
+    ///
+    /// # Errors
+    /// Returns an error when workspace initialization, locking, database
+    /// migrations, or embedded lexicon loading fails.
+    pub async fn open_workspace_with_dependencies_and_extractor_and_safety_scanner(
+        root: PathBuf,
+        secrets: S,
+        factory: F,
+        extractor: E,
+        safety_scanner: Option<Arc<dyn SafetyScanner>>,
     ) -> AppResult<Self> {
         let root = WorkspaceRoot::new(root);
         let layout = WorkspaceLayout;
@@ -175,6 +215,7 @@ where
             extractor,
             events: events.clone(),
             settings_state: settings_state.clone(),
+            safety_scanner,
         };
 
         Ok(Self {
@@ -213,6 +254,11 @@ impl<S, F, E> AtelierApp<S, F, E> {
     }
 
     #[must_use]
+    pub const fn resources(&self) -> ResourceUseCases<'_, S, F, E> {
+        ResourceUseCases { app: self }
+    }
+
+    #[must_use]
     pub const fn settings(&self) -> SettingsUseCases<'_, S, F, E> {
         SettingsUseCases { app: self }
     }
@@ -220,6 +266,11 @@ impl<S, F, E> AtelierApp<S, F, E> {
     #[must_use]
     pub const fn generation(&self) -> GenerationUseCases<'_, S, F, E> {
         GenerationUseCases { app: self }
+    }
+
+    #[must_use]
+    pub const fn director(&self) -> DirectorUseCases<'_, S, F, E> {
+        DirectorUseCases { app: self }
     }
 
     #[must_use]

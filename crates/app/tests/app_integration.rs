@@ -9,11 +9,17 @@ use nai_atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
 use nai_atelier_adapter_storage_fs::workspace_database_path;
 use nai_atelier_app::AtelierApp;
 use nai_atelier_app_api::account::CreateApiKeyRequestDto;
-use nai_atelier_app_api::gallery::GalleryQueryDto;
+use nai_atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
+use nai_atelier_app_api::gallery::{
+    GalleryQueryDto, GallerySafetyLabelDto, GallerySafetyRiskBandDto, GallerySourceKindDto,
+};
 use nai_atelier_app_api::generation::{
     GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationPlanContextDto,
-    GenerationWorkRequestDto, ImageModelDto, QueueDirectiveDto, StreamModeDto,
+    GenerationWorkRequestDto, ImageModelDto, Img2ImgRequestDto, QueueDirectiveDto, StreamModeDto,
     SubmitGenerationRequestDto,
+};
+use nai_atelier_app_api::resource::{
+    ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
 };
 use nai_atelier_app_api::settings::{ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto};
 use nai_atelier_director::{
@@ -24,6 +30,9 @@ use nai_atelier_generation::{
     ImageStreamEvent, ImageStreamResult, NovelAiGenerationClient,
 };
 use nai_atelier_resource_catalog::{ResourceCatalogRepository, VariantId};
+use nai_atelier_safety::{
+    SafetyAssessment, SafetyModelScore, SafetyResult, SafetyScanInput, SafetyScanner,
+};
 use nai_atelier_secrets::{
     SecretRecordId, SecretStore, SecretValue, SecretsResult, SubscriptionClient,
     SubscriptionResult, SubscriptionSummary,
@@ -290,6 +299,179 @@ fn updated_variant_settings_drive_generated_variant_dimensions() {
     });
 }
 
+#[test]
+fn resource_backed_generation_inputs_are_resolved_before_novelai_submission() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
+        let app = AtelierApp::open_workspace_with_dependencies(
+            temp.path().to_path_buf(),
+            MemorySecretStore::default(),
+            factory.clone(),
+        )
+        .await
+        .unwrap();
+        app.account()
+            .create_api_key(CreateApiKeyRequestDto {
+                id: "main".to_owned(),
+                display_name: "Main".to_owned(),
+                secret: "active-secret".to_owned(),
+            })
+            .await
+            .unwrap();
+        app.account().set_active_api_key("main").await.unwrap();
+
+        let source = app
+            .resources()
+            .import_image(ImportImageResourceRequestDto {
+                kind: ImageResourceKindDto::SourceImage,
+                image_base64: "AQID".to_owned(),
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap()
+            .resource;
+
+        app.generation()
+            .submit(SubmitGenerationRequestDto {
+                batch_id: "batch-1".to_owned(),
+                job_id: "job-1".to_owned(),
+                work: GenerationWorkRequestDto::Image(GenerateImageRequestDto {
+                    prompt: "1girl".to_owned(),
+                    i2i: Some(Img2ImgRequestDto {
+                        image: ImageInputDto::ResourceRef {
+                            resource: source.clone(),
+                        },
+                        strength: 0.5,
+                        noise: 0.2,
+                        mask: None,
+                    }),
+                    ..GenerateImageRequestDto::default()
+                }),
+                context: GenerationPlanContextDto::default(),
+            })
+            .await
+            .unwrap();
+        app.generation().run_job("job-1").await.unwrap();
+
+        let generated = factory.generated_requests();
+        assert_eq!(generated.len(), 1);
+        assert_eq!(generated[0].i2i.as_ref().unwrap().image, "AQID");
+    });
+}
+
+#[test]
+fn director_tool_uses_resource_inputs_and_indexes_gallery_result() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
+        let app = AtelierApp::open_workspace_with_dependencies(
+            temp.path().to_path_buf(),
+            MemorySecretStore::default(),
+            factory.clone(),
+        )
+        .await
+        .unwrap();
+        app.account()
+            .create_api_key(CreateApiKeyRequestDto {
+                id: "main".to_owned(),
+                display_name: "Main".to_owned(),
+                secret: "active-secret".to_owned(),
+            })
+            .await
+            .unwrap();
+        app.account().set_active_api_key("main").await.unwrap();
+
+        let source = app
+            .resources()
+            .import_image(ImportImageResourceRequestDto {
+                kind: ImageResourceKindDto::SourceImage,
+                image_base64: "AQID".to_owned(),
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap()
+            .resource;
+
+        let result = app
+            .director()
+            .run_tool(RunDirectorToolRequestDto {
+                run_id: "run-1".to_owned(),
+                tool: DirectorToolDto::Lineart,
+                image: ImageInputDto::ResourceRef { resource: source },
+                prompt: Some("clean lines".to_owned()),
+                defry: Some(2),
+                strict_mode: true,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.artifact_id, "director:run-1");
+        assert_eq!(result.item.artifact_kind, "director_result");
+        assert_eq!(result.item.source_kind, GallerySourceKindDto::Director);
+        assert_eq!(result.resource.id, "resource:director:run-1");
+        let director_request = &factory.director_requests()[0];
+        assert_eq!(director_request.image, "AQID");
+        assert_eq!(director_request.prompt, None);
+        assert_eq!(director_request.defry, None);
+        assert_eq!(
+            app.gallery()
+                .query(GalleryQueryDto::default())
+                .await
+                .unwrap()
+                .items[0]
+                .item_id,
+            result.item_id
+        );
+    });
+}
+
+#[test]
+fn injected_safety_scanner_scores_generated_gallery_items() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let image_bytes = valid_png_bytes(2, 1);
+        let scanner = Arc::new(RecordingSafetyScanner::default());
+        let app = AtelierApp::open_workspace_with_dependencies_and_safety_scanner(
+            temp.path().to_path_buf(),
+            MemorySecretStore::default(),
+            RecordingFactory::with_image_bytes(image_bytes.clone()),
+            Some(scanner.clone()),
+        )
+        .await
+        .unwrap();
+        app.account()
+            .create_api_key(CreateApiKeyRequestDto {
+                id: "main".to_owned(),
+                display_name: "Main".to_owned(),
+                secret: "active-secret".to_owned(),
+            })
+            .await
+            .unwrap();
+        app.account().set_active_api_key("main").await.unwrap();
+
+        app.generation()
+            .submit(submit_request("batch-1", "job-1", "1girl"))
+            .await
+            .unwrap();
+        app.generation().run_job("job-1").await.unwrap();
+
+        let gallery = app
+            .gallery()
+            .query(GalleryQueryDto::default())
+            .await
+            .unwrap();
+        let safety = gallery.items[0].safety.as_ref().unwrap();
+        assert_eq!(safety.nsfw_score, Some(0.91));
+        assert_eq!(safety.safe_score, Some(0.09));
+        assert_eq!(safety.risk_band, Some(GallerySafetyRiskBandDto::High));
+        assert_eq!(safety.auto_label, Some(GallerySafetyLabelDto::Sensitive));
+        assert_eq!(safety.effective_label, GallerySafetyLabelDto::Sensitive);
+        assert_eq!(safety.raw_scores.len(), 2);
+        assert_eq!(scanner.inputs(), vec![image_bytes]);
+    });
+}
+
 fn submit_request(batch_id: &str, job_id: &str, prompt: &str) -> SubmitGenerationRequestDto {
     SubmitGenerationRequestDto {
         batch_id: batch_id.to_owned(),
@@ -397,6 +579,8 @@ impl SecretStore for MemorySecretStore {
 struct RecordingFactory {
     secrets: Arc<Mutex<Vec<String>>>,
     image_bytes: Arc<Vec<u8>>,
+    generated_requests: Arc<Mutex<Vec<GenerateImageRequest>>>,
+    director_requests: Arc<Mutex<Vec<RunDirectorToolRequest>>>,
 }
 
 impl RecordingFactory {
@@ -404,11 +588,21 @@ impl RecordingFactory {
         Self {
             secrets: Arc::default(),
             image_bytes: Arc::new(image_bytes),
+            generated_requests: Arc::default(),
+            director_requests: Arc::default(),
         }
     }
 
     fn secrets(&self) -> Vec<String> {
         self.secrets.lock().unwrap().clone()
+    }
+
+    fn generated_requests(&self) -> Vec<GenerateImageRequest> {
+        self.generated_requests.lock().unwrap().clone()
+    }
+
+    fn director_requests(&self) -> Vec<RunDirectorToolRequest> {
+        self.director_requests.lock().unwrap().clone()
     }
 }
 
@@ -422,6 +616,8 @@ impl NovelAiClientFactory for RecordingFactory {
             .push(secret.expose_secret().to_owned());
         Ok(RecordingClient {
             image_bytes: Arc::clone(&self.image_bytes),
+            generated_requests: Arc::clone(&self.generated_requests),
+            director_requests: Arc::clone(&self.director_requests),
         })
     }
 }
@@ -429,14 +625,47 @@ impl NovelAiClientFactory for RecordingFactory {
 #[derive(Clone)]
 struct RecordingClient {
     image_bytes: Arc<Vec<u8>>,
+    generated_requests: Arc<Mutex<Vec<GenerateImageRequest>>>,
+    director_requests: Arc<Mutex<Vec<RunDirectorToolRequest>>>,
+}
+
+#[derive(Default)]
+struct RecordingSafetyScanner {
+    inputs: Arc<Mutex<Vec<Vec<u8>>>>,
+}
+
+impl RecordingSafetyScanner {
+    fn inputs(&self) -> Vec<Vec<u8>> {
+        self.inputs.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl SafetyScanner for RecordingSafetyScanner {
+    async fn scan_image(&self, input: SafetyScanInput) -> SafetyResult<SafetyAssessment> {
+        self.inputs.lock().unwrap().push(input.bytes);
+        SafetyAssessment::from_model_scores(
+            input.resource,
+            vec![
+                SafetyModelScore::new("safe", 0.09)?,
+                SafetyModelScore::new("nsfw", 0.91)?,
+            ],
+        )
+        .map(|assessment| {
+            assessment
+                .with_scorer("mock_nsfw", Some("1"))
+                .with_assessed_at_ms(123)
+        })
+    }
 }
 
 #[async_trait]
 impl NovelAiGenerationClient for RecordingClient {
     async fn generate(
         &self,
-        _request: GenerateImageRequest,
+        request: GenerateImageRequest,
     ) -> GenerationResult<Vec<GeneratedImage>> {
+        self.generated_requests.lock().unwrap().push(request);
         Ok(vec![GeneratedImage {
             bytes: (*self.image_bytes).clone(),
             mime_type: Some("image/png".to_owned()),
@@ -489,8 +718,9 @@ impl NovelAiVibeClient for RecordingClient {
 impl NovelAiDirectorClient for RecordingClient {
     async fn run_director_tool(
         &self,
-        _request: RunDirectorToolRequest,
+        request: RunDirectorToolRequest,
     ) -> DirectorResult<DirectorToolOutput> {
+        self.director_requests.lock().unwrap().push(request);
         Ok(DirectorToolOutput {
             bytes: vec![4, 5, 6],
             mime_type: Some("image/png".to_owned()),

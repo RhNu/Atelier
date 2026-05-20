@@ -21,6 +21,7 @@ For task-specific context, read only the relevant decision records:
 - `sqlite-database-adapter.md`: SQLite adapter choice, schema scope, and adapter-local DTO boundary.
 - `secrets-keyring-pipeline.md`: API key registry, keyring storage, explicit subscription probe, and resolver-backed NovelAI adapter.
 - `prompt-lexicon-workflow.md`: prompt lexicon source assets, Rust `xtask` build/check workflow, v1 generated schema, and `nait` source notes.
+- `safety-onnx-adapter.md`: host-provided OpenNSFW ONNX model/runtime loading, scanner injection, and license/source boundary.
 
 ## Current Consensus
 
@@ -60,10 +61,10 @@ Implemented or partially implemented:
 - `crates/adapters/image-codec`
 - `crates/adapters/keyring`
 - `crates/adapters/novelai`
+- `crates/adapters/safety-onnx`
 
 Still planned or intentionally not present:
 
-- `adapters/safety-onnx`
 - `adapters/desktop-system`
 
 ## Non-Goals

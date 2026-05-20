@@ -15,6 +15,7 @@ nai-atelier-adapter-novelai = { path = "../adapters/novelai" }
 nai-atelier-adapter-storage-fs = { path = "../adapters/storage-fs" }
 nai-atelier-app-api = { path = "../app-api" }
 nai-atelier-artifacts = { path = "../features/artifacts" }
+nai-atelier-director = { path = "../features/director" }
 nai-atelier-gallery = { path = "../features/gallery" }
 nai-atelier-generation = { path = "../features/generation" }
 nai-atelier-jobs = { path = "../features/jobs" }
@@ -35,5 +36,4 @@ async-trait = "0.1"
 futures-executor = "0.3"
 futures-util = "0.3"
 image = { version = "0.25.10", default-features = false, features = ["png"] }
-nai-atelier-director = { path = "../features/director" }
 tempfile = "3"

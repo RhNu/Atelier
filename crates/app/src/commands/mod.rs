@@ -1,8 +1,10 @@
 mod account;
+mod director;
 mod events;
 mod gallery;
 mod generation;
 mod prompt;
+mod resource;
 mod settings;
 mod vibe;
 mod workspace;
@@ -14,6 +16,7 @@ use nai_atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory,
 };
 use nai_atelier_app_api::error::ErrorEnvelopeDto;
+use nai_atelier_safety::SafetyScanner;
 use nai_atelier_secrets::SecretStore;
 use nai_atelier_vibe::EmbeddedVibeDocumentExtractor;
 
@@ -32,6 +35,7 @@ pub struct AppCommandHost<
     secrets: S,
     factory: F,
     extractor: E,
+    safety_scanner: Option<Arc<dyn SafetyScanner>>,
 }
 
 impl AppCommandHost<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbeddedVibeExtractor> {
@@ -62,6 +66,23 @@ impl<S, F, E> AppCommandHost<S, F, E> {
             secrets,
             factory,
             extractor,
+            safety_scanner: None,
+        }
+    }
+
+    #[must_use]
+    pub fn with_dependencies_extractor_and_safety_scanner(
+        secrets: S,
+        factory: F,
+        extractor: E,
+        safety_scanner: Option<Arc<dyn SafetyScanner>>,
+    ) -> Self {
+        Self {
+            session: Mutex::new(None),
+            secrets,
+            factory,
+            extractor,
+            safety_scanner,
         }
     }
 
@@ -105,11 +126,12 @@ where
             self.lock_session()?.take();
         }
         let app = Arc::new(
-            AtelierApp::open_workspace_with_dependencies_and_extractor(
+            AtelierApp::open_workspace_with_dependencies_and_extractor_and_safety_scanner(
                 root,
                 self.secrets.clone(),
                 self.factory.clone(),
                 self.extractor.clone(),
+                self.safety_scanner.clone(),
             )
             .await
             .map_err(|error| error.envelope())?,

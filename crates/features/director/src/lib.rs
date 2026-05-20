@@ -22,6 +22,28 @@ pub struct ClientInvalidRequestContext {
     pub context: Option<String>,
 }
 
+impl ClientInvalidRequestContext {
+    #[must_use]
+    pub const fn new(kind: ClientInvalidRequestKind) -> Self {
+        Self {
+            kind,
+            field: None,
+            name: None,
+            value: None,
+            min: None,
+            max: None,
+            multiple_of: None,
+            reason: None,
+            source: None,
+            feature: None,
+            required_model: None,
+            left: None,
+            right: None,
+            context: None,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ClientInvalidRequestKind {
     EmptyField,
@@ -383,6 +405,76 @@ pub struct RunDirectorToolRequest {
     pub strict_mode: bool,
 }
 
+impl RunDirectorToolRequest {
+    /// Normalizes tool-specific fields to the shape accepted by `NovelAI` Director.
+    ///
+    /// Tools such as lineart and sketch do not accept prompt or defry options,
+    /// while emotion requires a non-empty prompt. Colorize and emotion always
+    /// send a resolved defry value to match `NovelAI`'s Director wire contract.
+    /// # Errors
+    /// Returns an invalid request error when required tool-specific input is
+    /// missing, or when strict mode rejects an out-of-range defry value.
+    pub fn normalize_for_tool(mut self) -> DirectorResult<Self> {
+        let prompt = self
+            .prompt
+            .take()
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+
+        match self.tool {
+            DirectorTool::Lineart
+            | DirectorTool::Sketch
+            | DirectorTool::BgRemoval
+            | DirectorTool::Declutter => {
+                self.prompt = None;
+                self.defry = None;
+            }
+            DirectorTool::Colorize => {
+                let defry = normalize_defry(self.defry, self.strict_mode)?;
+                self.prompt = prompt;
+                self.defry = Some(defry);
+            }
+            DirectorTool::Emotion => {
+                let defry = normalize_defry(self.defry, self.strict_mode)?;
+                let Some(prompt) = prompt else {
+                    let mut context = ClientInvalidRequestContext::new(
+                        ClientInvalidRequestKind::RequiredFieldForContext,
+                    );
+                    context.field = Some("prompt".to_owned());
+                    context.context = Some("emotion".to_owned());
+                    return Err(DirectorClientError::invalid_request_with_context(
+                        None,
+                        Some(context),
+                        "emotion director tool requires a prompt",
+                    ));
+                };
+                self.prompt = Some(prompt);
+                self.defry = Some(defry);
+            }
+        }
+
+        Ok(self)
+    }
+}
+
+fn normalize_defry(value: Option<u8>, strict_mode: bool) -> DirectorResult<u8> {
+    let defry = value.unwrap_or(0);
+    if strict_mode && defry > 5 {
+        let mut context =
+            ClientInvalidRequestContext::new(ClientInvalidRequestKind::NumericOutOfRange);
+        context.field = Some("defry".to_owned());
+        context.value = Some(defry.to_string());
+        context.min = Some("0".to_owned());
+        context.max = Some("5".to_owned());
+        return Err(DirectorClientError::invalid_request_with_context(
+            None,
+            Some(context),
+            "defry must be between 0 and 5",
+        ));
+    }
+    Ok(defry.min(5))
+}
+
 impl Default for RunDirectorToolRequest {
     fn default() -> Self {
         Self {
@@ -425,5 +517,65 @@ mod tests {
 
         assert_eq!(request.tool, DirectorTool::Lineart);
         assert!(request.strict_mode);
+    }
+
+    #[test]
+    fn normalizes_lineart_options_to_bridge_compatible_shape() {
+        let request = RunDirectorToolRequest {
+            tool: DirectorTool::Lineart,
+            image: "image".to_owned(),
+            prompt: Some(" clean lines ".to_owned()),
+            defry: Some(9),
+            strict_mode: true,
+        }
+        .normalize_for_tool()
+        .unwrap();
+
+        assert_eq!(request.prompt, None);
+        assert_eq!(request.defry, None);
+    }
+
+    #[test]
+    fn emotion_requires_non_empty_prompt() {
+        let error = RunDirectorToolRequest {
+            tool: DirectorTool::Emotion,
+            image: "image".to_owned(),
+            prompt: Some("   ".to_owned()),
+            defry: None,
+            strict_mode: true,
+        }
+        .normalize_for_tool()
+        .unwrap_err();
+
+        match error {
+            DirectorClientError::InvalidRequest {
+                context: Some(context),
+                ..
+            } => {
+                assert_eq!(
+                    context.kind,
+                    ClientInvalidRequestKind::RequiredFieldForContext
+                );
+                assert_eq!(context.field.as_deref(), Some("prompt"));
+                assert_eq!(context.context.as_deref(), Some("emotion"));
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn colorize_clamps_defry_when_not_strict() {
+        let request = RunDirectorToolRequest {
+            tool: DirectorTool::Colorize,
+            image: "image".to_owned(),
+            prompt: Some(" palette ".to_owned()),
+            defry: Some(9),
+            strict_mode: false,
+        }
+        .normalize_for_tool()
+        .unwrap();
+
+        assert_eq!(request.prompt.as_deref(), Some("palette"));
+        assert_eq!(request.defry, Some(5));
     }
 }

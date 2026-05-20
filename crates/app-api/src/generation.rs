@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::resource::ImageInputDto;
+
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImageModelDto {
     #[default]
@@ -81,6 +83,65 @@ pub enum StreamModeDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Img2ImgRequestDto {
+    pub image: ImageInputDto,
+    pub strength: f32,
+    pub noise: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mask: Option<ImageInputDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ControlNetInputDto {
+    pub vibe_data_cache: String,
+    pub info_extracted: f32,
+    pub strength: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ControlNetConfigDto {
+    pub images: Vec<ControlNetInputDto>,
+    pub strength: f32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CharacterReferenceTypeDto {
+    Character,
+    Style,
+    CharacterAndStyle,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CharacterReferenceDto {
+    pub image: ImageInputDto,
+    pub reference_type: CharacterReferenceTypeDto,
+    pub fidelity: f32,
+    pub strength: f32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CharacterPositionDto {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Default for CharacterPositionDto {
+    fn default() -> Self {
+        Self { x: 0.5, y: 0.5 }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct CharacterDto {
+    pub prompt: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub negative_prompt: Option<String>,
+    pub position: CharacterPositionDto,
+    pub enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GenerateImageRequestDto {
     pub prompt: String,
     pub model: ImageModelDto,
@@ -98,6 +159,16 @@ pub struct GenerateImageRequestDto {
     pub cfg_rescale: f32,
     pub variety_boost: bool,
     pub strict_mode: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub i2i: Option<Img2ImgRequestDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub controlnet: Option<ControlNetConfigDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub character_references: Option<Vec<CharacterReferenceDto>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub characters: Option<Vec<CharacterDto>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub use_coords: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image_format: Option<ImageFormatDto>,
 }
@@ -120,6 +191,11 @@ impl Default for GenerateImageRequestDto {
             cfg_rescale: 0.0,
             variety_boost: false,
             strict_mode: false,
+            i2i: None,
+            controlnet: None,
+            character_references: None,
+            characters: None,
+            use_coords: None,
             image_format: None,
         }
     }

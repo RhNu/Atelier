@@ -7,6 +7,7 @@ use nai_atelier_app::AppCommandHost;
 use nai_atelier_app_api::account::{
     CreateApiKeyRequestDto, ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto,
 };
+use nai_atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
 use nai_atelier_app_api::event::EventsSinceRequestDto;
 use nai_atelier_app_api::gallery::{
     GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto, GalleryQueryDto,
@@ -20,6 +21,9 @@ use nai_atelier_app_api::generation::{
 use nai_atelier_app_api::prompt::{
     DeletePromptChunkRequestDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
+};
+use nai_atelier_app_api::resource::{
+    ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
 };
 use nai_atelier_app_api::settings::{
     GenerationDefaultsDto, ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto,
@@ -148,6 +152,62 @@ fn account_and_prompt_chunk_commands_share_session() {
             .unwrap()
             .deleted
         );
+    });
+}
+
+#[test]
+fn resource_import_command_is_available_through_facade() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host();
+        open_workspace(&host, &temp).await;
+
+        let imported = host
+            .import_image_resource(ImportImageResourceRequestDto {
+                kind: ImageResourceKindDto::SourceImage,
+                image_base64: "AQID".to_owned(),
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap();
+
+        assert!(imported.resource.id.starts_with("resource:import:source:"));
+        assert_eq!(imported.resource.variant_id, None);
+    });
+}
+
+#[test]
+fn director_command_is_available_through_facade() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host();
+        open_workspace(&host, &temp).await;
+        create_active_key(&host).await;
+        let source = host
+            .import_image_resource(ImportImageResourceRequestDto {
+                kind: ImageResourceKindDto::SourceImage,
+                image_base64: "AQID".to_owned(),
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap()
+            .resource;
+
+        let result = host
+            .run_director_tool(RunDirectorToolRequestDto {
+                run_id: "run-1".to_owned(),
+                tool: DirectorToolDto::Lineart,
+                image: ImageInputDto::ResourceRef { resource: source },
+                prompt: Some("clean lines".to_owned()),
+                defry: Some(2),
+                strict_mode: true,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.artifact_id, "director:run-1");
+        assert_eq!(result.item.artifact_kind, "director_result");
+        assert_eq!(result.resource.id, "resource:director:run-1");
     });
 }
 

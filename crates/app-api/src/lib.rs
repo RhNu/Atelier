@@ -1,6 +1,7 @@
 //! Frontend-facing DTO contracts for NAI Atelier.
 
 pub mod account;
+pub mod director;
 pub mod error;
 pub mod event;
 pub mod gallery;
