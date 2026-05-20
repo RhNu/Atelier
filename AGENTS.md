@@ -18,6 +18,7 @@
 6. `docs/agents/backend-rollout-plan.md`
 7. `docs/agents/inheritance-options.md`
 8. `docs/agents/scaffold-decision.md`
+9. `docs/agents/kernel-generation-workflow.md`
 
 ## 工作规则
 

@@ -2865,6 +2865,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "nai-atelier-kernel"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "futures-core",
+ "futures-executor",
+ "futures-util",
+ "nai-atelier-artifacts",
+ "nai-atelier-foundation",
+ "nai-atelier-gallery",
+ "nai-atelier-generation",
+ "nai-atelier-jobs",
+ "nai-atelier-prompt-resources",
+ "nai-atelier-resource-catalog",
+ "nai-atelier-safety",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "nai-atelier-prompt"
 version = "0.1.0"
 dependencies = [

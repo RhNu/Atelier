@@ -4,6 +4,7 @@ members = [
     "crates/adapters/novelai",
     "crates/adapters/storage-fs",
     "crates/foundation",
+    "crates/kernel",
     "crates/features/director",
     "crates/features/artifacts",
     "crates/features/generation",

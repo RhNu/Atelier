@@ -1,0 +1,23 @@
+[package]
+name = "nai-atelier-kernel"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+futures-core = "0.3"
+futures-util = "0.3"
+nai-atelier-artifacts = { path = "../features/artifacts" }
+nai-atelier-foundation = { path = "../foundation" }
+nai-atelier-gallery = { path = "../features/gallery" }
+nai-atelier-generation = { path = "../features/generation" }
+nai-atelier-jobs = { path = "../features/jobs" }
+nai-atelier-prompt-resources = { path = "../features/prompt-resources" }
+nai-atelier-resource-catalog = { path = "../features/resource-catalog" }
+nai-atelier-safety = { path = "../features/safety" }
+thiserror = "2"
+
+[dev-dependencies]
+futures-executor = "0.3"

@@ -1,0 +1,492 @@
+mod support;
+
+use std::time::Duration;
+
+use base64::Engine;
+use futures_executor::block_on;
+use nai_atelier_foundation::{NovelAiError, NovelAiErrorKind};
+use nai_atelier_generation::{
+    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationPlanContext,
+    ImageModel, ImageStreamEvent,
+};
+use nai_atelier_jobs::{BatchId, JobId, JobStatus, QueueDelay, QueueDirective};
+use nai_atelier_kernel::{
+    GenerationWorkRequest, KernelError, KernelEventKind, KernelRuntime, SubmitGenerationWork,
+};
+use nai_atelier_resource_catalog::ResourceKind;
+
+use support::MemoryKernelPorts;
+
+#[test]
+fn submit_generation_work_only_enqueues_payload() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default();
+        let mut runtime = KernelRuntime::new(ports.clone());
+        let job_id = JobId::new("job-1");
+
+        let directive = runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "@chunk(hero)"))
+            .await
+            .unwrap();
+
+        assert_eq!(directive, QueueDirective::StartJob(job_id.clone()));
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Queued));
+        assert_eq!(ports.submitted_payload_count(), 1);
+        assert_eq!(ports.compile_call_count(), 0);
+        assert_eq!(ports.generate_call_count(), 0);
+        assert!(matches!(
+            ports.events()[0].kind,
+            KernelEventKind::BatchSubmitted { .. }
+        ));
+    });
+}
+
+#[test]
+fn rejected_submit_does_not_overwrite_existing_payload() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default();
+        let mut runtime = KernelRuntime::new(ports.clone());
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "first prompt"))
+            .await
+            .unwrap();
+        let error = runtime
+            .submit_generation_work(image_work("batch-2", job_id.clone(), "second prompt"))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, KernelError::JobQueue(_)));
+        assert_eq!(ports.submitted_payload_count(), 1);
+        assert_eq!(
+            ports.submitted_prompt("generation-submitted:job-1"),
+            Some("first prompt".to_owned())
+        );
+        assert_eq!(
+            ports
+                .operations()
+                .into_iter()
+                .filter(|operation| operation == "save_submitted")
+                .count(),
+            1
+        );
+    });
+}
+
+#[test]
+fn compile_failure_marks_preparing_job_failed() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default().failing_compile_prompt();
+        let mut runtime = KernelRuntime::new(ports);
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let error = runtime
+            .run_scheduled_generation_job(&job_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, KernelError::PromptResource(_)));
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Failed));
+    });
+}
+
+#[test]
+fn planning_failure_marks_preparing_job_failed() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default();
+        let mut runtime = KernelRuntime::new(ports);
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "   "))
+            .await
+            .unwrap();
+        let error = runtime
+            .run_scheduled_generation_job(&job_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, KernelError::Generation(_)));
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Failed));
+    });
+}
+
+#[test]
+fn prepared_payload_failure_marks_preparing_job_failed() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default().failing_prepared_payload();
+        let mut runtime = KernelRuntime::new(ports);
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let error = runtime
+            .run_scheduled_generation_job(&job_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, KernelError::PayloadStore(_)));
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Failed));
+    });
+}
+
+#[test]
+fn image_generation_compiles_plans_persists_and_indexes_samples() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default()
+            .with_expanded_prompt("expanded prompt")
+            .with_generated_images(vec![GeneratedImage {
+                bytes: vec![1, 2, 3],
+                mime_type: Some("image/png".to_owned()),
+                seed: Some(77),
+            }]);
+        let mut runtime = KernelRuntime::new(ports.clone());
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "@chunk(hero)"))
+            .await
+            .unwrap();
+        let directive = runtime.run_scheduled_generation_job(&job_id).await.unwrap();
+
+        assert_eq!(directive, QueueDirective::Idle);
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Succeeded));
+        assert_eq!(
+            ports.operations(),
+            vec![
+                "save_submitted",
+                "compile_prompt",
+                "save_prepared",
+                "generate",
+                "register_resource:GeneratedImage",
+                "register_artifact",
+                "score_image",
+                "index_gallery"
+            ]
+        );
+        assert_eq!(
+            ports.registered_resources()["resource:job-1:sample:0"].kind,
+            ResourceKind::GeneratedImage
+        );
+        let artifact = &ports.artifacts()["artifact:job-1:sample:0"];
+        assert_eq!(artifact.metadata.seed, Some(77));
+        assert_eq!(artifact.metadata.sample_index, Some(0));
+        assert_eq!(
+            artifact.replay.as_ref().unwrap().prompt_snapshot.as_deref(),
+            Some("expanded prompt")
+        );
+        assert!(
+            ports
+                .gallery_items()
+                .contains_key("artifact:artifact:job-1:sample:0")
+        );
+        assert!(
+            ports
+                .events()
+                .iter()
+                .any(|event| matches!(event.kind, KernelEventKind::GalleryIndexed { .. }))
+        );
+    });
+}
+
+#[test]
+fn streaming_generation_emits_chunks_and_persists_only_latest_sample_frames() {
+    block_on(async {
+        let first = base64::engine::general_purpose::STANDARD.encode([1, 1]);
+        let latest = base64::engine::general_purpose::STANDARD.encode([2, 2, 2]);
+        let second = base64::engine::general_purpose::STANDARD.encode([3]);
+        let ports = MemoryKernelPorts::default().with_stream_items(vec![
+            Ok(stream_event(0, 1, &first)),
+            Ok(stream_event(0, 2, &latest)),
+            Ok(stream_event(1, 1, &second)),
+        ]);
+        let mut runtime = KernelRuntime::new(ports.clone());
+        let job_id = JobId::new("job-stream");
+
+        runtime
+            .submit_generation_work(stream_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let directive = runtime.run_scheduled_generation_job(&job_id).await.unwrap();
+
+        assert_eq!(directive, QueueDirective::Idle);
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Succeeded));
+        let resources = ports.registered_resources();
+        assert_eq!(
+            resources["resource:job-stream:stream:0"].kind,
+            ResourceKind::StreamFinalImage
+        );
+        assert_eq!(
+            resources["resource:job-stream:stream:0"].bytes,
+            vec![2, 2, 2]
+        );
+        assert_eq!(resources["resource:job-stream:stream:1"].bytes, vec![3]);
+        let stream_events = ports
+            .events()
+            .into_iter()
+            .filter(|event| matches!(event.kind, KernelEventKind::GenerationStreamChunk { .. }))
+            .count();
+        assert_eq!(stream_events, 3);
+    });
+}
+
+#[test]
+fn streaming_generation_error_uses_queue_failure_policy_without_persisting_frames() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default().with_stream_items(vec![
+            Ok(stream_event(0, 1, "QUJD")),
+            Err(
+                NovelAiError::new(NovelAiErrorKind::RateLimited, "slow down")
+                    .with_retry_after(Duration::from_secs(9)),
+            ),
+        ]);
+        let mut runtime = KernelRuntime::new(ports.clone());
+        let job_id = JobId::new("job-stream");
+
+        runtime
+            .submit_generation_work(stream_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let directive = runtime.run_scheduled_generation_job(&job_id).await.unwrap();
+
+        assert_eq!(
+            directive,
+            QueueDirective::Wait(QueueDelay::fixed(Duration::from_secs(9)))
+        );
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::WaitingRetry));
+        assert!(ports.registered_resources().is_empty());
+        assert!(
+            ports
+                .events()
+                .iter()
+                .any(|event| matches!(event.kind, KernelEventKind::JobFailed { .. }))
+        );
+    });
+}
+
+#[test]
+fn safety_failure_degrades_gallery_indexing_without_failing_job() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default()
+            .with_generated_images(vec![GeneratedImage {
+                bytes: vec![1],
+                mime_type: None,
+                seed: None,
+            }])
+            .failing_safety();
+        let mut runtime = KernelRuntime::new(ports.clone());
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        runtime.run_scheduled_generation_job(&job_id).await.unwrap();
+
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Succeeded));
+        assert!(
+            ports
+                .gallery_items()
+                .values()
+                .all(|item| item.safety_assessment.is_none())
+        );
+        assert!(
+            ports
+                .events()
+                .iter()
+                .any(|event| matches!(event.kind, KernelEventKind::SafetyScanFailed { .. }))
+        );
+    });
+}
+
+#[test]
+fn gallery_failure_marks_current_job_failed_and_returns_error() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default()
+            .with_generated_images(vec![GeneratedImage {
+                bytes: vec![1],
+                mime_type: None,
+                seed: None,
+            }])
+            .failing_gallery();
+        let mut runtime = KernelRuntime::new(ports);
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let error = runtime
+            .run_scheduled_generation_job(&job_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, KernelError::Gallery(_)));
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Failed));
+    });
+}
+
+#[test]
+fn resource_failure_marks_current_job_failed_and_returns_error() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default()
+            .with_generated_images(vec![GeneratedImage {
+                bytes: vec![1],
+                mime_type: None,
+                seed: None,
+            }])
+            .failing_resource();
+        let mut runtime = KernelRuntime::new(ports);
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let error = runtime
+            .run_scheduled_generation_job(&job_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, KernelError::ResourceCatalog(_)));
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Failed));
+    });
+}
+
+#[test]
+fn artifact_failure_marks_current_job_failed_and_returns_error() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default()
+            .with_generated_images(vec![GeneratedImage {
+                bytes: vec![1],
+                mime_type: None,
+                seed: None,
+            }])
+            .failing_artifact();
+        let mut runtime = KernelRuntime::new(ports);
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let error = runtime
+            .run_scheduled_generation_job(&job_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, KernelError::Artifact(_)));
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Failed));
+    });
+}
+
+#[test]
+fn streaming_generation_without_final_image_marks_job_failed() {
+    block_on(async {
+        let ports =
+            MemoryKernelPorts::default().with_stream_items(vec![Ok(stream_event(0, 1, ""))]);
+        let mut runtime = KernelRuntime::new(ports);
+        let job_id = JobId::new("job-stream");
+
+        runtime
+            .submit_generation_work(stream_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let error = runtime
+            .run_scheduled_generation_job(&job_id)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, KernelError::MissingGeneratedImage));
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Failed));
+    });
+}
+
+#[test]
+fn novelai_rate_limit_retries_non_streaming_generation() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default().failing_generate(
+            NovelAiError::new(NovelAiErrorKind::RateLimited, "slow down")
+                .with_retry_after(Duration::from_secs(4)),
+        );
+        let mut runtime = KernelRuntime::new(ports);
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let directive = runtime.run_scheduled_generation_job(&job_id).await.unwrap();
+
+        assert_eq!(
+            directive,
+            QueueDirective::Wait(QueueDelay::fixed(Duration::from_secs(4)))
+        );
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::WaitingRetry));
+    });
+}
+
+#[test]
+fn pause_resume_and_stop_wrap_queue_directives() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default();
+        let mut runtime = KernelRuntime::new(ports);
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+
+        assert_eq!(runtime.pause().unwrap(), QueueDirective::Paused);
+        assert_eq!(runtime.resume().unwrap(), QueueDirective::StartJob(job_id));
+        assert_eq!(runtime.stop().unwrap(), QueueDirective::Idle);
+    });
+}
+
+fn image_work(batch_id: &str, job_id: JobId, prompt: &str) -> SubmitGenerationWork {
+    SubmitGenerationWork {
+        batch_id: BatchId::new(batch_id),
+        job_id,
+        request: GenerationWorkRequest::Image(GenerateImageRequest {
+            prompt: prompt.to_owned(),
+            model: ImageModel::NaiDiffusion45Full,
+            ..Default::default()
+        }),
+        context: GenerationPlanContext::default(),
+    }
+}
+
+fn stream_work(batch_id: &str, job_id: JobId, prompt: &str) -> SubmitGenerationWork {
+    SubmitGenerationWork {
+        batch_id: BatchId::new(batch_id),
+        job_id,
+        request: GenerationWorkRequest::Stream(GenerateImageStreamRequest {
+            base: GenerateImageRequest {
+                prompt: prompt.to_owned(),
+                model: ImageModel::NaiDiffusion45Full,
+                ..Default::default()
+            },
+            ..Default::default()
+        }),
+        context: GenerationPlanContext::default(),
+    }
+}
+
+fn stream_event(sample_index: u32, step_index: u32, image: &str) -> ImageStreamEvent {
+    ImageStreamEvent {
+        event_type: "step".to_owned(),
+        sample_index,
+        step_index: Some(step_index),
+        generation_id: 7,
+        sigma: None,
+        image: image.to_owned(),
+    }
+}
