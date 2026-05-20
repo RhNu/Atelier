@@ -153,7 +153,8 @@ impl JobFailureImpact {
                 Self::RetryAfter(delay)
             }
             NovelAiErrorKind::InvalidRequest => Self::FailCurrentAndContinue,
-            NovelAiErrorKind::Authentication
+            NovelAiErrorKind::Credential
+            | NovelAiErrorKind::Authentication
             | NovelAiErrorKind::InsufficientCredit
             | NovelAiErrorKind::RequestConflict
             | NovelAiErrorKind::ServiceUnavailable

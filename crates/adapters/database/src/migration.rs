@@ -3,6 +3,19 @@ use rusqlite::{Connection, params};
 use crate::error::DatabaseResult;
 
 const SCHEMA_VERSION: i64 = 1;
+const API_KEY_REGISTRY_SQL: &str = r"
+CREATE TABLE IF NOT EXISTS api_key_records (
+    id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    secret_record_id TEXT NOT NULL,
+    is_active INTEGER NOT NULL CHECK (is_active IN (0, 1))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_api_key_records_active
+    ON api_key_records(is_active)
+    WHERE is_active = 1;
+";
+
 const SCHEMA_SQL: &str = r"
 CREATE TABLE IF NOT EXISTS resources (
     id TEXT PRIMARY KEY,
@@ -126,11 +139,13 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
         |row| row.get::<_, bool>(0),
     )?;
     if applied {
+        connection.execute_batch(API_KEY_REGISTRY_SQL)?;
         return Ok(());
     }
 
     let tx = connection.transaction()?;
     tx.execute_batch(SCHEMA_SQL)?;
+    tx.execute_batch(API_KEY_REGISTRY_SQL)?;
     tx.execute(
         "INSERT INTO schema_migrations(version) VALUES (?1)",
         params![SCHEMA_VERSION],

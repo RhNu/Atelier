@@ -10,6 +10,7 @@ use thiserror::Error;
 /// Cross-feature error category for NovelAI-facing ports.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NovelAiErrorKind {
+    Credential,
     InvalidRequest,
     Authentication,
     InsufficientCredit,
@@ -25,6 +26,7 @@ pub enum NovelAiErrorKind {
 impl std::fmt::Display for NovelAiErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match self {
+            Self::Credential => "credential",
             Self::InvalidRequest => "invalid_request",
             Self::Authentication => "authentication",
             Self::InsufficientCredit => "insufficient_credit",

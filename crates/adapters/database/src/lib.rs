@@ -1,5 +1,6 @@
 //! `SQLite` database adapters for NAI Atelier.
 
+mod api_keys;
 mod artifacts;
 mod codec;
 mod connection;
@@ -11,6 +12,7 @@ mod migration;
 mod resource_catalog;
 mod vibe;
 
+pub use api_keys::DatabaseApiKeyRegistryStore;
 pub use artifacts::DatabaseArtifactRepository;
 pub use connection::DatabaseConnection;
 pub use error::{DatabaseError, DatabaseResult};

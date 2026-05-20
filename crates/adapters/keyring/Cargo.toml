@@ -1,13 +1,14 @@
 [package]
-name = "nai-atelier-secrets"
+name = "nai-atelier-adapter-keyring"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
 
 [dependencies]
 async-trait = "0.1"
-nai-atelier-foundation = { path = "../../foundation" }
-thiserror = "2"
+keyring = "4.0.1"
+keyring-core = "1.0.0"
+nai-atelier-secrets = { path = "../../features/secrets" }
 
 [dev-dependencies]
 futures-executor = "0.3"

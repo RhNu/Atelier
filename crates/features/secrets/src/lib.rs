@@ -1,21 +1,20 @@
-use async_trait::async_trait;
-use nai_atelier_foundation::NovelAiError;
+mod error;
+mod model;
+mod ports;
+mod service;
 
-pub type SecretsResult<T> = Result<T, NovelAiError>;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SubscriptionSummary {
-    pub anlas_balance: i64,
-    pub is_opus: bool,
-    pub tier: i32,
-    pub tier_name: String,
-    pub expires_at_ms: Option<u64>,
-}
-
-#[async_trait]
-pub trait SubscriptionClient: Send + Sync {
-    async fn get_subscription(&self) -> SecretsResult<SubscriptionSummary>;
-}
+pub use error::{
+    ProbeApiKeyError, ProbeApiKeyResult, SecretsError, SecretsErrorKind, SecretsResult,
+};
+pub use model::{
+    ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretRecordId, SecretValue, SubscriptionSummary,
+    UpdateApiKeyRequest,
+};
+pub use ports::{
+    ApiKeyRegistryStore, SecretResolver, SecretStore, SubscriptionClient, SubscriptionProbeClient,
+    SubscriptionResult,
+};
+pub use service::ApiKeyRegistryService;
 
 #[cfg(test)]
 mod tests {

@@ -10,7 +10,10 @@ use nai_atelier_generation::{
     ImageFormat, ImageModel, ImageSize, ImageStreamEvent, ImageStreamResult, Img2ImgRequest,
     NoiseSchedule, NovelAiGenerationClient, Sampler, StreamMode, UcPreset,
 };
-use nai_atelier_secrets::{SecretsResult, SubscriptionClient, SubscriptionSummary};
+use nai_atelier_secrets::{
+    SecretResolver, SecretValue, SecretsError, SubscriptionClient, SubscriptionProbeClient,
+    SubscriptionResult, SubscriptionSummary,
+};
 use nai_atelier_vibe::{EncodeVibeRequest, EncodedVibe, NovelAiVibeClient, VibeModel, VibeResult};
 use novelai_bridge as bridge;
 
@@ -68,6 +71,162 @@ impl<T: bridge::Transport> NovelAiBridgeAdapter<T> {
     #[must_use]
     pub const fn from_client(client: bridge::Client<T>) -> Self {
         Self { client }
+    }
+}
+
+pub trait NovelAiClientFactory: Clone + Send + Sync {
+    type Client: NovelAiGenerationClient
+        + NovelAiVibeClient
+        + NovelAiDirectorClient
+        + SubscriptionClient
+        + Send
+        + Sync;
+
+    /// Creates a `NovelAI` client for one resolved secret value.
+    ///
+    /// # Errors
+    /// Returns an error when the client cannot be constructed from the secret.
+    fn create_client(&self, secret: SecretValue) -> Result<Self::Client, NovelAiError>;
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct ReqwestNovelAiClientFactory {
+    timeout_ms: u64,
+}
+
+impl Default for ReqwestNovelAiClientFactory {
+    fn default() -> Self {
+        Self {
+            timeout_ms: bridge::DEFAULT_TIMEOUT_MS,
+        }
+    }
+}
+
+impl ReqwestNovelAiClientFactory {
+    #[must_use]
+    pub const fn new(timeout_ms: u64) -> Self {
+        Self { timeout_ms }
+    }
+}
+
+impl NovelAiClientFactory for ReqwestNovelAiClientFactory {
+    type Client = NovelAiBridgeAdapter<bridge::ReqwestTransport>;
+
+    fn create_client(&self, secret: SecretValue) -> Result<Self::Client, NovelAiError> {
+        NovelAiBridgeAdapter::new(NovelAiBridgeConfig {
+            api_key: secret.expose_secret().to_owned(),
+            timeout_ms: self.timeout_ms,
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ResolverBackedNovelAiAdapter<R, F = ReqwestNovelAiClientFactory> {
+    resolver: R,
+    factory: F,
+}
+
+impl<R, F> ResolverBackedNovelAiAdapter<R, F> {
+    #[must_use]
+    pub const fn new(resolver: R, factory: F) -> Self {
+        Self { resolver, factory }
+    }
+}
+
+impl<R, F> ResolverBackedNovelAiAdapter<R, F>
+where
+    R: SecretResolver,
+    F: NovelAiClientFactory,
+{
+    async fn create_client(&self) -> Result<F::Client, NovelAiError> {
+        let secret = self
+            .resolver
+            .resolve_active_secret()
+            .await
+            .map_err(|error| map_secrets_error(&error))?;
+        self.factory.create_client(secret)
+    }
+}
+
+#[async_trait]
+impl<R, F> NovelAiGenerationClient for ResolverBackedNovelAiAdapter<R, F>
+where
+    R: SecretResolver,
+    F: NovelAiClientFactory,
+{
+    async fn generate(
+        &self,
+        request: GenerateImageRequest,
+    ) -> GenerationResult<Vec<GeneratedImage>> {
+        self.create_client().await?.generate(request).await
+    }
+
+    async fn generate_stream(
+        &self,
+        request: GenerateImageStreamRequest,
+    ) -> GenerationResult<ImageStreamResult> {
+        self.create_client().await?.generate_stream(request).await
+    }
+}
+
+#[async_trait]
+impl<R, F> NovelAiVibeClient for ResolverBackedNovelAiAdapter<R, F>
+where
+    R: SecretResolver,
+    F: NovelAiClientFactory,
+{
+    async fn encode_vibe(&self, request: EncodeVibeRequest) -> VibeResult<EncodedVibe> {
+        self.create_client().await?.encode_vibe(request).await
+    }
+}
+
+#[async_trait]
+impl<R, F> NovelAiDirectorClient for ResolverBackedNovelAiAdapter<R, F>
+where
+    R: SecretResolver,
+    F: NovelAiClientFactory,
+{
+    async fn run_director_tool(
+        &self,
+        request: RunDirectorToolRequest,
+    ) -> DirectorResult<DirectorToolOutput> {
+        self.create_client().await?.run_director_tool(request).await
+    }
+}
+
+#[async_trait]
+impl<R, F> SubscriptionClient for ResolverBackedNovelAiAdapter<R, F>
+where
+    R: SecretResolver,
+    F: NovelAiClientFactory,
+{
+    async fn get_subscription(&self) -> SubscriptionResult<SubscriptionSummary> {
+        self.create_client().await?.get_subscription().await
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NovelAiSubscriptionProbeClient<F = ReqwestNovelAiClientFactory> {
+    factory: F,
+}
+
+impl<F> NovelAiSubscriptionProbeClient<F> {
+    #[must_use]
+    pub const fn new(factory: F) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait]
+impl<F> SubscriptionProbeClient for NovelAiSubscriptionProbeClient<F>
+where
+    F: NovelAiClientFactory,
+{
+    async fn probe_subscription(
+        &self,
+        secret: SecretValue,
+    ) -> SubscriptionResult<SubscriptionSummary> {
+        self.factory.create_client(secret)?.get_subscription().await
     }
 }
 
@@ -147,13 +306,17 @@ impl<T> SubscriptionClient for NovelAiBridgeAdapter<T>
 where
     T: bridge::Transport,
 {
-    async fn get_subscription(&self) -> SecretsResult<SubscriptionSummary> {
+    async fn get_subscription(&self) -> SubscriptionResult<SubscriptionSummary> {
         self.client
             .get_subscription()
             .await
             .map(from_bridge_subscription)
             .map_err(map_bridge_error)
     }
+}
+
+fn map_secrets_error(error: &SecretsError) -> NovelAiError {
+    NovelAiError::new(NovelAiErrorKind::Credential, error.to_string())
 }
 
 fn to_bridge_generate_request(request: GenerateImageRequest) -> bridge::GenerateImageRequest {
@@ -447,12 +610,19 @@ const fn to_bridge_director_tool(tool: DirectorTool) -> bridge::DirectorTool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
     use std::{io, time::Duration};
 
+    use async_trait::async_trait;
+    use futures_executor::block_on;
     use nai_atelier_foundation::NovelAiErrorKind;
     use nai_atelier_generation::{
-        GenerateImageRequest, GeneratedImage, ImageModel, ImageSize, NoiseSchedule, Sampler,
-        UcPreset,
+        GenerateImageRequest, GeneratedImage, ImageModel, ImageSize, NoiseSchedule,
+        NovelAiGenerationClient, Sampler, UcPreset,
+    };
+    use nai_atelier_secrets::{
+        SecretResolver, SecretValue, SecretsError, SecretsResult, SubscriptionClient,
+        SubscriptionProbeClient, SubscriptionResult,
     };
     use novelai_bridge::{ApiError, ApiErrorKind, BridgeError};
 
@@ -595,5 +765,169 @@ mod tests {
 
         assert!(output.contains("<redacted>"));
         assert!(!output.contains("secret-token"));
+    }
+
+    #[test]
+    fn resolver_backed_generation_resolves_active_secret_before_calling_client() {
+        block_on(async {
+            let resolver = FakeResolver::active("active-secret");
+            let factory = RecordingFactory::default();
+            let adapter = ResolverBackedNovelAiAdapter::new(resolver, factory.clone());
+
+            adapter
+                .generate(GenerateImageRequest {
+                    prompt: "1girl".to_owned(),
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+
+            assert_eq!(factory.secrets(), vec!["active-secret".to_owned()]);
+        });
+    }
+
+    #[test]
+    fn resolver_backed_generation_maps_missing_active_key_without_calling_client() {
+        block_on(async {
+            let resolver = FakeResolver::missing_active_key();
+            let factory = RecordingFactory::default();
+            let adapter = ResolverBackedNovelAiAdapter::new(resolver, factory.clone());
+
+            let error = adapter
+                .generate(GenerateImageRequest {
+                    prompt: "1girl".to_owned(),
+                    ..Default::default()
+                })
+                .await
+                .unwrap_err();
+
+            assert_eq!(error.kind, NovelAiErrorKind::Credential);
+            assert!(factory.secrets().is_empty());
+        });
+    }
+
+    #[test]
+    fn explicit_subscription_probe_uses_supplied_secret() {
+        block_on(async {
+            let factory = RecordingFactory::default();
+            let probe = NovelAiSubscriptionProbeClient::new(factory.clone());
+
+            let summary = probe
+                .probe_subscription(SecretValue::new("probe-secret"))
+                .await
+                .unwrap();
+
+            assert_eq!(summary.anlas_balance, 7);
+            assert_eq!(factory.secrets(), vec!["probe-secret".to_owned()]);
+        });
+    }
+
+    #[derive(Clone)]
+    struct FakeResolver {
+        result: SecretsResult<SecretValue>,
+    }
+
+    impl FakeResolver {
+        fn active(value: &str) -> Self {
+            Self {
+                result: Ok(SecretValue::new(value)),
+            }
+        }
+
+        fn missing_active_key() -> Self {
+            Self {
+                result: Err(SecretsError::missing_active_key()),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl SecretResolver for FakeResolver {
+        async fn resolve_active_secret(&self) -> SecretsResult<SecretValue> {
+            self.result.clone()
+        }
+    }
+
+    #[derive(Clone, Default)]
+    struct RecordingFactory {
+        secrets: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl RecordingFactory {
+        fn secrets(&self) -> Vec<String> {
+            self.secrets.lock().unwrap().clone()
+        }
+    }
+
+    impl NovelAiClientFactory for RecordingFactory {
+        type Client = RecordingClient;
+
+        fn create_client(&self, secret: SecretValue) -> Result<Self::Client, NovelAiError> {
+            self.secrets
+                .lock()
+                .unwrap()
+                .push(secret.expose_secret().to_owned());
+            Ok(RecordingClient)
+        }
+    }
+
+    #[derive(Clone)]
+    struct RecordingClient;
+
+    #[async_trait]
+    impl NovelAiGenerationClient for RecordingClient {
+        async fn generate(
+            &self,
+            _request: GenerateImageRequest,
+        ) -> GenerationResult<Vec<GeneratedImage>> {
+            Ok(vec![GeneratedImage {
+                bytes: vec![1, 2, 3],
+                mime_type: Some("image/png".to_owned()),
+                seed: Some(1),
+            }])
+        }
+
+        async fn generate_stream(
+            &self,
+            _request: GenerateImageStreamRequest,
+        ) -> GenerationResult<ImageStreamResult> {
+            Ok(Box::pin(futures_util::stream::empty()))
+        }
+    }
+
+    #[async_trait]
+    impl NovelAiVibeClient for RecordingClient {
+        async fn encode_vibe(&self, _request: EncodeVibeRequest) -> VibeResult<EncodedVibe> {
+            Ok(EncodedVibe {
+                payload: "encoded".to_owned(),
+            })
+        }
+    }
+
+    #[async_trait]
+    impl NovelAiDirectorClient for RecordingClient {
+        async fn run_director_tool(
+            &self,
+            _request: RunDirectorToolRequest,
+        ) -> DirectorResult<DirectorToolOutput> {
+            Ok(DirectorToolOutput {
+                bytes: vec![4, 5, 6],
+                mime_type: Some("image/png".to_owned()),
+                seed: Some(2),
+            })
+        }
+    }
+
+    #[async_trait]
+    impl SubscriptionClient for RecordingClient {
+        async fn get_subscription(&self) -> SubscriptionResult<SubscriptionSummary> {
+            Ok(SubscriptionSummary {
+                anlas_balance: 7,
+                is_opus: false,
+                tier: 1,
+                tier_name: "tablet".to_owned(),
+                expires_at_ms: None,
+            })
+        }
     }
 }

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "apps/desktop/src-tauri",
+    "crates/adapters/keyring",
     "crates/adapters/novelai",
     "crates/adapters/database",
     "crates/adapters/storage-fs",

@@ -14,3 +14,6 @@ nai-atelier-generation = { path = "../../features/generation" }
 nai-atelier-secrets = { path = "../../features/secrets" }
 nai-atelier-vibe = { path = "../../features/vibe" }
 novelai-bridge = "0.2.1"
+
+[dev-dependencies]
+futures-executor = "0.3"

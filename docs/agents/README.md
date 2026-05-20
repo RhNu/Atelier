@@ -14,6 +14,7 @@
 6. `scaffold-decision.md`
 7. `kernel-generation-workflow.md`
 8. `sqlite-database-adapter.md`
+9. `secrets-keyring-pipeline.md`
 
 ## 当前共识
 
@@ -32,6 +33,7 @@
 - 后端落地顺序以边界和测试替换性为验收目标，不以打通最短 MVP 链路为目标。
 - `kernel-generation-workflow.md` 记录首轮 `nai-atelier-kernel` 的 generation/streaming 编排边界；`kernel` 只组合 feature service/ports，不拥有真实 I/O 或 Tauri command。
 - `sqlite-database-adapter.md` 记录当前真实持久化 adapter 的 SQLite 选型、adapter-local DTO/`JsonCodec` 边界与 v1 schema 范围。
+- `secrets-keyring-pipeline.md` 记录 API key registry、系统 keyring、显式 subscription probe 与 resolver-backed NovelAI adapter 的后端管线边界。
 
 ## 非目标
 
