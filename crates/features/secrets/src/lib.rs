@@ -4,7 +4,10 @@ mod ports;
 mod service;
 
 pub use error::{
-    ProbeApiKeyError, ProbeApiKeyResult, SecretsError, SecretsErrorKind, SecretsResult,
+    ClientApiErrorContext, ClientApiErrorReason, ClientDecodeContext, ClientDecodeTarget,
+    ClientInvalidRequestContext, ClientInvalidRequestKind, ClientMetadataContext,
+    ClientMetadataKind, ClientTransportContext, ClientTransportOperation, ProbeApiKeyError,
+    ProbeApiKeyResult, SecretsError, SecretsErrorKind, SecretsResult, SubscriptionClientError,
 };
 pub use model::{
     ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretRecordId, SecretValue, SubscriptionSummary,

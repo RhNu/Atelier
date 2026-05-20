@@ -1,13 +1,12 @@
 use nai_atelier_artifacts::ArtifactError;
-use nai_atelier_foundation::NovelAiError;
 use nai_atelier_gallery::GalleryError;
-use nai_atelier_generation::GenerationError;
+use nai_atelier_generation::{GenerationClientError, GenerationError};
 use nai_atelier_jobs::{JobPayloadRef, JobQueueError};
 use nai_atelier_precise_reference::PreciseReferenceError;
 use nai_atelier_prompt_resources::PromptResourceError;
 use nai_atelier_resource_catalog::ResourceCatalogError;
 use nai_atelier_safety::SafetyError;
-use nai_atelier_vibe::VibeError;
+use nai_atelier_vibe::{VibeClientError, VibeError};
 use thiserror::Error;
 
 pub type KernelResult<T> = Result<T, KernelError>;
@@ -32,8 +31,10 @@ pub enum KernelError {
     Vibe(#[from] VibeError),
     #[error("precise reference workflow failed: {0}")]
     PreciseReference(#[from] PreciseReferenceError),
-    #[error("novelai generation failed: {0}")]
-    NovelAi(#[from] NovelAiError),
+    #[error("generation client failed: {0}")]
+    GenerationClient(#[from] GenerationClientError),
+    #[error("vibe client failed: {0}")]
+    VibeClient(#[from] VibeClientError),
     #[error("payload store failed: {0}")]
     PayloadStore(String),
     #[error("submitted payload `{0:?}` does not exist")]

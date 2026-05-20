@@ -3,7 +3,6 @@ use futures_util::StreamExt;
 use nai_atelier_director::{
     DirectorResult, DirectorTool, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
-use nai_atelier_foundation::{NovelAiError, NovelAiErrorKind};
 use nai_atelier_generation::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
@@ -16,6 +15,15 @@ use nai_atelier_secrets::{
 };
 use nai_atelier_vibe::{EncodeVibeRequest, EncodedVibe, NovelAiVibeClient, VibeModel, VibeResult};
 use novelai_bridge as bridge;
+
+mod error;
+
+pub use error::NovelAiBridgeError;
+
+use error::{
+    map_bridge_error, map_director_error, map_generation_error, map_subscription_error,
+    map_vibe_error,
+};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct NovelAiBridgeConfig {
@@ -53,7 +61,7 @@ impl NovelAiBridgeAdapter<bridge::ReqwestTransport> {
     /// owned by the future secrets/keyring adapters.
     /// # Errors
     /// Returns an error when the bridge client rejects the supplied configuration.
-    pub fn new(config: NovelAiBridgeConfig) -> Result<Self, NovelAiError> {
+    pub fn new(config: NovelAiBridgeConfig) -> Result<Self, NovelAiBridgeError> {
         let options = bridge::ClientOptions {
             api_key_source: bridge::ApiKeySource::Inline {
                 value: config.api_key.into(),
@@ -86,7 +94,7 @@ pub trait NovelAiClientFactory: Clone + Send + Sync {
     ///
     /// # Errors
     /// Returns an error when the client cannot be constructed from the secret.
-    fn create_client(&self, secret: SecretValue) -> Result<Self::Client, NovelAiError>;
+    fn create_client(&self, secret: SecretValue) -> Result<Self::Client, NovelAiBridgeError>;
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -112,7 +120,7 @@ impl ReqwestNovelAiClientFactory {
 impl NovelAiClientFactory for ReqwestNovelAiClientFactory {
     type Client = NovelAiBridgeAdapter<bridge::ReqwestTransport>;
 
-    fn create_client(&self, secret: SecretValue) -> Result<Self::Client, NovelAiError> {
+    fn create_client(&self, secret: SecretValue) -> Result<Self::Client, NovelAiBridgeError> {
         NovelAiBridgeAdapter::new(NovelAiBridgeConfig {
             api_key: secret.expose_secret().to_owned(),
             timeout_ms: self.timeout_ms,
@@ -138,7 +146,7 @@ where
     R: SecretResolver,
     F: NovelAiClientFactory,
 {
-    async fn create_client(&self) -> Result<F::Client, NovelAiError> {
+    async fn create_client(&self) -> Result<F::Client, NovelAiBridgeError> {
         let secret = self
             .resolver
             .resolve_active_secret()
@@ -158,14 +166,22 @@ where
         &self,
         request: GenerateImageRequest,
     ) -> GenerationResult<Vec<GeneratedImage>> {
-        self.create_client().await?.generate(request).await
+        self.create_client()
+            .await
+            .map_err(map_generation_error)?
+            .generate(request)
+            .await
     }
 
     async fn generate_stream(
         &self,
         request: GenerateImageStreamRequest,
     ) -> GenerationResult<ImageStreamResult> {
-        self.create_client().await?.generate_stream(request).await
+        self.create_client()
+            .await
+            .map_err(map_generation_error)?
+            .generate_stream(request)
+            .await
     }
 }
 
@@ -176,7 +192,11 @@ where
     F: NovelAiClientFactory,
 {
     async fn encode_vibe(&self, request: EncodeVibeRequest) -> VibeResult<EncodedVibe> {
-        self.create_client().await?.encode_vibe(request).await
+        self.create_client()
+            .await
+            .map_err(map_vibe_error)?
+            .encode_vibe(request)
+            .await
     }
 }
 
@@ -190,7 +210,11 @@ where
         &self,
         request: RunDirectorToolRequest,
     ) -> DirectorResult<DirectorToolOutput> {
-        self.create_client().await?.run_director_tool(request).await
+        self.create_client()
+            .await
+            .map_err(map_director_error)?
+            .run_director_tool(request)
+            .await
     }
 }
 
@@ -201,7 +225,11 @@ where
     F: NovelAiClientFactory,
 {
     async fn get_subscription(&self) -> SubscriptionResult<SubscriptionSummary> {
-        self.create_client().await?.get_subscription().await
+        self.create_client()
+            .await
+            .map_err(map_subscription_error)?
+            .get_subscription()
+            .await
     }
 }
 
@@ -226,7 +254,11 @@ where
         &self,
         secret: SecretValue,
     ) -> SubscriptionResult<SubscriptionSummary> {
-        self.factory.create_client(secret)?.get_subscription().await
+        self.factory
+            .create_client(secret)
+            .map_err(map_subscription_error)?
+            .get_subscription()
+            .await
     }
 }
 
@@ -248,7 +280,7 @@ where
                     .map(from_bridge_generated_image)
                     .collect()
             })
-            .map_err(map_bridge_error)
+            .map_err(|error| map_generation_error(map_bridge_error(error)))
     }
 
     async fn generate_stream(
@@ -259,9 +291,10 @@ where
             .client
             .generate_stream(to_bridge_stream_request(request))
             .await
-            .map_err(map_bridge_error)?;
+            .map_err(|error| map_generation_error(map_bridge_error(error)))?;
         Ok(Box::pin(stream.map(|item| {
-            item.map(from_bridge_stream_chunk).map_err(map_bridge_error)
+            item.map(from_bridge_stream_chunk)
+                .map_err(|error| map_generation_error(map_bridge_error(error)))
         })))
     }
 }
@@ -276,7 +309,7 @@ where
             .encode_vibe(to_bridge_encode_vibe_request(request))
             .await
             .map(|payload| EncodedVibe { payload })
-            .map_err(map_bridge_error)
+            .map_err(|error| map_vibe_error(map_bridge_error(error)))
     }
 }
 
@@ -297,7 +330,7 @@ where
                 mime_type: image.mime_type,
                 seed: image.seed,
             })
-            .map_err(map_bridge_error)
+            .map_err(|error| map_director_error(map_bridge_error(error)))
     }
 }
 
@@ -311,12 +344,12 @@ where
             .get_subscription()
             .await
             .map(from_bridge_subscription)
-            .map_err(map_bridge_error)
+            .map_err(|error| map_subscription_error(map_bridge_error(error)))
     }
 }
 
-fn map_secrets_error(error: &SecretsError) -> NovelAiError {
-    NovelAiError::new(NovelAiErrorKind::Credential, error.to_string())
+fn map_secrets_error(error: &SecretsError) -> NovelAiBridgeError {
+    NovelAiBridgeError::credential(error.to_string())
 }
 
 fn to_bridge_generate_request(request: GenerateImageRequest) -> bridge::GenerateImageRequest {
@@ -406,60 +439,6 @@ fn from_bridge_subscription(subscription: bridge::SubscriptionInfo) -> Subscript
         tier: subscription.tier,
         tier_name: subscription.tier_name,
         expires_at_ms: subscription.expires_at_ms,
-    }
-}
-
-fn map_bridge_error(error: bridge::BridgeError) -> NovelAiError {
-    match error {
-        bridge::BridgeError::InvalidRequest(error) => {
-            NovelAiError::new(NovelAiErrorKind::InvalidRequest, error.to_string())
-        }
-        bridge::BridgeError::Api(error) => {
-            let message = error.to_string();
-            match error.kind {
-                bridge::ApiErrorKind::InvalidRequest => {
-                    NovelAiError::new(NovelAiErrorKind::InvalidRequest, message)
-                        .with_status(error.status)
-                }
-                bridge::ApiErrorKind::AuthenticationFailed => {
-                    NovelAiError::new(NovelAiErrorKind::Authentication, message)
-                        .with_status(error.status)
-                }
-                bridge::ApiErrorKind::InsufficientCredit => {
-                    NovelAiError::new(NovelAiErrorKind::InsufficientCredit, message)
-                        .with_status(error.status)
-                }
-                bridge::ApiErrorKind::RequestConflict => {
-                    NovelAiError::new(NovelAiErrorKind::RequestConflict, message)
-                        .with_status(error.status)
-                }
-                bridge::ApiErrorKind::UnexpectedStatus => {
-                    NovelAiError::new(NovelAiErrorKind::UnknownApi, message)
-                        .with_status(error.status)
-                }
-                bridge::ApiErrorKind::RateLimited { retry_after } => {
-                    let mut mapped = NovelAiError::new(NovelAiErrorKind::RateLimited, message)
-                        .with_status(error.status);
-                    if let Some(delay) = retry_after {
-                        mapped = mapped.with_retry_after(delay);
-                    }
-                    mapped
-                }
-                bridge::ApiErrorKind::ServerError => {
-                    NovelAiError::new(NovelAiErrorKind::ServiceUnavailable, message)
-                        .with_status(error.status)
-                }
-            }
-        }
-        bridge::BridgeError::Transport(error) => {
-            NovelAiError::new(NovelAiErrorKind::Transport, error.to_string())
-        }
-        bridge::BridgeError::Decode(error) => {
-            NovelAiError::new(NovelAiErrorKind::Decode, error.to_string())
-        }
-        bridge::BridgeError::Metadata(error) => {
-            NovelAiError::new(NovelAiErrorKind::Metadata, error.to_string())
-        }
     }
 }
 
@@ -615,18 +594,23 @@ mod tests {
 
     use async_trait::async_trait;
     use futures_executor::block_on;
-    use nai_atelier_foundation::NovelAiErrorKind;
     use nai_atelier_generation::{
-        GenerateImageRequest, GeneratedImage, ImageModel, ImageSize, NoiseSchedule,
+        ClientApiErrorReason as GenerationApiErrorReason,
+        ClientInvalidRequestKind as GenerationInvalidRequestKind, GenerateImageRequest,
+        GeneratedImage, GenerationClientError, ImageModel, ImageSize, NoiseSchedule,
         NovelAiGenerationClient, Sampler, UcPreset,
     };
     use nai_atelier_secrets::{
         SecretResolver, SecretValue, SecretsError, SecretsResult, SubscriptionClient,
-        SubscriptionProbeClient, SubscriptionResult,
+        SubscriptionClientError, SubscriptionProbeClient, SubscriptionResult,
     };
-    use novelai_bridge::{ApiError, ApiErrorKind, BridgeError};
+    use novelai_bridge::{ApiError, ApiErrorKind, ApiErrorReason, BridgeError};
 
     use super::*;
+    use crate::error::{
+        BridgeApiErrorReason, BridgeDecodeTarget, BridgeInvalidRequestKind, BridgeMetadataKind,
+        BridgeTransportOperation,
+    };
 
     #[test]
     fn crate_metadata_is_available() {
@@ -694,16 +678,46 @@ mod tests {
                 name: "api_key".to_owned(),
             },
         ));
-        assert_eq!(invalid.kind, NovelAiErrorKind::InvalidRequest);
+        match invalid {
+            NovelAiBridgeError::InvalidRequest {
+                status: None,
+                context: Some(context),
+                ..
+            } => {
+                assert_eq!(context.kind, BridgeInvalidRequestKind::MissingConfiguration);
+                assert_eq!(context.name.as_deref(), Some("api_key"));
+            }
+            other => panic!("unexpected invalid request mapping: {other:?}"),
+        }
 
         let auth = map_bridge_error(BridgeError::Api(ApiError {
             kind: ApiErrorKind::AuthenticationFailed,
             status: 401,
             endpoint: "https://api.novelai.net/user/subscription".to_owned(),
-            server_reason: None,
-            raw_body: None,
+            server_reason: Some(ApiErrorReason::Detail("bad key".to_owned())),
+            raw_body: Some("{\"detail\":\"bad key\"}".to_owned()),
         }));
-        assert_eq!(auth.kind, NovelAiErrorKind::Authentication);
+        match auth {
+            NovelAiBridgeError::Authentication {
+                status: Some(401),
+                context: Some(context),
+                ..
+            } => {
+                assert_eq!(
+                    context.endpoint,
+                    "https://api.novelai.net/user/subscription"
+                );
+                assert_eq!(
+                    context.server_reason,
+                    Some(BridgeApiErrorReason::Detail("bad key".to_owned()))
+                );
+                assert_eq!(
+                    context.raw_body.as_deref(),
+                    Some("{\"detail\":\"bad key\"}")
+                );
+            }
+            other => panic!("unexpected auth mapping: {other:?}"),
+        }
 
         let rate_limited = map_bridge_error(BridgeError::Api(ApiError {
             kind: ApiErrorKind::RateLimited {
@@ -714,8 +728,14 @@ mod tests {
             server_reason: None,
             raw_body: None,
         }));
-        assert_eq!(rate_limited.kind, NovelAiErrorKind::RateLimited);
-        assert_eq!(rate_limited.retry_after, Some(Duration::from_secs(3)));
+        assert!(matches!(
+            rate_limited,
+            NovelAiBridgeError::RateLimited {
+                status: 429,
+                retry_after: Some(delay),
+                ..
+            } if delay == Duration::from_secs(3)
+        ));
 
         let insufficient_credit = map_bridge_error(BridgeError::Api(ApiError {
             kind: ApiErrorKind::InsufficientCredit,
@@ -724,10 +744,13 @@ mod tests {
             server_reason: None,
             raw_body: None,
         }));
-        assert_eq!(
-            insufficient_credit.kind,
-            NovelAiErrorKind::InsufficientCredit
-        );
+        assert!(matches!(
+            insufficient_credit,
+            NovelAiBridgeError::InsufficientCredit {
+                status: Some(402),
+                ..
+            }
+        ));
 
         let conflict = map_bridge_error(BridgeError::Api(ApiError {
             kind: ApiErrorKind::RequestConflict,
@@ -736,25 +759,143 @@ mod tests {
             server_reason: None,
             raw_body: None,
         }));
-        assert_eq!(conflict.kind, NovelAiErrorKind::RequestConflict);
+        assert!(matches!(
+            conflict,
+            NovelAiBridgeError::RequestConflict {
+                status: Some(409),
+                ..
+            }
+        ));
+    }
 
+    #[test]
+    fn maps_bridge_transport_decode_and_metadata_contexts() {
         let transport = map_bridge_error(BridgeError::Transport(novelai_bridge::TransportError {
             operation: novelai_bridge::TransportOperation::SendRequest,
             endpoint: Some("https://image.novelai.net/ai/generate-image".to_owned()),
             source: Box::new(io::Error::other("network down")),
         }));
-        assert_eq!(transport.kind, NovelAiErrorKind::Transport);
+        match transport {
+            NovelAiBridgeError::Transport {
+                context: Some(context),
+                ..
+            } => {
+                assert_eq!(context.operation, BridgeTransportOperation::SendRequest);
+                assert_eq!(
+                    context.endpoint.as_deref(),
+                    Some("https://image.novelai.net/ai/generate-image")
+                );
+                assert_eq!(context.source, "network down");
+            }
+            other => panic!("unexpected transport mapping: {other:?}"),
+        }
 
         let decode = map_bridge_error(BridgeError::Decode(novelai_bridge::DecodeError {
             target: novelai_bridge::DecodeTarget::JsonResponse,
             source: Box::new(io::Error::other("bad json")),
         }));
-        assert_eq!(decode.kind, NovelAiErrorKind::Decode);
+        match decode {
+            NovelAiBridgeError::Decode {
+                context: Some(context),
+                ..
+            } => {
+                assert_eq!(context.target, BridgeDecodeTarget::JsonResponse);
+                assert_eq!(context.source, "bad json");
+            }
+            other => panic!("unexpected decode mapping: {other:?}"),
+        }
 
         let metadata = map_bridge_error(
             novelai_bridge::parse_png_metadata_from_bytes(b"not png").unwrap_err(),
         );
-        assert_eq!(metadata.kind, NovelAiErrorKind::Metadata);
+        match metadata {
+            NovelAiBridgeError::Metadata {
+                context: Some(context),
+                ..
+            } => {
+                assert_eq!(context.kind, BridgeMetadataKind::InvalidPngPayload);
+                assert_eq!(context.field, "metadata.image");
+            }
+            other => panic!("unexpected metadata mapping: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn maps_bridge_rate_limit_to_feature_client_errors_without_losing_delay() {
+        let bridge_error =
+            NovelAiBridgeError::rate_limited(429, Some(Duration::from_secs(11)), "slow down");
+
+        assert!(matches!(
+            map_generation_error(bridge_error.clone()),
+            GenerationClientError::RateLimited {
+                status: 429,
+                retry_after: Some(delay),
+                ..
+            } if delay == Duration::from_secs(11)
+        ));
+        assert!(matches!(
+            map_subscription_error(bridge_error),
+            SubscriptionClientError::RateLimited {
+                status: 429,
+                retry_after: Some(delay),
+                ..
+            } if delay == Duration::from_secs(11)
+        ));
+    }
+
+    #[test]
+    fn maps_bridge_context_to_feature_client_errors_without_flattening() {
+        let invalid = map_generation_error(map_bridge_error(BridgeError::InvalidRequest(
+            novelai_bridge::InvalidRequest::NumericOutOfRange {
+                field: "scale".to_owned(),
+                value: 99.0,
+                min: 0.0,
+                max: 10.0,
+            },
+        )));
+        match invalid {
+            GenerationClientError::InvalidRequest {
+                context: Some(context),
+                ..
+            } => {
+                assert_eq!(
+                    context.kind,
+                    GenerationInvalidRequestKind::NumericOutOfRange
+                );
+                assert_eq!(context.field.as_deref(), Some("scale"));
+                assert_eq!(context.value.as_deref(), Some("99"));
+                assert_eq!(context.max.as_deref(), Some("10"));
+            }
+            other => panic!("unexpected invalid feature error mapping: {other:?}"),
+        }
+
+        let auth = map_generation_error(map_bridge_error(BridgeError::Api(ApiError {
+            kind: ApiErrorKind::AuthenticationFailed,
+            status: 401,
+            endpoint: "https://api.novelai.net/user/subscription".to_owned(),
+            server_reason: Some(ApiErrorReason::ErrorMessage("expired".to_owned())),
+            raw_body: Some("{\"error\":{\"message\":\"expired\"}}".to_owned()),
+        })));
+        match auth {
+            GenerationClientError::Authentication {
+                context: Some(context),
+                ..
+            } => {
+                assert_eq!(
+                    context.endpoint,
+                    "https://api.novelai.net/user/subscription"
+                );
+                assert_eq!(
+                    context.server_reason,
+                    Some(GenerationApiErrorReason::ErrorMessage("expired".to_owned()))
+                );
+                assert_eq!(
+                    context.raw_body.as_deref(),
+                    Some("{\"error\":{\"message\":\"expired\"}}")
+                );
+            }
+            other => panic!("unexpected auth feature error mapping: {other:?}"),
+        }
     }
 
     #[test]
@@ -801,7 +942,7 @@ mod tests {
                 .await
                 .unwrap_err();
 
-            assert_eq!(error.kind, NovelAiErrorKind::Credential);
+            assert!(matches!(error, GenerationClientError::Credential { .. }));
             assert!(factory.secrets().is_empty());
         });
     }
@@ -862,7 +1003,7 @@ mod tests {
     impl NovelAiClientFactory for RecordingFactory {
         type Client = RecordingClient;
 
-        fn create_client(&self, secret: SecretValue) -> Result<Self::Client, NovelAiError> {
+        fn create_client(&self, secret: SecretValue) -> Result<Self::Client, NovelAiBridgeError> {
             self.secrets
                 .lock()
                 .unwrap()

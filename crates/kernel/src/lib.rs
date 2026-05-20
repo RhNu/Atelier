@@ -8,7 +8,7 @@ mod runtime;
 mod workflow;
 
 pub use error::{KernelError, KernelResult};
-pub use event::{KernelEvent, KernelEventKind};
+pub use event::{KernelEvent, KernelEventKind, KernelFailureDetail};
 pub use payload::{
     EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
     GenerationWorkRequest, ImportEmbeddedPngVibeDocument, ImportVibeDocument,

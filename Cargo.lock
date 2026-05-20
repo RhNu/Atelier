@@ -3843,11 +3843,11 @@ dependencies = [
  "futures-executor",
  "futures-util",
  "nai-atelier-director",
- "nai-atelier-foundation",
  "nai-atelier-generation",
  "nai-atelier-secrets",
  "nai-atelier-vibe",
  "novelai-bridge",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -3892,15 +3892,12 @@ name = "nai-atelier-director"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "nai-atelier-foundation",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "nai-atelier-foundation"
 version = "0.1.0"
-dependencies = [
- "thiserror 2.0.18",
-]
 
 [[package]]
 name = "nai-atelier-gallery"
@@ -3920,7 +3917,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures-core",
- "nai-atelier-foundation",
  "thiserror 2.0.18",
 ]
 
@@ -3929,7 +3925,6 @@ name = "nai-atelier-jobs"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "nai-atelier-foundation",
  "thiserror 2.0.18",
 ]
 
@@ -3943,7 +3938,6 @@ dependencies = [
  "futures-executor",
  "futures-util",
  "nai-atelier-artifacts",
- "nai-atelier-foundation",
  "nai-atelier-gallery",
  "nai-atelier-generation",
  "nai-atelier-jobs",
@@ -4009,7 +4003,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures-executor",
- "nai-atelier-foundation",
  "thiserror 2.0.18",
 ]
 
@@ -4019,7 +4012,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
- "nai-atelier-foundation",
  "nai-atelier-resource-catalog",
  "serde_json",
  "sha2",

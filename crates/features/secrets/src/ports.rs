@@ -1,11 +1,11 @@
 use async_trait::async_trait;
-use nai_atelier_foundation::NovelAiError;
 
 use crate::{
-    ApiKeyId, ApiKeyRecord, SecretRecordId, SecretValue, SecretsResult, SubscriptionSummary,
+    ApiKeyId, ApiKeyRecord, SecretRecordId, SecretValue, SecretsResult, SubscriptionClientError,
+    SubscriptionSummary,
 };
 
-pub type SubscriptionResult<T> = Result<T, NovelAiError>;
+pub type SubscriptionResult<T> = Result<T, SubscriptionClientError>;
 
 #[async_trait]
 pub trait ApiKeyRegistryStore: Send + Sync {

@@ -10,7 +10,6 @@ base64 = "0.22"
 futures-core = "0.3"
 futures-util = "0.3"
 nai-atelier-artifacts = { path = "../features/artifacts" }
-nai-atelier-foundation = { path = "../foundation" }
 nai-atelier-gallery = { path = "../features/gallery" }
 nai-atelier-generation = { path = "../features/generation" }
 nai-atelier-jobs = { path = "../features/jobs" }

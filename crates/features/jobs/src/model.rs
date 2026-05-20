@@ -1,7 +1,5 @@
 use std::time::Duration;
 
-use nai_atelier_foundation::{NovelAiError, NovelAiErrorKind};
-
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BatchId(String);
 
@@ -135,35 +133,6 @@ pub enum JobFailureImpact {
     RetryAfter(QueueDelay),
     FailCurrentAndContinue,
     PauseAndRetryCurrent,
-}
-
-impl JobFailureImpact {
-    #[must_use]
-    pub fn from_novelai_error(error: &NovelAiError) -> Self {
-        Self::from_novelai_error_with_policy(error, RetryPolicy::default())
-    }
-
-    #[must_use]
-    pub fn from_novelai_error_with_policy(error: &NovelAiError, policy: RetryPolicy) -> Self {
-        match error.kind {
-            NovelAiErrorKind::RateLimited => {
-                let delay = error
-                    .retry_after
-                    .map_or_else(|| policy.rate_limit_fallback, QueueDelay::fixed);
-                Self::RetryAfter(delay)
-            }
-            NovelAiErrorKind::InvalidRequest => Self::FailCurrentAndContinue,
-            NovelAiErrorKind::Credential
-            | NovelAiErrorKind::Authentication
-            | NovelAiErrorKind::InsufficientCredit
-            | NovelAiErrorKind::RequestConflict
-            | NovelAiErrorKind::ServiceUnavailable
-            | NovelAiErrorKind::Transport
-            | NovelAiErrorKind::Decode
-            | NovelAiErrorKind::Metadata
-            | NovelAiErrorKind::UnknownApi => Self::PauseAndRetryCurrent,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

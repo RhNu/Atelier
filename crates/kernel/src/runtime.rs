@@ -1,5 +1,6 @@
 use nai_atelier_jobs::{
-    BatchStatus, JobId, JobKind, JobPayloadRef, JobQueue, JobStatus, QueueDirective, SubmitJob,
+    BatchStatus, JobId, JobKind, JobPayloadRef, JobQueue, JobStatus, QueueDirective, RetryPolicy,
+    SubmitJob,
 };
 use nai_atelier_precise_reference::PreciseReferenceInput;
 
@@ -21,8 +22,13 @@ pub struct KernelRuntime<P> {
 impl<P> KernelRuntime<P> {
     #[must_use]
     pub fn new(ports: P) -> Self {
+        Self::with_retry_policy(ports, RetryPolicy::default())
+    }
+
+    #[must_use]
+    pub const fn with_retry_policy(ports: P, retry_policy: RetryPolicy) -> Self {
         Self {
-            queue: JobQueue::default(),
+            queue: JobQueue::new(retry_policy),
             ports,
             next_event_sequence: 0,
         }
@@ -153,6 +159,10 @@ where
         self.queue
             .mark_failed(job_id, impact)
             .map_err(KernelError::from)
+    }
+
+    pub(crate) const fn retry_policy(&self) -> RetryPolicy {
+        self.queue.retry_policy()
     }
 
     pub(crate) const fn ports_ref(&self) -> &P {

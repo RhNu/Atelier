@@ -6,4 +6,4 @@ publish.workspace = true
 
 [dependencies]
 async-trait = "0.1"
-nai-atelier-foundation = { path = "../../foundation" }
+thiserror = "2"

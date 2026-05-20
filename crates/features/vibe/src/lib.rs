@@ -4,7 +4,12 @@ mod model;
 mod ports;
 
 pub use document::VibeDocumentCodec;
-pub use error::{VibeDomainResult, VibeError, VibeErrorKind};
+pub use error::{
+    ClientApiErrorContext, ClientApiErrorReason, ClientDecodeContext, ClientDecodeTarget,
+    ClientInvalidRequestContext, ClientInvalidRequestKind, ClientMetadataContext,
+    ClientMetadataKind, ClientTransportContext, ClientTransportOperation, VibeClientError,
+    VibeDomainResult, VibeError, VibeErrorKind,
+};
 pub use model::{
     EncodeVibeRequest, EncodedVibe, VibeDocumentEntry, VibeDocumentResources, VibeDocumentSummary,
     VibeEncodeSettings, VibeEncodingConfig, VibeEncodingRecord, VibeExportDocument,

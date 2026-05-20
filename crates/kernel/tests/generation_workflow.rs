@@ -4,14 +4,14 @@ use std::time::Duration;
 
 use base64::Engine;
 use futures_executor::block_on;
-use nai_atelier_foundation::{NovelAiError, NovelAiErrorKind};
 use nai_atelier_generation::{
-    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationPlanContext,
-    ImageModel, ImageStreamEvent,
+    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationClientError,
+    GenerationPlanContext, ImageModel, ImageStreamEvent,
 };
-use nai_atelier_jobs::{BatchId, JobId, JobStatus, QueueDelay, QueueDirective};
+use nai_atelier_jobs::{BatchId, JobId, JobStatus, QueueDelay, QueueDirective, RetryPolicy};
 use nai_atelier_kernel::{
-    GenerationWorkRequest, KernelError, KernelEventKind, KernelRuntime, SubmitGenerationWork,
+    GenerationWorkRequest, KernelError, KernelEventKind, KernelFailureDetail, KernelRuntime,
+    SubmitGenerationWork,
 };
 use nai_atelier_resource_catalog::ResourceKind;
 
@@ -242,10 +242,11 @@ fn streaming_generation_error_uses_queue_failure_policy_without_persisting_frame
     block_on(async {
         let ports = MemoryKernelPorts::default().with_stream_items(vec![
             Ok(stream_event(0, 1, "QUJD")),
-            Err(
-                NovelAiError::new(NovelAiErrorKind::RateLimited, "slow down")
-                    .with_retry_after(Duration::from_secs(9)),
-            ),
+            Err(GenerationClientError::rate_limited(
+                429,
+                Some(Duration::from_secs(9)),
+                "slow down",
+            )),
         ]);
         let mut runtime = KernelRuntime::new(ports.clone());
         let job_id = JobId::new("job-stream");
@@ -413,10 +414,9 @@ fn streaming_generation_without_final_image_marks_job_failed() {
 fn novelai_rate_limit_retries_non_streaming_generation() {
     block_on(async {
         let ports = MemoryKernelPorts::default().failing_generate(
-            NovelAiError::new(NovelAiErrorKind::RateLimited, "slow down")
-                .with_retry_after(Duration::from_secs(4)),
+            GenerationClientError::rate_limited(429, Some(Duration::from_secs(4)), "slow down"),
         );
-        let mut runtime = KernelRuntime::new(ports);
+        let mut runtime = KernelRuntime::new(ports.clone());
         let job_id = JobId::new("job-1");
 
         runtime
@@ -428,6 +428,53 @@ fn novelai_rate_limit_retries_non_streaming_generation() {
         assert_eq!(
             directive,
             QueueDirective::Wait(QueueDelay::fixed(Duration::from_secs(4)))
+        );
+        assert_eq!(runtime.job_status(&job_id), Some(JobStatus::WaitingRetry));
+        assert!(ports.events().into_iter().any(|event| matches!(
+            event.kind,
+            KernelEventKind::JobFailed {
+                detail: Some(KernelFailureDetail::GenerationClient(
+                    GenerationClientError::RateLimited {
+                        status: 429,
+                        retry_after: Some(delay),
+                        ..
+                    }
+                )),
+                ..
+            } if delay == Duration::from_secs(4)
+        )));
+    });
+}
+
+#[test]
+fn novelai_rate_limit_without_retry_after_uses_queue_fallback_delay() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default()
+            .failing_generate(GenerationClientError::rate_limited(429, None, "slow down"));
+        let mut runtime = KernelRuntime::with_retry_policy(
+            ports,
+            RetryPolicy {
+                rate_limit_fallback: QueueDelay::range(
+                    Duration::from_secs(41),
+                    Duration::from_secs(43),
+                ),
+                ..RetryPolicy::default()
+            },
+        );
+        let job_id = JobId::new("job-1");
+
+        runtime
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+        let directive = runtime.run_scheduled_generation_job(&job_id).await.unwrap();
+
+        assert_eq!(
+            directive,
+            QueueDirective::Wait(QueueDelay::range(
+                Duration::from_secs(41),
+                Duration::from_secs(43)
+            ))
         );
         assert_eq!(runtime.job_status(&job_id), Some(JobStatus::WaitingRetry));
     });

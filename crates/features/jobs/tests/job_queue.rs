@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use nai_atelier_foundation::{NovelAiError, NovelAiErrorKind};
 use nai_atelier_jobs::{
     BatchId, BatchStatus, JobFailureImpact, JobId, JobKind, JobPayloadRef, JobQueue,
     JobQueueErrorKind, JobStatus, QueueDelay, QueueDirective, RetryPolicy, SubmitJob,
@@ -75,11 +74,7 @@ fn rate_limited_jobs_retry_three_times_with_specific_delay_only() {
     let directive = queue
         .mark_failed(
             &first,
-            JobFailureImpact::from_novelai_error(
-                &NovelAiError::new(NovelAiErrorKind::RateLimited, "slow down")
-                    .with_status(429)
-                    .with_retry_after(retry_after),
-            ),
+            JobFailureImpact::RetryAfter(QueueDelay::fixed(retry_after)),
         )
         .unwrap();
 
@@ -105,9 +100,9 @@ fn rate_limited_jobs_retry_three_times_with_specific_delay_only() {
         let directive = queue
             .mark_failed(
                 &first,
-                JobFailureImpact::from_novelai_error(&NovelAiError::new(
-                    NovelAiErrorKind::RateLimited,
-                    "slow down",
+                JobFailureImpact::RetryAfter(QueueDelay::range(
+                    Duration::from_secs(20),
+                    Duration::from_secs(30),
                 )),
             )
             .unwrap();
@@ -128,9 +123,9 @@ fn rate_limited_jobs_retry_three_times_with_specific_delay_only() {
     let directive = queue
         .mark_failed(
             &first,
-            JobFailureImpact::from_novelai_error(&NovelAiError::new(
-                NovelAiErrorKind::RateLimited,
-                "slow down",
+            JobFailureImpact::RetryAfter(QueueDelay::range(
+                Duration::from_secs(20),
+                Duration::from_secs(30),
             )),
         )
         .unwrap();
@@ -152,13 +147,7 @@ fn invalid_request_fails_current_job_and_continues_to_next() {
         .mark_running(&first, JobPayloadRef::new("prepared:job-1"))
         .unwrap();
     let directive = queue
-        .mark_failed(
-            &first,
-            JobFailureImpact::from_novelai_error(&NovelAiError::new(
-                NovelAiErrorKind::InvalidRequest,
-                "bad params",
-            )),
-        )
+        .mark_failed(&first, JobFailureImpact::FailCurrentAndContinue)
         .unwrap();
 
     assert_eq!(queue.job_status(&first), Some(JobStatus::Failed));
@@ -183,13 +172,7 @@ fn global_errors_pause_and_resume_retries_the_same_prepared_job() {
         .mark_running(&first, JobPayloadRef::new("prepared:job-1"))
         .unwrap();
     let directive = queue
-        .mark_failed(
-            &first,
-            JobFailureImpact::from_novelai_error(&NovelAiError::new(
-                NovelAiErrorKind::UnknownApi,
-                "changed upstream",
-            )),
-        )
+        .mark_failed(&first, JobFailureImpact::PauseAndRetryCurrent)
         .unwrap();
 
     assert_eq!(directive, QueueDirective::Paused);
@@ -291,9 +274,9 @@ fn delay_and_retry_waits_cannot_be_bypassed_by_starting_other_jobs() {
     queue
         .mark_failed(
             &second,
-            JobFailureImpact::from_novelai_error(&NovelAiError::new(
-                NovelAiErrorKind::RateLimited,
-                "slow down",
+            JobFailureImpact::RetryAfter(QueueDelay::range(
+                Duration::from_secs(20),
+                Duration::from_secs(30),
             )),
         )
         .unwrap();
@@ -420,19 +403,15 @@ fn failure_transitions_only_apply_to_the_current_running_job() {
 }
 
 #[test]
-fn custom_retry_policy_classifies_rate_limit_with_custom_fallback_delay() {
+fn retry_policy_keeps_custom_rate_limit_fallback_delay() {
     let policy = RetryPolicy {
         rate_limit_fallback: QueueDelay::fixed(Duration::from_secs(42)),
         ..RetryPolicy::default()
     };
-    let impact = JobFailureImpact::from_novelai_error_with_policy(
-        &NovelAiError::new(NovelAiErrorKind::RateLimited, "slow down"),
-        policy,
-    );
 
     assert_eq!(
-        impact,
-        JobFailureImpact::RetryAfter(QueueDelay::fixed(Duration::from_secs(42)))
+        policy.rate_limit_fallback,
+        QueueDelay::fixed(Duration::from_secs(42))
     );
 }
 

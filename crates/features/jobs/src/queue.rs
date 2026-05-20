@@ -28,6 +28,11 @@ impl JobQueue {
         }
     }
 
+    #[must_use]
+    pub const fn retry_policy(&self) -> RetryPolicy {
+        self.retry_policy
+    }
+
     /// Submits a batch into the single queue and schedules its first job.
     ///
     /// # Errors

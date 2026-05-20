@@ -1,6 +1,6 @@
 use nai_atelier_artifacts::ArtifactId;
 use nai_atelier_gallery::GalleryItemId;
-use nai_atelier_generation::{GenerationOutputMode, ImageStreamEvent};
+use nai_atelier_generation::{GenerationClientError, GenerationOutputMode, ImageStreamEvent};
 use nai_atelier_jobs::{BatchId, JobId};
 use nai_atelier_resource_catalog::ResourceRef;
 
@@ -8,6 +8,11 @@ use nai_atelier_resource_catalog::ResourceRef;
 pub struct KernelEvent {
     pub sequence: u64,
     pub kind: KernelEventKind,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum KernelFailureDetail {
+    GenerationClient(GenerationClientError),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -60,5 +65,6 @@ pub enum KernelEventKind {
         batch_id: BatchId,
         job_id: JobId,
         message: String,
+        detail: Option<KernelFailureDetail>,
     },
 }

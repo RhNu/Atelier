@@ -3,10 +3,10 @@ use nai_atelier_artifacts::{
     RegisterArtifactRequest, VisualAssetRef, VisualAssetRole,
 };
 use nai_atelier_generation::{
-    GenerateImageStreamRequest, GenerationOutputMode, GenerationRequestPlan, SeedMode,
-    plan_generation_request, plan_generation_stream_request,
+    GenerateImageStreamRequest, GenerationClientError, GenerationOutputMode, GenerationRequestPlan,
+    SeedMode, plan_generation_request, plan_generation_stream_request,
 };
-use nai_atelier_jobs::{JobFailureImpact, JobId, QueueDirective};
+use nai_atelier_jobs::{JobFailureImpact, JobId, QueueDelay, QueueDirective, RetryPolicy};
 use nai_atelier_prompt_resources::CompilePromptRequest;
 use nai_atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
@@ -16,7 +16,8 @@ use nai_atelier_resource_catalog::{
 use crate::runtime::{prepared_payload_ref, submitted_payload_ref};
 use crate::{
     GenerationPayloadStore, GenerationWorkRequest, KernelClock, KernelError, KernelEventKind,
-    KernelEventSink, KernelGenerationPorts, KernelResult, KernelRuntime, PreparedGenerationPayload,
+    KernelEventSink, KernelFailureDetail, KernelGenerationPorts, KernelResult, KernelRuntime,
+    PreparedGenerationPayload,
 };
 
 pub async fn run_scheduled_generation_job<P>(
@@ -322,20 +323,45 @@ pub async fn handle_novelai_failure<P>(
     runtime: &mut KernelRuntime<P>,
     batch_id: &nai_atelier_jobs::BatchId,
     job_id: &JobId,
-    error: nai_atelier_foundation::NovelAiError,
+    error: GenerationClientError,
 ) -> KernelResult<QueueDirective>
 where
     P: GenerationPayloadStore + KernelClock + KernelEventSink + KernelGenerationPorts,
 {
-    let directive = runtime.mark_failed(job_id, JobFailureImpact::from_novelai_error(&error))?;
+    let impact = generation_failure_impact(&error, runtime.retry_policy());
+    let directive = runtime.mark_failed(job_id, impact)?;
     runtime
         .emit(KernelEventKind::JobFailed {
             batch_id: batch_id.clone(),
             job_id: job_id.clone(),
             message: error.to_string(),
+            detail: Some(KernelFailureDetail::GenerationClient(error)),
         })
         .await;
     Ok(directive)
+}
+
+fn generation_failure_impact(
+    error: &GenerationClientError,
+    retry_policy: RetryPolicy,
+) -> JobFailureImpact {
+    match error {
+        GenerationClientError::RateLimited { retry_after, .. } => {
+            let delay =
+                retry_after.map_or_else(|| retry_policy.rate_limit_fallback, QueueDelay::fixed);
+            JobFailureImpact::RetryAfter(delay)
+        }
+        GenerationClientError::InvalidRequest { .. } => JobFailureImpact::FailCurrentAndContinue,
+        GenerationClientError::Credential { .. }
+        | GenerationClientError::Authentication { .. }
+        | GenerationClientError::InsufficientCredit { .. }
+        | GenerationClientError::RequestConflict { .. }
+        | GenerationClientError::ServiceUnavailable { .. }
+        | GenerationClientError::Transport { .. }
+        | GenerationClientError::Decode { .. }
+        | GenerationClientError::Metadata { .. }
+        | GenerationClientError::UnknownApi { .. } => JobFailureImpact::PauseAndRetryCurrent,
+    }
 }
 
 pub async fn fail_job<P>(
@@ -353,6 +379,7 @@ where
             batch_id: batch_id.clone(),
             job_id: job_id.clone(),
             message: message.to_owned(),
+            detail: None,
         })
         .await;
     Ok(directive)

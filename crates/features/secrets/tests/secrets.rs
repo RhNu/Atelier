@@ -1,10 +1,9 @@
 mod support;
 
 use futures_executor::block_on;
-use nai_atelier_foundation::{NovelAiError, NovelAiErrorKind};
 use nai_atelier_secrets::{
     ApiKeyId, ApiKeyRegistryService, ApiKeyRegistryStore, CreateApiKeyRequest, SecretRecordId,
-    SecretValue, SecretsErrorKind, UpdateApiKeyRequest,
+    SecretValue, SecretsErrorKind, SubscriptionClientError, UpdateApiKeyRequest,
 };
 use support::{FakeProbe, MemoryRegistryStore, MemorySecretStore, request};
 
@@ -416,6 +415,12 @@ fn probe_key_uses_explicit_probe_path() {
 
 #[test]
 fn fake_probe_can_surface_novelai_errors() {
-    let error = NovelAiError::new(NovelAiErrorKind::Authentication, "bad key");
-    assert_eq!(error.kind, NovelAiErrorKind::Authentication);
+    let error = SubscriptionClientError::authentication(Some(401), "bad key");
+    assert!(matches!(
+        error,
+        SubscriptionClientError::Authentication {
+            status: Some(401),
+            ..
+        }
+    ));
 }

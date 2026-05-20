@@ -2,10 +2,10 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use nai_atelier_foundation::NovelAiError;
 use nai_atelier_secrets::{
     ApiKeyId, ApiKeyRecord, ApiKeyRegistryStore, CreateApiKeyRequest, SecretRecordId, SecretStore,
-    SecretValue, SecretsError, SecretsResult, SubscriptionProbeClient, SubscriptionSummary,
+    SecretValue, SecretsError, SecretsResult, SubscriptionClientError, SubscriptionProbeClient,
+    SubscriptionSummary,
 };
 
 pub fn request(id: &str, display_name: &str, secret: &str) -> CreateApiKeyRequest {
@@ -216,7 +216,7 @@ impl SubscriptionProbeClient for FakeProbe {
     async fn probe_subscription(
         &self,
         secret: SecretValue,
-    ) -> Result<SubscriptionSummary, NovelAiError> {
+    ) -> Result<SubscriptionSummary, SubscriptionClientError> {
         self.calls
             .lock()
             .unwrap()

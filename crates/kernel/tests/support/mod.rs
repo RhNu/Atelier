@@ -12,10 +12,10 @@ use nai_atelier_artifacts::{
     ArtifactError, ArtifactRecord, ArtifactRepository, ArtifactResourceReader, ArtifactResult,
     RegisterArtifactRequest,
 };
-use nai_atelier_foundation::NovelAiError;
 use nai_atelier_gallery::{GalleryIndex, GalleryItem, GalleryItemId, GalleryResult};
 use nai_atelier_generation::{
-    GeneratedImage, GenerationResult, ImageStreamEvent, ImageStreamResult, NovelAiGenerationClient,
+    GeneratedImage, GenerationClientError, GenerationResult, ImageStreamEvent, ImageStreamResult,
+    NovelAiGenerationClient,
 };
 use nai_atelier_kernel::{
     GenerationPayloadStore, KernelClock, KernelEvent, KernelEventSink, KernelGenerationPorts,
@@ -54,7 +54,7 @@ struct State {
     vibe_documents: BTreeMap<String, VibeDocumentEntry>,
     embedded_vibe_document: Option<String>,
     encoded_vibe_payload: String,
-    fail_generate: Option<NovelAiError>,
+    fail_generate: Option<GenerationClientError>,
     failures: HashSet<FakeFailure>,
     now_ms: u64,
 }
@@ -125,7 +125,7 @@ impl MemoryKernelPorts {
         self
     }
 
-    pub fn failing_generate(self, error: NovelAiError) -> Self {
+    pub fn failing_generate(self, error: GenerationClientError) -> Self {
         self.state.lock().unwrap().fail_generate = Some(error);
         self
     }

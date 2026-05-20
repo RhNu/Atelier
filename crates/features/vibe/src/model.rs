@@ -1,10 +1,9 @@
-use nai_atelier_foundation::NovelAiError;
 use nai_atelier_resource_catalog::ResourceRef;
 use serde_json::Value;
 
-use crate::{VibeDomainResult, VibeError};
+use crate::{VibeClientError, VibeDomainResult, VibeError};
 
-pub type VibeResult<T> = Result<T, NovelAiError>;
+pub type VibeResult<T> = Result<T, VibeClientError>;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VibeId(String);

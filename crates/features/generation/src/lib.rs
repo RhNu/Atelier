@@ -7,7 +7,12 @@ mod normalize;
 mod ports;
 mod request_plan;
 
-pub use error::{GenerationError, GenerationErrorKind};
+pub use error::{
+    ClientApiErrorContext, ClientApiErrorReason, ClientDecodeContext, ClientDecodeTarget,
+    ClientInvalidRequestContext, ClientInvalidRequestKind, ClientMetadataContext,
+    ClientMetadataKind, ClientTransportContext, ClientTransportOperation, GenerationClientError,
+    GenerationError, GenerationErrorKind,
+};
 pub use estimate::{AnlasEstimate, AnlasEstimateInput, estimate_anlas_cost};
 pub use model::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
