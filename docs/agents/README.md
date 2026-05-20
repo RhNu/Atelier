@@ -1,42 +1,72 @@
-# agents 文档入口
+# Agent Docs
 
-## 本目录职责
+This directory keeps project intent, architecture guidance, and decision records for NAI Atelier.
 
-`docs/agents/` 保存早期架构思路、约束和取舍。当前已经形成后端 crate 布局设计方向，但 crate 名、持久化格式、前端框架和 Tauri command 面仍需在实现前逐项确认。
+## Read Guide
 
-建议阅读顺序：
+Default required reading is intentionally short:
+
+1. `AGENTS.md`
+2. `README.md`
+3. `docs/agents/README.md`
+
+For architecture or backend work, also read:
 
 1. `project-intent.md`
-2. `architecture-guidance.md`
-3. `backend-crate-layout.md`
-4. `backend-rollout-plan.md`
-5. `inheritance-options.md`
-6. `scaffold-decision.md`
-7. `kernel-generation-workflow.md`
-8. `sqlite-database-adapter.md`
-9. `secrets-keyring-pipeline.md`
+2. `architecture.md`
 
-## 当前共识
+For task-specific context, read only the relevant decision records:
 
-- 最小可运行 scaffold 已完成并作为历史记录保留，见 `scaffold-decision.md`。
-- Rust 工作完成前必须跑通 `cargo fmt --all -- --check`、`cargo clippy-strict`、`cargo test --workspace`、`cargo xtask line-budget`。
-- pnpm 前端工作完成前必须跑通 `pnpm fmt:check`、`pnpm lint`、`pnpm test`；前端格式化与 lint 使用 Oxc 系列的 `oxfmt`、`oxlint`。
-- NovelAI 对接优先交给 `novelai-bridge`。
-- 新项目应吸收 `nait` 的产品经验，但不沿用其 `protocol -> gateway -> sdk -> core -> app -> tauri` 横向主链路。
-- 后端采用 feature-first 方向：少量 `foundation` 基础抽象，各 feature 自治，`kernel` 负责运行时状态与跨 feature 编排，`app` 负责 host-neutral use case，`adapters` 集中实现 I/O。
-- Tauri 是当前 desktop host adapter，不是 application layer；`app` 不依赖 Tauri API。
-- `kernel` 可以定义所需 ports，但不直接读写文件、数据库、keyring、HTTP 或 Tauri API。
-- 资源管理通过统一 `resource-catalog` 抽象接入，feature 不自行长期创建资源目录或维护私有二进制索引。
-- 模块拆分可以参考 `stringer` 的细粒度 workspace 风格，但每个 crate 必须有明确职责、依赖方向和测试替换边界。
-- 前端可以重新评估 Solid 或 React；缓存与服务端状态策略应跟随 framework 选择。
-- 任务调度、Prompt 工作区、Gallery、Vibe 管理应按 feature 独立演进，并通过 trait/port 与集中 adapters 连接真实 I/O。
-- 后端落地顺序以边界和测试替换性为验收目标，不以打通最短 MVP 链路为目标。
-- `kernel-generation-workflow.md` 记录首轮 `nai-atelier-kernel` 的 generation/streaming 编排边界；`kernel` 只组合 feature service/ports，不拥有真实 I/O 或 Tauri command。
-- `sqlite-database-adapter.md` 记录当前真实持久化 adapter 的 SQLite 选型、adapter-local DTO/`JsonCodec` 边界与 v1 schema 范围。
-- `secrets-keyring-pipeline.md` 记录 API key registry、系统 keyring、显式 subscription probe 与 resolver-backed NovelAI adapter 的后端管线边界。
+- `kernel-generation-workflow.md`: implemented `kernel` generation, streaming, Vibe, and precise-reference workflow boundaries.
+- `sqlite-database-adapter.md`: SQLite adapter choice, schema scope, and adapter-local DTO boundary.
+- `secrets-keyring-pipeline.md`: API key registry, keyring storage, explicit subscription probe, and resolver-backed NovelAI adapter.
 
-## 非目标
+## Current Consensus
 
-- 现在不实现 Prompt、generation、jobs、gallery 等业务 feature。
-- 现在不承诺最终产品名、包名或 crate 名。
-- 现在不迁移旧 `nait` 代码。
+- NAI Atelier is a NovelAI-specific desktop creative workspace.
+- Feature crates own domain models, rules, ports, and tests.
+- `kernel` owns runtime state and cross-feature orchestration, but not real I/O.
+- Adapters own filesystem, database, keyring, `novelai-bridge`, and other external integrations.
+- The Tauri shell is a desktop host adapter, not the application layer.
+- Long-lived binary or semi-structured resources go through `resource-catalog`.
+- Reference projects are read-only inputs. Do not copy implementation without license and source records.
+
+## Current Implementation Shape
+
+Implemented or partially implemented:
+
+- `crates/foundation`
+- `crates/kernel`
+- `crates/features/workspace`
+- `crates/features/resource-catalog`
+- `crates/features/prompt`
+- `crates/features/prompt-resources`
+- `crates/features/generation`
+- `crates/features/jobs`
+- `crates/features/artifacts`
+- `crates/features/gallery`
+- `crates/features/vibe`
+- `crates/features/director`
+- `crates/features/safety`
+- `crates/features/secrets`
+- `crates/features/precise-reference`
+- `crates/adapters/storage-fs`
+- `crates/adapters/database`
+- `crates/adapters/keyring`
+- `crates/adapters/novelai`
+
+Still planned or intentionally not present:
+
+- `app`
+- `app-api`
+- `features/settings`
+- `features/prompt-lexicon`
+- `adapters/image-codec`
+- `adapters/safety-onnx`
+- `adapters/desktop-system`
+
+## Non-Goals
+
+- Do not migrate old `nait` code.
+- Do not preserve old `nait` command names or DTOs by default.
+- Do not define completion as "can generate one image"; preserve the backend boundaries first.

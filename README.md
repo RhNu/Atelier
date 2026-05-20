@@ -1,16 +1,18 @@
 # NAI Atelier
 
-NAI Atelier 是面向 NovelAI 绘图工作流的早期桌面创作工作区。
+NAI Atelier is an early desktop creative workspace for NovelAI image workflows.
 
-## 开发
+The project is intentionally NovelAI-specific. It should preserve clear feature boundaries, use `novelai-bridge` for NovelAI API integration, and avoid turning into a generic AI image tool.
 
-前置要求：
+## Development
 
-- `rust-toolchain.toml` 指定的 Rust toolchain
-- Node.js 20.19+ 或 22.12+
+Prerequisites:
+
+- Rust toolchain from `rust-toolchain.toml`
+- Node.js 20.19+ or 22.12+
 - pnpm 10.33+
 
-常用命令：
+Common commands:
 
 ```powershell
 pnpm install
@@ -27,14 +29,18 @@ cargo test --workspace
 cargo xtask line-budget
 ```
 
-完成 Rust 相关工作前，必须确认 `cargo fmt --all -- --check`、`cargo clippy-strict`、`cargo test --workspace`、`cargo xtask line-budget` 通过。
+Before completing Rust work, confirm `cargo fmt --all -- --check`, `cargo clippy-strict`, `cargo test --workspace`, and `cargo xtask line-budget` pass.
 
-完成 pnpm 前端相关工作前，必须确认 `pnpm fmt:check`、`pnpm lint`、`pnpm test` 通过。前端格式化和 lint 默认使用 Oxc 系列工具：`oxfmt` 与 `oxlint`。
+Before completing pnpm frontend work, confirm `pnpm fmt:check`, `pnpm lint`, and `pnpm test` pass. Frontend formatting and linting use the Oxc toolchain: `oxfmt` and `oxlint`.
 
-## 目录
+## Repository Layout
 
-- `apps/desktop/`：Tauri v2 shell 与 Vite React 前端。
-- `crates/foundation/`：极薄 Rust foundation crate，预留给稳定共享原语。
-- `docs/agents/`：架构与 agent-facing 设计记录。
+- `apps/desktop/`: Tauri v2 shell and Vite React frontend.
+- `crates/foundation/`: shared primitives that are stable across features.
+- `crates/features/`: feature-owned domain models, rules, ports, and tests.
+- `crates/kernel/`: runtime state and cross-feature workflow orchestration.
+- `crates/adapters/`: concrete I/O implementations for storage, database, keyring, and NovelAI.
+- `docs/agents/`: project intent, architecture overview, and decision records.
+- `xtask/`: local maintenance checks such as line-budget enforcement.
 
-Tauri shell 应保持薄。领域行为只有在边界经过论证后，才进入 feature-owned Rust module 或 crate。
+Tauri should stay thin. Domain behavior belongs in feature crates, `kernel`, host-neutral application code, or adapters according to the architecture notes.

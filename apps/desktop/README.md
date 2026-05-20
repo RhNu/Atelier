@@ -1,8 +1,8 @@
 # NAI Atelier Desktop
 
-NAI Atelier 的 Tauri v2 shell 与 Vite React 前端。
+This package contains the Tauri v2 shell and Vite React frontend for NAI Atelier.
 
-日常开发优先使用仓库根目录脚本：
+Prefer root workspace scripts for daily development:
 
 ```powershell
 pnpm dev
@@ -13,6 +13,6 @@ pnpm lint
 pnpm test
 ```
 
-完成前端工作前，必须确认 `pnpm fmt:check`、`pnpm lint`、`pnpm test` 通过。本 package 使用 Oxc 系列工具：`oxfmt` 负责格式化，`oxlint` 负责 lint。
+Before completing frontend work, confirm `pnpm fmt:check`, `pnpm lint`, and `pnpm test` pass. This package uses the Oxc toolchain: `oxfmt` for formatting and `oxlint` for linting.
 
-该 package 应聚焦桌面壳与前端 workbench。除 Tauri-facing glue 外，不要把 Rust 领域代码加入 `src-tauri`。
+Keep this package focused on the desktop host and frontend workbench. Do not add Rust domain behavior to `src-tauri` except for Tauri-facing glue.
