@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::gallery::GalleryItemDto;
 use crate::resource::{ImageInputDto, ResourceRefDto};
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum DirectorToolDto {
     #[default]
@@ -15,7 +16,7 @@ pub enum DirectorToolDto {
     Colorize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RunDirectorToolRequestDto {
     pub run_id: String,
     pub tool: DirectorToolDto,
@@ -27,7 +28,7 @@ pub struct RunDirectorToolRequestDto {
     pub strict_mode: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct DirectorToolResultDto {
     pub item_id: String,
     pub artifact_id: String,

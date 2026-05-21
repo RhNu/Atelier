@@ -1,16 +1,17 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::generation::QueueDirectiveDto;
 use crate::resource::ResourceRefDto;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum RunHistoryKindDto {
     Generation,
     Director,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum RunHistoryStatusDto {
     Queued,
@@ -24,7 +25,7 @@ pub enum RunHistoryStatusDto {
     Stopped,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RunHistoryQueryDto {
     pub offset: usize,
     pub limit: usize,
@@ -45,7 +46,7 @@ impl Default for RunHistoryQueryDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RunHistoryOutputDto {
     pub artifact_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -56,7 +57,7 @@ pub struct RunHistoryOutputDto {
     pub variant_kind: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RunHistoryItemDto {
     pub run_id: String,
     pub kind: RunHistoryKindDto,
@@ -79,7 +80,7 @@ pub struct RunHistoryItemDto {
     pub outputs: Vec<RunHistoryOutputDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RunHistoryPageDto {
     pub items: Vec<RunHistoryItemDto>,
     pub total: usize,
@@ -87,14 +88,14 @@ pub struct RunHistoryPageDto {
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RerunGenerationHistoryItemRequestDto {
     pub run_id: String,
     pub batch_id: String,
     pub job_id: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RerunGenerationHistoryItemResponseDto {
     pub directive: QueueDirectiveDto,
     pub item: RunHistoryItemDto,

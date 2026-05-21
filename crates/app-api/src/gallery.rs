@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::resource::ResourceRefDto;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum GallerySafetyOverrideDto {
     Safe,
@@ -10,7 +11,7 @@ pub enum GallerySafetyOverrideDto {
     Hidden,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum GallerySourceKindDto {
     Generation,
@@ -18,7 +19,7 @@ pub enum GallerySourceKindDto {
     Import,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GalleryQueryDto {
     pub offset: usize,
     pub limit: usize,
@@ -42,7 +43,7 @@ impl Default for GalleryQueryDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct GalleryPageDto {
     pub items: Vec<GalleryItemDto>,
     pub total: usize,
@@ -50,7 +51,7 @@ pub struct GalleryPageDto {
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct GalleryItemDto {
     pub item_id: String,
     pub artifact_id: String,
@@ -71,7 +72,7 @@ pub struct GalleryItemDto {
     pub manual_safety_override: Option<GallerySafetyOverrideDto>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum GallerySafetyScanStateDto {
     Unscanned,
@@ -80,7 +81,7 @@ pub enum GallerySafetyScanStateDto {
     Unavailable,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum GallerySafetyRiskBandDto {
     Low,
@@ -88,7 +89,7 @@ pub enum GallerySafetyRiskBandDto {
     High,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum GallerySafetyLabelDto {
     Safe,
@@ -96,13 +97,13 @@ pub enum GallerySafetyLabelDto {
     Hidden,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct GallerySafetyScoreDto {
     pub label: String,
     pub score: f32,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct GallerySafetyDto {
     pub scan_state: GallerySafetyScanStateDto,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -123,7 +124,7 @@ pub struct GallerySafetyDto {
     pub assessed_at_ms: Option<u64>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct VisualAssetDto {
     pub role: String,
     pub resource: ResourceRefDto,
@@ -131,14 +132,14 @@ pub struct VisualAssetDto {
     pub variant_kind: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SetGallerySafetyOverrideRequestDto {
     pub item_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manual_safety_override: Option<GallerySafetyOverrideDto>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum GalleryImageReferenceTargetDto {
     Director,
@@ -147,13 +148,13 @@ pub enum GalleryImageReferenceTargetDto {
     PreciseReference,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GalleryImageReferenceRequestDto {
     pub item_id: String,
     pub target: GalleryImageReferenceTargetDto,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GalleryImageReferenceDto {
     pub item_id: String,
     pub artifact_id: String,

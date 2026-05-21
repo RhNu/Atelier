@@ -1,0 +1,1 @@
+export { GeneratePage } from "./GeneratePage";

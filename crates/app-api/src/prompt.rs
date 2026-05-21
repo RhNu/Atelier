@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::resource::ResourceRefDto;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptChunkDto {
     pub chunk_id: String,
     pub key: String,
@@ -17,7 +18,7 @@ pub struct PromptChunkDto {
     pub updated_at_ms: u64,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UpsertPromptChunkRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_id: Option<String>,
@@ -31,7 +32,7 @@ pub struct UpsertPromptChunkRequestDto {
     pub preview: Option<ResourceRefDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GetPromptChunkRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_id: Option<String>,
@@ -39,13 +40,13 @@ pub struct GetPromptChunkRequestDto {
     pub key: Option<String>,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ListPromptChunksRequestDto {
     pub offset: usize,
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptChunkPageDto {
     pub items: Vec<PromptChunkDto>,
     pub total: usize,
@@ -53,17 +54,17 @@ pub struct PromptChunkPageDto {
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DeletePromptChunkRequestDto {
     pub chunk_id: String,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DeletePromptChunkResponseDto {
     pub deleted: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct CompilePromptRequestDto {
     pub prompt: String,
     #[serde(default = "default_max_depth")]
@@ -80,20 +81,20 @@ impl CompilePromptRequestDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct CompiledPromptDto {
     pub expanded_prompt: String,
     pub trace: PromptTraceDto,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptTraceDto {
     pub raw_prompt: String,
     pub expanded_prompt: String,
     pub function_calls: Vec<PromptFunctionTraceEntryDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptFunctionTraceEntryDto {
     pub function_name: String,
     pub raw_call: String,
@@ -104,13 +105,13 @@ pub struct PromptFunctionTraceEntryDto {
     pub call_chain: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptLexiconCatalogDto {
     pub stats: PromptLexiconStatsDto,
     pub categories: Vec<PromptLexiconCategorySummaryDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptLexiconStatsDto {
     pub total_tags: u64,
     pub categorized_tags: u64,
@@ -126,7 +127,7 @@ pub struct PromptLexiconStatsDto {
     pub primary_fallback_to_tag: u64,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptLexiconCategorySummaryDto {
     pub name: String,
     pub tag_count: usize,
@@ -134,13 +135,13 @@ pub struct PromptLexiconCategorySummaryDto {
     pub subcategories: Vec<PromptLexiconSubcategorySummaryDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptLexiconSubcategorySummaryDto {
     pub name: String,
     pub tag_count: usize,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptLexiconListQueryDto {
     pub query: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -151,13 +152,13 @@ pub struct PromptLexiconListQueryDto {
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptLexiconSearchQueryDto {
     pub query: String,
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptLexiconPageDto {
     pub items: Vec<PromptLexiconEntryDto>,
     pub total: usize,
@@ -165,7 +166,7 @@ pub struct PromptLexiconPageDto {
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptLexiconEntryDto {
     pub tag: String,
     #[serde(skip_serializing_if = "Option::is_none")]

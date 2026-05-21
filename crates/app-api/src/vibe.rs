@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::resource::ResourceRefDto;
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum VibeModelDto {
     #[default]
     #[serde(rename = "nai-diffusion-4-5-full")]
@@ -19,7 +20,7 @@ pub enum VibeModelDto {
     NaiDiffusion3Furry,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum VibeExportFormatDto {
     #[default]
@@ -27,25 +28,25 @@ pub enum VibeExportFormatDto {
     Naiv4vibebundle,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ImportVibeDocumentRequestDto {
     pub file_name: String,
     pub content: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ImportEmbeddedPngVibeDocumentRequestDto {
     pub file_name: String,
     pub png_bytes_base64: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ExportVibeDocumentRequestDto {
     pub vibe_ids: Vec<String>,
     pub format: VibeExportFormatDto,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct EnsureVibeEncodingRequestDto {
     pub vibe_id: String,
     pub source_sha256: String,
@@ -54,7 +55,7 @@ pub struct EnsureVibeEncodingRequestDto {
     pub information_extracted: f32,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct VibeDocumentEntryDto {
     pub vibe_id: String,
     pub display_name: String,
@@ -68,18 +69,18 @@ pub struct VibeDocumentEntryDto {
     pub encodings: Vec<ResourceRefDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ImportedVibeDocumentsDto {
     pub entries: Vec<VibeDocumentEntryDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ExportedVibeDocumentDto {
     pub file_extension: String,
     pub content: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EnsuredVibeEncodingDto {
     pub resource: ResourceRefDto,
     pub created: bool,

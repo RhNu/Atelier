@@ -13,9 +13,12 @@
     "windows": [
       {
         "title": "Atelier",
-        "width": 800,
-        "height": 600,
+        "width": 1280,
+        "height": 760,
+        "minWidth": 1100,
+        "minHeight": 680,
         "resizable": true,
+        "decorations": false,
         "fullscreen": false
       }
     ],

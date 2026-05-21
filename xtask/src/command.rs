@@ -1,11 +1,12 @@
 use std::ffi::OsString;
 use std::path::Path;
+use std::process::Command;
 
 use clap::{Args, Parser, Subcommand, error::ErrorKind};
 
 use crate::{
-    LineBudgetConfig, LineBudgetLevel, PromptLexiconBuildConfig, build_prompt_lexicon,
-    check_line_budget, check_prompt_lexicon,
+    AppApiTypeExportConfig, LineBudgetConfig, LineBudgetLevel, PromptLexiconBuildConfig,
+    build_prompt_lexicon, check_line_budget, check_prompt_lexicon, export_app_api_types,
 };
 
 const DEFAULT_WARN_LINES: usize = 600;
@@ -20,10 +21,24 @@ struct Xtask {
 
 #[derive(Debug, Subcommand)]
 enum XtaskCommand {
+    #[command(about = "Generate frontend TypeScript bindings from app-api DTOs")]
+    AppApi(AppApiArgs),
     #[command(about = "Check Rust source files against warning and deny line budgets")]
     LineBudget(LineBudgetArgs),
     #[command(about = "Build or check prompt lexicon assets")]
     Lexicon(LexiconArgs),
+}
+
+#[derive(Debug, Args)]
+struct AppApiArgs {
+    #[command(subcommand)]
+    command: AppApiCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum AppApiCommand {
+    #[command(about = "Generate app-api TypeScript bindings for the desktop frontend")]
+    Types,
 }
 
 #[derive(Copy, Clone, Debug, Args)]
@@ -89,9 +104,57 @@ pub fn run_in_workspace(
     };
 
     match xtask.command {
+        XtaskCommand::AppApi(args) => run_app_api(workspace_root, &args),
         XtaskCommand::LineBudget(args) => run_line_budget(workspace_root, &args),
         XtaskCommand::Lexicon(args) => run_lexicon(workspace_root, &args),
     }
+}
+
+fn run_app_api(workspace_root: impl AsRef<Path>, args: &AppApiArgs) -> Result<(), String> {
+    match args.command {
+        AppApiCommand::Types => {
+            let workspace_root = workspace_root.as_ref();
+            let config = AppApiTypeExportConfig::default_for_workspace(workspace_root);
+            export_app_api_types(&config)?;
+            format_app_api_types(workspace_root, &config.out_dir)?;
+            println!(
+                "App API TypeScript bindings generated at {}.",
+                config.out_dir.display()
+            );
+            Ok(())
+        }
+    }
+}
+
+fn format_app_api_types(workspace_root: &Path, out_dir: &Path) -> Result<(), String> {
+    let desktop_root = workspace_root.join("apps").join("desktop");
+    if !desktop_root.join("package.json").is_file() {
+        return Ok(());
+    }
+
+    let formatted_path = out_dir
+        .strip_prefix(&desktop_root)
+        .unwrap_or(out_dir)
+        .to_path_buf();
+
+    let status = Command::new(pnpm_command())
+        .arg("--dir")
+        .arg(&desktop_root)
+        .arg("exec")
+        .arg("oxfmt")
+        .arg(&formatted_path)
+        .status()
+        .map_err(|error| error.to_string())?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("oxfmt failed for {}", out_dir.display()))
+    }
+}
+
+const fn pnpm_command() -> &'static str {
+    if cfg!(windows) { "pnpm.cmd" } else { "pnpm" }
 }
 
 fn run_line_budget(workspace_root: impl AsRef<Path>, args: &LineBudgetArgs) -> Result<(), String> {

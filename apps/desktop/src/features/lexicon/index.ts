@@ -1,0 +1,1 @@
+export { LexiconPage } from "./LexiconPage";

@@ -1,26 +1,27 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::resource::ResourceRefDto;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct AppEventDto {
     pub sequence: u64,
     pub kind: AppEventKindDto,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct EventsSinceRequestDto {
     pub sequence: u64,
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct AppEventPageDto {
     pub items: Vec<AppEventDto>,
     pub next_sequence: u64,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AppEventKindDto {
     BatchSubmitted {

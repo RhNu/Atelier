@@ -1,0 +1,111 @@
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { describe, expect, it } from "vitest";
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const srcRoot = path.join(projectRoot, "src");
+
+const REQUIRED_FRONTEND_AREAS = [
+  "src/platform/atelier",
+  "src/components/ui",
+  "src/features/generation",
+  "src/features/director",
+  "src/features/resources",
+  "src/features/lexicon",
+  "src/features/gallery",
+  "src/features/settings",
+  "src/routes",
+] as const;
+
+const QUERY_HOOK_ALLOWED_PATH_PATTERNS = [
+  /^src\/features\/[^/]+\/data\//u,
+  /^src\/features\/[^/]+\/runtime\//u,
+  /^src\/features\/workspace\//u,
+  /^src\/platform\/atelier\//u,
+] as const;
+
+function walkFiles(dirPath: string): string[] {
+  return readdirSync(dirPath)
+    .flatMap((entry) => {
+      const fullPath = path.join(dirPath, entry);
+      const stat = statSync(fullPath);
+      return stat.isDirectory() ? walkFiles(fullPath) : fullPath;
+    })
+    .sort((left, right) => left.localeCompare(right, "en"));
+}
+
+function toProjectPath(filePath: string): string {
+  return path.relative(projectRoot, filePath).split(path.sep).join("/");
+}
+
+function readProjectFile(filePath: string): string {
+  return readFileSync(filePath, "utf8");
+}
+
+function collectSourceFiles(): string[] {
+  return walkFiles(srcRoot).filter((filePath) => {
+    const projectPath = toProjectPath(filePath);
+    return (
+      /\.(ts|tsx)$/u.test(filePath) &&
+      !projectPath.includes("/test/") &&
+      !projectPath.endsWith(".d.ts") &&
+      !projectPath.includes("/types/generated/")
+    );
+  });
+}
+
+describe("frontend architecture guards", () => {
+  it("keeps the planned frontend foundation areas present", () => {
+    for (const relativePath of REQUIRED_FRONTEND_AREAS) {
+      expect(existsSync(path.join(projectRoot, relativePath)), relativePath).toBe(true);
+    }
+  });
+
+  it("keeps views and feature pages away from direct Tauri calls", () => {
+    const offenders = collectSourceFiles()
+      .filter((filePath) => /^src\/(?:features|routes)\//u.test(toProjectPath(filePath)))
+      .filter((filePath) => readProjectFile(filePath).includes("@tauri-apps/api"))
+      .map(toProjectPath);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("restricts query hooks to data/runtime/platform modules", () => {
+    const offenders = collectSourceFiles()
+      .filter((filePath) =>
+        /\buse(?:Query|Mutation|InfiniteQuery|Queries)\s*\(/u.test(readProjectFile(filePath)),
+      )
+      .map(toProjectPath)
+      .filter((relativePath) =>
+        QUERY_HOOK_ALLOWED_PATH_PATTERNS.every((pattern) => !pattern.test(relativePath)),
+      );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("prevents direct generated DTO imports outside the typed facade", () => {
+    const offenders = collectSourceFiles()
+      .filter((filePath) => !toProjectPath(filePath).startsWith("src/types/"))
+      .filter((filePath) => readProjectFile(filePath).includes("/types/generated"))
+      .map(toProjectPath);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps custom titlebar window permissions available", () => {
+    const capability = JSON.parse(
+      readProjectFile(path.join(projectRoot, "src-tauri/capabilities/default.json")),
+    ) as { permissions: string[] };
+
+    expect(capability.permissions).toEqual(
+      expect.arrayContaining([
+        "core:window:allow-close",
+        "core:window:allow-minimize",
+        "core:window:allow-start-dragging",
+        "core:window:allow-toggle-maximize",
+      ]),
+    );
+  });
+});

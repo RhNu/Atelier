@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct CreateApiKeyRequestDto {
     pub id: String,
     pub display_name: String,
@@ -17,7 +18,7 @@ impl std::fmt::Debug for CreateApiKeyRequestDto {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UpdateApiKeyRequestDto {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -36,34 +37,34 @@ impl std::fmt::Debug for UpdateApiKeyRequestDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DeleteApiKeyRequestDto {
     pub id: String,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DeleteApiKeyResponseDto {
     pub deleted: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SetActiveApiKeyRequestDto {
     pub id: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ProbeApiKeyRequestDto {
     pub id: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ApiKeyRecordDto {
     pub id: String,
     pub display_name: String,
     pub is_active: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SubscriptionSummaryDto {
     pub anlas_balance: i64,
     pub is_opus: bool,

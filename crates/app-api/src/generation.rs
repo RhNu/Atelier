@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::resource::ImageInputDto;
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum ImageModelDto {
     #[default]
     #[serde(rename = "nai-diffusion-4-5-full")]
@@ -19,7 +20,7 @@ pub enum ImageModelDto {
     NaiDiffusion3Furry,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ImageSizeDto {
     pub width: u32,
     pub height: u32,
@@ -34,7 +35,7 @@ impl Default for ImageSizeDto {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum SamplerDto {
     KEuler,
@@ -48,7 +49,7 @@ pub enum SamplerDto {
     Ddim,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum NoiseScheduleDto {
     #[default]
@@ -57,7 +58,7 @@ pub enum NoiseScheduleDto {
     Polyexponential,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum UcPresetDto {
     Heavy,
@@ -68,21 +69,21 @@ pub enum UcPresetDto {
     None,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ImageFormatDto {
     Png,
     Webp,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum StreamModeDto {
     #[default]
     Sse,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct Img2ImgRequestDto {
     pub image: ImageInputDto,
     pub strength: f32,
@@ -91,20 +92,20 @@ pub struct Img2ImgRequestDto {
     pub mask: Option<ImageInputDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ControlNetInputDto {
     pub vibe_data_cache: String,
     pub info_extracted: f32,
     pub strength: f32,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ControlNetConfigDto {
     pub images: Vec<ControlNetInputDto>,
     pub strength: f32,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum CharacterReferenceTypeDto {
     Character,
@@ -112,7 +113,7 @@ pub enum CharacterReferenceTypeDto {
     CharacterAndStyle,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct CharacterReferenceDto {
     pub image: ImageInputDto,
     pub reference_type: CharacterReferenceTypeDto,
@@ -120,7 +121,7 @@ pub struct CharacterReferenceDto {
     pub strength: f32,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct CharacterPositionDto {
     pub x: f32,
     pub y: f32,
@@ -132,7 +133,7 @@ impl Default for CharacterPositionDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct CharacterDto {
     pub prompt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -141,7 +142,7 @@ pub struct CharacterDto {
     pub enabled: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct GenerateImageRequestDto {
     pub prompt: String,
     pub model: ImageModelDto,
@@ -201,20 +202,20 @@ impl Default for GenerateImageRequestDto {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct GenerateImageStreamRequestDto {
     pub base: GenerateImageRequestDto,
     pub stream: StreamModeDto,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", content = "request", rename_all = "snake_case")]
 pub enum GenerationWorkRequestDto {
     Image(GenerateImageRequestDto),
     Stream(GenerateImageStreamRequestDto),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GenerationPlanContextDto {
     pub request_count: u32,
     pub pending_vibe_encode_count: u32,
@@ -231,7 +232,7 @@ impl Default for GenerationPlanContextDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct SubmitGenerationRequestDto {
     pub batch_id: String,
     pub job_id: String,
@@ -239,18 +240,18 @@ pub struct SubmitGenerationRequestDto {
     pub context: GenerationPlanContextDto,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RunGenerationJobRequestDto {
     pub job_id: String,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct QueueDelayDto {
     pub min_ms: u64,
     pub max_ms: u64,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum QueueDirectiveDto {
     StartJob { job_id: String },
@@ -259,7 +260,7 @@ pub enum QueueDirectiveDto {
     Idle,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GenerationStatusDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_status: Option<String>,
@@ -267,7 +268,7 @@ pub struct GenerationStatusDto {
     pub job_status: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GenerationStatusQueryDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub job_id: Option<String>,

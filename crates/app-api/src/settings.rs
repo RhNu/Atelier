@@ -1,16 +1,17 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::generation::{
     ImageFormatDto, ImageModelDto, ImageSizeDto, NoiseScheduleDto, SamplerDto, UcPresetDto,
 };
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct WorkspaceSettingsDto {
     pub generation: GenerationDefaultsDto,
     pub image_variants: ImageVariantSettingsDto,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct GenerationDefaultsDto {
     pub model: ImageModelDto,
     pub size: ImageSizeDto,
@@ -50,7 +51,7 @@ impl Default for GenerationDefaultsDto {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ImageVariantSettingsDto {
     pub thumbnail_long_edge: u32,
     pub preview_long_edge: u32,
@@ -65,12 +66,12 @@ impl Default for ImageVariantSettingsDto {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct UpdateWorkspaceSettingsRequestDto {
     pub settings: WorkspaceSettingsDto,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ResetWorkspaceSettingsResponseDto {
     pub settings: WorkspaceSettingsDto,
 }
