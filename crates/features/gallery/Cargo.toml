@@ -5,11 +5,11 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
-async-trait = "0.1"
-nai-atelier-artifacts = { path = "../artifacts" }
-nai-atelier-resource-catalog = { path = "../resource-catalog" }
-nai-atelier-safety = { path = "../safety" }
-thiserror = "2"
+async-trait = { workspace = true }
+nai-atelier-artifacts = { workspace = true }
+nai-atelier-resource-catalog = { workspace = true }
+nai-atelier-safety = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-futures-executor = "0.3"
+futures-executor = { workspace = true }

@@ -22,6 +22,7 @@ Then read only the task-relevant design records listed from `docs/agents/README.
 - Keep clear feature boundaries. Do not recreate a large horizontal `core`, `protocol`, or `ApplicationService`.
 - Keep the Tauri shell thin.
 - Real I/O belongs in adapters or desktop host glue, not in feature crates or `kernel`.
+- Keep shared Rust dependency versions and local project crate path dependencies in root `[workspace.dependencies]`. Crate manifests should inherit them with `workspace = true`; `apps/desktop/src-tauri` may keep Tauri and desktop-host-only third-party dependencies local.
 - `D:\Source\_Rust\nait` and `D:\Source\_Rust\stringer` are read-only reference projects.
 - Do not copy reference project implementation without an explicit license and source record.
 

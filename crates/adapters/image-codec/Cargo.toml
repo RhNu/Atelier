@@ -5,11 +5,11 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
-async-trait = "0.1"
-image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp"] }
-nai-atelier-resource-catalog = { path = "../../features/resource-catalog" }
-nai-atelier-settings = { path = "../../features/settings" }
-thiserror = "2"
+async-trait = { workspace = true }
+image = { workspace = true, features = ["jpeg", "png", "webp"] }
+nai-atelier-resource-catalog = { workspace = true }
+nai-atelier-settings = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-futures-executor = "0.3"
+futures-executor = { workspace = true }

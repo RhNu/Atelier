@@ -5,5 +5,5 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
-logos = "0.16"
-rowan = "0.16"
+logos = { workspace = true }
+rowan = { workspace = true }

@@ -33,3 +33,56 @@ resolver = "3"
 
 [workspace.package]
 publish = false
+
+[workspace.dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+bytecount = "0.6"
+clap = "4"
+csv = "1"
+futures = "0.3"
+futures-core = "0.3"
+futures-executor = "0.3"
+futures-timer = "3"
+futures-util = "0.3"
+image = { version = "0.25.10", default-features = false }
+keyring = "4.0.1"
+keyring-core = "1.0.0"
+logos = "0.16"
+nai-atelier-adapter-database = { path = "crates/adapters/database" }
+nai-atelier-adapter-desktop-system = { path = "crates/adapters/desktop-system" }
+nai-atelier-adapter-image-codec = { path = "crates/adapters/image-codec" }
+nai-atelier-adapter-keyring = { path = "crates/adapters/keyring" }
+nai-atelier-adapter-novelai = { path = "crates/adapters/novelai" }
+nai-atelier-adapter-safety-onnx = { path = "crates/adapters/safety-onnx" }
+nai-atelier-adapter-storage-fs = { path = "crates/adapters/storage-fs" }
+nai-atelier-app = { path = "crates/app" }
+nai-atelier-app-api = { path = "crates/app-api" }
+nai-atelier-artifacts = { path = "crates/features/artifacts" }
+nai-atelier-director = { path = "crates/features/director" }
+nai-atelier-foundation = { path = "crates/foundation" }
+nai-atelier-gallery = { path = "crates/features/gallery" }
+nai-atelier-generation = { path = "crates/features/generation" }
+nai-atelier-jobs = { path = "crates/features/jobs" }
+nai-atelier-kernel = { path = "crates/kernel" }
+nai-atelier-precise-reference = { path = "crates/features/precise-reference" }
+nai-atelier-prompt = { path = "crates/features/prompt" }
+nai-atelier-prompt-lexicon = { path = "crates/features/prompt-lexicon" }
+nai-atelier-prompt-resources = { path = "crates/features/prompt-resources" }
+nai-atelier-resource-catalog = { path = "crates/features/resource-catalog" }
+nai-atelier-safety = { path = "crates/features/safety" }
+nai-atelier-secrets = { path = "crates/features/secrets" }
+nai-atelier-settings = { path = "crates/features/settings" }
+nai-atelier-vibe = { path = "crates/features/vibe" }
+nai-atelier-workspace = { path = "crates/features/workspace" }
+novelai-bridge = "0.2.1"
+ort = { version = "2.0.0-rc.12", default-features = false }
+rowan = "0.16"
+rusqlite = "0.39.0"
+serde = "1"
+serde_json = "1"
+sha2 = "0.10"
+tempfile = "3"
+thiserror = "2"
+unicode-normalization = "0.1"
+walkdir = "2"

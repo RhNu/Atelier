@@ -5,6 +5,6 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
-nai-atelier-generation = { path = "../generation" }
-nai-atelier-resource-catalog = { path = "../resource-catalog" }
-thiserror = "2"
+nai-atelier-generation = { workspace = true }
+nai-atelier-resource-catalog = { workspace = true }
+thiserror = { workspace = true }

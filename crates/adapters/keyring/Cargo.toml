@@ -5,10 +5,10 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
-async-trait = "0.1"
-keyring = "4.0.1"
-keyring-core = "1.0.0"
-nai-atelier-secrets = { path = "../../features/secrets" }
+async-trait = { workspace = true }
+keyring = { workspace = true }
+keyring-core = { workspace = true }
+nai-atelier-secrets = { workspace = true }
 
 [dev-dependencies]
-futures-executor = "0.3"
+futures-executor = { workspace = true }

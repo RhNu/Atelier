@@ -5,22 +5,22 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
-async-trait = "0.1"
-base64 = "0.22"
-futures-core = "0.3"
-futures-util = "0.3"
-nai-atelier-artifacts = { path = "../features/artifacts" }
-nai-atelier-director = { path = "../features/director" }
-nai-atelier-gallery = { path = "../features/gallery" }
-nai-atelier-generation = { path = "../features/generation" }
-nai-atelier-jobs = { path = "../features/jobs" }
-nai-atelier-precise-reference = { path = "../features/precise-reference" }
-nai-atelier-prompt-resources = { path = "../features/prompt-resources" }
-nai-atelier-resource-catalog = { path = "../features/resource-catalog" }
-nai-atelier-safety = { path = "../features/safety" }
-nai-atelier-vibe = { path = "../features/vibe" }
-serde_json = "1"
-thiserror = "2"
+async-trait = { workspace = true }
+base64 = { workspace = true }
+futures-core = { workspace = true }
+futures-util = { workspace = true }
+nai-atelier-artifacts = { workspace = true }
+nai-atelier-director = { workspace = true }
+nai-atelier-gallery = { workspace = true }
+nai-atelier-generation = { workspace = true }
+nai-atelier-jobs = { workspace = true }
+nai-atelier-precise-reference = { workspace = true }
+nai-atelier-prompt-resources = { workspace = true }
+nai-atelier-resource-catalog = { workspace = true }
+nai-atelier-safety = { workspace = true }
+nai-atelier-vibe = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-futures-executor = "0.3"
+futures-executor = { workspace = true }

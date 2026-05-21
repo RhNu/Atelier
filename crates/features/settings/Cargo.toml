@@ -5,9 +5,9 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
-async-trait = "0.1"
-nai-atelier-generation = { path = "../generation" }
-thiserror = "2"
+async-trait = { workspace = true }
+nai-atelier-generation = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-futures-executor = "0.3"
+futures-executor = { workspace = true }

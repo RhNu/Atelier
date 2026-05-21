@@ -18,12 +18,12 @@ tauri-build = { version = "2.5.6", features = [] }
 
 [dependencies]
 log = "0.4"
-nai-atelier-adapter-desktop-system = { path = "../../../crates/adapters/desktop-system" }
-nai-atelier-adapter-keyring = { path = "../../../crates/adapters/keyring" }
-nai-atelier-adapter-novelai = { path = "../../../crates/adapters/novelai" }
-nai-atelier-adapter-safety-onnx = { path = "../../../crates/adapters/safety-onnx" }
-nai-atelier-app = { path = "../../../crates/app" }
-nai-atelier-app-api = { path = "../../../crates/app-api" }
+nai-atelier-adapter-desktop-system = { workspace = true }
+nai-atelier-adapter-keyring = { workspace = true }
+nai-atelier-adapter-novelai = { workspace = true }
+nai-atelier-adapter-safety-onnx = { workspace = true }
+nai-atelier-app = { workspace = true }
+nai-atelier-app-api = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tauri = { version = "2.10.3", features = [] }

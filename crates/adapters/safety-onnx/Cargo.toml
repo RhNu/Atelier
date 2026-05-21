@@ -5,12 +5,12 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
-async-trait = "0.1"
-image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp"] }
-nai-atelier-resource-catalog = { path = "../../features/resource-catalog" }
-nai-atelier-safety = { path = "../../features/safety" }
-ort = { version = "2.0.0-rc.12", default-features = false, features = ["std", "load-dynamic", "api-22"] }
+async-trait = { workspace = true }
+image = { workspace = true, features = ["jpeg", "png", "webp"] }
+nai-atelier-resource-catalog = { workspace = true }
+nai-atelier-safety = { workspace = true }
+ort = { workspace = true, features = ["std", "load-dynamic", "api-22"] }
 
 [dev-dependencies]
-futures-executor = "0.3"
-tempfile = "3"
+futures-executor = { workspace = true }
+tempfile = { workspace = true }

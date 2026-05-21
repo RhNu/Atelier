@@ -5,9 +5,9 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
-nai-atelier-adapter-safety-onnx = { path = "../safety-onnx" }
-serde = { version = "1", features = ["derive"] }
-thiserror = "2"
+nai-atelier-adapter-safety-onnx = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile = { workspace = true }
