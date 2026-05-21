@@ -173,6 +173,22 @@ pub struct JobBatch {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JobQueueSnapshot {
+    pub active_batch: Option<ActiveJobBatchSnapshot>,
+    pub retry_policy: RetryPolicy,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActiveJobBatchSnapshot {
+    pub batch: JobBatch,
+    pub current_job: Option<JobId>,
+    pub pending_delay: Option<QueueDelay>,
+    pub paused_delay: Option<QueueDelay>,
+    pub pause_after_current: bool,
+    pub stop_after_current: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JobEvent {
     pub batch_id: BatchId,
     pub job_id: Option<JobId>,
@@ -187,4 +203,71 @@ pub enum JobEventKind {
     JobFailed,
     BatchPaused,
     BatchStopped,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum RunHistoryKind {
+    Generation,
+    Director,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum RunHistoryStatus {
+    Queued,
+    Preparing,
+    Running,
+    Waiting,
+    Paused,
+    Succeeded,
+    Failed,
+    Skipped,
+    Stopped,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunHistoryRecord {
+    pub run_id: String,
+    pub kind: RunHistoryKind,
+    pub status: RunHistoryStatus,
+    pub batch_id: Option<String>,
+    pub job_id: Option<String>,
+    pub origin_run_id: Option<String>,
+    pub submitted_payload_ref: Option<String>,
+    pub prepared_payload_ref: Option<String>,
+    pub title: Option<String>,
+    pub last_error: Option<String>,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+    pub completed_at_ms: Option<u64>,
+    pub recoverable: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunOutputRecord {
+    pub run_id: String,
+    pub artifact_id: String,
+    pub item_id: Option<String>,
+    pub resource_id: String,
+    pub variant_id: Option<String>,
+    pub asset_role: String,
+    pub variant_kind: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunHistoryQuery {
+    pub offset: usize,
+    pub limit: usize,
+    pub kind: Option<RunHistoryKind>,
+    pub status: Option<RunHistoryStatus>,
+}
+
+impl Default for RunHistoryQuery {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            limit: 50,
+            kind: None,
+            status: None,
+        }
+    }
 }

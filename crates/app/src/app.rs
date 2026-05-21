@@ -4,8 +4,9 @@ use std::sync::{Arc, Mutex as StdMutex};
 use futures::lock::Mutex;
 use nai_atelier_adapter_database::{
     DatabaseApiKeyRegistryStore, DatabaseArtifactRepository, DatabaseConnection,
-    DatabaseGalleryIndex, DatabaseGenerationPayloadStore, DatabasePromptResourceRepository,
-    DatabaseResourceCatalogRepository, DatabaseSettingsRepository, DatabaseVibeRepository,
+    DatabaseGalleryIndex, DatabaseGenerationPayloadStore, DatabaseJobQueueRepository,
+    DatabasePromptResourceRepository, DatabaseResourceCatalogRepository,
+    DatabaseRunHistoryRepository, DatabaseSettingsRepository, DatabaseVibeRepository,
 };
 use nai_atelier_adapter_image_codec::ImageMetadataBlobStore;
 use nai_atelier_adapter_keyring::KeyringSecretStore;
@@ -20,6 +21,7 @@ use nai_atelier_adapter_storage_fs::{
 use nai_atelier_app_api::workspace::OpenWorkspaceRequestDto;
 use nai_atelier_artifacts::ArtifactService;
 use nai_atelier_gallery::GalleryService;
+use nai_atelier_jobs::JobQueueRepository;
 use nai_atelier_kernel::KernelRuntime;
 use nai_atelier_prompt_lexicon::PromptLexicon;
 use nai_atelier_prompt_resources::{PromptChunkService, PromptCompiler};
@@ -40,7 +42,8 @@ use crate::ports::{
 };
 use crate::usecases::{
     AccountUseCases, DirectorUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases,
-    PromptUseCases, ResourceUseCases, SettingsUseCases, VibeUseCases, WorkspaceUseCases,
+    HistoryUseCases, PromptUseCases, ResourceUseCases, SettingsUseCases, VibeUseCases,
+    WorkspaceUseCases, sync_generation_history_from_queue_snapshot,
 };
 use crate::{AppResult, error::AppError};
 
@@ -63,6 +66,8 @@ pub struct AppInner<S, F, E> {
     pub prompt_compiler: PromptCompiler<DatabasePromptResourceRepository>,
     pub lexicon: PromptLexicon,
     pub gallery: AppGalleryService,
+    pub queue_repository: DatabaseJobQueueRepository,
+    pub run_history: DatabaseRunHistoryRepository,
     pub kernel: Mutex<KernelRuntime<AppKernelPorts<S, F, E>>>,
     pub events: AppEventHub,
 }
@@ -174,6 +179,8 @@ where
             .await?;
         let connection = DatabaseConnection::open(workspace_database_path(&root))?;
         let api_key_store = DatabaseApiKeyRegistryStore::new(connection.clone());
+        let queue_repository = DatabaseJobQueueRepository::new(connection.clone());
+        let run_history = DatabaseRunHistoryRepository::new(connection.clone());
         let api_keys = ApiKeyRegistryService::new(
             api_key_store,
             secrets,
@@ -217,6 +224,23 @@ where
             settings_state: settings_state.clone(),
             safety_scanner,
         };
+        let restored_snapshot = queue_repository
+            .load_queue_snapshot()
+            .await
+            .map_err(|error| AppError::new("job_queue", error.to_string()))?;
+        let kernel = if let Some(snapshot) = restored_snapshot {
+            let runtime = KernelRuntime::from_recovered_queue_snapshot(ports, snapshot)
+                .map_err(AppError::from)?;
+            let snapshot = runtime.queue_snapshot();
+            queue_repository
+                .save_queue_snapshot(&snapshot)
+                .await
+                .map_err(|error| AppError::new("job_queue", error.to_string()))?;
+            sync_generation_history_from_queue_snapshot(&run_history, &snapshot).await?;
+            runtime
+        } else {
+            KernelRuntime::new(ports)
+        };
 
         Ok(Self {
             inner: AppInner {
@@ -230,7 +254,9 @@ where
                 prompt_compiler,
                 lexicon: PromptLexicon::load_embedded().map_err(AppError::from)?,
                 gallery,
-                kernel: Mutex::new(KernelRuntime::new(ports)),
+                queue_repository,
+                run_history,
+                kernel: Mutex::new(kernel),
                 events,
             },
         })
@@ -281,6 +307,11 @@ impl<S, F, E> AtelierApp<S, F, E> {
     #[must_use]
     pub const fn gallery(&self) -> GalleryUseCases<'_, S, F, E> {
         GalleryUseCases { app: self }
+    }
+
+    #[must_use]
+    pub const fn history(&self) -> HistoryUseCases<'_, S, F, E> {
+        HistoryUseCases { app: self }
     }
 
     #[must_use]

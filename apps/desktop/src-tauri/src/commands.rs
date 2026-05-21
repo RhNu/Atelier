@@ -21,13 +21,20 @@ use nai_atelier_app_api::{
         GenerationStatusDto, GenerationStatusQueryDto, QueueDirectiveDto,
         RunGenerationJobRequestDto, SubmitGenerationRequestDto,
     },
+    history::{
+        RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto,
+        RunHistoryPageDto, RunHistoryQueryDto,
+    },
     prompt::{
         CompilePromptRequestDto, CompiledPromptDto, DeletePromptChunkRequestDto,
         DeletePromptChunkResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
         PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
         PromptLexiconPageDto, PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
     },
-    resource::{ImportImageResourceRequestDto, ImportImageResourceResponseDto},
+    resource::{
+        GetResourceImageRequestDto, ImportImageResourceRequestDto, ImportImageResourceResponseDto,
+        ResourceImageDto,
+    },
     settings::{
         ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
     },
@@ -236,6 +243,14 @@ pub async fn import_image_resource(
 }
 
 #[tauri::command]
+pub async fn get_resource_image(
+    state: State<'_, DesktopState>,
+    request: GetResourceImageRequestDto,
+) -> CommandResult<ResourceImageDto> {
+    state.host.get_resource_image(request).await
+}
+
+#[tauri::command]
 pub async fn get_workspace_settings(
     state: State<'_, DesktopState>,
 ) -> CommandResult<WorkspaceSettingsDto> {
@@ -317,6 +332,24 @@ pub async fn generation_status(
     request: GenerationStatusQueryDto,
 ) -> CommandResult<GenerationStatusDto> {
     state.host.generation_status(request).await
+}
+
+#[tauri::command]
+pub async fn query_run_history(
+    state: State<'_, DesktopState>,
+    request: RunHistoryQueryDto,
+) -> CommandResult<RunHistoryPageDto> {
+    state.host.query_run_history(request).await
+}
+
+#[tauri::command]
+pub async fn rerun_generation_history_item(
+    state: State<'_, DesktopState>,
+    request: RerunGenerationHistoryItemRequestDto,
+) -> CommandResult<RerunGenerationHistoryItemResponseDto> {
+    let response = state.host.rerun_generation_history_item(request).await?;
+    state.kick_generation_worker(response.directive.clone());
+    Ok(response)
 }
 
 #[tauri::command]

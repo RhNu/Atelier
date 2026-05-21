@@ -1,6 +1,6 @@
 use nai_atelier_jobs::{
-    BatchStatus, JobId, JobKind, JobPayloadRef, JobQueue, JobStatus, QueueDirective, RetryPolicy,
-    SubmitJob,
+    BatchStatus, JobId, JobKind, JobPayloadRef, JobQueue, JobQueueSnapshot, JobStatus,
+    QueueDirective, RetryPolicy, SubmitJob,
 };
 use nai_atelier_precise_reference::PreciseReferenceInput;
 
@@ -33,6 +33,29 @@ impl<P> KernelRuntime<P> {
             ports,
             next_event_sequence: 0,
         }
+    }
+
+    /// Restores a runtime from a persisted queue snapshot and converts any
+    /// in-flight work into a user-resumable paused state.
+    ///
+    /// # Errors
+    /// Returns an error when the queue snapshot is internally inconsistent.
+    pub fn from_recovered_queue_snapshot(
+        ports: P,
+        snapshot: JobQueueSnapshot,
+    ) -> KernelResult<Self> {
+        let mut queue = JobQueue::from_snapshot(snapshot)?;
+        queue.recover_after_restart()?;
+        Ok(Self {
+            queue,
+            ports,
+            next_event_sequence: 0,
+        })
+    }
+
+    #[must_use]
+    pub fn queue_snapshot(&self) -> JobQueueSnapshot {
+        self.queue.snapshot()
     }
 
     #[must_use]

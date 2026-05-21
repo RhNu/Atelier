@@ -21,10 +21,7 @@ use nai_atelier_app_api::prompt::{
     PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
     PromptLexiconPageDto, UpsertPromptChunkRequestDto,
 };
-use nai_atelier_app_api::resource::{
-    ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-    ImportImageResourceResponseDto,
-};
+use nai_atelier_app_api::resource::ImageInputDto;
 use nai_atelier_app_api::settings::{
     ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
@@ -34,25 +31,35 @@ use nai_atelier_app_api::vibe::{
     ImportedVibeDocumentsDto,
 };
 use nai_atelier_app_api::workspace::WorkspaceStatusDto;
+use nai_atelier_artifacts::{ArtifactSource, VisualAssetRole};
 use nai_atelier_director::{DirectorTool, RunDirectorToolRequest};
-use nai_atelier_gallery::GalleryItemId;
+use nai_atelier_gallery::{GalleryItemId, GalleryQuery, GallerySourceKind};
 use nai_atelier_generation::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
     ControlNetInput, GenerateImageRequest, GenerateImageStreamRequest, ImageSize, Img2ImgRequest,
 };
-use nai_atelier_jobs::{BatchId, JobId};
+use nai_atelier_jobs::{
+    BatchId, JobId, JobQueueRepository, JobStatus, RunHistoryKind, RunHistoryRecord,
+    RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
+};
 use nai_atelier_kernel::{
     EnsureVibeEncoding, ExportVibeDocument, GenerationWorkRequest, ImportEmbeddedPngVibeDocument,
     ImportVibeDocument, RunDirectorTool, SubmitGenerationWork,
 };
 use nai_atelier_prompt_resources::{CompilePromptRequest, PromptChunkId, PromptChunkKey};
-use nai_atelier_resource_catalog::{
-    BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
-    ResourceOwner, ResourceOwnerKind, ResourceRelation,
-};
+use nai_atelier_resource_catalog::ResourceVariantKind;
 use nai_atelier_secrets::{ApiKeyId, SecretStore, SecretValue, SecretsErrorKind};
 use nai_atelier_vibe::{VibeEncodeSettings, VibeId, VibeSourceIdentity};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+mod history;
+mod resource;
+
+pub use history::{
+    HistoryUseCases, ensure_generation_history_target_is_new,
+    sync_generation_history_from_queue_snapshot, upsert_generation_history_record,
+};
+pub use resource::ResourceUseCases;
 
 use crate::app::AtelierApp;
 use crate::mapping::{
@@ -309,47 +316,6 @@ pub struct SettingsUseCases<'a, S, F, E> {
     pub(crate) app: &'a AtelierApp<S, F, E>,
 }
 
-pub struct ResourceUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
-}
-
-impl<S, F, E> ResourceUseCases<'_, S, F, E>
-where
-    S: Send + Sync,
-    F: Send + Sync,
-    E: Send + Sync,
-{
-    pub async fn import_image(
-        &self,
-        request: ImportImageResourceRequestDto,
-    ) -> AppResult<ImportImageResourceResponseDto> {
-        let bytes = STANDARD.decode(request.image_base64.trim())?;
-        let kind = image_resource_kind_to_domain(request.kind);
-        let resource_id = ResourceId::new(format!(
-            "resource:import:{}:{}",
-            resource_kind_slug(kind),
-            unix_timestamp_nanos()
-        ));
-        let kernel = self.app.inner.kernel.lock().await;
-        let resource = kernel
-            .ports()
-            .resources
-            .register_resource(RegisterResourceRequest {
-                resource_id,
-                kind,
-                lifecycle: ResourceLifecycle::WorkspaceScoped,
-                owner: ResourceOwner::new(ResourceOwnerKind::Workspace, "workspace"),
-                relation: image_resource_relation(request.kind),
-                blob: BlobWriteIntent::Bytes(bytes),
-            })
-            .await?;
-        drop(kernel);
-        Ok(ImportImageResourceResponseDto {
-            resource: resource_ref_to_dto(&resource),
-        })
-    }
-}
-
 impl<S, F, E> SettingsUseCases<'_, S, F, E>
 where
     S: Send + Sync,
@@ -425,54 +391,111 @@ where
                     AppError::from(error)
                 }
             })?;
+        let title = generation_work_title(&request.work);
+        let batch_id = request.batch_id.clone();
+        let job_id = request.job_id.clone();
+        ensure_generation_history_target_is_new(&self.app.inner.run_history, &batch_id, &job_id)
+            .await?;
         let work = self.submit_request_to_domain(request).await?;
         let mut kernel = self.app.inner.kernel.lock().await;
-        kernel
+        let directive = kernel
             .submit_generation_work(work)
             .await
             .map(queue_directive_to_dto)
-            .map_err(AppError::from)
+            .map_err(AppError::from)?;
+        let snapshot = kernel.queue_snapshot();
+        drop(kernel);
+        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        self.upsert_generation_history(
+            &batch_id,
+            &job_id,
+            RunHistoryStatus::Queued,
+            title,
+            None,
+            None,
+        )
+        .await?;
+        Ok(directive)
     }
 
     pub async fn run_job(&self, job_id: &str) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
-        kernel
+        let result = kernel
             .run_scheduled_generation_job(&JobId::new(job_id))
-            .await
-            .map(queue_directive_to_dto)
-            .map_err(AppError::from)
+            .await;
+        let snapshot = kernel.queue_snapshot();
+        let job_status = kernel.job_status(&JobId::new(job_id));
+        drop(kernel);
+
+        let directive = match result {
+            Ok(directive) => queue_directive_to_dto(directive),
+            Err(error) => {
+                let status =
+                    job_status.map_or(RunHistoryStatus::Failed, run_history_status_from_job_status);
+                self.update_generation_history_status(job_id, status, Some(error.to_string()))
+                    .await?;
+                self.persist_queue_snapshot(&QueueDirectiveDto::Idle, &snapshot)
+                    .await?;
+                return Err(AppError::from(error));
+            }
+        };
+        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        let status = job_status.map_or(
+            RunHistoryStatus::Succeeded,
+            run_history_status_from_job_status,
+        );
+        self.update_generation_history_status(job_id, status, None)
+            .await?;
+        self.persist_generation_outputs(job_id).await?;
+        Ok(directive)
     }
 
     pub async fn pause(&self) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
-        kernel
+        let directive = kernel
             .pause()
             .map(queue_directive_to_dto)
-            .map_err(AppError::from)
+            .map_err(AppError::from)?;
+        let snapshot = kernel.queue_snapshot();
+        drop(kernel);
+        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        Ok(directive)
     }
 
     pub async fn resume(&self) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
-        kernel
+        let directive = kernel
             .resume()
             .map(queue_directive_to_dto)
-            .map_err(AppError::from)
+            .map_err(AppError::from)?;
+        let snapshot = kernel.queue_snapshot();
+        drop(kernel);
+        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        Ok(directive)
     }
 
     pub async fn stop(&self) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
-        kernel
+        let directive = kernel
             .stop()
             .map(queue_directive_to_dto)
-            .map_err(AppError::from)
+            .map_err(AppError::from)?;
+        let snapshot = kernel.queue_snapshot();
+        drop(kernel);
+        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        Ok(directive)
     }
 
     pub async fn delay_elapsed(&self) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
-        kernel
+        let directive = kernel
             .delay_elapsed()
             .map(queue_directive_to_dto)
-            .map_err(AppError::from)
+            .map_err(AppError::from)?;
+        let snapshot = kernel.queue_snapshot();
+        drop(kernel);
+        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        Ok(directive)
     }
 
     pub async fn status(&self, job_id: Option<&str>) -> GenerationStatusDto {
@@ -617,6 +640,138 @@ where
             }
         }
     }
+
+    async fn persist_queue_snapshot(
+        &self,
+        directive: &QueueDirectiveDto,
+        snapshot: &nai_atelier_jobs::JobQueueSnapshot,
+    ) -> AppResult<()> {
+        sync_generation_history_from_queue_snapshot(&self.app.inner.run_history, snapshot).await?;
+        if matches!(directive, QueueDirectiveDto::Idle) {
+            self.app
+                .inner
+                .queue_repository
+                .clear_queue_snapshot()
+                .await
+                .map_err(|error| AppError::new("job_queue", error.to_string()))
+        } else {
+            self.app
+                .inner
+                .queue_repository
+                .save_queue_snapshot(snapshot)
+                .await
+                .map_err(|error| AppError::new("job_queue", error.to_string()))
+        }
+    }
+
+    async fn upsert_generation_history(
+        &self,
+        batch_id: &str,
+        job_id: &str,
+        status: RunHistoryStatus,
+        title: Option<String>,
+        origin_run_id: Option<String>,
+        last_error: Option<String>,
+    ) -> AppResult<RunHistoryRecord> {
+        upsert_generation_history_record(
+            &self.app.inner.run_history,
+            batch_id,
+            job_id,
+            status,
+            title,
+            origin_run_id,
+            last_error,
+        )
+        .await
+    }
+
+    async fn update_generation_history_status(
+        &self,
+        job_id: &str,
+        status: RunHistoryStatus,
+        last_error: Option<String>,
+    ) -> AppResult<()> {
+        let Some(existing) = self
+            .app
+            .inner
+            .run_history
+            .get_run_history(job_id)
+            .await
+            .map_err(|error| AppError::new("run_history", error.to_string()))?
+        else {
+            return Ok(());
+        };
+        self.upsert_generation_history(
+            existing.batch_id.as_deref().unwrap_or(""),
+            job_id,
+            status,
+            existing.title,
+            existing.origin_run_id,
+            last_error,
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn persist_generation_outputs(&self, job_id: &str) -> AppResult<()> {
+        let mut offset = 0;
+        loop {
+            let items = self
+                .app
+                .inner
+                .gallery
+                .query(GalleryQuery {
+                    offset,
+                    source_kind: Some(GallerySourceKind::Generation),
+                    ..GalleryQuery::default()
+                })
+                .await?;
+            if items.is_empty() {
+                break;
+            }
+            let item_count = items.len();
+            for item in items {
+                let ArtifactSource::GenerationJob {
+                    job_id: source_job_id,
+                    ..
+                } = &item.source
+                else {
+                    continue;
+                };
+                if source_job_id != job_id {
+                    continue;
+                }
+                for asset in &item.assets {
+                    self.app
+                        .inner
+                        .run_history
+                        .upsert_run_output(RunOutputRecord {
+                            run_id: job_id.to_owned(),
+                            artifact_id: item.artifact_id.as_str().to_owned(),
+                            item_id: Some(item.id.as_str().to_owned()),
+                            resource_id: asset.resource.id.as_str().to_owned(),
+                            variant_id: asset
+                                .resource
+                                .variant_id
+                                .as_ref()
+                                .map(|id| id.as_str().to_owned()),
+                            asset_role: visual_asset_role_as_str(asset.role).to_owned(),
+                            variant_kind: asset
+                                .variant_kind
+                                .map(resource_variant_kind_as_str)
+                                .map(str::to_owned),
+                        })
+                        .await
+                        .map_err(|error| AppError::new("run_history", error.to_string()))?;
+                }
+            }
+            if item_count < GalleryQuery::default().limit {
+                break;
+            }
+            offset += item_count;
+        }
+        Ok(())
+    }
 }
 
 pub struct DirectorUseCases<'a, S, F, E> {
@@ -645,27 +800,117 @@ where
                     AppError::from(error)
                 }
             })?;
+        let run_id = request.run_id.clone();
+        let title = Some(format!("{:?}", request.tool).to_lowercase());
+        let image = match self.image_input_to_base64(request.image).await {
+            Ok(image) => image,
+            Err(error) => {
+                self.upsert_director_history(
+                    &run_id,
+                    title.clone(),
+                    RunHistoryStatus::Failed,
+                    Some(error.to_string()),
+                )
+                .await?;
+                return Err(error);
+            }
+        };
         let work = RunDirectorTool {
             run_id: request.run_id,
             request: RunDirectorToolRequest {
                 tool: director_tool_to_domain(request.tool),
-                image: self.image_input_to_base64(request.image).await?,
+                image,
                 prompt: request.prompt,
                 defry: request.defry,
                 strict_mode: request.strict_mode,
             },
         };
         let mut kernel = self.app.inner.kernel.lock().await;
-        kernel
-            .run_director_tool(work)
+        let result = match kernel.run_director_tool(work).await {
+            Ok(result) => result,
+            Err(error) => {
+                drop(kernel);
+                let app_error = AppError::from(error);
+                self.upsert_director_history(
+                    &run_id,
+                    title,
+                    RunHistoryStatus::Failed,
+                    Some(app_error.to_string()),
+                )
+                .await?;
+                return Err(app_error);
+            }
+        };
+        drop(kernel);
+        self.upsert_director_history(&run_id, title, RunHistoryStatus::Succeeded, None)
+            .await?;
+        for asset in &result.item.assets {
+            self.app
+                .inner
+                .run_history
+                .upsert_run_output(RunOutputRecord {
+                    run_id: run_id.clone(),
+                    artifact_id: result.artifact_id.as_str().to_owned(),
+                    item_id: Some(result.item.id.as_str().to_owned()),
+                    resource_id: asset.resource.id.as_str().to_owned(),
+                    variant_id: asset
+                        .resource
+                        .variant_id
+                        .as_ref()
+                        .map(|id| id.as_str().to_owned()),
+                    asset_role: visual_asset_role_as_str(asset.role).to_owned(),
+                    variant_kind: asset
+                        .variant_kind
+                        .map(resource_variant_kind_as_str)
+                        .map(str::to_owned),
+                })
+                .await
+                .map_err(|error| AppError::new("run_history", error.to_string()))?;
+        }
+        Ok(DirectorToolResultDto {
+            item_id: result.item.id.as_str().to_owned(),
+            artifact_id: result.artifact_id.as_str().to_owned(),
+            resource: resource_ref_to_dto(&result.resource),
+            item: gallery_item_to_dto(result.item),
+        })
+    }
+
+    async fn upsert_director_history(
+        &self,
+        run_id: &str,
+        title: Option<String>,
+        status: RunHistoryStatus,
+        last_error: Option<String>,
+    ) -> AppResult<()> {
+        let now = unix_timestamp_ms();
+        let existing = self
+            .app
+            .inner
+            .run_history
+            .get_run_history(run_id)
             .await
-            .map(|result| DirectorToolResultDto {
-                item_id: result.item.id.as_str().to_owned(),
-                artifact_id: result.artifact_id.as_str().to_owned(),
-                resource: resource_ref_to_dto(&result.resource),
-                item: gallery_item_to_dto(result.item),
+            .map_err(|error| AppError::new("run_history", error.to_string()))?;
+        self.app
+            .inner
+            .run_history
+            .upsert_run_history(RunHistoryRecord {
+                run_id: run_id.to_owned(),
+                kind: RunHistoryKind::Director,
+                status,
+                batch_id: None,
+                job_id: None,
+                origin_run_id: None,
+                submitted_payload_ref: None,
+                prepared_payload_ref: None,
+                title: title.or_else(|| existing.as_ref().and_then(|record| record.title.clone())),
+                last_error,
+                created_at_ms: existing.as_ref().map_or(now, |record| record.created_at_ms),
+                updated_at_ms: now,
+                completed_at_ms: Some(now),
+                recoverable: false,
             })
-            .map_err(AppError::from)
+            .await
+            .map_err(|error| AppError::new("run_history", error.to_string()))
     }
 
     async fn image_input_to_base64(&self, input: ImageInputDto) -> AppResult<String> {
@@ -738,39 +983,6 @@ const fn director_tool_to_domain(value: DirectorToolDto) -> DirectorTool {
         DirectorToolDto::Declutter => DirectorTool::Declutter,
         DirectorToolDto::Colorize => DirectorTool::Colorize,
     }
-}
-
-const fn image_resource_kind_to_domain(value: ImageResourceKindDto) -> ResourceKind {
-    match value {
-        ImageResourceKindDto::SourceImage => ResourceKind::SourceImage,
-        ImageResourceKindDto::ReferenceImage => ResourceKind::ReferenceImage,
-        ImageResourceKindDto::ControlNetImage => ResourceKind::ControlNetImage,
-    }
-}
-
-const fn image_resource_relation(value: ImageResourceKindDto) -> ResourceRelation {
-    match value {
-        ImageResourceKindDto::SourceImage => ResourceRelation::Source,
-        ImageResourceKindDto::ReferenceImage | ImageResourceKindDto::ControlNetImage => {
-            ResourceRelation::Reference
-        }
-    }
-}
-
-const fn resource_kind_slug(value: ResourceKind) -> &'static str {
-    match value {
-        ResourceKind::SourceImage => "source",
-        ResourceKind::ReferenceImage => "reference",
-        ResourceKind::ControlNetImage => "controlnet",
-        _ => "image",
-    }
-}
-
-fn unix_timestamp_nanos() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos()
 }
 
 pub struct VibeUseCases<'a, S, F, E> {
@@ -931,4 +1143,53 @@ impl<S, F, E> EventsUseCases<'_, S, F, E> {
     pub fn events_since(&self, sequence: u64, limit: usize) -> Vec<AppEventDto> {
         self.app.inner.events.events_since(sequence, limit)
     }
+}
+
+fn generation_work_title(work: &GenerationWorkRequestDto) -> Option<String> {
+    let prompt = match work {
+        GenerationWorkRequestDto::Image(request) => &request.prompt,
+        GenerationWorkRequestDto::Stream(request) => &request.base.prompt,
+    };
+    (!prompt.trim().is_empty()).then(|| prompt.clone())
+}
+
+const fn run_history_status_from_job_status(status: JobStatus) -> RunHistoryStatus {
+    match status {
+        JobStatus::Queued => RunHistoryStatus::Queued,
+        JobStatus::Preparing => RunHistoryStatus::Preparing,
+        JobStatus::Running => RunHistoryStatus::Running,
+        JobStatus::WaitingRetry => RunHistoryStatus::Waiting,
+        JobStatus::Blocked => RunHistoryStatus::Paused,
+        JobStatus::Succeeded => RunHistoryStatus::Succeeded,
+        JobStatus::Failed => RunHistoryStatus::Failed,
+        JobStatus::Skipped => RunHistoryStatus::Skipped,
+    }
+}
+
+const fn visual_asset_role_as_str(value: VisualAssetRole) -> &'static str {
+    match value {
+        VisualAssetRole::Original => "original",
+        VisualAssetRole::Thumbnail => "thumbnail",
+        VisualAssetRole::Preview => "preview",
+        VisualAssetRole::Sanitized => "sanitized",
+        VisualAssetRole::Export => "export",
+    }
+}
+
+const fn resource_variant_kind_as_str(value: ResourceVariantKind) -> &'static str {
+    match value {
+        ResourceVariantKind::Original => "original",
+        ResourceVariantKind::Preview => "preview",
+        ResourceVariantKind::Thumbnail => "thumbnail",
+        ResourceVariantKind::Sanitized => "sanitized",
+        ResourceVariantKind::Export => "export",
+    }
+}
+
+fn unix_timestamp_ms() -> u64 {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    u64::try_from(millis).unwrap_or(u64::MAX)
 }

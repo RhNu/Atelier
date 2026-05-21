@@ -18,12 +18,17 @@ use nai_atelier_app_api::generation::{
     GenerationWorkRequestDto, ImageModelDto, Img2ImgRequestDto, QueueDirectiveDto, StreamModeDto,
     SubmitGenerationRequestDto,
 };
+use nai_atelier_app_api::history::{
+    RerunGenerationHistoryItemRequestDto, RunHistoryKindDto, RunHistoryQueryDto,
+    RunHistoryStatusDto,
+};
 use nai_atelier_app_api::resource::{
-    ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
+    GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
 };
 use nai_atelier_app_api::settings::{ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto};
 use nai_atelier_director::{
-    DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
+    DirectorClientError, DirectorResult, DirectorToolOutput, NovelAiDirectorClient,
+    RunDirectorToolRequest,
 };
 use nai_atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
@@ -472,6 +477,305 @@ fn injected_safety_scanner_scores_generated_gallery_items() {
     });
 }
 
+#[test]
+fn run_history_exposes_generation_outputs_and_reruns_as_new_jobs() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let app = test_app_with_image(&temp, valid_png_bytes(2, 1)).await;
+
+        app.generation()
+            .submit(submit_request("batch-1", "job-1", "1girl"))
+            .await
+            .unwrap();
+        app.generation().run_job("job-1").await.unwrap();
+
+        let history = app
+            .history()
+            .query(RunHistoryQueryDto {
+                kind: Some(RunHistoryKindDto::Generation),
+                offset: 0,
+                limit: 10,
+                ..RunHistoryQueryDto::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(history.total, 1);
+        assert_eq!(history.items[0].run_id, "job-1");
+        assert_eq!(history.items[0].outputs[0].asset_role, "original");
+
+        let duplicate = app
+            .history()
+            .rerun_generation(RerunGenerationHistoryItemRequestDto {
+                run_id: "job-1".to_owned(),
+                batch_id: "batch-2".to_owned(),
+                job_id: "job-1".to_owned(),
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(duplicate.code(), "invalid_request");
+
+        let image = app
+            .resources()
+            .get_image(GetResourceImageRequestDto {
+                resource: history.items[0].outputs[0].resource.clone(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(image.mime_type.as_deref(), Some("image/png"));
+        assert!(!image.image_base64.is_empty());
+
+        let rerun = app
+            .history()
+            .rerun_generation(RerunGenerationHistoryItemRequestDto {
+                run_id: "job-1".to_owned(),
+                batch_id: "batch-2".to_owned(),
+                job_id: "job-2".to_owned(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(rerun.item.origin_run_id.as_deref(), Some("job-1"));
+        app.generation().run_job("job-2").await.unwrap();
+
+        let history = app
+            .history()
+            .query(RunHistoryQueryDto::default())
+            .await
+            .unwrap();
+        assert_eq!(history.total, 2);
+        assert!(history.items.iter().any(|item| item.run_id == "job-2"));
+    });
+}
+
+#[test]
+fn generation_submit_rejects_durable_history_ids() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let app = test_app_with_image(&temp, valid_png_bytes(2, 1)).await;
+
+        app.generation()
+            .submit(submit_request("batch-1", "job-1", "1girl"))
+            .await
+            .unwrap();
+        app.generation().run_job("job-1").await.unwrap();
+
+        let duplicate_job = app
+            .generation()
+            .submit(submit_request("batch-2", "job-1", "1girl"))
+            .await
+            .unwrap_err();
+        assert_eq!(duplicate_job.code(), "invalid_request");
+
+        let duplicate_batch = app
+            .generation()
+            .submit(submit_request("batch-1", "job-2", "1girl"))
+            .await
+            .unwrap_err();
+        assert_eq!(duplicate_batch.code(), "invalid_request");
+
+        let history = app
+            .history()
+            .query(RunHistoryQueryDto::default())
+            .await
+            .unwrap();
+        assert_eq!(history.total, 1);
+        assert_eq!(history.items[0].run_id, "job-1");
+        assert_eq!(history.items[0].status, RunHistoryStatusDto::Succeeded);
+    });
+}
+
+#[test]
+fn run_history_records_director_outputs_without_queueing() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
+        let app = AtelierApp::open_workspace_with_dependencies(
+            temp.path().to_path_buf(),
+            MemorySecretStore::default(),
+            factory,
+        )
+        .await
+        .unwrap();
+        app.account()
+            .create_api_key(CreateApiKeyRequestDto {
+                id: "main".to_owned(),
+                display_name: "Main".to_owned(),
+                secret: "active-secret".to_owned(),
+            })
+            .await
+            .unwrap();
+        app.account().set_active_api_key("main").await.unwrap();
+        let source = app
+            .resources()
+            .import_image(ImportImageResourceRequestDto {
+                kind: ImageResourceKindDto::SourceImage,
+                image_base64: "AQID".to_owned(),
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap()
+            .resource;
+
+        app.director()
+            .run_tool(RunDirectorToolRequestDto {
+                run_id: "run-1".to_owned(),
+                tool: DirectorToolDto::Lineart,
+                image: ImageInputDto::ResourceRef { resource: source },
+                prompt: None,
+                defry: None,
+                strict_mode: true,
+            })
+            .await
+            .unwrap();
+
+        let history = app
+            .history()
+            .query(RunHistoryQueryDto {
+                kind: Some(RunHistoryKindDto::Director),
+                offset: 0,
+                limit: 10,
+                ..RunHistoryQueryDto::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(history.total, 1);
+        assert_eq!(history.items[0].run_id, "run-1");
+        assert_eq!(history.items[0].outputs[0].asset_role, "original");
+        assert_eq!(
+            app.generation().status(None).await.batch_status.as_deref(),
+            None
+        );
+    });
+}
+
+#[test]
+fn run_history_records_failed_director_runs() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let factory =
+            RecordingFactory::with_director_error(DirectorClientError::transport("director down"));
+        let app = AtelierApp::open_workspace_with_dependencies(
+            temp.path().to_path_buf(),
+            MemorySecretStore::default(),
+            factory,
+        )
+        .await
+        .unwrap();
+        app.account()
+            .create_api_key(CreateApiKeyRequestDto {
+                id: "main".to_owned(),
+                display_name: "Main".to_owned(),
+                secret: "active-secret".to_owned(),
+            })
+            .await
+            .unwrap();
+        app.account().set_active_api_key("main").await.unwrap();
+        let source = app
+            .resources()
+            .import_image(ImportImageResourceRequestDto {
+                kind: ImageResourceKindDto::SourceImage,
+                image_base64: "AQID".to_owned(),
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap()
+            .resource;
+
+        let error = app
+            .director()
+            .run_tool(RunDirectorToolRequestDto {
+                run_id: "run-failed".to_owned(),
+                tool: DirectorToolDto::Lineart,
+                image: ImageInputDto::ResourceRef { resource: source },
+                prompt: None,
+                defry: None,
+                strict_mode: true,
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(error.code(), "kernel");
+
+        let history = app
+            .history()
+            .query(RunHistoryQueryDto {
+                kind: Some(RunHistoryKindDto::Director),
+                offset: 0,
+                limit: 10,
+                ..RunHistoryQueryDto::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(history.total, 1);
+        assert_eq!(history.items[0].run_id, "run-failed");
+        assert_eq!(history.items[0].status, RunHistoryStatusDto::Failed);
+        assert!(history.items[0].last_error.is_some());
+        assert!(history.items[0].outputs.is_empty());
+    });
+}
+
+#[test]
+fn generation_queue_recovers_as_paused_after_workspace_reopen() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let secrets = MemorySecretStore::default();
+        let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
+        let app = AtelierApp::open_workspace_with_dependencies(
+            temp.path().to_path_buf(),
+            secrets.clone(),
+            factory.clone(),
+        )
+        .await
+        .unwrap();
+        app.account()
+            .create_api_key(CreateApiKeyRequestDto {
+                id: "main".to_owned(),
+                display_name: "Main".to_owned(),
+                secret: "active-secret".to_owned(),
+            })
+            .await
+            .unwrap();
+        app.account().set_active_api_key("main").await.unwrap();
+        app.generation()
+            .submit(submit_request("batch-1", "job-1", "1girl"))
+            .await
+            .unwrap();
+        drop(app);
+
+        let reopened = AtelierApp::open_workspace_with_dependencies(
+            temp.path().to_path_buf(),
+            secrets,
+            factory,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            reopened
+                .generation()
+                .status(Some("job-1"))
+                .await
+                .batch_status,
+            Some("paused".to_owned())
+        );
+        let history = reopened
+            .history()
+            .query(RunHistoryQueryDto {
+                status: Some(RunHistoryStatusDto::Paused),
+                ..RunHistoryQueryDto::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(history.items.len(), 1);
+        assert_eq!(history.items[0].run_id, "job-1");
+        assert!(history.items[0].recoverable);
+        assert_eq!(
+            reopened.generation().resume().await.unwrap(),
+            QueueDirectiveDto::StartJob {
+                job_id: "job-1".to_owned()
+            }
+        );
+    });
+}
+
 fn submit_request(batch_id: &str, job_id: &str, prompt: &str) -> SubmitGenerationRequestDto {
     SubmitGenerationRequestDto {
         batch_id: batch_id.to_owned(),
@@ -581,6 +885,7 @@ struct RecordingFactory {
     image_bytes: Arc<Vec<u8>>,
     generated_requests: Arc<Mutex<Vec<GenerateImageRequest>>>,
     director_requests: Arc<Mutex<Vec<RunDirectorToolRequest>>>,
+    director_error: Arc<Mutex<Option<DirectorClientError>>>,
 }
 
 impl RecordingFactory {
@@ -590,6 +895,14 @@ impl RecordingFactory {
             image_bytes: Arc::new(image_bytes),
             generated_requests: Arc::default(),
             director_requests: Arc::default(),
+            director_error: Arc::default(),
+        }
+    }
+
+    fn with_director_error(error: DirectorClientError) -> Self {
+        Self {
+            director_error: Arc::new(Mutex::new(Some(error))),
+            ..Self::default()
         }
     }
 
@@ -618,6 +931,7 @@ impl NovelAiClientFactory for RecordingFactory {
             image_bytes: Arc::clone(&self.image_bytes),
             generated_requests: Arc::clone(&self.generated_requests),
             director_requests: Arc::clone(&self.director_requests),
+            director_error: Arc::clone(&self.director_error),
         })
     }
 }
@@ -627,6 +941,7 @@ struct RecordingClient {
     image_bytes: Arc<Vec<u8>>,
     generated_requests: Arc<Mutex<Vec<GenerateImageRequest>>>,
     director_requests: Arc<Mutex<Vec<RunDirectorToolRequest>>>,
+    director_error: Arc<Mutex<Option<DirectorClientError>>>,
 }
 
 #[derive(Default)]
@@ -721,6 +1036,10 @@ impl NovelAiDirectorClient for RecordingClient {
         request: RunDirectorToolRequest,
     ) -> DirectorResult<DirectorToolOutput> {
         self.director_requests.lock().unwrap().push(request);
+        let director_error = self.director_error.lock().unwrap().clone();
+        if let Some(error) = director_error {
+            return Err(error);
+        }
         Ok(DirectorToolOutput {
             bytes: vec![4, 5, 6],
             mime_type: Some("image/png".to_owned()),

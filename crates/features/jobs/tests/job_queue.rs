@@ -415,6 +415,63 @@ fn retry_policy_keeps_custom_rate_limit_fallback_delay() {
     );
 }
 
+#[test]
+fn queue_snapshot_round_trips_waiting_retry_state() {
+    let mut queue = active_queue(["job-1", "job-2"]);
+    let first = JobId::new("job-1");
+    queue.mark_preparing(&first).unwrap();
+    queue
+        .mark_running(&first, JobPayloadRef::new("prepared:job-1"))
+        .unwrap();
+    queue
+        .mark_failed(
+            &first,
+            JobFailureImpact::RetryAfter(QueueDelay::fixed(Duration::from_secs(24))),
+        )
+        .unwrap();
+
+    let snapshot = queue.snapshot();
+    let mut restored = JobQueue::from_snapshot(snapshot).unwrap();
+
+    assert_eq!(restored.batch_status(), Some(BatchStatus::Waiting));
+    assert_eq!(restored.job_status(&first), Some(JobStatus::WaitingRetry));
+    assert_eq!(restored.retry_attempts(&first), Some(1));
+    assert_eq!(
+        restored.prepared_payload_ref(&first),
+        Some(&JobPayloadRef::new("prepared:job-1"))
+    );
+    assert_eq!(
+        restored.delay_elapsed().unwrap(),
+        QueueDirective::StartJob(first)
+    );
+}
+
+#[test]
+fn restart_recovery_pauses_running_job_until_user_resumes() {
+    let mut queue = active_queue(["job-1", "job-2"]);
+    let first = JobId::new("job-1");
+    queue.mark_preparing(&first).unwrap();
+    queue
+        .mark_running(&first, JobPayloadRef::new("prepared:job-1"))
+        .unwrap();
+
+    let mut restored = JobQueue::from_snapshot(queue.snapshot()).unwrap();
+    let directive = restored.recover_after_restart().unwrap();
+
+    assert_eq!(directive, QueueDirective::Paused);
+    assert_eq!(restored.batch_status(), Some(BatchStatus::Paused));
+    assert_eq!(restored.job_status(&first), Some(JobStatus::Blocked));
+    assert_eq!(
+        restored.prepared_payload_ref(&first),
+        Some(&JobPayloadRef::new("prepared:job-1"))
+    );
+    assert_eq!(
+        restored.resume().unwrap(),
+        QueueDirective::StartJob(first.clone())
+    );
+    assert_eq!(restored.job_status(&first), Some(JobStatus::Blocked));
+}
+
 fn active_queue<const N: usize>(ids: [&str; N]) -> JobQueue {
     let mut queue = JobQueue::default();
     let jobs = ids.into_iter().map(job).collect();

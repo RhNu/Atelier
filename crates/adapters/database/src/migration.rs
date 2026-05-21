@@ -2,7 +2,7 @@ use rusqlite::{Connection, params};
 
 use crate::error::DatabaseResult;
 
-const CURRENT_SCHEMA_VERSION: i64 = 3;
+const CURRENT_SCHEMA_VERSION: i64 = 4;
 const API_KEY_REGISTRY_SQL: &str = r"
 CREATE TABLE IF NOT EXISTS api_key_records (
     id TEXT PRIMARY KEY,
@@ -143,6 +143,58 @@ CREATE TABLE IF NOT EXISTS workspace_settings (
 );
 ";
 
+const JOB_HISTORY_SQL: &str = r"
+CREATE TABLE IF NOT EXISTS generation_queue_state (
+    state_key TEXT PRIMARY KEY CHECK (state_key = 'active'),
+    snapshot_json TEXT NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS run_history (
+    run_id TEXT PRIMARY KEY,
+    run_kind TEXT NOT NULL,
+    run_status TEXT NOT NULL,
+    batch_id TEXT,
+    job_id TEXT,
+    origin_run_id TEXT,
+    submitted_payload_ref TEXT,
+    prepared_payload_ref TEXT,
+    title TEXT,
+    last_error TEXT,
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL,
+    completed_at_ms INTEGER,
+    recoverable INTEGER NOT NULL CHECK (recoverable IN (0, 1))
+);
+
+CREATE INDEX IF NOT EXISTS idx_run_history_updated_at
+    ON run_history(updated_at_ms DESC, run_id ASC);
+CREATE INDEX IF NOT EXISTS idx_run_history_kind
+    ON run_history(run_kind);
+CREATE INDEX IF NOT EXISTS idx_run_history_status
+    ON run_history(run_status);
+CREATE INDEX IF NOT EXISTS idx_run_history_batch
+    ON run_history(batch_id);
+CREATE INDEX IF NOT EXISTS idx_run_history_job
+    ON run_history(job_id);
+
+CREATE TABLE IF NOT EXISTS run_outputs (
+    run_id TEXT NOT NULL,
+    artifact_id TEXT NOT NULL,
+    item_id TEXT,
+    resource_id TEXT NOT NULL,
+    variant_id TEXT,
+    asset_role TEXT NOT NULL,
+    variant_kind TEXT,
+    FOREIGN KEY (run_id) REFERENCES run_history(run_id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_run_outputs_unique
+    ON run_outputs(run_id, artifact_id, resource_id, asset_role, COALESCE(variant_id, ''));
+CREATE INDEX IF NOT EXISTS idx_run_outputs_run
+    ON run_outputs(run_id);
+";
+
 pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
     connection.execute_batch(
         r"
@@ -166,6 +218,7 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
         connection.execute_batch(API_KEY_REGISTRY_SQL)?;
         connection.execute_batch(PROMPT_RESOURCES_SQL)?;
         connection.execute_batch(SETTINGS_SQL)?;
+        connection.execute_batch(JOB_HISTORY_SQL)?;
         return Ok(());
     }
 
@@ -176,6 +229,11 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
     )?;
     let v2_applied = connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 2)",
+        [],
+        |row| row.get::<_, bool>(0),
+    )?;
+    let v3_applied = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 3)",
         [],
         |row| row.get::<_, bool>(0),
     )?;
@@ -197,6 +255,13 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
         )?;
     }
     tx.execute_batch(SETTINGS_SQL)?;
+    if !v3_applied {
+        tx.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version) VALUES (3)",
+            [],
+        )?;
+    }
+    tx.execute_batch(JOB_HISTORY_SQL)?;
     tx.execute(
         "INSERT OR IGNORE INTO schema_migrations(version) VALUES (?1)",
         params![CURRENT_SCHEMA_VERSION],

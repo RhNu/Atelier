@@ -46,3 +46,15 @@ pub struct ImportImageResourceRequestDto {
 pub struct ImportImageResourceResponseDto {
     pub resource: ResourceRefDto,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetResourceImageRequestDto {
+    pub resource: ResourceRefDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResourceImageDto {
+    pub image_base64: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+}

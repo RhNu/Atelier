@@ -11,12 +11,14 @@
 
 - `ResourceCatalogRepository`
 - `GenerationPayloadStore`
+- `JobQueueRepository`
+- `RunHistoryRepository`
 - `VibeRepository`
 - `ArtifactRepository`
 - `GalleryIndex`
 - `SettingsRepository`
 
-本阶段仍不实现 secrets metadata 或 job queue 持久化；这些需要等对应 app/use case 边界更清楚后单独设计。
+Job queue 只持久化当前 active queue snapshot。运行历史单独记录 batch/job 级 summary 和输出资源引用；它不是 append-only event audit log。Workspace 重开时，未完成队列恢复为 paused，不自动继续消耗 Anlas。
 
 ## 编码边界
 
@@ -52,6 +54,12 @@ v2 migration 创建：
 v3 migration 创建：
 
 - `workspace_settings`
+
+v4 migration 创建：
+
+- `generation_queue_state`
+- `run_history`
+- `run_outputs`
 
 `gallery_items` 为 `indexed_at_ms`、`artifact_kind`、`source_kind`、`manual_safety_override` 建立查询索引。`vibe_encodings` 用 `VibeEncodeSettings::cache_key(source)` 作为稳定 cache key。
 

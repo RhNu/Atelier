@@ -3,6 +3,7 @@ mod director;
 mod events;
 mod gallery;
 mod generation;
+mod history;
 mod prompt;
 mod resource;
 mod settings;

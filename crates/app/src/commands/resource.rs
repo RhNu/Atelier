@@ -1,5 +1,6 @@
 use nai_atelier_app_api::resource::{
-    ImportImageResourceRequestDto, ImportImageResourceResponseDto,
+    GetResourceImageRequestDto, ImportImageResourceRequestDto, ImportImageResourceResponseDto,
+    ResourceImageDto,
 };
 
 use crate::commands::{AppCommandHost, CommandResult};
@@ -19,5 +20,16 @@ where
         request: ImportImageResourceRequestDto,
     ) -> CommandResult<ImportImageResourceResponseDto> {
         Self::command_result(self.current_app()?.resources().import_image(request).await)
+    }
+
+    /// Reads a catalog image resource or variant as base64 for UI display.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or the resource cannot be read.
+    pub async fn get_resource_image(
+        &self,
+        request: GetResourceImageRequestDto,
+    ) -> CommandResult<ResourceImageDto> {
+        Self::command_result(self.current_app()?.resources().get_image(request).await)
     }
 }

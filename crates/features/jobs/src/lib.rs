@@ -7,9 +7,10 @@ mod queue;
 
 pub use error::{JobQueueError, JobQueueErrorKind, JobResult};
 pub use model::{
-    BatchId, BatchStatus, JobBatch, JobEvent, JobEventKind, JobFailureImpact, JobId, JobKind,
-    JobPayloadRef, JobRecord, JobStatus, QueueCommand, QueueDelay, QueueDirective, RetryPolicy,
-    SubmitJob,
+    ActiveJobBatchSnapshot, BatchId, BatchStatus, JobBatch, JobEvent, JobEventKind,
+    JobFailureImpact, JobId, JobKind, JobPayloadRef, JobQueueSnapshot, JobRecord, JobStatus,
+    QueueCommand, QueueDelay, QueueDirective, RetryPolicy, RunHistoryKind, RunHistoryQuery,
+    RunHistoryRecord, RunHistoryStatus, RunOutputRecord, SubmitJob,
 };
-pub use ports::{JobEventSink, JobRepository};
+pub use ports::{JobEventSink, JobQueueRepository, JobRepository, RunHistoryRepository};
 pub use queue::JobQueue;

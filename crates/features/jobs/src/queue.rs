@@ -1,6 +1,7 @@
 use crate::{
-    BatchId, BatchStatus, JobBatch, JobFailureImpact, JobId, JobPayloadRef, JobQueueError,
-    JobRecord, JobResult, JobStatus, QueueDelay, QueueDirective, RetryPolicy, SubmitJob,
+    ActiveJobBatchSnapshot, BatchId, BatchStatus, JobBatch, JobFailureImpact, JobId, JobPayloadRef,
+    JobQueueError, JobQueueSnapshot, JobRecord, JobResult, JobStatus, QueueDelay, QueueDirective,
+    RetryPolicy, SubmitJob,
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -31,6 +32,67 @@ impl JobQueue {
     #[must_use]
     pub const fn retry_policy(&self) -> RetryPolicy {
         self.retry_policy
+    }
+
+    #[must_use]
+    pub fn snapshot(&self) -> JobQueueSnapshot {
+        JobQueueSnapshot {
+            active_batch: self.active_batch.as_ref().map(ActiveBatch::snapshot),
+            retry_policy: self.retry_policy,
+        }
+    }
+
+    /// Restores a queue from a persisted snapshot.
+    ///
+    /// # Errors
+    /// Returns an error when the snapshot represents an impossible queue state.
+    pub fn from_snapshot(snapshot: JobQueueSnapshot) -> JobResult<Self> {
+        let active_batch = snapshot.active_batch.map(ActiveBatch::from_snapshot);
+        let queue = Self {
+            active_batch,
+            retry_policy: snapshot.retry_policy,
+        };
+        queue.validate_snapshot()?;
+        Ok(queue)
+    }
+
+    /// Converts in-flight work after process restart into an explicit paused,
+    /// user-resumable state.
+    ///
+    /// # Errors
+    /// Returns an error when the restored queue is internally inconsistent.
+    pub fn recover_after_restart(&mut self) -> JobResult<QueueDirective> {
+        let Some(batch) = self.active_batch.as_mut() else {
+            return Ok(QueueDirective::Idle);
+        };
+        if batch.batch.status.is_terminal() {
+            return Ok(QueueDirective::Idle);
+        }
+
+        match batch.batch.status {
+            BatchStatus::Waiting => {
+                batch.paused_delay = batch.pending_delay.take();
+                batch.batch.status = BatchStatus::Paused;
+            }
+            BatchStatus::Running | BatchStatus::Stopping => {
+                if let Some(job_id) = batch.current_job.clone() {
+                    let job = find_job_mut(batch, &job_id)?;
+                    if matches!(job.status, JobStatus::Preparing | JobStatus::Running) {
+                        job.status = JobStatus::Blocked;
+                    }
+                }
+                if batch.paused_delay.is_none() {
+                    batch.paused_delay = batch.pending_delay.take();
+                } else {
+                    batch.pending_delay = None;
+                }
+                batch.batch.status = BatchStatus::Paused;
+            }
+            BatchStatus::Paused | BatchStatus::Succeeded | BatchStatus::Stopped => {}
+        }
+        batch.pause_after_current = false;
+        batch.stop_after_current = false;
+        Ok(QueueDirective::Paused)
     }
 
     /// Submits a batch into the single queue and schedules its first job.
@@ -370,6 +432,21 @@ impl JobQueue {
             .and_then(|batch| batch.batch.jobs.iter().find(|job| &job.job_id == job_id))
     }
 
+    fn validate_snapshot(&self) -> JobResult<()> {
+        let Some(batch) = &self.active_batch else {
+            return Ok(());
+        };
+        if has_duplicate_job_records(&batch.batch.jobs) {
+            return Err(JobQueueError::conflict(
+                "restored queue cannot contain duplicate job ids",
+            ));
+        }
+        if let Some(current_job) = &batch.current_job {
+            find_job(batch, current_job)?;
+        }
+        Ok(())
+    }
+
     fn mark_rate_limited(
         &mut self,
         job_id: &JobId,
@@ -485,7 +562,36 @@ impl JobQueue {
     }
 }
 
+impl ActiveBatch {
+    fn snapshot(&self) -> ActiveJobBatchSnapshot {
+        ActiveJobBatchSnapshot {
+            batch: self.batch.clone(),
+            current_job: self.current_job.clone(),
+            pending_delay: self.pending_delay,
+            paused_delay: self.paused_delay,
+            pause_after_current: self.pause_after_current,
+            stop_after_current: self.stop_after_current,
+        }
+    }
+
+    fn from_snapshot(snapshot: ActiveJobBatchSnapshot) -> Self {
+        Self {
+            batch: snapshot.batch,
+            current_job: snapshot.current_job,
+            pending_delay: snapshot.pending_delay,
+            paused_delay: snapshot.paused_delay,
+            pause_after_current: snapshot.pause_after_current,
+            stop_after_current: snapshot.stop_after_current,
+        }
+    }
+}
+
 fn has_duplicate_job_ids(jobs: &[SubmitJob]) -> bool {
+    let mut seen = std::collections::BTreeSet::new();
+    jobs.iter().any(|job| !seen.insert(job.job_id.clone()))
+}
+
+fn has_duplicate_job_records(jobs: &[JobRecord]) -> bool {
     let mut seen = std::collections::BTreeSet::new();
     jobs.iter().any(|job| !seen.insert(job.job_id.clone()))
 }
