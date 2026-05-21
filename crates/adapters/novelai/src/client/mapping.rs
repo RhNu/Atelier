@@ -1,0 +1,258 @@
+use super::{
+    Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
+    DirectorTool, EncodeVibeRequest, GenerateImageRequest, GenerateImageStreamRequest,
+    GeneratedImage, ImageFormat, ImageModel, ImageSize, ImageStreamEvent, Img2ImgRequest,
+    NoiseSchedule, NovelAiBridgeError, RunDirectorToolRequest, Sampler, SecretsError, StreamMode,
+    SubscriptionSummary, UcPreset, VibeModel, bridge,
+};
+
+pub(super) fn map_secrets_error(error: &SecretsError) -> NovelAiBridgeError {
+    NovelAiBridgeError::credential(error.to_string())
+}
+
+pub(super) fn to_bridge_generate_request(
+    request: GenerateImageRequest,
+) -> bridge::GenerateImageRequest {
+    bridge::GenerateImageRequest {
+        prompt: request.prompt,
+        model: to_bridge_model(request.model),
+        size: to_bridge_size(request.size),
+        negative_prompt: request.negative_prompt,
+        quality: request.quality,
+        uc_preset: to_bridge_uc_preset(request.uc_preset),
+        steps: request.steps,
+        scale: request.scale,
+        sampler: to_bridge_sampler(request.sampler),
+        noise_schedule: to_bridge_noise_schedule(request.noise_schedule),
+        seed: request.seed,
+        n_samples: request.n_samples,
+        cfg_rescale: request.cfg_rescale,
+        variety_boost: request.variety_boost,
+        i2i: request.i2i.map(to_bridge_i2i),
+        controlnet: request.controlnet.map(to_bridge_controlnet),
+        character_references: request.character_references.map(|items| {
+            items
+                .into_iter()
+                .map(to_bridge_character_reference)
+                .collect()
+        }),
+        characters: request
+            .characters
+            .map(|items| items.into_iter().map(to_bridge_character).collect()),
+        use_coords: request.use_coords,
+        image_format: request.image_format.map(to_bridge_image_format),
+        strict_mode: request.strict_mode,
+    }
+}
+
+pub(super) fn to_bridge_stream_request(
+    request: GenerateImageStreamRequest,
+) -> bridge::GenerateImageStreamRequest {
+    bridge::GenerateImageStreamRequest {
+        base: to_bridge_generate_request(request.base),
+        stream: to_bridge_stream_mode(request.stream),
+    }
+}
+
+pub(super) fn to_bridge_encode_vibe_request(
+    request: EncodeVibeRequest,
+) -> bridge::EncodeVibeRequest {
+    bridge::EncodeVibeRequest {
+        image: request.image,
+        information_extracted: request.information_extracted,
+        model: to_bridge_vibe_model(request.model),
+        strict_mode: request.strict_mode,
+    }
+}
+
+pub(super) fn to_bridge_director_request(
+    request: RunDirectorToolRequest,
+) -> bridge::RunDirectorToolRequest {
+    bridge::RunDirectorToolRequest {
+        tool: to_bridge_director_tool(request.tool),
+        image: request.image,
+        prompt: request.prompt,
+        defry: request.defry,
+        strict_mode: request.strict_mode,
+    }
+}
+
+pub(super) fn from_bridge_generated_image(image: bridge::GeneratedImage) -> GeneratedImage {
+    GeneratedImage {
+        bytes: image.bytes,
+        mime_type: image.mime_type,
+        seed: image.seed,
+    }
+}
+
+pub(super) fn from_bridge_stream_chunk(chunk: bridge::ImageStreamChunk) -> ImageStreamEvent {
+    ImageStreamEvent {
+        event_type: chunk.event_type,
+        sample_index: chunk.samp_ix,
+        step_index: chunk.step_ix,
+        generation_id: chunk.gen_id,
+        sigma: chunk.sigma,
+        image: chunk.image,
+    }
+}
+
+pub(super) fn from_bridge_subscription(
+    subscription: bridge::SubscriptionInfo,
+) -> SubscriptionSummary {
+    SubscriptionSummary {
+        anlas_balance: subscription.anlas_balance,
+        is_opus: subscription.is_opus,
+        tier: subscription.tier,
+        tier_name: subscription.tier_name,
+        expires_at_ms: subscription.expires_at_ms,
+    }
+}
+
+pub(super) const fn to_bridge_model(model: ImageModel) -> bridge::Model {
+    match model {
+        ImageModel::NaiDiffusion45Full => bridge::Model::NaiDiffusion45Full,
+        ImageModel::NaiDiffusion45Curated => bridge::Model::NaiDiffusion45Curated,
+        ImageModel::NaiDiffusion4Full => bridge::Model::NaiDiffusion4Full,
+        ImageModel::NaiDiffusion4Curated => bridge::Model::NaiDiffusion4Curated,
+        ImageModel::NaiDiffusion3 => bridge::Model::NaiDiffusion3,
+        ImageModel::NaiDiffusion3Furry => bridge::Model::NaiDiffusion3Furry,
+    }
+}
+
+pub(super) const fn to_bridge_vibe_model(model: VibeModel) -> bridge::Model {
+    match model {
+        VibeModel::NaiDiffusion45Full => bridge::Model::NaiDiffusion45Full,
+        VibeModel::NaiDiffusion45Curated => bridge::Model::NaiDiffusion45Curated,
+        VibeModel::NaiDiffusion4Full => bridge::Model::NaiDiffusion4Full,
+        VibeModel::NaiDiffusion4Curated => bridge::Model::NaiDiffusion4Curated,
+        VibeModel::NaiDiffusion3 => bridge::Model::NaiDiffusion3,
+        VibeModel::NaiDiffusion3Furry => bridge::Model::NaiDiffusion3Furry,
+    }
+}
+
+pub(super) const fn to_bridge_size(size: ImageSize) -> bridge::ImageSize {
+    bridge::ImageSize {
+        width: size.width,
+        height: size.height,
+    }
+}
+
+pub(super) const fn to_bridge_sampler(sampler: Sampler) -> bridge::Sampler {
+    match sampler {
+        Sampler::KEuler => bridge::Sampler::KEuler,
+        Sampler::KEulerAncestral => bridge::Sampler::KEulerAncestral,
+        Sampler::KDpm2 => bridge::Sampler::KDpm2,
+        Sampler::KDpm2Ancestral => bridge::Sampler::KDpm2Ancestral,
+        Sampler::KDpmpp2m => bridge::Sampler::KDpmpp2m,
+        Sampler::KDpmpp2sAncestral => bridge::Sampler::KDpmpp2sAncestral,
+        Sampler::KDpmppSde => bridge::Sampler::KDpmppSde,
+        Sampler::Ddim => bridge::Sampler::Ddim,
+    }
+}
+
+pub(super) const fn to_bridge_noise_schedule(schedule: NoiseSchedule) -> bridge::NoiseSchedule {
+    match schedule {
+        NoiseSchedule::Karras => bridge::NoiseSchedule::Karras,
+        NoiseSchedule::Exponential => bridge::NoiseSchedule::Exponential,
+        NoiseSchedule::Polyexponential => bridge::NoiseSchedule::Polyexponential,
+    }
+}
+
+pub(super) const fn to_bridge_uc_preset(preset: UcPreset) -> bridge::UcPreset {
+    match preset {
+        UcPreset::Heavy => bridge::UcPreset::Heavy,
+        UcPreset::Light => bridge::UcPreset::Light,
+        UcPreset::FurryFocus => bridge::UcPreset::FurryFocus,
+        UcPreset::HumanFocus => bridge::UcPreset::HumanFocus,
+        UcPreset::None => bridge::UcPreset::None,
+    }
+}
+
+pub(super) const fn to_bridge_image_format(format: ImageFormat) -> bridge::ImageFormat {
+    match format {
+        ImageFormat::Png => bridge::ImageFormat::Png,
+        ImageFormat::Webp => bridge::ImageFormat::Webp,
+    }
+}
+
+pub(super) const fn to_bridge_stream_mode(mode: StreamMode) -> bridge::StreamMode {
+    match mode {
+        StreamMode::Sse => bridge::StreamMode::Sse,
+    }
+}
+
+pub(super) fn to_bridge_i2i(request: Img2ImgRequest) -> bridge::Img2ImgRequest {
+    bridge::Img2ImgRequest {
+        image: request.image,
+        strength: request.strength,
+        noise: request.noise,
+        mask: request.mask,
+    }
+}
+
+pub(super) fn to_bridge_controlnet(config: ControlNetConfig) -> bridge::ControlNetConfig {
+    bridge::ControlNetConfig {
+        images: config
+            .images
+            .into_iter()
+            .map(|input| bridge::ControlNetInput {
+                vibe_data_cache: input.vibe_data_cache,
+                info_extracted: input.info_extracted,
+                strength: input.strength,
+            })
+            .collect(),
+        strength: config.strength,
+    }
+}
+
+pub(super) const fn to_bridge_character_position(
+    position: CharacterPosition,
+) -> bridge::CharacterPosition {
+    bridge::CharacterPosition {
+        x: position.x,
+        y: position.y,
+    }
+}
+
+pub(super) fn to_bridge_character(character: Character) -> bridge::Character {
+    bridge::Character {
+        prompt: character.prompt,
+        negative_prompt: character.negative_prompt,
+        position: to_bridge_character_position(character.position),
+        enabled: character.enabled,
+    }
+}
+
+pub(super) const fn to_bridge_character_reference_type(
+    reference_type: CharacterReferenceType,
+) -> bridge::CharacterReferenceType {
+    match reference_type {
+        CharacterReferenceType::Character => bridge::CharacterReferenceType::Character,
+        CharacterReferenceType::Style => bridge::CharacterReferenceType::Style,
+        CharacterReferenceType::CharacterAndStyle => {
+            bridge::CharacterReferenceType::CharacterAndStyle
+        }
+    }
+}
+
+pub(super) fn to_bridge_character_reference(
+    reference: CharacterReference,
+) -> bridge::CharacterReference {
+    bridge::CharacterReference {
+        image: reference.image,
+        reference_type: to_bridge_character_reference_type(reference.reference_type),
+        fidelity: reference.fidelity,
+        strength: reference.strength,
+    }
+}
+
+pub(super) const fn to_bridge_director_tool(tool: DirectorTool) -> bridge::DirectorTool {
+    match tool {
+        DirectorTool::Lineart => bridge::DirectorTool::Lineart,
+        DirectorTool::Sketch => bridge::DirectorTool::Sketch,
+        DirectorTool::BgRemoval => bridge::DirectorTool::BgRemoval,
+        DirectorTool::Emotion => bridge::DirectorTool::Emotion,
+        DirectorTool::Declutter => bridge::DirectorTool::Declutter,
+        DirectorTool::Colorize => bridge::DirectorTool::Colorize,
+    }
+}
