@@ -1,6 +1,6 @@
 use nai_atelier_app_api::account::{
     ApiKeyRecordDto, CreateApiKeyRequestDto, DeleteApiKeyRequestDto, DeleteApiKeyResponseDto,
-    ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto,
+    ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto, UpdateApiKeyRequestDto,
 };
 use nai_atelier_app_api::director::{
     DirectorToolDto, DirectorToolResultDto, RunDirectorToolRequestDto,

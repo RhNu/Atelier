@@ -29,7 +29,7 @@ For task-specific context, read only the relevant decision records:
 - Feature crates own domain models, rules, ports, and tests.
 - `kernel` owns runtime state and cross-feature orchestration, but not real I/O.
 - Adapters own filesystem, database, keyring, `novelai-bridge`, and other external integrations.
-- The Tauri shell is a desktop host adapter, not the application layer.
+- The Tauri shell is a desktop host adapter, not the application layer; it owns platform desktop host glue and keeps file picker reads/writes out of the frontend.
 - Long-lived binary or semi-structured resources go through `resource-catalog`.
 - Reference projects are read-only inputs. Do not copy implementation without license and source records.
 
@@ -62,7 +62,6 @@ Implemented or partially implemented:
 - `crates/adapters/keyring`
 - `crates/adapters/novelai`
 - `crates/adapters/safety-onnx`
-- `crates/adapters/desktop-system`
 
 ## Non-Goals
 

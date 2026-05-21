@@ -3903,16 +3903,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nai-atelier-adapter-desktop-system"
-version = "0.1.0"
-dependencies = [
- "nai-atelier-adapter-safety-onnx",
- "serde",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "nai-atelier-adapter-image-codec"
 version = "0.1.0"
 dependencies = [
@@ -4042,8 +4032,8 @@ dependencies = [
 name = "nai-atelier-desktop"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "log",
- "nai-atelier-adapter-desktop-system",
  "nai-atelier-adapter-keyring",
  "nai-atelier-adapter-novelai",
  "nai-atelier-adapter-safety-onnx",
@@ -4057,6 +4047,8 @@ dependencies = [
  "tauri-plugin-log",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
+ "tempfile",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

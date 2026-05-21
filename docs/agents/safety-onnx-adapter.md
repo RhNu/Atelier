@@ -9,7 +9,7 @@
 
 `crates/adapters/safety-onnx` provides an optional `SafetyScanner` implementation for OpenNSFW-style ONNX models. The adapter is host-neutral: callers pass the model path and ONNX Runtime library path explicitly. The app layer accepts the scanner as an injected dependency.
 
-`crates/adapters/desktop-system` now owns desktop path resolution for host-provided or bundled safety assets. The Tauri host resolves those assets on startup, builds the optional scanner, and injects it into the host-neutral `app` facade.
+`apps/desktop/src-tauri` owns desktop path resolution for host-provided or bundled safety assets. The Tauri host resolves those assets on startup, builds the optional scanner, and injects it into the host-neutral `app` facade.
 
 ## Boundaries
 

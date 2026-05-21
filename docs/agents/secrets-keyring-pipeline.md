@@ -7,7 +7,9 @@
 
 ## 决策
 
-`features/secrets` 拥有 API key registry、active key、secret metadata 与显式 subscription probe 规则。真实 secret value 不进入 SQLite、Tauri command 或前端 DTO；当前只通过 `SecretStore` port 写入系统凭据后端。
+`features/secrets` 拥有 API key registry、active key、secret metadata 与显式 subscription probe 规则。真实 secret value 不进入 SQLite、response DTO、event DTO、error details、run history、日志或调试输出；当前只通过 `SecretStore` port 写入系统凭据后端。
+
+`CreateApiKeyRequestDto.secret` 与 `UpdateApiKeyRequestDto.secret` 是唯一允许真实 secret 穿过前端到 Tauri command 边界的位置。它们是 write-only request payload：command 只能把 secret 传给 host-neutral `app` facade 完成创建或更新，不得把 secret 放入响应、事件、持久化记录或调试输出。
 
 `adapters/keyring` 是当前真实 `SecretStore` adapter，service name 固定为 `nai-atelier`，account 使用 `SecretRecordId`。默认测试不触碰 OS keyring；真实 keyring smoke test 保持 `#[ignore]`。
 

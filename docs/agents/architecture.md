@@ -35,7 +35,7 @@ Hard boundaries:
 - `kernel` owns runtime state, events, queue orchestration, and cross-feature workflows.
 - `kernel` does not call `novelai-bridge` directly and does not own persistence schema.
 - Adapters implement ports and own concrete I/O.
-- Tauri is a host adapter, not the application layer.
+- Tauri is a host adapter, not the application layer. It owns native dialogs, user-selected local file reads/writes, open/reveal guards, notifications, and desktop bundled resource path resolution.
 
 ## Current Workspace Layout
 
@@ -64,7 +64,6 @@ crates/
 
   adapters/
     database/
-    desktop-system/
     image-codec/
     keyring/
     novelai/
@@ -114,7 +113,8 @@ Adapters are the boundary for real I/O:
 - `keyring`: system credential storage for secret values.
 - `novelai`: `novelai-bridge` integration and resolver-backed NovelAI clients.
 - `safety-onnx`: optional OpenNSFW-style ONNX safety scanner built from host-provided model/runtime paths.
-- `desktop-system`: desktop host glue for path picking, open/reveal guards, notifications, and bundled resource path resolution.
+
+Desktop host glue lives inside `apps/desktop/src-tauri`, not a reusable adapter crate. The frontend should invoke Tauri commands that perform picker, read, write, and host actions together; it should not directly read arbitrary user files through frontend filesystem capabilities.
 
 External library types should not leak upward into feature crates, `kernel`, or `app-api`.
 

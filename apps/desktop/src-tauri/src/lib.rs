@@ -1,5 +1,6 @@
 mod commands;
 mod desktop;
+mod desktop_system;
 
 use tauri::Manager;
 
@@ -18,8 +19,10 @@ pub fn run() {
             commands::desktop_paths,
             commands::pick_workspace_directory,
             commands::pick_export_directory,
-            commands::pick_image_files,
-            commands::pick_vibe_documents,
+            commands::pick_and_import_image_resources,
+            commands::pick_and_import_vibe_documents,
+            commands::pick_and_import_embedded_png_vibe_documents,
+            commands::save_vibe_document,
             commands::open_path,
             commands::reveal_path,
             commands::open_workspace,
@@ -40,7 +43,6 @@ pub fn run() {
             commands::prompt_lexicon_catalog,
             commands::prompt_lexicon_list,
             commands::prompt_lexicon_search,
-            commands::import_image_resource,
             commands::get_resource_image,
             commands::get_workspace_settings,
             commands::update_workspace_settings,
@@ -55,9 +57,6 @@ pub fn run() {
             commands::query_run_history,
             commands::rerun_generation_history_item,
             commands::run_director_tool,
-            commands::import_vibe_document,
-            commands::import_embedded_png_vibe_document,
-            commands::export_vibe_document,
             commands::ensure_vibe_encoding,
             commands::query_gallery,
             commands::set_gallery_safety_override,

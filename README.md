@@ -39,8 +39,8 @@ Before completing pnpm frontend work, confirm `pnpm fmt:check`, `pnpm lint`, and
 - `crates/foundation/`: shared primitives that are stable across features.
 - `crates/features/`: feature-owned domain models, rules, ports, and tests.
 - `crates/kernel/`: runtime state and cross-feature workflow orchestration.
-- `crates/adapters/`: concrete I/O implementations for storage, database, image codecs, keyring, NovelAI, optional safety scanning, and desktop host glue.
+- `crates/adapters/`: concrete I/O implementations for storage, database, image codecs, keyring, NovelAI, and optional safety scanning.
 - `docs/agents/`: project intent, architecture overview, and decision records.
 - `xtask/`: local maintenance checks such as line-budget enforcement.
 
-Tauri should stay thin. Domain behavior belongs in feature crates, `kernel`, host-neutral application code, or adapters according to the architecture notes.
+Tauri should stay thin, but it owns platform desktop host glue such as native dialogs, selected local file reads/writes, open/reveal guards, notifications, and bundled resource path resolution. Domain behavior belongs in feature crates, `kernel`, host-neutral application code, or adapters according to the architecture notes.

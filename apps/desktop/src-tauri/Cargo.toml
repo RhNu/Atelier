@@ -17,8 +17,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.5.6", features = [] }
 
 [dependencies]
+base64 = { workspace = true }
 log = "0.4"
-nai-atelier-adapter-desktop-system = { workspace = true }
 nai-atelier-adapter-keyring = { workspace = true }
 nai-atelier-adapter-novelai = { workspace = true }
 nai-atelier-adapter-safety-onnx = { workspace = true }
@@ -31,3 +31,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -8,7 +8,6 @@ members = [
     "crates/adapters/image-codec",
     "crates/adapters/database",
     "crates/adapters/storage-fs",
-    "crates/adapters/desktop-system",
     "crates/adapters/safety-onnx",
     "crates/foundation",
     "crates/kernel",
@@ -50,7 +49,6 @@ keyring = "4.0.1"
 keyring-core = "1.0.0"
 logos = "0.16"
 nai-atelier-adapter-database = { path = "crates/adapters/database" }
-nai-atelier-adapter-desktop-system = { path = "crates/adapters/desktop-system" }
 nai-atelier-adapter-image-codec = { path = "crates/adapters/image-codec" }
 nai-atelier-adapter-keyring = { path = "crates/adapters/keyring" }
 nai-atelier-adapter-novelai = { path = "crates/adapters/novelai" }

@@ -47,13 +47,51 @@ fn api_key_responses_and_debug_never_expose_secret_values() {
         display_name: "Main".to_owned(),
         secret: "nai-secret-token".to_owned(),
     };
+    let update = UpdateApiKeyRequestDto {
+        id: "main".to_owned(),
+        display_name: Some("Renamed".to_owned()),
+        secret: Some("nai-secret-token".to_owned()),
+    };
 
     let response_text = serde_json::to_string(&record).unwrap();
     let debug_text = format!("{request:?}");
+    let update_debug_text = format!("{update:?}");
 
     assert!(!response_text.contains("secret"));
+    assert!(!response_text.contains("nai-secret-token"));
     assert!(!debug_text.contains("nai-secret-token"));
+    assert!(!update_debug_text.contains("nai-secret-token"));
     assert!(debug_text.contains("<redacted>"));
+    assert!(update_debug_text.contains("<redacted>"));
+}
+
+#[test]
+fn api_key_create_update_requests_accept_secret_only_as_input_payload() {
+    assert_eq!(
+        serde_json::to_value(CreateApiKeyRequestDto {
+            id: "main".to_owned(),
+            display_name: "Main".to_owned(),
+            secret: "nai-secret-token".to_owned(),
+        })
+        .unwrap(),
+        json!({
+            "id": "main",
+            "display_name": "Main",
+            "secret": "nai-secret-token"
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(UpdateApiKeyRequestDto {
+            id: "main".to_owned(),
+            display_name: None,
+            secret: Some("nai-secret-token".to_owned()),
+        })
+        .unwrap(),
+        json!({
+            "id": "main",
+            "secret": "nai-secret-token"
+        })
+    );
 }
 
 #[test]

@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use nai_atelier_adapter_desktop_system::{
+use super::{
     DesktopFileDialog, DesktopNotifier, DesktopPathOpener, DesktopPaths, DesktopSystem,
-    PickFilesOptions,
+    DesktopSystemResult, PickFilesOptions,
 };
 
 #[test]
@@ -125,6 +125,54 @@ fn dialog_picks_are_recorded_as_user_allowed_paths() {
 }
 
 #[test]
+fn dialog_cancel_returns_empty_selection_without_allowlist_changes() {
+    let temp = tempfile::tempdir().unwrap();
+    let outside = touch(temp.path().join("outside.png"));
+    let dialog = RecordingDialog {
+        directory: None,
+        files: Vec::new(),
+    };
+    let system = DesktopSystem::new(paths_with_app_data(temp.path().join("app-data")));
+    let opener = RecordingOpener::default();
+
+    assert_eq!(system.pick_workspace_directory(&dialog).unwrap(), None);
+    assert_eq!(
+        system
+            .pick_image_files(&dialog, PickFilesOptions::default())
+            .unwrap(),
+        Vec::<PathBuf>::new()
+    );
+    assert!(system.open_path(&outside, &opener).is_err());
+}
+
+#[test]
+fn default_picker_filters_match_import_kind() {
+    let temp = tempfile::tempdir().unwrap();
+    let selected = touch(temp.path().join("selected.png"));
+    let dialog = RecordingOptionsDialog::new(vec![selected]);
+    let system = DesktopSystem::new(paths_with_app_data(temp.path().join("app-data")));
+
+    system
+        .pick_image_files(&dialog, PickFilesOptions::default())
+        .unwrap();
+    system
+        .pick_vibe_documents(&dialog, PickFilesOptions::default())
+        .unwrap();
+    system
+        .pick_png_files(&dialog, PickFilesOptions::default())
+        .unwrap();
+
+    assert_eq!(
+        dialog.options(),
+        vec![
+            vec!["png", "jpg", "jpeg", "webp"],
+            vec!["naiv4vibe", "naiv4vibebundle", "json"],
+            vec!["png"],
+        ]
+    );
+}
+
+#[test]
 fn opened_workspace_root_can_be_recorded_without_picker() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = touch_dir(temp.path().join("external-workspace"));
@@ -209,10 +257,7 @@ impl RecordingOpener {
 }
 
 impl DesktopPathOpener for RecordingOpener {
-    fn open_path(
-        &self,
-        path: &Path,
-    ) -> nai_atelier_adapter_desktop_system::DesktopSystemResult<()> {
+    fn open_path(&self, path: &Path) -> DesktopSystemResult<()> {
         self.calls
             .lock()
             .unwrap()
@@ -220,10 +265,7 @@ impl DesktopPathOpener for RecordingOpener {
         Ok(())
     }
 
-    fn reveal_path(
-        &self,
-        path: &Path,
-    ) -> nai_atelier_adapter_desktop_system::DesktopSystemResult<()> {
+    fn reveal_path(&self, path: &Path) -> DesktopSystemResult<()> {
         self.calls
             .lock()
             .unwrap()
@@ -238,16 +280,40 @@ struct RecordingDialog {
 }
 
 impl DesktopFileDialog for RecordingDialog {
-    fn pick_directory(
-        &self,
-    ) -> nai_atelier_adapter_desktop_system::DesktopSystemResult<Option<PathBuf>> {
+    fn pick_directory(&self) -> DesktopSystemResult<Option<PathBuf>> {
         Ok(self.directory.clone())
     }
 
-    fn pick_files(
-        &self,
-        _options: PickFilesOptions,
-    ) -> nai_atelier_adapter_desktop_system::DesktopSystemResult<Vec<PathBuf>> {
+    fn pick_files(&self, _options: PickFilesOptions) -> DesktopSystemResult<Vec<PathBuf>> {
+        Ok(self.files.clone())
+    }
+}
+
+struct RecordingOptionsDialog {
+    files: Vec<PathBuf>,
+    options: Arc<Mutex<Vec<Vec<String>>>>,
+}
+
+impl RecordingOptionsDialog {
+    fn new(files: Vec<PathBuf>) -> Self {
+        Self {
+            files,
+            options: Arc::default(),
+        }
+    }
+
+    fn options(&self) -> Vec<Vec<String>> {
+        self.options.lock().unwrap().clone()
+    }
+}
+
+impl DesktopFileDialog for RecordingOptionsDialog {
+    fn pick_directory(&self) -> DesktopSystemResult<Option<PathBuf>> {
+        Ok(None)
+    }
+
+    fn pick_files(&self, options: PickFilesOptions) -> DesktopSystemResult<Vec<PathBuf>> {
+        self.options.lock().unwrap().push(options.extensions);
         Ok(self.files.clone())
     }
 }
@@ -264,11 +330,7 @@ impl RecordingNotifier {
 }
 
 impl DesktopNotifier for RecordingNotifier {
-    fn notify(
-        &self,
-        title: &str,
-        body: &str,
-    ) -> nai_atelier_adapter_desktop_system::DesktopSystemResult<()> {
+    fn notify(&self, title: &str, body: &str) -> DesktopSystemResult<()> {
         self.calls.lock().unwrap().push(format!("{title}|{body}"));
         Ok(())
     }

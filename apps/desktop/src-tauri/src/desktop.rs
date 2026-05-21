@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use nai_atelier_adapter_desktop_system::{
+use crate::desktop_system::{
     DesktopFileDialog, DesktopNotifier, DesktopPathOpener, DesktopPaths, DesktopSystem,
     DesktopSystemError, DesktopSystemResult, PickFilesOptions,
 };
@@ -311,6 +311,25 @@ impl TauriDialog {
     #[must_use]
     pub const fn new(app_handle: AppHandle) -> Self {
         Self { app_handle }
+    }
+
+    pub fn save_file(
+        &self,
+        default_file_name: Option<&str>,
+        extension: Option<&str>,
+    ) -> DesktopSystemResult<Option<PathBuf>> {
+        let mut builder = self.app_handle.dialog().file();
+        if let Some(default_file_name) = default_file_name {
+            builder = builder.set_file_name(default_file_name);
+        }
+        if let Some(extension) = extension {
+            builder = builder.add_filter("Files", &[extension]);
+        }
+
+        builder
+            .blocking_save_file()
+            .map(file_path_to_path)
+            .transpose()
     }
 }
 
