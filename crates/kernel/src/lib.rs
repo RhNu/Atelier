@@ -1,4 +1,4 @@
-//! Runtime orchestration kernel for NAI Atelier.
+//! Runtime orchestration kernel for Atelier.
 
 mod error;
 mod event;

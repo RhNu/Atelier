@@ -1,10 +1,8 @@
 #![allow(clippy::missing_const_for_fn)]
 
 use async_trait::async_trait;
-use nai_atelier_generation::{
-    ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset,
-};
-use nai_atelier_settings::{
+use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
+use atelier_settings::{
     GenerationDefaults, ImageVariantSettings, SettingsError, SettingsRepository, SettingsResult,
     WorkspaceSettings,
 };

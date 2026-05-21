@@ -1,4 +1,4 @@
-use nai_atelier_prompt::{
+use atelier_prompt::{
     FormatterOptions, FunctionArg, FunctionDescriptor, FunctionRegistry, FunctionValue,
     PromptDiagnosticKind, PromptSyntaxProfile, format_prompt, parse_prompt,
 };

@@ -2,18 +2,18 @@ mod support;
 
 use std::time::Duration;
 
-use base64::Engine;
-use futures_executor::block_on;
-use nai_atelier_generation::{
+use atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationClientError,
     GenerationPlanContext, ImageModel, ImageStreamEvent,
 };
-use nai_atelier_jobs::{BatchId, JobId, JobStatus, QueueDelay, QueueDirective, RetryPolicy};
-use nai_atelier_kernel::{
+use atelier_jobs::{BatchId, JobId, JobStatus, QueueDelay, QueueDirective, RetryPolicy};
+use atelier_kernel::{
     GenerationWorkRequest, KernelError, KernelEventKind, KernelFailureDetail, KernelRuntime,
     SubmitGenerationWork,
 };
-use nai_atelier_resource_catalog::ResourceKind;
+use atelier_resource_catalog::ResourceKind;
+use base64::Engine;
+use futures_executor::block_on;
 
 use support::MemoryKernelPorts;
 

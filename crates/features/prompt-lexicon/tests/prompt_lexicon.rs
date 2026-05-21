@@ -1,4 +1,4 @@
-use nai_atelier_prompt_lexicon::{
+use atelier_prompt_lexicon::{
     PromptLexicon, PromptLexiconError, PromptLexiconListQuery, PromptLexiconMatchField,
     PromptLexiconMatchRank,
 };
@@ -186,7 +186,7 @@ fn rejects_unknown_schema_or_version() {
 fn rejects_out_of_range_payload_without_stats_without_panicking() {
     let error = PromptLexicon::from_json_str(
         r#"{
-            "schema": "nai-atelier-prompt-lexicon",
+            "schema": "atelier-prompt-lexicon",
             "version": 1,
             "sources": [],
             "categories": [
@@ -222,7 +222,7 @@ fn sample_lexicon() -> PromptLexicon {
 }
 
 const SAMPLE_LEXICON_JSON: &str = r#"{
-            "schema": "nai-atelier-prompt-lexicon",
+            "schema": "atelier-prompt-lexicon",
             "version": 1,
             "sources": [
                 {

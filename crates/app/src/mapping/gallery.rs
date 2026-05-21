@@ -75,7 +75,7 @@ fn safety_assessment_to_dto(
         nsfw_score: Some(value.score.value()),
         safe_score: value
             .safe_score
-            .map(nai_atelier_safety::ImageSafetyScore::value),
+            .map(atelier_safety::ImageSafetyScore::value),
         raw_scores: value
             .raw_scores
             .iter()
@@ -106,7 +106,7 @@ const fn safety_label_to_dto(value: SafetyLabel) -> GallerySafetyLabelDto {
     }
 }
 
-fn visual_asset_ref_to_dto(value: &nai_atelier_artifacts::VisualAssetRef) -> VisualAssetDto {
+fn visual_asset_ref_to_dto(value: &atelier_artifacts::VisualAssetRef) -> VisualAssetDto {
     VisualAssetDto {
         role: visual_asset_role_as_str(value.role).to_owned(),
         resource: resource_ref_to_dto(&value.resource),

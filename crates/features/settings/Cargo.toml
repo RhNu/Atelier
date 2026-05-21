@@ -1,12 +1,12 @@
 [package]
-name = "nai-atelier-settings"
+name = "atelier-settings"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-nai-atelier-generation = { workspace = true }
+atelier-generation = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

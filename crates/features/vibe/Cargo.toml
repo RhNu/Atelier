@@ -1,5 +1,5 @@
 [package]
-name = "nai-atelier-vibe"
+name = "atelier-vibe"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
@@ -7,7 +7,7 @@ publish.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 base64 = { workspace = true }
-nai-atelier-resource-catalog = { workspace = true }
+atelier-resource-catalog = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }

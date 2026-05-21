@@ -23,7 +23,7 @@ impl<S, F, E> GenerationUseCases<'_, S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
-    E: nai_atelier_vibe::EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
+    E: atelier_vibe::EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
 {
     pub async fn submit(
         &self,
@@ -294,7 +294,7 @@ where
     async fn persist_queue_snapshot(
         &self,
         directive: &QueueDirectiveDto,
-        snapshot: &nai_atelier_jobs::JobQueueSnapshot,
+        snapshot: &atelier_jobs::JobQueueSnapshot,
     ) -> AppResult<()> {
         sync_generation_history_from_queue_snapshot(&self.app.inner.run_history, snapshot).await?;
         if matches!(directive, QueueDirectiveDto::Idle) {

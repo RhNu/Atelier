@@ -1,8 +1,8 @@
 #![allow(clippy::significant_drop_tightening)]
 
 use async_trait::async_trait;
-use nai_atelier_jobs::JobPayloadRef;
-use nai_atelier_kernel::{
+use atelier_jobs::JobPayloadRef;
+use atelier_kernel::{
     GenerationPayloadStore, KernelError, KernelResult, PreparedGenerationPayload,
     SubmittedGenerationPayload,
 };

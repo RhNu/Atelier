@@ -1,14 +1,14 @@
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
-use nai_atelier_adapter_image_codec::ImageCodec;
-use nai_atelier_app_api::resource::{
+use atelier_adapter_image_codec::ImageCodec;
+use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageResourceKindDto, ImportImageResourceRequestDto,
     ImportImageResourceResponseDto, ResourceImageDto,
 };
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
     ResourceOwner, ResourceOwnerKind, ResourceRelation,
 };
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::AppResult;

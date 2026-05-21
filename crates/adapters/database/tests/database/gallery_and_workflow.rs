@@ -11,7 +11,7 @@ fn vibe_repository_round_trips_documents_and_cached_encodings() {
                 display_name: "Style A".to_owned(),
                 has_image: true,
                 available_model_keys: vec!["v4-5full".to_owned()],
-                available_encoding_configs: vec![nai_atelier_vibe::VibeEncodingConfig {
+                available_encoding_configs: vec![atelier_vibe::VibeEncodingConfig {
                     model: VibeModel::NaiDiffusion45Full,
                     settings: settings.clone(),
                 }],

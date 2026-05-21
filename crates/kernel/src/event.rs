@@ -1,8 +1,8 @@
-use nai_atelier_artifacts::ArtifactId;
-use nai_atelier_gallery::GalleryItemId;
-use nai_atelier_generation::{GenerationClientError, GenerationOutputMode, ImageStreamEvent};
-use nai_atelier_jobs::{BatchId, JobId};
-use nai_atelier_resource_catalog::ResourceRef;
+use atelier_artifacts::ArtifactId;
+use atelier_gallery::GalleryItemId;
+use atelier_generation::{GenerationClientError, GenerationOutputMode, ImageStreamEvent};
+use atelier_jobs::{BatchId, JobId};
+use atelier_resource_catalog::ResourceRef;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct KernelEvent {

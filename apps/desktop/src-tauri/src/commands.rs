@@ -11,8 +11,8 @@ use serde::Serialize;
 use crate::desktop_system::{
     DesktopPaths, DesktopSystemError, DesktopSystemResult, PickFilesOptions,
 };
-use nai_atelier_app::CommandResult;
-use nai_atelier_app_api::{
+use atelier_app::CommandResult;
+use atelier_app_api::{
     account::{
         ApiKeyRecordDto, CreateApiKeyRequestDto, DeleteApiKeyRequestDto, DeleteApiKeyResponseDto,
         ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto, SubscriptionSummaryDto,

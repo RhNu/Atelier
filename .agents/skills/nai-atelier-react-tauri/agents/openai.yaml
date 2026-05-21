@@ -1,4 +1,0 @@
-interface:
-  display_name: "NAI Atelier React Tauri"
-  short_description: "React guidance for NAI Atelier Tauri UI"
-  default_prompt: "Use $nai-atelier-react-tauri when building NAI Atelier's Tauri React frontend."

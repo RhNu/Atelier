@@ -1,4 +1,4 @@
-use nai_atelier_generation::{AnlasEstimateInput, estimate_anlas_cost};
+use atelier_generation::{AnlasEstimateInput, estimate_anlas_cost};
 
 #[test]
 fn applies_base_resolution_normalization_for_square_canvas() {

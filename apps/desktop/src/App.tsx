@@ -5,7 +5,7 @@ function App() {
     <main className="app-shell">
       <section className="workspace-panel" aria-labelledby="workspace-title">
         <p className="eyebrow">NovelAI desktop workspace</p>
-        <h1 id="workspace-title">NAI Atelier</h1>
+        <h1 id="workspace-title">Atelier</h1>
         <p className="summary">
           A thin Tauri shell with a React workbench front end. Feature modules will grow around
           prompt authoring, generation jobs, artifacts, and gallery workflows.

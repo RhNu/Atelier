@@ -457,6 +457,339 @@ dependencies = [
 ]
 
 [[package]]
+name = "atelier-adapter-database"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-artifacts",
+ "atelier-gallery",
+ "atelier-generation",
+ "atelier-jobs",
+ "atelier-kernel",
+ "atelier-prompt-resources",
+ "atelier-resource-catalog",
+ "atelier-safety",
+ "atelier-secrets",
+ "atelier-settings",
+ "atelier-vibe",
+ "futures-executor",
+ "futures-util",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-adapter-image-codec"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-resource-catalog",
+ "atelier-settings",
+ "futures-executor",
+ "image",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-adapter-keyring"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-secrets",
+ "futures-executor",
+ "keyring",
+ "keyring-core",
+]
+
+[[package]]
+name = "atelier-adapter-novelai"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-director",
+ "atelier-generation",
+ "atelier-secrets",
+ "atelier-vibe",
+ "base64 0.22.1",
+ "futures-core",
+ "futures-executor",
+ "futures-util",
+ "image",
+ "novelai-bridge",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-adapter-safety-onnx"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-resource-catalog",
+ "atelier-safety",
+ "futures-executor",
+ "image",
+ "ort",
+ "tempfile",
+]
+
+[[package]]
+name = "atelier-adapter-storage-fs"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-resource-catalog",
+ "atelier-workspace",
+ "base64 0.22.1",
+ "futures-executor",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-app"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-adapter-database",
+ "atelier-adapter-image-codec",
+ "atelier-adapter-keyring",
+ "atelier-adapter-novelai",
+ "atelier-adapter-storage-fs",
+ "atelier-app-api",
+ "atelier-artifacts",
+ "atelier-director",
+ "atelier-gallery",
+ "atelier-generation",
+ "atelier-jobs",
+ "atelier-kernel",
+ "atelier-precise-reference",
+ "atelier-prompt-lexicon",
+ "atelier-prompt-resources",
+ "atelier-resource-catalog",
+ "atelier-safety",
+ "atelier-secrets",
+ "atelier-settings",
+ "atelier-vibe",
+ "atelier-workspace",
+ "base64 0.22.1",
+ "futures",
+ "futures-executor",
+ "futures-timer",
+ "futures-util",
+ "image",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-app-api"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "atelier-artifacts"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-resource-catalog",
+ "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-desktop"
+version = "0.1.0"
+dependencies = [
+ "atelier-adapter-keyring",
+ "atelier-adapter-novelai",
+ "atelier-adapter-safety-onnx",
+ "atelier-app",
+ "atelier-app-api",
+ "base64 0.22.1",
+ "log",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-log",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-director"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-foundation"
+version = "0.1.0"
+
+[[package]]
+name = "atelier-gallery"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-artifacts",
+ "atelier-resource-catalog",
+ "atelier-safety",
+ "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-generation"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-core",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-jobs"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-kernel"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-artifacts",
+ "atelier-director",
+ "atelier-gallery",
+ "atelier-generation",
+ "atelier-jobs",
+ "atelier-precise-reference",
+ "atelier-prompt-resources",
+ "atelier-resource-catalog",
+ "atelier-safety",
+ "atelier-vibe",
+ "base64 0.22.1",
+ "futures-core",
+ "futures-executor",
+ "futures-util",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-precise-reference"
+version = "0.1.0"
+dependencies = [
+ "atelier-generation",
+ "atelier-resource-catalog",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-prompt"
+version = "0.1.0"
+dependencies = [
+ "logos",
+ "rowan",
+]
+
+[[package]]
+name = "atelier-prompt-lexicon"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-prompt-resources"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-prompt",
+ "atelier-resource-catalog",
+ "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-resource-catalog"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-safety"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-resource-catalog",
+ "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-secrets"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-settings"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-generation",
+ "futures-executor",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-vibe"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-resource-catalog",
+ "base64 0.22.1",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "atelier-workspace"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "atk"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3876,339 +4209,6 @@ name = "murmurhash32"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2195bf6aa996a481483b29d62a7663eed3fe39600c460e323f8ff41e90bdd89b"
-
-[[package]]
-name = "nai-atelier-adapter-database"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "futures-util",
- "nai-atelier-artifacts",
- "nai-atelier-gallery",
- "nai-atelier-generation",
- "nai-atelier-jobs",
- "nai-atelier-kernel",
- "nai-atelier-prompt-resources",
- "nai-atelier-resource-catalog",
- "nai-atelier-safety",
- "nai-atelier-secrets",
- "nai-atelier-settings",
- "nai-atelier-vibe",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-adapter-image-codec"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "image",
- "nai-atelier-resource-catalog",
- "nai-atelier-settings",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-adapter-keyring"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "keyring",
- "keyring-core",
- "nai-atelier-secrets",
-]
-
-[[package]]
-name = "nai-atelier-adapter-novelai"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "futures-core",
- "futures-executor",
- "futures-util",
- "image",
- "nai-atelier-director",
- "nai-atelier-generation",
- "nai-atelier-secrets",
- "nai-atelier-vibe",
- "novelai-bridge",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-adapter-safety-onnx"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "image",
- "nai-atelier-resource-catalog",
- "nai-atelier-safety",
- "ort",
- "tempfile",
-]
-
-[[package]]
-name = "nai-atelier-adapter-storage-fs"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "futures-executor",
- "nai-atelier-resource-catalog",
- "nai-atelier-workspace",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-app"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "futures",
- "futures-executor",
- "futures-timer",
- "futures-util",
- "image",
- "nai-atelier-adapter-database",
- "nai-atelier-adapter-image-codec",
- "nai-atelier-adapter-keyring",
- "nai-atelier-adapter-novelai",
- "nai-atelier-adapter-storage-fs",
- "nai-atelier-app-api",
- "nai-atelier-artifacts",
- "nai-atelier-director",
- "nai-atelier-gallery",
- "nai-atelier-generation",
- "nai-atelier-jobs",
- "nai-atelier-kernel",
- "nai-atelier-precise-reference",
- "nai-atelier-prompt-lexicon",
- "nai-atelier-prompt-resources",
- "nai-atelier-resource-catalog",
- "nai-atelier-safety",
- "nai-atelier-secrets",
- "nai-atelier-settings",
- "nai-atelier-vibe",
- "nai-atelier-workspace",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-app-api"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "nai-atelier-artifacts"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "nai-atelier-resource-catalog",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-desktop"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "log",
- "nai-atelier-adapter-keyring",
- "nai-atelier-adapter-novelai",
- "nai-atelier-adapter-safety-onnx",
- "nai-atelier-app",
- "nai-atelier-app-api",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-log",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-director"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-foundation"
-version = "0.1.0"
-
-[[package]]
-name = "nai-atelier-gallery"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "nai-atelier-artifacts",
- "nai-atelier-resource-catalog",
- "nai-atelier-safety",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-generation"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-core",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-jobs"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-kernel"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "futures-core",
- "futures-executor",
- "futures-util",
- "nai-atelier-artifacts",
- "nai-atelier-director",
- "nai-atelier-gallery",
- "nai-atelier-generation",
- "nai-atelier-jobs",
- "nai-atelier-precise-reference",
- "nai-atelier-prompt-resources",
- "nai-atelier-resource-catalog",
- "nai-atelier-safety",
- "nai-atelier-vibe",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-precise-reference"
-version = "0.1.0"
-dependencies = [
- "nai-atelier-generation",
- "nai-atelier-resource-catalog",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-prompt"
-version = "0.1.0"
-dependencies = [
- "logos",
- "rowan",
-]
-
-[[package]]
-name = "nai-atelier-prompt-lexicon"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-prompt-resources"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "nai-atelier-prompt",
- "nai-atelier-resource-catalog",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-resource-catalog"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-safety"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "nai-atelier-resource-catalog",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-secrets"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-settings"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "futures-executor",
- "nai-atelier-generation",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-vibe"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "nai-atelier-resource-catalog",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "nai-atelier-workspace"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "thiserror 2.0.18",
-]
 
 [[package]]
 name = "ndarray"

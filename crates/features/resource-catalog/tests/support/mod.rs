@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, BuildVariantRequest, BuiltResourceVariant, ReleaseOutcome,
     ResourceBlobStore, ResourceCatalogError, ResourceCatalogRepository, ResourceCatalogTransaction,
     ResourceId, ResourceLink, ResourceMetadata, ResourceOwner, ResourceRecord, ResourceRef,

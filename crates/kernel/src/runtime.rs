@@ -1,8 +1,8 @@
-use nai_atelier_jobs::{
+use atelier_jobs::{
     BatchStatus, JobId, JobKind, JobPayloadRef, JobQueue, JobQueueSnapshot, JobStatus,
     QueueDirective, RetryPolicy, SubmitJob,
 };
-use nai_atelier_precise_reference::PreciseReferenceInput;
+use atelier_precise_reference::PreciseReferenceInput;
 
 use crate::{
     EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
@@ -193,7 +193,7 @@ where
     pub(crate) fn mark_failed(
         &mut self,
         job_id: &JobId,
-        impact: nai_atelier_jobs::JobFailureImpact,
+        impact: atelier_jobs::JobFailureImpact,
     ) -> KernelResult<QueueDirective> {
         self.queue
             .mark_failed(job_id, impact)
@@ -291,7 +291,7 @@ where
     pub async fn prepare_precise_reference(
         &self,
         input: PreciseReferenceInput,
-    ) -> KernelResult<nai_atelier_generation::CharacterReference> {
+    ) -> KernelResult<atelier_generation::CharacterReference> {
         crate::workflow::precise_reference::prepare_precise_reference(self, input).await
     }
 }

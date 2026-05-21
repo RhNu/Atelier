@@ -1,39 +1,39 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
 
-use futures::lock::Mutex;
-use nai_atelier_adapter_database::{
+use atelier_adapter_database::{
     DatabaseApiKeyRegistryStore, DatabaseArtifactRepository, DatabaseConnection,
     DatabaseGalleryIndex, DatabaseGenerationPayloadStore, DatabaseJobQueueRepository,
     DatabasePromptResourceRepository, DatabaseResourceCatalogRepository,
     DatabaseRunHistoryRepository, DatabaseSettingsRepository, DatabaseVibeRepository,
 };
-use nai_atelier_adapter_image_codec::ImageMetadataBlobStore;
-use nai_atelier_adapter_keyring::KeyringSecretStore;
-use nai_atelier_adapter_novelai::{
+use atelier_adapter_image_codec::ImageMetadataBlobStore;
+use atelier_adapter_keyring::KeyringSecretStore;
+use atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, NovelAiSubscriptionProbeClient,
     ReqwestNovelAiClientFactory, ResolverBackedNovelAiAdapter,
 };
-use nai_atelier_adapter_storage_fs::{
+use atelier_adapter_storage_fs::{
     FileSystemResourceBlobStore, FileSystemResourceContentReader, FileSystemWorkspaceLock,
     FileSystemWorkspaceStore, workspace_database_path,
 };
-use nai_atelier_app_api::workspace::OpenWorkspaceRequestDto;
-use nai_atelier_artifacts::ArtifactService;
-use nai_atelier_gallery::GalleryService;
-use nai_atelier_jobs::JobQueueRepository;
-use nai_atelier_kernel::KernelRuntime;
-use nai_atelier_prompt_lexicon::PromptLexicon;
-use nai_atelier_prompt_resources::{PromptChunkService, PromptCompiler};
-use nai_atelier_resource_catalog::ResourceCatalog;
-use nai_atelier_safety::SafetyScanner;
-use nai_atelier_secrets::{ApiKeyRegistryService, SecretStore};
-use nai_atelier_settings::SettingsService;
-use nai_atelier_vibe::EmbeddedVibeDocumentExtractor;
-use nai_atelier_workspace::{
+use atelier_app_api::workspace::OpenWorkspaceRequestDto;
+use atelier_artifacts::ArtifactService;
+use atelier_gallery::GalleryService;
+use atelier_jobs::JobQueueRepository;
+use atelier_kernel::KernelRuntime;
+use atelier_prompt_lexicon::PromptLexicon;
+use atelier_prompt_resources::{PromptChunkService, PromptCompiler};
+use atelier_resource_catalog::ResourceCatalog;
+use atelier_safety::SafetyScanner;
+use atelier_secrets::{ApiKeyRegistryService, SecretStore};
+use atelier_settings::SettingsService;
+use atelier_vibe::EmbeddedVibeDocumentExtractor;
+use atelier_workspace::{
     WorkspaceLayout, WorkspaceLock, WorkspaceLockLease, WorkspaceLockRequest, WorkspaceRoot,
     WorkspaceStore,
 };
+use futures::lock::Mutex;
 
 use crate::events::AppEventHub;
 use crate::ports::{
@@ -175,7 +175,7 @@ where
             .initialize(&root, &layout)
             .await?;
         let lease = FileSystemWorkspaceLock::new()
-            .acquire(&root, &layout, WorkspaceLockRequest::new("nai-atelier-app"))
+            .acquire(&root, &layout, WorkspaceLockRequest::new("atelier-app"))
             .await?;
         let connection = DatabaseConnection::open(workspace_database_path(&root))?;
         let api_key_store = DatabaseApiKeyRegistryStore::new(connection.clone());
@@ -194,7 +194,7 @@ where
         let blob_store = FileSystemResourceBlobStore::new(root.clone(), layout);
         let resource_reader =
             FileSystemResourceContentReader::new(resource_repository.clone(), blob_store.clone());
-        let variant_builder = nai_atelier_adapter_image_codec::ImageCodecVariantBuilder::new(
+        let variant_builder = atelier_adapter_image_codec::ImageCodecVariantBuilder::new(
             AppImageSourceReader::new(resource_reader.clone()),
             settings_state.clone(),
         );

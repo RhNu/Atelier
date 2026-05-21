@@ -1,10 +1,10 @@
-use nai_atelier_adapter_novelai::NovelAiClientFactory;
-use nai_atelier_app_api::account::{
+use atelier_adapter_novelai::NovelAiClientFactory;
+use atelier_app_api::account::{
     ApiKeyRecordDto, CreateApiKeyRequestDto, DeleteApiKeyRequestDto, DeleteApiKeyResponseDto,
     ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto, SubscriptionSummaryDto,
     UpdateApiKeyRequestDto,
 };
-use nai_atelier_secrets::SecretStore;
+use atelier_secrets::SecretStore;
 
 use crate::commands::{AppCommandHost, CommandResult};
 

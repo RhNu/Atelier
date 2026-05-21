@@ -1,4 +1,4 @@
-use nai_atelier_workspace::{
+use atelier_workspace::{
     WORKSPACE_SCHEMA_VERSION, WorkspaceLayout, WorkspaceManifest, WorkspaceRelativePath,
     WorkspaceRoot, WorkspaceSlot,
 };

@@ -25,7 +25,7 @@ mod tests {
 
     #[test]
     fn crate_metadata_is_available() {
-        assert_eq!(env!("CARGO_PKG_NAME"), "nai-atelier-secrets");
+        assert_eq!(env!("CARGO_PKG_NAME"), "atelier-secrets");
     }
 
     #[test]

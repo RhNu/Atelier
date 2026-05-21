@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use nai_atelier_artifacts::{ArtifactError, ArtifactRecord, ArtifactRepository, ArtifactResult};
-use nai_atelier_gallery::GallerySourceKind;
+use atelier_artifacts::{ArtifactError, ArtifactRecord, ArtifactRepository, ArtifactResult};
+use atelier_gallery::GallerySourceKind;
 use rusqlite::params;
 
 use crate::codec::{ArtifactRecordDto, JsonCodec, artifact_kind_as_str, source_kind_as_str};
@@ -49,7 +49,7 @@ impl ArtifactRepository for DatabaseArtifactRepository {
                         .primary_resource
                         .variant_id
                         .as_ref()
-                        .map(nai_atelier_resource_catalog::VariantId::as_str),
+                        .map(atelier_resource_catalog::VariantId::as_str),
                     json,
                 ],
             )

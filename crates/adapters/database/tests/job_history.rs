@@ -1,14 +1,14 @@
 use std::time::Duration;
 
-use futures_executor::block_on;
-use nai_atelier_adapter_database::{
+use atelier_adapter_database::{
     DatabaseConnection, DatabaseJobQueueRepository, DatabaseRunHistoryRepository,
 };
-use nai_atelier_jobs::{
+use atelier_jobs::{
     BatchId, BatchStatus, JobFailureImpact, JobId, JobKind, JobPayloadRef, JobQueue,
     JobQueueRepository, JobStatus, QueueDelay, RunHistoryKind, RunHistoryQuery, RunHistoryRecord,
     RunHistoryRepository, RunHistoryStatus, RunOutputRecord, SubmitJob,
 };
+use futures_executor::block_on;
 use rusqlite::Connection;
 
 #[test]

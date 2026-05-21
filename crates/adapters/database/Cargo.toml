@@ -1,22 +1,22 @@
 [package]
-name = "nai-atelier-adapter-database"
+name = "atelier-adapter-database"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-nai-atelier-artifacts = { workspace = true }
-nai-atelier-gallery = { workspace = true }
-nai-atelier-generation = { workspace = true }
-nai-atelier-jobs = { workspace = true }
-nai-atelier-kernel = { workspace = true }
-nai-atelier-prompt-resources = { workspace = true }
-nai-atelier-resource-catalog = { workspace = true }
-nai-atelier-safety = { workspace = true }
-nai-atelier-secrets = { workspace = true }
-nai-atelier-settings = { workspace = true }
-nai-atelier-vibe = { workspace = true }
+atelier-artifacts = { workspace = true }
+atelier-gallery = { workspace = true }
+atelier-generation = { workspace = true }
+atelier-jobs = { workspace = true }
+atelier-kernel = { workspace = true }
+atelier-prompt-resources = { workspace = true }
+atelier-resource-catalog = { workspace = true }
+atelier-safety = { workspace = true }
+atelier-secrets = { workspace = true }
+atelier-settings = { workspace = true }
+atelier-vibe = { workspace = true }
 rusqlite = { workspace = true, features = ["bundled"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

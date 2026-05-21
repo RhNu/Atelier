@@ -1,16 +1,16 @@
 mod support;
 
-use futures_executor::block_on;
-use nai_atelier_generation::CharacterReferenceType;
-use nai_atelier_kernel::{
+use atelier_generation::CharacterReferenceType;
+use atelier_kernel::{
     EnsureVibeEncoding, ExportVibeDocument, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
     KernelRuntime,
 };
-use nai_atelier_precise_reference::PreciseReferenceInput;
-use nai_atelier_resource_catalog::{ResourceId, ResourceKind, ResourceRef};
-use nai_atelier_vibe::{
+use atelier_precise_reference::PreciseReferenceInput;
+use atelier_resource_catalog::{ResourceId, ResourceKind, ResourceRef};
+use atelier_vibe::{
     VibeEncodeSettings, VibeEncodingRecord, VibeExportFormat, VibeId, VibeModel, VibeSourceIdentity,
 };
+use futures_executor::block_on;
 use support::MemoryKernelPorts;
 
 const ENCODING_PAYLOAD: &str = "AQID";

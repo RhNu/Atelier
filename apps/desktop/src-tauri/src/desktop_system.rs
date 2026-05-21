@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use nai_atelier_adapter_safety_onnx::NsfwRuntimeAssets;
+use atelier_adapter_safety_onnx::NsfwRuntimeAssets;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -74,10 +74,10 @@ impl DesktopSystem {
     }
 
     pub fn resolve_safety_assets(&self) -> DesktopSystemResult<Option<NsfwRuntimeAssets>> {
-        if let Some(model_path) = env_path("NAI_ATELIER_SAFETY_ONNX_MODEL") {
-            let runtime_library_path = env_path("NAI_ATELIER_ONNX_RUNTIME").ok_or_else(|| {
+        if let Some(model_path) = env_path("ATELIER_SAFETY_ONNX_MODEL") {
+            let runtime_library_path = env_path("ATELIER_ONNX_RUNTIME").ok_or_else(|| {
                 DesktopSystemError::new(
-                    "NAI_ATELIER_ONNX_RUNTIME must be set when safety model env is set",
+                    "ATELIER_ONNX_RUNTIME must be set when safety model env is set",
                 )
             })?;
             require_file(&model_path, "safety model")?;

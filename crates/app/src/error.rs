@@ -1,4 +1,4 @@
-use nai_atelier_app_api::error::ErrorEnvelopeDto;
+use atelier_app_api::error::ErrorEnvelopeDto;
 use thiserror::Error;
 
 pub type AppResult<T> = Result<T, AppError>;
@@ -40,78 +40,76 @@ impl AppError {
     }
 }
 
-impl From<nai_atelier_secrets::SecretsError> for AppError {
-    fn from(error: nai_atelier_secrets::SecretsError) -> Self {
+impl From<atelier_secrets::SecretsError> for AppError {
+    fn from(error: atelier_secrets::SecretsError) -> Self {
         Self::new(error.kind.to_string(), error.message)
     }
 }
 
-impl From<nai_atelier_secrets::ProbeApiKeyError> for AppError {
-    fn from(error: nai_atelier_secrets::ProbeApiKeyError) -> Self {
+impl From<atelier_secrets::ProbeApiKeyError> for AppError {
+    fn from(error: atelier_secrets::ProbeApiKeyError) -> Self {
         Self::new("probe_failed", error.to_string())
     }
 }
 
-impl From<nai_atelier_prompt_resources::PromptResourceError> for AppError {
-    fn from(error: nai_atelier_prompt_resources::PromptResourceError) -> Self {
+impl From<atelier_prompt_resources::PromptResourceError> for AppError {
+    fn from(error: atelier_prompt_resources::PromptResourceError) -> Self {
         let code = match error.kind() {
-            nai_atelier_prompt_resources::PromptResourceErrorKind::InvalidRequest => {
+            atelier_prompt_resources::PromptResourceErrorKind::InvalidRequest => {
                 "prompt_invalid_request"
             }
-            nai_atelier_prompt_resources::PromptResourceErrorKind::NotFound => "prompt_not_found",
-            nai_atelier_prompt_resources::PromptResourceErrorKind::Conflict => "prompt_conflict",
-            nai_atelier_prompt_resources::PromptResourceErrorKind::Repository => {
-                "prompt_repository"
-            }
+            atelier_prompt_resources::PromptResourceErrorKind::NotFound => "prompt_not_found",
+            atelier_prompt_resources::PromptResourceErrorKind::Conflict => "prompt_conflict",
+            atelier_prompt_resources::PromptResourceErrorKind::Repository => "prompt_repository",
         };
         Self::new(code, error.to_string())
     }
 }
 
-impl From<nai_atelier_prompt_lexicon::PromptLexiconError> for AppError {
-    fn from(error: nai_atelier_prompt_lexicon::PromptLexiconError) -> Self {
+impl From<atelier_prompt_lexicon::PromptLexiconError> for AppError {
+    fn from(error: atelier_prompt_lexicon::PromptLexiconError) -> Self {
         Self::new("prompt_lexicon", error.to_string())
     }
 }
 
-impl From<nai_atelier_kernel::KernelError> for AppError {
-    fn from(error: nai_atelier_kernel::KernelError) -> Self {
+impl From<atelier_kernel::KernelError> for AppError {
+    fn from(error: atelier_kernel::KernelError) -> Self {
         Self::new("kernel", error.to_string())
     }
 }
 
-impl From<nai_atelier_gallery::GalleryError> for AppError {
-    fn from(error: nai_atelier_gallery::GalleryError) -> Self {
+impl From<atelier_gallery::GalleryError> for AppError {
+    fn from(error: atelier_gallery::GalleryError) -> Self {
         Self::new("gallery", error.to_string())
     }
 }
 
-impl From<nai_atelier_workspace::WorkspaceError> for AppError {
-    fn from(error: nai_atelier_workspace::WorkspaceError) -> Self {
+impl From<atelier_workspace::WorkspaceError> for AppError {
+    fn from(error: atelier_workspace::WorkspaceError) -> Self {
         Self::new(error.kind.to_string(), error.to_string())
     }
 }
 
-impl From<nai_atelier_adapter_database::DatabaseError> for AppError {
-    fn from(error: nai_atelier_adapter_database::DatabaseError) -> Self {
+impl From<atelier_adapter_database::DatabaseError> for AppError {
+    fn from(error: atelier_adapter_database::DatabaseError) -> Self {
         Self::new("database", error.to_string())
     }
 }
 
-impl From<nai_atelier_resource_catalog::ResourceCatalogError> for AppError {
-    fn from(error: nai_atelier_resource_catalog::ResourceCatalogError) -> Self {
+impl From<atelier_resource_catalog::ResourceCatalogError> for AppError {
+    fn from(error: atelier_resource_catalog::ResourceCatalogError) -> Self {
         Self::new(error.kind.to_string(), error.message)
     }
 }
 
-impl From<nai_atelier_settings::SettingsError> for AppError {
-    fn from(error: nai_atelier_settings::SettingsError) -> Self {
+impl From<atelier_settings::SettingsError> for AppError {
+    fn from(error: atelier_settings::SettingsError) -> Self {
         Self::new(error.kind.to_string(), error.message)
     }
 }
 
-impl From<nai_atelier_vibe::VibeError> for AppError {
-    fn from(error: nai_atelier_vibe::VibeError) -> Self {
+impl From<atelier_vibe::VibeError> for AppError {
+    fn from(error: atelier_vibe::VibeError) -> Self {
         Self::new(error.kind().to_string(), error.to_string())
     }
 }

@@ -1,10 +1,10 @@
-//! System keyring adapter for NAI Atelier secrets.
+//! System keyring adapter for Atelier secrets.
 
 use async_trait::async_trait;
+use atelier_secrets::{SecretRecordId, SecretStore, SecretValue, SecretsError, SecretsResult};
 use keyring_core::{Entry, Error as KeyringCoreError};
-use nai_atelier_secrets::{SecretRecordId, SecretStore, SecretValue, SecretsError, SecretsResult};
 
-pub const SERVICE_NAME: &str = "nai-atelier";
+pub const SERVICE_NAME: &str = "atelier";
 
 #[derive(Clone, Debug)]
 pub enum KeyringBackendError {

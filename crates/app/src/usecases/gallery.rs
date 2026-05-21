@@ -46,7 +46,7 @@ where
         &self,
         item_id: &str,
         override_value: Option<GallerySafetyOverrideDto>,
-    ) -> AppResult<nai_atelier_app_api::gallery::GalleryItemDto> {
+    ) -> AppResult<atelier_app_api::gallery::GalleryItemDto> {
         self.app
             .inner
             .gallery
@@ -61,8 +61,8 @@ where
 
     pub async fn image_reference(
         &self,
-        request: nai_atelier_app_api::gallery::GalleryImageReferenceRequestDto,
-    ) -> AppResult<nai_atelier_app_api::gallery::GalleryImageReferenceDto> {
+        request: atelier_app_api::gallery::GalleryImageReferenceRequestDto,
+    ) -> AppResult<atelier_app_api::gallery::GalleryImageReferenceDto> {
         self.app
             .inner
             .gallery

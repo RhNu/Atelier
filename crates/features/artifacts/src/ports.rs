@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use nai_atelier_resource_catalog::{ResourceRecord, ResourceRef};
+use atelier_resource_catalog::{ResourceRecord, ResourceRef};
 
 use crate::{ArtifactRecord, ArtifactResult};
 

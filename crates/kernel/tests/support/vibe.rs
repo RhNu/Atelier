@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use nai_atelier_kernel::KernelVibePorts;
-use nai_atelier_resource_catalog::{
+use atelier_kernel::KernelVibePorts;
+use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceCatalogError, ResourceRef, ResourceResult,
 };
-use nai_atelier_vibe::{
+use atelier_vibe::{
     EmbeddedVibeDocumentExtractor, EncodeVibeRequest, EncodedVibe, NovelAiVibeClient,
     VibeDocumentEntry, VibeDomainResult, VibeEncodeSettings, VibeEncodingRecord, VibeError,
     VibeErrorKind, VibeId, VibeRepository, VibeResult, VibeSourceIdentity,

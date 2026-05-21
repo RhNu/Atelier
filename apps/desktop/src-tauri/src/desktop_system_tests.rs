@@ -12,8 +12,8 @@ fn safety_assets_prefer_environment_paths() {
     let temp = tempfile::tempdir().unwrap();
     let model = touch(temp.path().join("env-model.onnx"));
     let runtime = touch(temp.path().join(runtime_library_file_name()));
-    set_env("NAI_ATELIER_SAFETY_ONNX_MODEL", Some(&model));
-    set_env("NAI_ATELIER_ONNX_RUNTIME", Some(&runtime));
+    set_env("ATELIER_SAFETY_ONNX_MODEL", Some(&model));
+    set_env("ATELIER_ONNX_RUNTIME", Some(&runtime));
 
     let system = DesktopSystem::new(paths_with_resource_dir(temp.path().join("resources")));
     let assets = system.resolve_safety_assets().unwrap().unwrap();
@@ -28,8 +28,8 @@ fn safety_assets_prefer_environment_paths() {
 #[test]
 fn safety_assets_fall_back_to_bundled_resource_paths() {
     let _guard = env_guard();
-    set_env("NAI_ATELIER_SAFETY_ONNX_MODEL", None);
-    set_env("NAI_ATELIER_ONNX_RUNTIME", None);
+    set_env("ATELIER_SAFETY_ONNX_MODEL", None);
+    set_env("ATELIER_ONNX_RUNTIME", None);
     let temp = tempfile::tempdir().unwrap();
     let resource_dir = temp.path().join("resources");
     let safety_dir = resource_dir.join("safety");
@@ -50,8 +50,8 @@ fn safety_assets_fall_back_to_bundled_resource_paths() {
 #[test]
 fn safety_assets_are_optional_when_missing() {
     let _guard = env_guard();
-    set_env("NAI_ATELIER_SAFETY_ONNX_MODEL", None);
-    set_env("NAI_ATELIER_ONNX_RUNTIME", None);
+    set_env("ATELIER_SAFETY_ONNX_MODEL", None);
+    set_env("ATELIER_ONNX_RUNTIME", None);
     let temp = tempfile::tempdir().unwrap();
 
     let system = DesktopSystem::new(paths_with_resource_dir(temp.path().join("resources")));

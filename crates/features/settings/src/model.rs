@@ -1,6 +1,4 @@
-use nai_atelier_generation::{
-    ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset,
-};
+use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
 
 use crate::{SettingsError, SettingsResult};
 

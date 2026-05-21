@@ -1,4 +1,4 @@
-use nai_atelier_app_api::prompt::{
+use atelier_app_api::prompt::{
     CompilePromptRequestDto, CompiledPromptDto, DeletePromptChunkRequestDto,
     DeletePromptChunkResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,

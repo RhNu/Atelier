@@ -1,5 +1,5 @@
 [package]
-name = "nai-atelier-adapter-safety-onnx"
+name = "atelier-adapter-safety-onnx"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
@@ -7,8 +7,8 @@ publish.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 image = { workspace = true, features = ["jpeg", "png", "webp"] }
-nai-atelier-resource-catalog = { workspace = true }
-nai-atelier-safety = { workspace = true }
+atelier-resource-catalog = { workspace = true }
+atelier-safety = { workspace = true }
 ort = { workspace = true, features = ["std", "load-dynamic", "api-22"] }
 
 [dev-dependencies]

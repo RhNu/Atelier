@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use nai_atelier_prompt::{ExtensionCall, FunctionValue};
+use atelier_prompt::{ExtensionCall, FunctionValue};
 
 use crate::references::chunk_call_key;
 use crate::{PromptResourceError, PromptResourceReader, PromptResourceResult};

@@ -2,16 +2,16 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use futures_executor::block_on;
-use nai_atelier_artifacts::{
+use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactReplayManifest, ArtifactRepository,
     ArtifactResourceReader, ArtifactService, ArtifactSource, RegisterArtifactRequest,
     VisualAssetRef, VisualAssetRole,
 };
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobId, ResourceId, ResourceKind, ResourceLifecycle, ResourceMetadata, ResourceRecord,
     ResourceRef, ResourceState, ResourceVariantKind, VariantId,
 };
+use futures_executor::block_on;
 
 #[test]
 fn registers_generated_artifact_with_primary_resource_ref() {
@@ -211,11 +211,11 @@ fn preserves_visual_asset_roles_without_physical_paths() {
 
 #[derive(Clone, Default)]
 struct FakeArtifactRepository {
-    records: Arc<Mutex<Vec<nai_atelier_artifacts::ArtifactRecord>>>,
+    records: Arc<Mutex<Vec<atelier_artifacts::ArtifactRecord>>>,
 }
 
 impl FakeArtifactRepository {
-    fn saved(&self) -> Vec<nai_atelier_artifacts::ArtifactRecord> {
+    fn saved(&self) -> Vec<atelier_artifacts::ArtifactRecord> {
         self.records.lock().unwrap().clone()
     }
 }
@@ -248,13 +248,13 @@ impl ArtifactResourceReader for FakeArtifactResourceReader {
     async fn get_artifact_resource(
         &self,
         reference: &ResourceRef,
-    ) -> nai_atelier_artifacts::ArtifactResult<ResourceRecord> {
+    ) -> atelier_artifacts::ArtifactResult<ResourceRecord> {
         self.records
             .lock()
             .unwrap()
             .get(&reference.id)
             .cloned()
-            .ok_or_else(|| nai_atelier_artifacts::ArtifactError::resource("resource not found"))
+            .ok_or_else(|| atelier_artifacts::ArtifactError::resource("resource not found"))
     }
 }
 
@@ -262,8 +262,8 @@ impl ArtifactResourceReader for FakeArtifactResourceReader {
 impl ArtifactRepository for FakeArtifactRepository {
     async fn insert_artifact(
         &self,
-        record: nai_atelier_artifacts::ArtifactRecord,
-    ) -> nai_atelier_artifacts::ArtifactResult<()> {
+        record: atelier_artifacts::ArtifactRecord,
+    ) -> atelier_artifacts::ArtifactResult<()> {
         self.records.lock().unwrap().push(record);
         Ok(())
     }

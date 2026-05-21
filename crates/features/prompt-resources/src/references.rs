@@ -1,4 +1,4 @@
-use nai_atelier_prompt::{ExtensionCall, FunctionValue, parse_prompt};
+use atelier_prompt::{ExtensionCall, FunctionValue, parse_prompt};
 
 use crate::PromptChunkKey;
 

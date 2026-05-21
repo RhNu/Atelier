@@ -1,9 +1,9 @@
-use futures_executor::block_on;
-use nai_atelier_adapter_database::{DatabaseConnection, DatabasePromptResourceRepository};
-use nai_atelier_prompt_resources::{
+use atelier_adapter_database::{DatabaseConnection, DatabasePromptResourceRepository};
+use atelier_prompt_resources::{
     PromptChunkKey, PromptChunkService, PromptResourceErrorKind, PromptResourceReader,
     UpsertPromptChunkRequest,
 };
+use futures_executor::block_on;
 
 #[test]
 fn prompt_repository_crud_rewrites_references_and_blocks_referenced_delete() {
@@ -66,7 +66,7 @@ fn prompt_repository_rejects_duplicate_keys() {
 }
 
 fn request(
-    chunk_id: Option<nai_atelier_prompt_resources::PromptChunkId>,
+    chunk_id: Option<atelier_prompt_resources::PromptChunkId>,
     key: &str,
     content: &str,
 ) -> UpsertPromptChunkRequest {

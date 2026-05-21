@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use nai_atelier_prompt_resources::{
+use atelier_prompt_resources::{
     ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptResourceReader,
     PromptResourceRepository, PromptResourceResult,
 };
@@ -95,7 +95,7 @@ impl PromptResourceRepository for MemoryPromptResourceRepository {
             if item.id == chunk.id {
                 continue;
             }
-            item.content = nai_atelier_prompt_resources::rewrite_chunk_references(
+            item.content = atelier_prompt_resources::rewrite_chunk_references(
                 &item.content,
                 old_key,
                 &chunk.key,

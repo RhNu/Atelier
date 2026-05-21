@@ -1,7 +1,7 @@
 #![allow(clippy::significant_drop_tightening)]
 
 use async_trait::async_trait;
-use nai_atelier_vibe::{
+use atelier_vibe::{
     VibeDocumentEntry, VibeDomainResult, VibeEncodeSettings, VibeEncodingRecord, VibeError,
     VibeErrorKind, VibeId, VibeRepository, VibeSourceIdentity,
 };

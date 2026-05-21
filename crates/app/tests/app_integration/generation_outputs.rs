@@ -39,7 +39,7 @@ fn open_workspace_initializes_lexicon_and_generation_is_explicitly_driven() {
             .unwrap();
         app.account().set_active_api_key("main").await.unwrap();
         app.prompt()
-            .upsert_chunk(nai_atelier_app_api::prompt::UpsertPromptChunkRequestDto {
+            .upsert_chunk(atelier_app_api::prompt::UpsertPromptChunkRequestDto {
                 chunk_id: None,
                 key: "hero".to_owned(),
                 content: "1girl".to_owned(),
@@ -105,7 +105,7 @@ fn valid_generated_images_get_best_effort_gallery_variants() {
             .unwrap();
         app.account().set_active_api_key("main").await.unwrap();
         app.prompt()
-            .upsert_chunk(nai_atelier_app_api::prompt::UpsertPromptChunkRequestDto {
+            .upsert_chunk(atelier_app_api::prompt::UpsertPromptChunkRequestDto {
                 chunk_id: None,
                 key: "hero".to_owned(),
                 content: "1girl".to_owned(),
@@ -152,7 +152,7 @@ fn valid_streamed_images_get_best_effort_gallery_variants() {
         let temp = tempfile::tempdir().unwrap();
         let app = test_app_with_image(&temp, valid_png_bytes(2, 1)).await;
         app.prompt()
-            .upsert_chunk(nai_atelier_app_api::prompt::UpsertPromptChunkRequestDto {
+            .upsert_chunk(atelier_app_api::prompt::UpsertPromptChunkRequestDto {
                 chunk_id: None,
                 key: "hero".to_owned(),
                 content: "1girl".to_owned(),
@@ -203,7 +203,7 @@ fn updated_variant_settings_drive_generated_variant_dimensions() {
             .await
             .unwrap();
         app.prompt()
-            .upsert_chunk(nai_atelier_app_api::prompt::UpsertPromptChunkRequestDto {
+            .upsert_chunk(atelier_app_api::prompt::UpsertPromptChunkRequestDto {
                 chunk_id: None,
                 key: "hero".to_owned(),
                 content: "1girl".to_owned(),

@@ -1,14 +1,12 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use futures_executor::block_on;
-use nai_atelier_generation::{
-    ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset,
-};
-use nai_atelier_settings::{
+use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
+use atelier_settings::{
     GenerationDefaults, ImageVariantSettings, SettingsRepository, SettingsResult, SettingsService,
     WorkspaceSettings,
 };
+use futures_executor::block_on;
 
 #[test]
 fn workspace_settings_defaults_are_novelai_oriented() {

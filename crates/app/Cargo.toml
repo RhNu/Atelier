@@ -1,5 +1,5 @@
 [package]
-name = "nai-atelier-app"
+name = "atelier-app"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
@@ -9,27 +9,27 @@ async-trait = { workspace = true }
 base64 = { workspace = true }
 futures = { workspace = true }
 futures-timer = { workspace = true }
-nai-atelier-adapter-database = { workspace = true }
-nai-atelier-adapter-image-codec = { workspace = true }
-nai-atelier-adapter-keyring = { workspace = true }
-nai-atelier-adapter-novelai = { workspace = true }
-nai-atelier-adapter-storage-fs = { workspace = true }
-nai-atelier-app-api = { workspace = true }
-nai-atelier-artifacts = { workspace = true }
-nai-atelier-director = { workspace = true }
-nai-atelier-gallery = { workspace = true }
-nai-atelier-generation = { workspace = true }
-nai-atelier-jobs = { workspace = true }
-nai-atelier-kernel = { workspace = true }
-nai-atelier-precise-reference = { workspace = true }
-nai-atelier-prompt-lexicon = { workspace = true }
-nai-atelier-prompt-resources = { workspace = true }
-nai-atelier-resource-catalog = { workspace = true }
-nai-atelier-safety = { workspace = true }
-nai-atelier-secrets = { workspace = true }
-nai-atelier-settings = { workspace = true }
-nai-atelier-vibe = { workspace = true }
-nai-atelier-workspace = { workspace = true }
+atelier-adapter-database = { workspace = true }
+atelier-adapter-image-codec = { workspace = true }
+atelier-adapter-keyring = { workspace = true }
+atelier-adapter-novelai = { workspace = true }
+atelier-adapter-storage-fs = { workspace = true }
+atelier-app-api = { workspace = true }
+atelier-artifacts = { workspace = true }
+atelier-director = { workspace = true }
+atelier-gallery = { workspace = true }
+atelier-generation = { workspace = true }
+atelier-jobs = { workspace = true }
+atelier-kernel = { workspace = true }
+atelier-precise-reference = { workspace = true }
+atelier-prompt-lexicon = { workspace = true }
+atelier-prompt-resources = { workspace = true }
+atelier-resource-catalog = { workspace = true }
+atelier-safety = { workspace = true }
+atelier-secrets = { workspace = true }
+atelier-settings = { workspace = true }
+atelier-vibe = { workspace = true }
+atelier-workspace = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

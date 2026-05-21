@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-use futures_executor::block_on;
-use nai_atelier_adapter_keyring::{
+use atelier_adapter_keyring::{
     KeyringBackend, KeyringBackendError, KeyringSecretStore, SERVICE_NAME,
 };
-use nai_atelier_secrets::{SecretRecordId, SecretStore, SecretValue, SecretsErrorKind};
+use atelier_secrets::{SecretRecordId, SecretStore, SecretValue, SecretsErrorKind};
+use futures_executor::block_on;
 
 #[test]
 fn keyring_secret_store_round_trips_through_configured_service_and_account() {
@@ -54,7 +54,7 @@ fn keyring_secret_store_maps_backend_failures_to_secret_store_errors() {
 fn native_keyring_smoke_round_trips_secret() {
     block_on(async {
         let store = KeyringSecretStore::native().unwrap();
-        let id = SecretRecordId::new("nai-atelier-test-secret");
+        let id = SecretRecordId::new("atelier-test-secret");
 
         store
             .write_secret(&id, SecretValue::new("native-secret"))

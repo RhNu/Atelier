@@ -1,11 +1,11 @@
 #![allow(clippy::significant_drop_tightening)]
 
 use async_trait::async_trait;
-use nai_atelier_prompt_resources::{
+use atelier_prompt_resources::{
     ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptResourceError,
     PromptResourceReader, PromptResourceRepository, PromptResourceResult, rewrite_chunk_references,
 };
-use nai_atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
+use atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
 use rusqlite::{OptionalExtension, Params, params};
 
 use crate::connection::DatabaseConnection;

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This repository is the early implementation workspace for **NAI Atelier**, a desktop creative workspace built specifically for NovelAI image workflows.
+This repository is the early implementation workspace for **Atelier**, a desktop creative workspace built specifically for NovelAI image workflows.
 
 Keep the product NovelAI-focused. Do not drift toward a generic AI image platform. NovelAI API integration should default to the maintained `novelai-bridge` crate.
 

@@ -1,6 +1,6 @@
 # Agent Docs
 
-This directory keeps project intent, architecture guidance, and decision records for NAI Atelier.
+This directory keeps project intent, architecture guidance, and decision records for Atelier.
 
 ## Read Guide
 
@@ -25,7 +25,7 @@ For task-specific context, read only the relevant decision records:
 
 ## Current Consensus
 
-- NAI Atelier is a NovelAI-specific desktop creative workspace.
+- Atelier is a NovelAI-specific desktop creative workspace.
 - Feature crates own domain models, rules, ports, and tests.
 - `kernel` owns runtime state and cross-feature orchestration, but not real I/O.
 - Adapters own filesystem, database, keyring, `novelai-bridge`, and other external integrations.

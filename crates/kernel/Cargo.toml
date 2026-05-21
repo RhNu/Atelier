@@ -1,5 +1,5 @@
 [package]
-name = "nai-atelier-kernel"
+name = "atelier-kernel"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
@@ -9,16 +9,16 @@ async-trait = { workspace = true }
 base64 = { workspace = true }
 futures-core = { workspace = true }
 futures-util = { workspace = true }
-nai-atelier-artifacts = { workspace = true }
-nai-atelier-director = { workspace = true }
-nai-atelier-gallery = { workspace = true }
-nai-atelier-generation = { workspace = true }
-nai-atelier-jobs = { workspace = true }
-nai-atelier-precise-reference = { workspace = true }
-nai-atelier-prompt-resources = { workspace = true }
-nai-atelier-resource-catalog = { workspace = true }
-nai-atelier-safety = { workspace = true }
-nai-atelier-vibe = { workspace = true }
+atelier-artifacts = { workspace = true }
+atelier-director = { workspace = true }
+atelier-gallery = { workspace = true }
+atelier-generation = { workspace = true }
+atelier-jobs = { workspace = true }
+atelier-precise-reference = { workspace = true }
+atelier-prompt-resources = { workspace = true }
+atelier-resource-catalog = { workspace = true }
+atelier-safety = { workspace = true }
+atelier-vibe = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 

@@ -1,4 +1,4 @@
-use nai_atelier_resource_catalog::ResourceRef;
+use atelier_resource_catalog::ResourceRef;
 
 use crate::{SafetyError, SafetyResult};
 

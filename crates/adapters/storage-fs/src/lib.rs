@@ -1,4 +1,4 @@
-//! Filesystem storage adapters for NAI Atelier.
+//! Filesystem storage adapters for Atelier.
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
@@ -6,17 +6,17 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, ResourceBlobStore, ResourceCatalogError, ResourceCatalogRepository,
     ResourceKind, ResourceMetadata, ResourceRef, ResourceResult, StagedBlob, StagedBlobToken,
 };
-use nai_atelier_workspace::{
+use atelier_workspace::{
     WORKSPACE_SCHEMA_VERSION, WorkspaceError, WorkspaceLayout, WorkspaceLock, WorkspaceLockLease,
     WorkspaceLockMetadata, WorkspaceLockRequest, WorkspaceManifest, WorkspaceRelativePath,
     WorkspaceResult, WorkspaceRoot, WorkspaceSlot, WorkspaceStore,
 };
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;

@@ -7,34 +7,34 @@ use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use futures_util::stream;
-use nai_atelier_artifacts::{
+use atelier_artifacts::{
     ArtifactError, ArtifactRecord, ArtifactRepository, ArtifactResourceReader, ArtifactResult,
     RegisterArtifactRequest,
 };
-use nai_atelier_director::{
+use atelier_director::{
     DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
-use nai_atelier_gallery::{GalleryIndex, GalleryItem, GalleryItemId, GalleryResult};
-use nai_atelier_generation::{
+use atelier_gallery::{GalleryIndex, GalleryItem, GalleryItemId, GalleryResult};
+use atelier_generation::{
     GeneratedImage, GenerationClientError, GenerationResult, ImageStreamEvent, ImageStreamResult,
     NovelAiGenerationClient,
 };
-use nai_atelier_kernel::{
+use atelier_kernel::{
     GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEvent, KernelEventSink,
     KernelGenerationPorts, KernelPreciseReferencePorts, PreparedGenerationPayload,
     SubmittedGenerationPayload,
 };
-use nai_atelier_precise_reference::{PreciseReferenceImage, PreciseReferenceResult};
-use nai_atelier_prompt_resources::{
+use atelier_precise_reference::{PreciseReferenceImage, PreciseReferenceResult};
+use atelier_prompt_resources::{
     CompilePromptRequest, CompiledPrompt, PromptResourceResult, PromptTrace,
 };
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceCatalogError, ResourceKind, ResourceMetadata,
     ResourceRecord, ResourceRef, ResourceResult, ResourceState,
 };
-use nai_atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyError, SafetyResult};
-use nai_atelier_vibe::{VibeDocumentEntry, VibeEncodingRecord};
+use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyError, SafetyResult};
+use atelier_vibe::{VibeDocumentEntry, VibeEncodingRecord};
+use futures_util::stream;
 
 #[derive(Clone, Default)]
 pub struct MemoryKernelPorts {
@@ -246,7 +246,7 @@ impl GenerationPayloadStore for MemoryKernelPorts {
     async fn save_submitted_payload(
         &self,
         payload: SubmittedGenerationPayload,
-    ) -> nai_atelier_kernel::KernelResult<()> {
+    ) -> atelier_kernel::KernelResult<()> {
         let key = payload.payload_ref.as_str().to_owned();
         let mut state = self.state.lock().unwrap();
         state.operations.push("save_submitted".to_owned());
@@ -256,8 +256,8 @@ impl GenerationPayloadStore for MemoryKernelPorts {
 
     async fn get_submitted_payload(
         &self,
-        payload_ref: &nai_atelier_jobs::JobPayloadRef,
-    ) -> nai_atelier_kernel::KernelResult<Option<SubmittedGenerationPayload>> {
+        payload_ref: &atelier_jobs::JobPayloadRef,
+    ) -> atelier_kernel::KernelResult<Option<SubmittedGenerationPayload>> {
         Ok(self
             .state
             .lock()
@@ -270,12 +270,12 @@ impl GenerationPayloadStore for MemoryKernelPorts {
     async fn save_prepared_payload(
         &self,
         payload: PreparedGenerationPayload,
-    ) -> nai_atelier_kernel::KernelResult<()> {
+    ) -> atelier_kernel::KernelResult<()> {
         let key = payload.payload_ref.as_str().to_owned();
         let mut state = self.state.lock().unwrap();
         state.operations.push("save_prepared".to_owned());
         if state.failures.contains(&FakeFailure::PreparedPayload) {
-            return Err(nai_atelier_kernel::KernelError::PayloadStore(
+            return Err(atelier_kernel::KernelError::PayloadStore(
                 "prepared payload failed".to_owned(),
             ));
         }
@@ -293,9 +293,9 @@ impl KernelGenerationPorts for MemoryKernelPorts {
         let mut state = self.state.lock().unwrap();
         state.operations.push("compile_prompt".to_owned());
         if state.failures.contains(&FakeFailure::CompilePrompt) {
-            return Err(
-                nai_atelier_prompt_resources::PromptResourceError::repository("compile failed"),
-            );
+            return Err(atelier_prompt_resources::PromptResourceError::repository(
+                "compile failed",
+            ));
         }
         let expanded = if state.expanded_prompt.is_empty() {
             request.prompt.clone()
@@ -380,9 +380,7 @@ impl KernelGenerationPorts for MemoryKernelPorts {
         let mut state = self.state.lock().unwrap();
         state.operations.push("index_gallery".to_owned());
         if state.failures.contains(&FakeFailure::Gallery) {
-            return Err(nai_atelier_gallery::GalleryError::repository(
-                "gallery failed",
-            ));
+            return Err(atelier_gallery::GalleryError::repository("gallery failed"));
         }
         let item = GalleryItem::from_artifact(artifact, indexed_at_ms, safety_assessment);
         state
@@ -449,7 +447,7 @@ impl KernelDirectorPorts for MemoryKernelPorts {
 impl NovelAiGenerationClient for MemoryKernelPorts {
     async fn generate(
         &self,
-        _request: nai_atelier_generation::GenerateImageRequest,
+        _request: atelier_generation::GenerateImageRequest,
     ) -> GenerationResult<Vec<GeneratedImage>> {
         let mut state = self.state.lock().unwrap();
         state.operations.push("generate".to_owned());
@@ -461,7 +459,7 @@ impl NovelAiGenerationClient for MemoryKernelPorts {
 
     async fn generate_stream(
         &self,
-        _request: nai_atelier_generation::GenerateImageStreamRequest,
+        _request: atelier_generation::GenerateImageStreamRequest,
     ) -> GenerationResult<ImageStreamResult> {
         let mut state = self.state.lock().unwrap();
         state.operations.push("generate_stream".to_owned());
@@ -483,7 +481,7 @@ impl KernelPreciseReferencePorts for MemoryKernelPorts {
             .get(source.id.as_str())
             .cloned()
             .ok_or_else(|| {
-                nai_atelier_precise_reference::PreciseReferenceError::not_found(
+                atelier_precise_reference::PreciseReferenceError::not_found(
                     "precise reference image is missing",
                 )
             })
@@ -511,9 +509,9 @@ impl ArtifactResourceReader for MemoryKernelPorts {
         Ok(ResourceRecord {
             id: reference.id.clone(),
             kind: self.state.lock().unwrap().resources[reference.id.as_str()].kind,
-            lifecycle: nai_atelier_resource_catalog::ResourceLifecycle::JobScoped,
+            lifecycle: atelier_resource_catalog::ResourceLifecycle::JobScoped,
             state: ResourceState::Ready,
-            blob_id: nai_atelier_resource_catalog::BlobId::new("blob"),
+            blob_id: atelier_resource_catalog::BlobId::new("blob"),
             metadata: ResourceMetadata::default(),
         })
     }
@@ -542,7 +540,7 @@ impl GalleryIndex for MemoryKernelPorts {
 
     async fn query_items(
         &self,
-        query: nai_atelier_gallery::GalleryQuery,
+        query: atelier_gallery::GalleryQuery,
     ) -> GalleryResult<Vec<GalleryItem>> {
         Ok(query.apply(self.state.lock().unwrap().gallery_items.values().cloned()))
     }
@@ -550,13 +548,13 @@ impl GalleryIndex for MemoryKernelPorts {
     async fn set_safety_override(
         &self,
         id: &GalleryItemId,
-        manual_safety_override: Option<nai_atelier_gallery::GallerySafetyOverride>,
+        manual_safety_override: Option<atelier_gallery::GallerySafetyOverride>,
     ) -> GalleryResult<GalleryItem> {
         let mut state = self.state.lock().unwrap();
         let item = state
             .gallery_items
             .get_mut(id.as_str())
-            .ok_or_else(|| nai_atelier_gallery::GalleryError::not_found("missing item"))?;
+            .ok_or_else(|| atelier_gallery::GalleryError::not_found("missing item"))?;
         item.manual_safety_override = manual_safety_override;
         Ok(item.clone())
     }

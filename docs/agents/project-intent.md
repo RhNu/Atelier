@@ -2,7 +2,7 @@
 
 ## Goal
 
-NAI Atelier is a desktop creative workspace for NovelAI image workflows. It is meant for creators who use NovelAI regularly, not for users who need a generic multi-provider image generation tool.
+Atelier is a desktop creative workspace for NovelAI image workflows. It is meant for creators who use NovelAI regularly, not for users who need a generic multi-provider image generation tool.
 
 The core experience should grow around:
 

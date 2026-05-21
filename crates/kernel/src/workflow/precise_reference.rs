@@ -1,9 +1,9 @@
-use nai_atelier_generation::CharacterReference;
-use nai_atelier_precise_reference::{
+use atelier_generation::CharacterReference;
+use atelier_precise_reference::{
     PreciseReferenceImage, PreciseReferenceImageReader, PreciseReferenceInput,
     PreciseReferenceResult, PreciseReferenceService,
 };
-use nai_atelier_resource_catalog::ResourceRef;
+use atelier_resource_catalog::ResourceRef;
 
 use crate::{KernelPreciseReferencePorts, KernelResult, KernelRuntime};
 

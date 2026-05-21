@@ -1,16 +1,16 @@
 #![allow(clippy::missing_const_for_fn, clippy::struct_field_names)]
 
-use nai_atelier_artifacts::{
+use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactReplayManifest,
     ArtifactSource, VisualAssetRef, VisualAssetRole,
 };
-use nai_atelier_gallery::{GalleryItem, GalleryItemId, GallerySafetyOverride, GallerySourceKind};
-use nai_atelier_resource_catalog::{
+use atelier_gallery::{GalleryItem, GalleryItemId, GallerySafetyOverride, GallerySourceKind};
+use atelier_resource_catalog::{
     ResourceId, ResourceKind, ResourceLifecycle, ResourceMetadata, ResourceOwnerKind, ResourceRef,
     ResourceRelation, ResourceState, ResourceVariantKind, VariantId,
 };
-use nai_atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyModelScore};
-use nai_atelier_vibe::{
+use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyModelScore};
+use atelier_vibe::{
     VibeDocumentEntry, VibeDocumentResources, VibeDocumentSummary, VibeEncodeSettings,
     VibeEncodingConfig, VibeEncodingRecord, VibeId, VibeModel, VibeSourceIdentity,
 };

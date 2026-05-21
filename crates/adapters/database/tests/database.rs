@@ -4,49 +4,49 @@ use std::thread;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use futures_executor::block_on;
-use nai_atelier_adapter_database::{
+use atelier_adapter_database::{
     DatabaseApiKeyRegistryStore, DatabaseArtifactRepository, DatabaseConnection,
     DatabaseGalleryIndex, DatabaseGenerationPayloadStore, DatabaseResourceCatalogRepository,
     DatabaseVibeRepository,
 };
-use nai_atelier_artifacts::{
+use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactReplayManifest,
     ArtifactRepository, ArtifactResult, ArtifactService, ArtifactSource, RegisterArtifactRequest,
     VisualAssetRef, VisualAssetRole,
 };
-use nai_atelier_gallery::{
+use atelier_gallery::{
     GalleryIndex, GalleryItem, GalleryItemId, GalleryQuery, GalleryResult, GallerySafetyOverride,
     GalleryService, GallerySourceKind,
 };
-use nai_atelier_generation::{
+use atelier_generation::{
     GenerateImageRequest, GeneratedImage, GenerationPlanContext, GenerationResult, ImageModel,
     ImageSize, ImageStreamResult, NovelAiGenerationClient, plan_generation_request,
 };
-use nai_atelier_jobs::{BatchId, JobId, JobPayloadRef};
-use nai_atelier_kernel::{
+use atelier_jobs::{BatchId, JobId, JobPayloadRef};
+use atelier_kernel::{
     GenerationPayloadStore, GenerationWorkRequest, KernelClock, KernelEvent, KernelEventSink,
     KernelGenerationPorts, KernelRuntime, PreparedGenerationPayload, SubmitGenerationWork,
     SubmittedGenerationPayload,
 };
-use nai_atelier_prompt_resources::{
+use atelier_prompt_resources::{
     CompilePromptRequest, CompiledPrompt, PromptResourceResult, PromptTrace,
 };
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, BuildVariantRequest, BuiltResourceVariant, CreateVariantRequest,
     RegisterResourceRequest, ResourceBlobStore, ResourceCatalog, ResourceCatalogError,
     ResourceCatalogRepository, ResourceId, ResourceKind, ResourceLifecycle, ResourceMetadata,
     ResourceOwner, ResourceOwnerKind, ResourceRef, ResourceRelation, ResourceResult, ResourceState,
     ResourceVariantBuilder, ResourceVariantKind, StagedBlob, StagedBlobToken, VariantId,
 };
-use nai_atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyResult};
-use nai_atelier_secrets::{
+use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyResult};
+use atelier_secrets::{
     ApiKeyId, ApiKeyRecord, ApiKeyRegistryStore, SecretRecordId, SecretsErrorKind,
 };
-use nai_atelier_vibe::{
+use atelier_vibe::{
     VibeDocumentEntry, VibeDocumentResources, VibeDocumentSummary, VibeEncodeSettings,
     VibeEncodingRecord, VibeId, VibeModel, VibeRepository, VibeSourceIdentity,
 };
+use futures_executor::block_on;
 use rusqlite::Connection;
 
 #[path = "database/gallery_and_workflow.rs"]
@@ -227,21 +227,21 @@ impl GenerationPayloadStore for DatabaseWorkflowPorts {
     async fn save_submitted_payload(
         &self,
         payload: SubmittedGenerationPayload,
-    ) -> nai_atelier_kernel::KernelResult<()> {
+    ) -> atelier_kernel::KernelResult<()> {
         self.payloads.save_submitted_payload(payload).await
     }
 
     async fn get_submitted_payload(
         &self,
         payload_ref: &JobPayloadRef,
-    ) -> nai_atelier_kernel::KernelResult<Option<SubmittedGenerationPayload>> {
+    ) -> atelier_kernel::KernelResult<Option<SubmittedGenerationPayload>> {
         self.payloads.get_submitted_payload(payload_ref).await
     }
 
     async fn save_prepared_payload(
         &self,
         payload: PreparedGenerationPayload,
-    ) -> nai_atelier_kernel::KernelResult<()> {
+    ) -> atelier_kernel::KernelResult<()> {
         self.payloads.save_prepared_payload(payload).await
     }
 }
@@ -273,7 +273,7 @@ impl NovelAiGenerationClient for DatabaseWorkflowPorts {
 
     async fn generate_stream(
         &self,
-        _request: nai_atelier_generation::GenerateImageStreamRequest,
+        _request: atelier_generation::GenerateImageStreamRequest,
     ) -> GenerationResult<ImageStreamResult> {
         Ok(Box::pin(futures_util::stream::empty()))
     }

@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
-use nai_atelier_artifacts::{ArtifactError, ArtifactResourceReader, ArtifactResult};
-use nai_atelier_resource_catalog::{
+use atelier_artifacts::{ArtifactError, ArtifactResourceReader, ArtifactResult};
+use atelier_resource_catalog::{
     BlobId, ResourceCatalogError, ResourceCatalogRepository, ResourceCatalogTransaction,
     ResourceId, ResourceLink, ResourceMetadata, ResourceOwner, ResourceRecord, ResourceRef,
     ResourceResult, ResourceState, ResourceVariant, VariantId,

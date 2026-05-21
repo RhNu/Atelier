@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
+use atelier_generation::{GenerateImageStreamRequest, GenerationRequestPlan};
+use atelier_jobs::{JobId, QueueDirective};
+use atelier_resource_catalog::ResourceKind;
 use base64::Engine;
 use futures_util::StreamExt;
-use nai_atelier_generation::{GenerateImageStreamRequest, GenerationRequestPlan};
-use nai_atelier_jobs::{JobId, QueueDirective};
-use nai_atelier_resource_catalog::ResourceKind;
 
 use crate::workflow::generation::{
     PersistSample, fail_job, handle_novelai_failure, persist_sample,
@@ -16,9 +16,9 @@ use crate::{
 
 pub async fn run_stream_generation<P>(
     runtime: &mut KernelRuntime<P>,
-    batch_id: &nai_atelier_jobs::BatchId,
+    batch_id: &atelier_jobs::BatchId,
     job_id: &JobId,
-    prepared_payload_ref: &nai_atelier_jobs::JobPayloadRef,
+    prepared_payload_ref: &atelier_jobs::JobPayloadRef,
     prompt_snapshot: &str,
     plan: &GenerationRequestPlan,
     request: GenerateImageStreamRequest,

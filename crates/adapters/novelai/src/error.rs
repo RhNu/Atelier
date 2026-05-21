@@ -1,4 +1,4 @@
-use nai_atelier_director::{
+use atelier_director::{
     ClientApiErrorContext as DirectorApiErrorContext,
     ClientApiErrorReason as DirectorApiErrorReason, ClientDecodeContext as DirectorDecodeContext,
     ClientDecodeTarget as DirectorDecodeTarget,
@@ -8,7 +8,7 @@ use nai_atelier_director::{
     ClientTransportContext as DirectorTransportContext,
     ClientTransportOperation as DirectorTransportOperation, DirectorClientError,
 };
-use nai_atelier_generation::{
+use atelier_generation::{
     ClientApiErrorContext as GenerationApiErrorContext,
     ClientApiErrorReason as GenerationApiErrorReason,
     ClientDecodeContext as GenerationDecodeContext, ClientDecodeTarget as GenerationDecodeTarget,
@@ -19,7 +19,7 @@ use nai_atelier_generation::{
     ClientTransportContext as GenerationTransportContext,
     ClientTransportOperation as GenerationTransportOperation, GenerationClientError,
 };
-use nai_atelier_secrets::{
+use atelier_secrets::{
     ClientApiErrorContext as SubscriptionApiErrorContext,
     ClientApiErrorReason as SubscriptionApiErrorReason,
     ClientDecodeContext as SubscriptionDecodeContext,
@@ -31,7 +31,7 @@ use nai_atelier_secrets::{
     ClientTransportContext as SubscriptionTransportContext,
     ClientTransportOperation as SubscriptionTransportOperation, SubscriptionClientError,
 };
-use nai_atelier_vibe::{
+use atelier_vibe::{
     ClientApiErrorContext as VibeApiErrorContext, ClientApiErrorReason as VibeApiErrorReason,
     ClientDecodeContext as VibeDecodeContext, ClientDecodeTarget as VibeDecodeTarget,
     ClientInvalidRequestContext as VibeInvalidRequestContext,

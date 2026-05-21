@@ -1,4 +1,4 @@
-use nai_atelier_prompt::{
+use atelier_prompt::{
     PromptCapability, PromptDiagnosticKind, PromptSyntaxProfile, PromptTokenKind, parse_prompt,
 };
 
@@ -27,7 +27,7 @@ fn parses_v4_prompt_syntax_losslessly() {
     let numeric_node = parsed
         .syntax()
         .descendants()
-        .find(|node| node.kind() == nai_atelier_prompt::PromptSyntaxKind::NumericEmphasis)
+        .find(|node| node.kind() == atelier_prompt::PromptSyntaxKind::NumericEmphasis)
         .expect("numeric emphasis node should exist");
     assert_eq!(numeric_node.text().to_string(), "1.5::rain, night::");
     assert_eq!(ast.strengthening().len(), 1);
@@ -127,7 +127,7 @@ fn extension_call_cst_does_not_parse_native_prompt_nodes_inside_arguments() {
         parsed
             .syntax()
             .descendants()
-            .all(|node| node.kind() != nai_atelier_prompt::PromptSyntaxKind::NumericEmphasis)
+            .all(|node| node.kind() != atelier_prompt::PromptSyntaxKind::NumericEmphasis)
     );
 }
 

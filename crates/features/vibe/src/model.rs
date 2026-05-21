@@ -1,4 +1,4 @@
-use nai_atelier_resource_catalog::ResourceRef;
+use atelier_resource_catalog::ResourceRef;
 use serde_json::Value;
 
 use crate::{VibeClientError, VibeDomainResult, VibeError};

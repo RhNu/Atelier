@@ -1,12 +1,12 @@
 [package]
-name = "nai-atelier-safety"
+name = "atelier-safety"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-nai-atelier-resource-catalog = { workspace = true }
+atelier-resource-catalog = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

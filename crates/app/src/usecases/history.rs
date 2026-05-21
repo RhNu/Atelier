@@ -1,16 +1,16 @@
-use nai_atelier_adapter_database::DatabaseRunHistoryRepository;
-use nai_atelier_adapter_novelai::NovelAiClientFactory;
-use nai_atelier_app_api::generation::QueueDirectiveDto;
-use nai_atelier_app_api::history::{
+use atelier_adapter_database::DatabaseRunHistoryRepository;
+use atelier_adapter_novelai::NovelAiClientFactory;
+use atelier_app_api::generation::QueueDirectiveDto;
+use atelier_app_api::history::{
     RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto, RunHistoryPageDto,
     RunHistoryQueryDto,
 };
-use nai_atelier_jobs::{
+use atelier_jobs::{
     BatchId, BatchStatus, JobId, JobKind, JobPayloadRef, JobQueueRepository, JobQueueSnapshot,
     JobRecord, JobStatus, RunHistoryKind, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus,
 };
-use nai_atelier_kernel::{GenerationPayloadStore, SubmitGenerationWork};
-use nai_atelier_secrets::{SecretStore, SecretsErrorKind};
+use atelier_kernel::{GenerationPayloadStore, SubmitGenerationWork};
+use atelier_secrets::{SecretStore, SecretsErrorKind};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::app::AtelierApp;
@@ -28,7 +28,7 @@ impl<S, F, E> HistoryUseCases<'_, S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
-    E: nai_atelier_vibe::EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
+    E: atelier_vibe::EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
 {
     pub async fn query(&self, query: RunHistoryQueryDto) -> AppResult<RunHistoryPageDto> {
         let domain_query = run_history_query_to_domain(&query);

@@ -1,5 +1,5 @@
 [package]
-name = "nai-atelier-adapter-novelai"
+name = "atelier-adapter-novelai"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
@@ -8,10 +8,10 @@ publish.workspace = true
 async-trait = { workspace = true }
 futures-core = { workspace = true }
 futures-util = { workspace = true }
-nai-atelier-director = { workspace = true }
-nai-atelier-generation = { workspace = true }
-nai-atelier-secrets = { workspace = true }
-nai-atelier-vibe = { workspace = true }
+atelier-director = { workspace = true }
+atelier-generation = { workspace = true }
+atelier-secrets = { workspace = true }
+atelier-vibe = { workspace = true }
 novelai-bridge = { workspace = true }
 thiserror = { workspace = true }
 

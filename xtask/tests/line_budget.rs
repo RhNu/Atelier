@@ -93,7 +93,7 @@ impl TestWorkspace {
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be after Unix epoch")
             .as_nanos();
-        let path = std::env::temp_dir().join(format!("nai_atelier_xtask_{name}_{unique}"));
+        let path = std::env::temp_dir().join(format!("atelier_xtask_{name}_{unique}"));
         fs::create_dir_all(&path).expect("test workspace should be created");
         Self { path }
     }

@@ -1,5 +1,5 @@
 [package]
-name = "nai-atelier-adapter-storage-fs"
+name = "atelier-adapter-storage-fs"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
@@ -7,8 +7,8 @@ publish.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 base64 = { workspace = true }
-nai-atelier-resource-catalog = { workspace = true }
-nai-atelier-workspace = { workspace = true }
+atelier-resource-catalog = { workspace = true }
+atelier-workspace = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

@@ -1,12 +1,12 @@
 mod support;
 
-use futures_executor::block_on;
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, CreateVariantRequest, RegisterResourceRequest, RepairReport,
     ResourceCatalog, ResourceCatalogRepository, ResourceId, ResourceKind, ResourceLifecycle,
     ResourceOwner, ResourceOwnerKind, ResourceRef, ResourceRelation, ResourceState,
     ResourceVariantBuilder, ResourceVariantKind, VariantId,
 };
+use futures_executor::block_on;
 
 use support::{FakeBlobStore, FakeRepository, FakeVariantBuilder, assert_release_outcome};
 
@@ -342,10 +342,10 @@ async fn register_generated<R, B, V>(
     catalog: &ResourceCatalog<R, B, V>,
     owner: ResourceOwner,
     resource_id: ResourceId,
-) -> nai_atelier_resource_catalog::ResourceResult<ResourceRef>
+) -> atelier_resource_catalog::ResourceResult<ResourceRef>
 where
     R: ResourceCatalogRepository,
-    B: nai_atelier_resource_catalog::ResourceBlobStore,
+    B: atelier_resource_catalog::ResourceBlobStore,
     V: ResourceVariantBuilder,
 {
     catalog
@@ -366,7 +366,7 @@ async fn register_cache_resource<R, B, V>(
 ) -> ResourceRef
 where
     R: ResourceCatalogRepository,
-    B: nai_atelier_resource_catalog::ResourceBlobStore,
+    B: atelier_resource_catalog::ResourceBlobStore,
     V: ResourceVariantBuilder,
 {
     catalog
@@ -385,10 +385,10 @@ where
 async fn create_preview_variant<R, B, V>(
     catalog: &ResourceCatalog<R, B, V>,
     source: ResourceRef,
-) -> nai_atelier_resource_catalog::ResourceResult<nai_atelier_resource_catalog::ResourceVariant>
+) -> atelier_resource_catalog::ResourceResult<atelier_resource_catalog::ResourceVariant>
 where
     R: ResourceCatalogRepository,
-    B: nai_atelier_resource_catalog::ResourceBlobStore,
+    B: atelier_resource_catalog::ResourceBlobStore,
     V: ResourceVariantBuilder,
 {
     catalog

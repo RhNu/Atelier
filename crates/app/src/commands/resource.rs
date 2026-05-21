@@ -1,4 +1,4 @@
-use nai_atelier_app_api::resource::{
+use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImportImageResourceRequestDto, ImportImageResourceResponseDto,
     ResourceImageDto,
 };

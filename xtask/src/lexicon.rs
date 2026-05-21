@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
 
-const LEXICON_SCHEMA: &str = "nai-atelier-prompt-lexicon";
+const LEXICON_SCHEMA: &str = "atelier-prompt-lexicon";
 const LEXICON_VERSION: u32 = 1;
 const CATEGORY_PRIMARY_PRIORITY: i64 = i64::MAX;
 
@@ -86,7 +86,7 @@ pub fn build_prompt_lexicon(
 pub fn check_prompt_lexicon(config: &PromptLexiconBuildConfig) -> Result<(), String> {
     let expected = fs::read(&config.output_file).map_err(|error| error.to_string())?;
     let temp_file = std::env::temp_dir().join(format!(
-        "nai_atelier_prompt_lexicon_{}_{}.json",
+        "atelier_prompt_lexicon_{}_{}.json",
         std::process::id(),
         unique_ms()
     ));

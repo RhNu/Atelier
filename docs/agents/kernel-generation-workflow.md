@@ -5,7 +5,7 @@
 - Date: 2026-05-20
 - Status: Implemented direction
 
-本文记录 `nai-atelier-kernel` 首轮 generation workflow 的边界。该实现不是 MVP 直通链路，也不把前端、Tauri command、数据库或真实文件系统纳入本阶段。
+本文记录 `atelier-kernel` 首轮 generation workflow 的边界。该实现不是 MVP 直通链路，也不把前端、Tauri command、数据库或真实文件系统纳入本阶段。
 
 ## 目标
 

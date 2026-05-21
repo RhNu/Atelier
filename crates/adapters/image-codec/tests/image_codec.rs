@@ -1,17 +1,17 @@
 use async_trait::async_trait;
-use futures_executor::block_on;
-use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
-use nai_atelier_adapter_image_codec::{
+use atelier_adapter_image_codec::{
     ImageCodec, ImageCodecVariantBuilder, ImageMetadataBlobStore, ImageSourceReader,
     StaticImageVariantSettings,
 };
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, BuildVariantRequest, ResourceBlobStore, ResourceCatalogErrorKind,
     ResourceId, ResourceKind, ResourceLifecycle, ResourceMetadata, ResourceRecord, ResourceRef,
     ResourceResult, ResourceState, ResourceVariantBuilder, ResourceVariantKind, StagedBlob,
     StagedBlobToken, VariantId,
 };
-use nai_atelier_settings::ImageVariantSettings;
+use atelier_settings::ImageVariantSettings;
+use futures_executor::block_on;
+use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
 use std::io::Cursor;
 
 #[test]
@@ -201,12 +201,8 @@ fn solid_image(width: u32, height: u32) -> DynamicImage {
     }))
 }
 
-fn image_info(
-    mime_type: &str,
-    width: u32,
-    height: u32,
-) -> nai_atelier_adapter_image_codec::ImageInfo {
-    nai_atelier_adapter_image_codec::ImageInfo {
+fn image_info(mime_type: &str, width: u32, height: u32) -> atelier_adapter_image_codec::ImageInfo {
+    atelier_adapter_image_codec::ImageInfo {
         mime_type: mime_type.to_owned(),
         width,
         height,
@@ -219,7 +215,7 @@ fn source_record() -> ResourceRecord {
         kind: ResourceKind::GeneratedImage,
         lifecycle: ResourceLifecycle::JobScoped,
         state: ResourceState::Ready,
-        blob_id: nai_atelier_resource_catalog::BlobId::new("sha256:source"),
+        blob_id: atelier_resource_catalog::BlobId::new("sha256:source"),
         metadata: ResourceMetadata::default(),
     }
 }

@@ -1,13 +1,13 @@
 mod support;
 
 use async_trait::async_trait;
-use futures_executor::block_on;
-use nai_atelier_prompt::ExtensionCall;
-use nai_atelier_prompt_resources::{
+use atelier_prompt::ExtensionCall;
+use atelier_prompt_resources::{
     CompilePromptRequest, PromptCompiler, PromptFunction, PromptFunctionContext,
     PromptFunctionDescriptor, PromptFunctionOutput, PromptFunctionRegistry,
     PromptResourceErrorKind, PromptResourceResult, UpsertPromptChunkRequest,
 };
+use futures_executor::block_on;
 use support::MemoryPromptResourceRepository;
 
 #[test]
@@ -189,12 +189,12 @@ async fn repository_with_chunks<const N: usize>(
     chunks: [(&str, &str); N],
 ) -> MemoryPromptResourceRepository {
     let repository = MemoryPromptResourceRepository::default();
-    let service = nai_atelier_prompt_resources::PromptChunkService::new(repository.clone());
+    let service = atelier_prompt_resources::PromptChunkService::new(repository.clone());
     for (key, content) in chunks {
         service
             .upsert_chunk(UpsertPromptChunkRequest {
                 chunk_id: None,
-                key: nai_atelier_prompt_resources::PromptChunkKey::parse(key).unwrap(),
+                key: atelier_prompt_resources::PromptChunkKey::parse(key).unwrap(),
                 content: content.to_owned(),
                 category: None,
                 description: None,
@@ -208,7 +208,7 @@ async fn repository_with_chunks<const N: usize>(
 
 async fn nested_depth_repository(depth: usize) -> MemoryPromptResourceRepository {
     let repository = MemoryPromptResourceRepository::default();
-    let service = nai_atelier_prompt_resources::PromptChunkService::new(repository.clone());
+    let service = atelier_prompt_resources::PromptChunkService::new(repository.clone());
     for index in 0..=depth {
         let content = if index == depth {
             "leaf".to_owned()
@@ -218,7 +218,7 @@ async fn nested_depth_repository(depth: usize) -> MemoryPromptResourceRepository
         service
             .upsert_chunk(UpsertPromptChunkRequest {
                 chunk_id: None,
-                key: nai_atelier_prompt_resources::PromptChunkKey::parse(&format!("depth-{index}"))
+                key: atelier_prompt_resources::PromptChunkKey::parse(&format!("depth-{index}"))
                     .unwrap(),
                 content,
                 category: None,

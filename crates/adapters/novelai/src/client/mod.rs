@@ -1,22 +1,22 @@
 use async_trait::async_trait;
-use futures_util::StreamExt;
-use nai_atelier_director::{
+use atelier_director::{
     DirectorResult, DirectorTool, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
-use nai_atelier_generation::{
+use atelier_generation::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
     ImageFormat, ImageModel, ImageSize, ImageStreamEvent, ImageStreamResult, Img2ImgRequest,
     NoiseSchedule, NovelAiGenerationClient, Sampler, StreamMode, UcPreset,
 };
-use nai_atelier_secrets::{
+use atelier_secrets::{
     SecretResolver, SecretValue, SecretsError, SubscriptionClient, SubscriptionProbeClient,
     SubscriptionResult, SubscriptionSummary,
 };
-use nai_atelier_vibe::{
+use atelier_vibe::{
     EmbeddedVibeDocumentExtractor, EncodeVibeRequest, EncodedVibe, NovelAiVibeClient,
     VibeDomainResult, VibeError, VibeModel, VibeResult,
 };
+use futures_util::StreamExt;
 use novelai_bridge as bridge;
 
 use crate::error::{

@@ -12,7 +12,7 @@ pub fn api_key_record_to_dto(record: &ApiKeyRecord) -> ApiKeyRecordDto {
 }
 
 pub fn create_api_key_to_domain(
-    request: nai_atelier_app_api::account::CreateApiKeyRequestDto,
+    request: atelier_app_api::account::CreateApiKeyRequestDto,
 ) -> CreateApiKeyRequest {
     CreateApiKeyRequest {
         id: ApiKeyId::new(request.id),
@@ -21,9 +21,7 @@ pub fn create_api_key_to_domain(
     }
 }
 
-pub fn subscription_to_dto(
-    value: &nai_atelier_secrets::SubscriptionSummary,
-) -> SubscriptionSummaryDto {
+pub fn subscription_to_dto(value: &atelier_secrets::SubscriptionSummary) -> SubscriptionSummaryDto {
     SubscriptionSummaryDto {
         anlas_balance: value.anlas_balance,
         is_opus: value.is_opus,

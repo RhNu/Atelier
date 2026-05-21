@@ -1,4 +1,4 @@
-use nai_atelier_app_api::event::{AppEventPageDto, EventsSinceRequestDto};
+use atelier_app_api::event::{AppEventPageDto, EventsSinceRequestDto};
 
 use crate::commands::{AppCommandHost, CommandResult};
 

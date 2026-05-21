@@ -1,9 +1,9 @@
-use nai_atelier_adapter_novelai::NovelAiClientFactory;
-use nai_atelier_app_api::workspace::{
+use atelier_adapter_novelai::NovelAiClientFactory;
+use atelier_app_api::workspace::{
     CloseWorkspaceResponseDto, OpenWorkspaceRequestDto, WorkspaceStatusDto,
 };
-use nai_atelier_secrets::SecretStore;
-use nai_atelier_vibe::EmbeddedVibeDocumentExtractor;
+use atelier_secrets::SecretStore;
+use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
 use crate::commands::{AppCommandHost, CommandResult};
 

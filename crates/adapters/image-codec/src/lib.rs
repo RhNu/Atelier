@@ -3,13 +3,13 @@
 use std::io::Cursor;
 
 use async_trait::async_trait;
-use image::ImageEncoder;
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, BuildVariantRequest, BuiltResourceVariant, ResourceBlobStore,
     ResourceCatalogError, ResourceRef, ResourceResult, ResourceVariantBuilder, ResourceVariantKind,
     StagedBlob, StagedBlobToken,
 };
-use nai_atelier_settings::ImageVariantSettings;
+use atelier_settings::ImageVariantSettings;
+use image::ImageEncoder;
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

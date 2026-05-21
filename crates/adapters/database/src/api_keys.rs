@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use nai_atelier_secrets::{
+use atelier_secrets::{
     ApiKeyId, ApiKeyRecord, ApiKeyRegistryStore, SecretRecordId, SecretsError, SecretsResult,
 };
 use rusqlite::{ErrorCode, OptionalExtension, params};

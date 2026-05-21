@@ -1,6 +1,6 @@
-# NAI Atelier
+# Atelier
 
-NAI Atelier is an early desktop creative workspace for NovelAI image workflows.
+Atelier is an early desktop creative workspace for NovelAI image workflows.
 
 The project is intentionally NovelAI-specific. It should preserve clear feature boundaries, use `novelai-bridge` for NovelAI API integration, and avoid turning into a generic AI image tool.
 

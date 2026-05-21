@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use nai_atelier_resource_catalog::{ResourceKind, ResourceRef, ResourceVariantKind};
+use atelier_resource_catalog::{ResourceKind, ResourceRef, ResourceVariantKind};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArtifactId(String);

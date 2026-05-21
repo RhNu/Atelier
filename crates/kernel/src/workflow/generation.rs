@@ -1,14 +1,14 @@
-use nai_atelier_artifacts::{
+use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactReplayManifest, ArtifactSource,
     RegisterArtifactRequest, VisualAssetRef, VisualAssetRole,
 };
-use nai_atelier_generation::{
+use atelier_generation::{
     GenerateImageStreamRequest, GenerationClientError, GenerationOutputMode, GenerationRequestPlan,
     SeedMode, plan_generation_request, plan_generation_stream_request,
 };
-use nai_atelier_jobs::{JobFailureImpact, JobId, QueueDelay, QueueDirective, RetryPolicy};
-use nai_atelier_prompt_resources::CompilePromptRequest;
-use nai_atelier_resource_catalog::{
+use atelier_jobs::{JobFailureImpact, JobId, QueueDelay, QueueDirective, RetryPolicy};
+use atelier_prompt_resources::CompilePromptRequest;
+use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
     ResourceOwner, ResourceOwnerKind, ResourceRelation, ResourceVariantKind,
 };
@@ -132,7 +132,7 @@ where
 
 fn plan_request(
     request: GenerationWorkRequest,
-    context: nai_atelier_generation::GenerationPlanContext,
+    context: atelier_generation::GenerationPlanContext,
 ) -> Result<GenerationRequestPlan, KernelError> {
     match request {
         GenerationWorkRequest::Image(request) => {
@@ -146,9 +146,9 @@ fn plan_request(
 
 async fn run_image_generation<P>(
     runtime: &mut KernelRuntime<P>,
-    batch_id: &nai_atelier_jobs::BatchId,
+    batch_id: &atelier_jobs::BatchId,
     job_id: &JobId,
-    prepared_payload_ref: &nai_atelier_jobs::JobPayloadRef,
+    prepared_payload_ref: &atelier_jobs::JobPayloadRef,
     prompt_snapshot: &str,
     plan: &GenerationRequestPlan,
 ) -> KernelResult<QueueDirective>
@@ -200,9 +200,9 @@ where
 }
 
 pub struct PersistSample<'a> {
-    pub batch_id: &'a nai_atelier_jobs::BatchId,
+    pub batch_id: &'a atelier_jobs::BatchId,
     pub job_id: &'a JobId,
-    pub prepared_payload_ref: &'a nai_atelier_jobs::JobPayloadRef,
+    pub prepared_payload_ref: &'a atelier_jobs::JobPayloadRef,
     pub prompt_snapshot: &'a str,
     pub plan: &'a GenerationRequestPlan,
     pub sample_index: u32,
@@ -321,7 +321,7 @@ fn artifact_metadata(
 
 pub async fn handle_novelai_failure<P>(
     runtime: &mut KernelRuntime<P>,
-    batch_id: &nai_atelier_jobs::BatchId,
+    batch_id: &atelier_jobs::BatchId,
     job_id: &JobId,
     error: GenerationClientError,
 ) -> KernelResult<QueueDirective>
@@ -366,7 +366,7 @@ fn generation_failure_impact(
 
 pub async fn fail_job<P>(
     runtime: &mut KernelRuntime<P>,
-    batch_id: &nai_atelier_jobs::BatchId,
+    batch_id: &atelier_jobs::BatchId,
     job_id: &JobId,
     message: &str,
 ) -> KernelResult<QueueDirective>

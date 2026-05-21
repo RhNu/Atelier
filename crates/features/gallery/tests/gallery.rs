@@ -2,18 +2,18 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use futures_executor::block_on;
-use nai_atelier_artifacts::{
+use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactSource, VisualAssetRef,
     VisualAssetRole,
 };
-use nai_atelier_gallery::{
+use atelier_gallery::{
     GalleryError, GalleryErrorKind, GalleryImageReference, GalleryIndex, GalleryItem,
     GalleryItemId, GalleryQuery, GallerySafetyOverride, GalleryService, GallerySourceKind,
     ImageReferenceTarget,
 };
-use nai_atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
-use nai_atelier_safety::{ImageSafetyScore, SafetyAssessment};
+use atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
+use atelier_safety::{ImageSafetyScore, SafetyAssessment};
+use futures_executor::block_on;
 
 #[test]
 fn indexes_generated_director_and_imported_artifacts() {
@@ -338,7 +338,7 @@ impl FakeGalleryIndex {
 
 #[async_trait]
 impl GalleryIndex for FakeGalleryIndex {
-    async fn upsert_item(&self, item: GalleryItem) -> nai_atelier_gallery::GalleryResult<()> {
+    async fn upsert_item(&self, item: GalleryItem) -> atelier_gallery::GalleryResult<()> {
         self.items.lock().unwrap().insert(item.id.clone(), item);
         Ok(())
     }
@@ -346,14 +346,14 @@ impl GalleryIndex for FakeGalleryIndex {
     async fn get_item(
         &self,
         id: &GalleryItemId,
-    ) -> nai_atelier_gallery::GalleryResult<Option<GalleryItem>> {
+    ) -> atelier_gallery::GalleryResult<Option<GalleryItem>> {
         Ok(self.items.lock().unwrap().get(id).cloned())
     }
 
     async fn query_items(
         &self,
         query: GalleryQuery,
-    ) -> nai_atelier_gallery::GalleryResult<Vec<GalleryItem>> {
+    ) -> atelier_gallery::GalleryResult<Vec<GalleryItem>> {
         Ok(query.apply(self.items()))
     }
 
@@ -361,7 +361,7 @@ impl GalleryIndex for FakeGalleryIndex {
         &self,
         id: &GalleryItemId,
         manual_safety_override: Option<GallerySafetyOverride>,
-    ) -> nai_atelier_gallery::GalleryResult<GalleryItem> {
+    ) -> atelier_gallery::GalleryResult<GalleryItem> {
         let mut item = self
             .items
             .lock()

@@ -1,4 +1,4 @@
-//! Host-neutral application use cases for NAI Atelier.
+//! Host-neutral application use cases for Atelier.
 
 mod app;
 mod commands;

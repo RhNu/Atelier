@@ -18,7 +18,7 @@ pub fn workspace_slot_path(root: &WorkspaceRoot, slot: WorkspaceSlot) -> PathBuf
 
 #[must_use]
 pub fn workspace_database_path(root: &WorkspaceRoot) -> PathBuf {
-    workspace_slot_path(root, WorkspaceSlot::Database).join("nai-atelier.sqlite3")
+    workspace_slot_path(root, WorkspaceSlot::Database).join("atelier.sqlite3")
 }
 
 #[derive(Copy, Clone, Debug, Default)]

@@ -1,16 +1,16 @@
 #![allow(clippy::missing_const_for_fn)]
 
-use nai_atelier_generation::{
+use atelier_generation::{
     AnlasEstimate, Character, CharacterPosition, CharacterReference, CharacterReferenceType,
     ControlNetConfig, ControlNetInput, GenerateImageRequest, GenerateImageStreamRequest,
     GenerationOutputMode, GenerationPlanContext, GenerationRequestPlan, ImageFormat, ImageModel,
     ImageSize, Img2ImgRequest, NoiseSchedule, Sampler, SeedMode, StreamMode, UcPreset,
 };
-use nai_atelier_jobs::{BatchId, JobId, JobPayloadRef};
-use nai_atelier_kernel::{
+use atelier_jobs::{BatchId, JobId, JobPayloadRef};
+use atelier_kernel::{
     GenerationWorkRequest, PreparedGenerationPayload, SubmittedGenerationPayload,
 };
-use nai_atelier_prompt_resources::{CompiledPrompt, PromptFunctionTraceEntry, PromptTrace};
+use atelier_prompt_resources::{CompiledPrompt, PromptFunctionTraceEntry, PromptTrace};
 use serde::{Deserialize, Serialize};
 
 use crate::codec::{JsonCodec, decode_error};

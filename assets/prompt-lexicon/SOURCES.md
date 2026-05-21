@@ -13,8 +13,8 @@
 
 The source files in this directory were copied from the read-only `nait`
 reference workspace, then regenerated through this repository's Rust `xtask`
-builder. The checked-in generated schema is NAI Atelier's own
-`nai-atelier-prompt-lexicon` v1 format.
+builder. The checked-in generated schema is Atelier's own
+`atelier-prompt-lexicon` v1 format.
 
 ## Checked-In Source Files
 
@@ -47,11 +47,11 @@ so they are not checked in here.
 - `nai-codex` (`https://github.com/RhNu/nai-codex`, MIT): prompt lexicon generation flow, autocomplete contract, and Lexicon browsing/assembly interaction mapping.
 
 `nait` does not record upstream source-asset commit SHAs for the copied CSV/JSON
-inputs. NAI Atelier therefore records the exact local `nait` commit snapshot
+inputs. Atelier therefore records the exact local `nait` commit snapshot
 used for this import and keeps the upstream repository/license references from
 `nait`'s own `CREDITS.md`.
 
-NAI Atelier copies static source assets from the local `nait` reference and
+Atelier copies static source assets from the local `nait` reference and
 reimplements the builder/query code in this repository. It does not copy
 Flutter, Vue, Tauri command, or application-service implementation from the
 reference projects.

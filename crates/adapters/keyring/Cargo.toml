@@ -1,5 +1,5 @@
 [package]
-name = "nai-atelier-adapter-keyring"
+name = "atelier-adapter-keyring"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
@@ -8,7 +8,7 @@ publish.workspace = true
 async-trait = { workspace = true }
 keyring = { workspace = true }
 keyring-core = { workspace = true }
-nai-atelier-secrets = { workspace = true }
+atelier-secrets = { workspace = true }
 
 [dev-dependencies]
 futures-executor = { workspace = true }

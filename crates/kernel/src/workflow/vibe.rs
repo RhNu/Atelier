@@ -1,8 +1,8 @@
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
     ResourceOwner, ResourceOwnerKind, ResourceRelation,
 };
-use nai_atelier_vibe::{
+use atelier_vibe::{
     EncodeVibeRequest, VibeDocumentCodec, VibeDocumentEntry, VibeDocumentResources,
     VibeEncodingRecord, VibeError, VibeExportEntry,
 };
@@ -150,7 +150,7 @@ where
     let mut entries = Vec::with_capacity(request.vibe_ids.len());
     for id in request.vibe_ids {
         let entry = runtime.ports().get_document(&id).await?.ok_or_else(|| {
-            VibeError::new(nai_atelier_vibe::VibeErrorKind::NotFound, "vibe not found")
+            VibeError::new(atelier_vibe::VibeErrorKind::NotFound, "vibe not found")
         })?;
         let content = runtime
             .ports()
@@ -230,7 +230,7 @@ async fn register_vibe_resource<P>(
     owner: ResourceOwner,
     relation: ResourceRelation,
     bytes: &[u8],
-) -> KernelResult<nai_atelier_resource_catalog::ResourceRef>
+) -> KernelResult<atelier_resource_catalog::ResourceRef>
 where
     P: KernelVibePorts,
 {

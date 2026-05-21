@@ -1,13 +1,13 @@
-use nai_atelier_artifacts::ArtifactId;
-use nai_atelier_director::RunDirectorToolRequest;
-use nai_atelier_gallery::GalleryItem;
-use nai_atelier_generation::{
+use atelier_artifacts::ArtifactId;
+use atelier_director::RunDirectorToolRequest;
+use atelier_gallery::GalleryItem;
+use atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GenerationPlanContext, GenerationRequestPlan,
 };
-use nai_atelier_jobs::{BatchId, JobId, JobPayloadRef};
-use nai_atelier_prompt_resources::CompiledPrompt;
-use nai_atelier_resource_catalog::ResourceRef;
-use nai_atelier_vibe::{
+use atelier_jobs::{BatchId, JobId, JobPayloadRef};
+use atelier_prompt_resources::CompiledPrompt;
+use atelier_resource_catalog::ResourceRef;
+use atelier_vibe::{
     VibeDocumentEntry, VibeEncodeSettings, VibeEncodingRecord, VibeExportDocument,
     VibeExportFormat, VibeId, VibeSourceIdentity,
 };

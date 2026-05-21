@@ -3,7 +3,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
-use nai_atelier_jobs::{
+use atelier_jobs::{
     ActiveJobBatchSnapshot, BatchId, BatchStatus, JobBatch, JobId, JobKind, JobPayloadRef,
     JobQueueError, JobQueueRepository, JobQueueSnapshot, JobRecord, JobResult, JobStatus,
     QueueDelay, RetryPolicy, RunHistoryKind, RunHistoryQuery, RunHistoryRecord,

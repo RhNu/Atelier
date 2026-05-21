@@ -11,7 +11,7 @@
 
 `CreateApiKeyRequestDto.secret` 与 `UpdateApiKeyRequestDto.secret` 是唯一允许真实 secret 穿过前端到 Tauri command 边界的位置。它们是 write-only request payload：command 只能把 secret 传给 host-neutral `app` facade 完成创建或更新，不得把 secret 放入响应、事件、持久化记录或调试输出。
 
-`adapters/keyring` 是当前真实 `SecretStore` adapter，service name 固定为 `nai-atelier`，account 使用 `SecretRecordId`。默认测试不触碰 OS keyring；真实 keyring smoke test 保持 `#[ignore]`。
+`adapters/keyring` 是当前真实 `SecretStore` adapter，service name 固定为 `atelier`，account 使用 `SecretRecordId`。默认测试不触碰 OS keyring；真实 keyring smoke test 保持 `#[ignore]`。
 
 `adapters/database` 在当前 v1 schema 内新增 `api_key_records` 表，只保存：
 

@@ -20,7 +20,7 @@ cargo xtask lexicon check
 
 生成格式是本仓 v1：
 
-- `schema = "nai-atelier-prompt-lexicon"`
+- `schema = "atelier-prompt-lexicon"`
 - `version = 1`
 - compact arrays: `categories`, `subcategories`, `tags`, `translations`
 - `sources` metadata copied from the source manifest for auditability

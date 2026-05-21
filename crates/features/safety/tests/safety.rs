@@ -1,10 +1,10 @@
 use async_trait::async_trait;
-use futures_executor::block_on;
-use nai_atelier_resource_catalog::{ResourceId, ResourceRef};
-use nai_atelier_safety::{
+use atelier_resource_catalog::{ResourceId, ResourceRef};
+use atelier_safety::{
     ImageSafetyScore, SafetyAssessment, SafetyErrorKind, SafetyLabel, SafetyModelScore,
     SafetyRiskBand, SafetyScanInput, SafetyScanner,
 };
+use futures_executor::block_on;
 
 #[test]
 fn image_safety_score_accepts_range_boundaries() {
@@ -118,7 +118,7 @@ impl SafetyScanner for FakeSafetyScanner {
     async fn scan_image(
         &self,
         input: SafetyScanInput,
-    ) -> nai_atelier_safety::SafetyResult<SafetyAssessment> {
+    ) -> atelier_safety::SafetyResult<SafetyAssessment> {
         Ok(SafetyAssessment::new(input.resource, self.score).with_scorer("fake", None))
     }
 }

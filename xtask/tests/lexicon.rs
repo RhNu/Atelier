@@ -68,7 +68,7 @@ fn builds_v1_lexicon_with_priority_aliases_and_sources() {
     assert_eq!(summary.matched_weights, 3);
     assert_eq!(summary.total_translations, 9);
     assert_eq!(summary.tags_with_aliases, 3);
-    assert_eq!(output["schema"], "nai-atelier-prompt-lexicon");
+    assert_eq!(output["schema"], "atelier-prompt-lexicon");
     assert_eq!(output["version"], 1);
     assert_eq!(output["sources"].as_array().unwrap().len(), 3);
     assert_eq!(output["stats"]["primary_from_category_json"], 1);
@@ -338,7 +338,7 @@ impl TestWorkspace {
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be after Unix epoch")
             .as_nanos();
-        let path = std::env::temp_dir().join(format!("nai_atelier_xtask_{name}_{unique}"));
+        let path = std::env::temp_dir().join(format!("atelier_xtask_{name}_{unique}"));
         fs::create_dir_all(path.join("assets/prompt-lexicon/sources/json"))
             .expect("test workspace should be created");
         fs::create_dir_all(path.join("assets/prompt-lexicon/generated"))

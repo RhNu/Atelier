@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use thiserror::Error;
 
-const EXPECTED_SCHEMA: &str = "nai-atelier-prompt-lexicon";
+const EXPECTED_SCHEMA: &str = "atelier-prompt-lexicon";
 const EXPECTED_VERSION: u32 = 1;
 const SORTED_INSERTION_LIMIT: usize = 512;
 const EMBEDDED_PROMPT_LEXICON: &str =

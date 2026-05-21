@@ -1,9 +1,9 @@
-use nai_atelier_artifacts::{
+use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactSource, VisualAssetRef,
     VisualAssetRole,
 };
-use nai_atelier_resource_catalog::{ResourceRef, ResourceVariantKind};
-use nai_atelier_safety::SafetyAssessment;
+use atelier_resource_catalog::{ResourceRef, ResourceVariantKind};
+use atelier_safety::SafetyAssessment;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GalleryItemId(String);

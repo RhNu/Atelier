@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use nai_atelier_app_api::event::{AppEventDto, AppEventKindDto};
-use nai_atelier_generation::GenerationOutputMode;
-use nai_atelier_kernel::{KernelEvent, KernelEventKind};
+use atelier_app_api::event::{AppEventDto, AppEventKindDto};
+use atelier_generation::GenerationOutputMode;
+use atelier_kernel::{KernelEvent, KernelEventKind};
 
 use crate::mapping::resource_ref_to_dto;
 
@@ -167,10 +167,10 @@ const fn output_mode_as_str(mode: GenerationOutputMode) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use nai_atelier_app_api::event::AppEventKindDto;
-    use nai_atelier_jobs::BatchId;
-    use nai_atelier_kernel::{KernelEvent, KernelEventKind};
-    use nai_atelier_resource_catalog::{ResourceId, ResourceRef};
+    use atelier_app_api::event::AppEventKindDto;
+    use atelier_jobs::BatchId;
+    use atelier_kernel::{KernelEvent, KernelEventKind};
+    use atelier_resource_catalog::{ResourceId, ResourceRef};
 
     use super::{AppEventHub, MAX_RETAINED_EVENTS};
 

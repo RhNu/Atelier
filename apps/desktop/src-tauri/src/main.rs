@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    nai_atelier_desktop_lib::run();
+    atelier_desktop_lib::run();
 }

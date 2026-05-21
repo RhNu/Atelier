@@ -1,10 +1,10 @@
 mod support;
 
-use futures_executor::block_on;
-use nai_atelier_secrets::{
+use atelier_secrets::{
     ApiKeyId, ApiKeyRegistryService, ApiKeyRegistryStore, CreateApiKeyRequest, SecretRecordId,
     SecretValue, SecretsErrorKind, SubscriptionClientError, UpdateApiKeyRequest,
 };
+use futures_executor::block_on;
 use support::{FakeProbe, MemoryRegistryStore, MemorySecretStore, request};
 
 #[test]

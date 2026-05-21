@@ -5,13 +5,13 @@
 - Date: 2026-05-20
 - Status: Current guidance
 
-This document is the single architecture and backend layout overview for NAI Atelier. It replaces the older split between general architecture guidance, crate layout planning, and rollout planning.
+This document is the single architecture and backend layout overview for Atelier. It replaces the older split between general architecture guidance, crate layout planning, and rollout planning.
 
 Names and module boundaries can still change when implementation proves a better shape, but changes should preserve the dependency direction and I/O boundaries described here.
 
 ## Product Boundary
 
-NAI Atelier is a desktop workspace for NovelAI image workflows. Internal language should stay close to the product domain: workspace, prompt, prompt resource, generation work, job, artifact, gallery item, Vibe document, Director result, resource reference, and safety assessment.
+Atelier is a desktop workspace for NovelAI image workflows. Internal language should stay close to the product domain: workspace, prompt, prompt resource, generation work, job, artifact, gallery item, Vibe document, Director result, resource reference, and safety assessment.
 
 NovelAI protocol details belong behind the `novelai-bridge` adapter. The application should not become a generic provider abstraction unless a separate design note proves that need.
 

@@ -2,51 +2,47 @@ use std::sync::{Arc, Mutex as StdMutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
-use nai_atelier_adapter_database::{
+use atelier_adapter_database::{
     DatabaseArtifactRepository, DatabaseGalleryIndex, DatabaseGenerationPayloadStore,
     DatabasePromptResourceRepository, DatabaseResourceCatalogRepository, DatabaseVibeRepository,
 };
-use nai_atelier_adapter_image_codec::{
+use atelier_adapter_image_codec::{
     ImageCodec, ImageCodecVariantBuilder, ImageMetadataBlobStore, ImageSourceReader,
     ImageVariantSettingsProvider,
 };
-use nai_atelier_adapter_novelai::{NovelAiClientFactory, ResolverBackedNovelAiAdapter};
-use nai_atelier_adapter_storage_fs::{
-    FileSystemResourceBlobStore, FileSystemResourceContentReader,
-};
-use nai_atelier_artifacts::{
+use atelier_adapter_novelai::{NovelAiClientFactory, ResolverBackedNovelAiAdapter};
+use atelier_adapter_storage_fs::{FileSystemResourceBlobStore, FileSystemResourceContentReader};
+use atelier_artifacts::{
     ArtifactKind, ArtifactRecord, ArtifactResult, ArtifactService, RegisterArtifactRequest,
     VisualAssetRef, VisualAssetRole,
 };
-use nai_atelier_director::{
+use atelier_director::{
     DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
-use nai_atelier_gallery::{GalleryItem, GalleryResult, GalleryService};
-use nai_atelier_generation::{
+use atelier_gallery::{GalleryItem, GalleryResult, GalleryService};
+use atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
     ImageStreamResult, NovelAiGenerationClient,
 };
-use nai_atelier_kernel::{
+use atelier_kernel::{
     GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEvent, KernelEventSink,
     KernelGenerationPorts, KernelPreciseReferencePorts, KernelResult, KernelVibePorts,
     PreparedGenerationPayload, SubmittedGenerationPayload,
 };
-use nai_atelier_precise_reference::{
+use atelier_precise_reference::{
     PreciseReferenceError, PreciseReferenceImage, PreciseReferenceResult,
 };
-use nai_atelier_prompt_resources::{
+use atelier_prompt_resources::{
     CompilePromptRequest, CompiledPrompt, PromptCompiler, PromptResourceResult,
 };
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobWriteIntent, BuiltResourceVariant, CreateVariantRequest, RegisterResourceRequest,
     ResourceCatalog, ResourceRef, ResourceResult, ResourceVariantKind, VariantId,
 };
-use nai_atelier_safety::{
-    SafetyAssessment, SafetyError, SafetyResult, SafetyScanInput, SafetyScanner,
-};
-use nai_atelier_secrets::{ApiKeyRegistryService, SecretStore};
-use nai_atelier_settings::{ImageVariantSettings, WorkspaceSettings};
-use nai_atelier_vibe::{
+use atelier_safety::{SafetyAssessment, SafetyError, SafetyResult, SafetyScanInput, SafetyScanner};
+use atelier_secrets::{ApiKeyRegistryService, SecretStore};
+use atelier_settings::{ImageVariantSettings, WorkspaceSettings};
+use atelier_vibe::{
     EmbeddedVibeDocumentExtractor, EncodeVibeRequest, EncodedVibe, NovelAiVibeClient,
     VibeDocumentEntry, VibeDomainResult, VibeEncodeSettings, VibeEncodingRecord, VibeError,
     VibeErrorKind, VibeId, VibeRepository, VibeResult, VibeSourceIdentity,
@@ -55,9 +51,9 @@ use nai_atelier_vibe::{
 use crate::events::AppEventHub;
 
 pub type AppApiKeyService<S, F> = ApiKeyRegistryService<
-    nai_atelier_adapter_database::DatabaseApiKeyRegistryStore,
+    atelier_adapter_database::DatabaseApiKeyRegistryStore,
     S,
-    nai_atelier_adapter_novelai::NovelAiSubscriptionProbeClient<F>,
+    atelier_adapter_novelai::NovelAiSubscriptionProbeClient<F>,
 >;
 
 pub type AppNovelAiAdapter<S, F> = ResolverBackedNovelAiAdapter<AppApiKeyService<S, F>, F>;
@@ -153,7 +149,7 @@ where
 
     async fn get_submitted_payload(
         &self,
-        payload_ref: &nai_atelier_jobs::JobPayloadRef,
+        payload_ref: &atelier_jobs::JobPayloadRef,
     ) -> KernelResult<Option<SubmittedGenerationPayload>> {
         self.payloads.get_submitted_payload(payload_ref).await
     }

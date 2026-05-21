@@ -1,0 +1,4 @@
+interface:
+  display_name: "Atelier React Tauri"
+  short_description: "React guidance for Atelier Tauri UI"
+  default_prompt: "Use $atelier-react-tauri when building Atelier's Tauri React frontend."

@@ -1,49 +1,49 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use base64::Engine;
-use futures_executor::block_on;
-use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
-use nai_atelier_adapter_database::{DatabaseConnection, DatabaseResourceCatalogRepository};
-use nai_atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
-use nai_atelier_adapter_storage_fs::workspace_database_path;
-use nai_atelier_app::AtelierApp;
-use nai_atelier_app_api::account::CreateApiKeyRequestDto;
-use nai_atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
-use nai_atelier_app_api::gallery::{
+use atelier_adapter_database::{DatabaseConnection, DatabaseResourceCatalogRepository};
+use atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
+use atelier_adapter_storage_fs::workspace_database_path;
+use atelier_app::AtelierApp;
+use atelier_app_api::account::CreateApiKeyRequestDto;
+use atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
+use atelier_app_api::gallery::{
     GalleryQueryDto, GallerySafetyLabelDto, GallerySafetyRiskBandDto, GallerySourceKindDto,
 };
-use nai_atelier_app_api::generation::{
+use atelier_app_api::generation::{
     GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationPlanContextDto,
     GenerationWorkRequestDto, ImageModelDto, Img2ImgRequestDto, QueueDirectiveDto, StreamModeDto,
     SubmitGenerationRequestDto,
 };
-use nai_atelier_app_api::history::{
+use atelier_app_api::history::{
     RerunGenerationHistoryItemRequestDto, RunHistoryKindDto, RunHistoryQueryDto,
     RunHistoryStatusDto,
 };
-use nai_atelier_app_api::resource::{
+use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
 };
-use nai_atelier_app_api::settings::{ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto};
-use nai_atelier_director::{
+use atelier_app_api::settings::{ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto};
+use atelier_director::{
     DirectorClientError, DirectorResult, DirectorToolOutput, NovelAiDirectorClient,
     RunDirectorToolRequest,
 };
-use nai_atelier_generation::{
+use atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
     ImageStreamEvent, ImageStreamResult, NovelAiGenerationClient,
 };
-use nai_atelier_resource_catalog::{ResourceCatalogRepository, VariantId};
-use nai_atelier_safety::{
+use atelier_resource_catalog::{ResourceCatalogRepository, VariantId};
+use atelier_safety::{
     SafetyAssessment, SafetyModelScore, SafetyResult, SafetyScanInput, SafetyScanner,
 };
-use nai_atelier_secrets::{
+use atelier_secrets::{
     SecretRecordId, SecretStore, SecretValue, SecretsResult, SubscriptionClient,
     SubscriptionResult, SubscriptionSummary,
 };
-use nai_atelier_vibe::{EncodeVibeRequest, EncodedVibe, NovelAiVibeClient, VibeResult};
-use nai_atelier_workspace::WorkspaceRoot;
+use atelier_vibe::{EncodeVibeRequest, EncodedVibe, NovelAiVibeClient, VibeResult};
+use atelier_workspace::WorkspaceRoot;
+use base64::Engine;
+use futures_executor::block_on;
+use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
 
 #[path = "app_integration/director_safety_history.rs"]
 mod director_safety_history;
@@ -105,7 +105,7 @@ async fn test_app_with_image(
 }
 
 fn asset_roles_and_kinds(
-    item: &nai_atelier_app_api::gallery::GalleryItemDto,
+    item: &atelier_app_api::gallery::GalleryItemDto,
 ) -> Vec<(&str, Option<&str>)> {
     item.assets
         .iter()
@@ -113,7 +113,7 @@ fn asset_roles_and_kinds(
         .collect()
 }
 
-fn variant_by_role(item: &nai_atelier_app_api::gallery::GalleryItemDto, role: &str) -> String {
+fn variant_by_role(item: &atelier_app_api::gallery::GalleryItemDto, role: &str) -> String {
     item.assets
         .iter()
         .find(|asset| asset.role == role)
@@ -144,7 +144,7 @@ impl SecretStore for MemorySecretStore {
             .rev()
             .find(|(candidate, _)| candidate == id.as_str())
             .map(|(_, value)| SecretValue::new(value.clone()))
-            .ok_or_else(|| nai_atelier_secrets::SecretsError::missing_secret(id.as_str()))
+            .ok_or_else(|| atelier_secrets::SecretsError::missing_secret(id.as_str()))
     }
 
     async fn delete_secret(&self, id: &SecretRecordId) -> SecretsResult<bool> {

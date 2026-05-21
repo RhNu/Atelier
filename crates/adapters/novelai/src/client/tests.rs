@@ -8,20 +8,20 @@ use std::{
 };
 
 use async_trait::async_trait;
-use base64::{Engine, engine::general_purpose::STANDARD};
-use futures_core::Stream;
-use futures_executor::block_on;
-use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
-use nai_atelier_generation::{
+use atelier_generation::{
     ClientApiErrorReason as GenerationApiErrorReason,
     ClientInvalidRequestKind as GenerationInvalidRequestKind, GenerateImageRequest, GeneratedImage,
     GenerationClientError, ImageModel, ImageSize, NoiseSchedule, NovelAiGenerationClient, Sampler,
     UcPreset,
 };
-use nai_atelier_secrets::{
+use atelier_secrets::{
     SecretResolver, SecretValue, SecretsError, SecretsResult, SubscriptionClient,
     SubscriptionClientError, SubscriptionProbeClient, SubscriptionResult,
 };
+use base64::{Engine, engine::general_purpose::STANDARD};
+use futures_core::Stream;
+use futures_executor::block_on;
+use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
 use novelai_bridge::{ApiError, ApiErrorKind, ApiErrorReason, BridgeError};
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
@@ -33,7 +33,7 @@ use crate::error::{
 
 #[test]
 fn crate_metadata_is_available() {
-    assert_eq!(env!("CARGO_PKG_NAME"), "nai-atelier-adapter-novelai");
+    assert_eq!(env!("CARGO_PKG_NAME"), "atelier-adapter-novelai");
 }
 
 #[test]

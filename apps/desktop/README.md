@@ -1,6 +1,6 @@
-# NAI Atelier Desktop
+# Atelier Desktop
 
-This package contains the Tauri v2 shell and Vite React frontend for NAI Atelier.
+This package contains the Tauri v2 shell and Vite React frontend for Atelier.
 
 Prefer root workspace scripts for daily development:
 

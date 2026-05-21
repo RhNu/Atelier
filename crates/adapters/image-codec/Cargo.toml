@@ -1,5 +1,5 @@
 [package]
-name = "nai-atelier-adapter-image-codec"
+name = "atelier-adapter-image-codec"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
@@ -7,8 +7,8 @@ publish.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 image = { workspace = true, features = ["jpeg", "png", "webp"] }
-nai-atelier-resource-catalog = { workspace = true }
-nai-atelier-settings = { workspace = true }
+atelier-resource-catalog = { workspace = true }
+atelier-settings = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

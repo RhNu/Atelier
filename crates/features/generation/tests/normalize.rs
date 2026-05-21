@@ -1,4 +1,4 @@
-use nai_atelier_generation::{
+use atelier_generation::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
     ControlNetInput, GenerateImageRequest, GenerationErrorKind, ImageModel, ImageSize,
     Img2ImgRequest, normalize_generate_request,

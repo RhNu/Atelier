@@ -5,7 +5,7 @@ describe("App", () => {
   it("renders the workspace scaffold", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "NAI Atelier" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Atelier" })).toBeInTheDocument();
     expect(screen.getByText("Vite React TS")).toBeInTheDocument();
     expect(screen.getByText("Tauri v2")).toBeInTheDocument();
   });

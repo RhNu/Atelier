@@ -16,7 +16,7 @@ impl<S, F, E> VibeUseCases<'_, S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
-    E: nai_atelier_vibe::EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
+    E: atelier_vibe::EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
 {
     pub async fn import_document(
         &self,

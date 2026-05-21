@@ -1,4 +1,4 @@
-//! Single-queue job state machine for NAI Atelier.
+//! Single-queue job state machine for Atelier.
 
 mod error;
 mod model;

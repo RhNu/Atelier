@@ -202,7 +202,7 @@ fn generation_workspace_and_event_command_dtos_are_command_friendly() {
     );
     assert_eq!(
         serde_json::to_value(AppEventPageDto {
-            items: vec![nai_atelier_app_api::event::AppEventDto {
+            items: vec![atelier_app_api::event::AppEventDto {
                 sequence: 8,
                 kind: AppEventKindDto::JobSucceeded {
                     batch_id: "batch-1".to_owned(),

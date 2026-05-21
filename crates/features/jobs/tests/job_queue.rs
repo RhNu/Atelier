@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use nai_atelier_jobs::{
+use atelier_jobs::{
     BatchId, BatchStatus, JobFailureImpact, JobId, JobKind, JobPayloadRef, JobQueue,
     JobQueueErrorKind, JobStatus, QueueDelay, QueueDirective, RetryPolicy, SubmitJob,
 };

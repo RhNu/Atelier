@@ -1,10 +1,10 @@
-use nai_atelier_adapter_novelai::NovelAiClientFactory;
-use nai_atelier_app_api::history::{
+use atelier_adapter_novelai::NovelAiClientFactory;
+use atelier_app_api::history::{
     RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto, RunHistoryPageDto,
     RunHistoryQueryDto,
 };
-use nai_atelier_secrets::SecretStore;
-use nai_atelier_vibe::EmbeddedVibeDocumentExtractor;
+use atelier_secrets::SecretStore;
+use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
 use crate::commands::{AppCommandHost, CommandResult};
 

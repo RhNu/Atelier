@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
-use nai_atelier_artifacts::{
+use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactSource, RegisterArtifactRequest,
     VisualAssetRef, VisualAssetRole,
 };
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
     ResourceOwner, ResourceOwnerKind, ResourceRelation, ResourceVariantKind,
 };

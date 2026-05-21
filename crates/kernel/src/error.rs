@@ -1,13 +1,13 @@
-use nai_atelier_artifacts::ArtifactError;
-use nai_atelier_director::DirectorClientError;
-use nai_atelier_gallery::GalleryError;
-use nai_atelier_generation::{GenerationClientError, GenerationError};
-use nai_atelier_jobs::{JobPayloadRef, JobQueueError};
-use nai_atelier_precise_reference::PreciseReferenceError;
-use nai_atelier_prompt_resources::PromptResourceError;
-use nai_atelier_resource_catalog::ResourceCatalogError;
-use nai_atelier_safety::SafetyError;
-use nai_atelier_vibe::{VibeClientError, VibeError};
+use atelier_artifacts::ArtifactError;
+use atelier_director::DirectorClientError;
+use atelier_gallery::GalleryError;
+use atelier_generation::{GenerationClientError, GenerationError};
+use atelier_jobs::{JobPayloadRef, JobQueueError};
+use atelier_precise_reference::PreciseReferenceError;
+use atelier_prompt_resources::PromptResourceError;
+use atelier_resource_catalog::ResourceCatalogError;
+use atelier_safety::SafetyError;
+use atelier_vibe::{VibeClientError, VibeError};
 use thiserror::Error;
 
 pub type KernelResult<T> = Result<T, KernelError>;

@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
-use nai_atelier_generation::CharacterReferenceType;
-use nai_atelier_precise_reference::{
+use atelier_generation::CharacterReferenceType;
+use atelier_precise_reference::{
     PreciseReferenceImage, PreciseReferenceImageReader, PreciseReferenceInput,
     PreciseReferenceService,
 };
-use nai_atelier_resource_catalog::{ResourceId, ResourceKind, ResourceRef};
+use atelier_resource_catalog::{ResourceId, ResourceKind, ResourceRef};
 
 #[derive(Default)]
 struct FakeImageReader {
@@ -29,9 +29,9 @@ impl PreciseReferenceImageReader for FakeImageReader {
     fn read_precise_reference_image(
         &self,
         source: &ResourceRef,
-    ) -> nai_atelier_precise_reference::PreciseReferenceResult<PreciseReferenceImage> {
+    ) -> atelier_precise_reference::PreciseReferenceResult<PreciseReferenceImage> {
         self.images.get(&source.id).cloned().ok_or_else(|| {
-            nai_atelier_precise_reference::PreciseReferenceError::not_found("missing image")
+            atelier_precise_reference::PreciseReferenceError::not_found("missing image")
         })
     }
 }

@@ -1,55 +1,55 @@
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
-use nai_atelier_adapter_novelai::NovelAiClientFactory;
-use nai_atelier_app_api::account::{
+use atelier_adapter_novelai::NovelAiClientFactory;
+use atelier_app_api::account::{
     ApiKeyRecordDto, CreateApiKeyRequestDto, SubscriptionSummaryDto, UpdateApiKeyRequestDto,
 };
-use nai_atelier_app_api::director::{
+use atelier_app_api::director::{
     DirectorToolDto, DirectorToolResultDto, RunDirectorToolRequestDto,
 };
-use nai_atelier_app_api::event::AppEventDto;
-use nai_atelier_app_api::gallery::{GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto};
-use nai_atelier_app_api::generation::{
+use atelier_app_api::event::AppEventDto;
+use atelier_app_api::gallery::{GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto};
+use atelier_app_api::generation::{
     CharacterDto, CharacterReferenceDto, CharacterReferenceTypeDto, ControlNetConfigDto,
     ControlNetInputDto, GenerateImageRequestDto, GenerateImageStreamRequestDto,
     GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto, QueueDirectiveDto,
     SubmitGenerationRequestDto,
 };
-use nai_atelier_app_api::prompt::{
+use atelier_app_api::prompt::{
     CompilePromptRequestDto, CompiledPromptDto, DeletePromptChunkRequestDto,
     DeletePromptChunkResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
     PromptLexiconPageDto, UpsertPromptChunkRequestDto,
 };
-use nai_atelier_app_api::resource::ImageInputDto;
-use nai_atelier_app_api::settings::{
+use atelier_app_api::resource::ImageInputDto;
+use atelier_app_api::settings::{
     ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
-use nai_atelier_app_api::vibe::{
+use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
     ExportedVibeDocumentDto, ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
     ImportedVibeDocumentsDto,
 };
-use nai_atelier_app_api::workspace::WorkspaceStatusDto;
-use nai_atelier_artifacts::{ArtifactSource, VisualAssetRole};
-use nai_atelier_director::{DirectorTool, RunDirectorToolRequest};
-use nai_atelier_gallery::{GalleryItemId, GalleryQuery, GallerySourceKind};
-use nai_atelier_generation::{
+use atelier_app_api::workspace::WorkspaceStatusDto;
+use atelier_artifacts::{ArtifactSource, VisualAssetRole};
+use atelier_director::{DirectorTool, RunDirectorToolRequest};
+use atelier_gallery::{GalleryItemId, GalleryQuery, GallerySourceKind};
+use atelier_generation::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
     ControlNetInput, GenerateImageRequest, GenerateImageStreamRequest, ImageSize, Img2ImgRequest,
 };
-use nai_atelier_jobs::{
+use atelier_jobs::{
     BatchId, JobId, JobQueueRepository, JobStatus, RunHistoryKind, RunHistoryRecord,
     RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
 };
-use nai_atelier_kernel::{
+use atelier_kernel::{
     EnsureVibeEncoding, ExportVibeDocument, GenerationWorkRequest, ImportEmbeddedPngVibeDocument,
     ImportVibeDocument, RunDirectorTool, SubmitGenerationWork,
 };
-use nai_atelier_prompt_resources::{CompilePromptRequest, PromptChunkId, PromptChunkKey};
-use nai_atelier_resource_catalog::ResourceVariantKind;
-use nai_atelier_secrets::{ApiKeyId, SecretStore, SecretValue, SecretsErrorKind};
-use nai_atelier_vibe::{VibeEncodeSettings, VibeId, VibeSourceIdentity};
+use atelier_prompt_resources::{CompilePromptRequest, PromptChunkId, PromptChunkKey};
+use atelier_resource_catalog::ResourceVariantKind;
+use atelier_secrets::{ApiKeyId, SecretStore, SecretValue, SecretsErrorKind};
+use atelier_vibe::{VibeEncodeSettings, VibeId, VibeSourceIdentity};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod history;

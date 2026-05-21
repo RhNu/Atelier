@@ -1,4 +1,4 @@
-//! `SQLite` database adapters for NAI Atelier.
+//! `SQLite` database adapters for Atelier.
 
 mod api_keys;
 mod artifacts;

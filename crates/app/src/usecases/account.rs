@@ -34,7 +34,7 @@ where
         self.app
             .inner
             .api_keys
-            .update_api_key(nai_atelier_secrets::UpdateApiKeyRequest {
+            .update_api_key(atelier_secrets::UpdateApiKeyRequest {
                 id: ApiKeyId::new(request.id),
                 display_name: request.display_name,
                 secret: request.secret.map(SecretValue::new),

@@ -1,5 +1,5 @@
-use nai_atelier_artifacts::ArtifactRecord;
-use nai_atelier_safety::SafetyAssessment;
+use atelier_artifacts::ArtifactRecord;
+use atelier_safety::SafetyAssessment;
 
 use crate::{
     GalleryError, GalleryImageReference, GalleryIndex, GalleryItem, GalleryItemId, GalleryQuery,

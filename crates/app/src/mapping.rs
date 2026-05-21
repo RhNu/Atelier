@@ -1,59 +1,59 @@
-use nai_atelier_app_api::account::{ApiKeyRecordDto, SubscriptionSummaryDto};
-use nai_atelier_app_api::gallery::{
+use atelier_app_api::account::{ApiKeyRecordDto, SubscriptionSummaryDto};
+use atelier_app_api::gallery::{
     GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItemDto, GalleryPageDto,
     GalleryQueryDto, GallerySafetyDto, GallerySafetyLabelDto, GallerySafetyOverrideDto,
     GallerySafetyRiskBandDto, GallerySafetyScanStateDto, GallerySafetyScoreDto,
     GallerySourceKindDto, VisualAssetDto,
 };
-use nai_atelier_app_api::generation::{
+use atelier_app_api::generation::{
     GenerationPlanContextDto, GenerationStatusDto, ImageFormatDto, ImageModelDto, ImageSizeDto,
     NoiseScheduleDto, QueueDelayDto, QueueDirectiveDto, SamplerDto, StreamModeDto, UcPresetDto,
 };
-use nai_atelier_app_api::history::{
+use atelier_app_api::history::{
     RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto,
     RunHistoryQueryDto, RunHistoryStatusDto,
 };
-use nai_atelier_app_api::prompt::{
+use atelier_app_api::prompt::{
     CompiledPromptDto, PromptChunkDto, PromptFunctionTraceEntryDto, PromptLexiconCatalogDto,
     PromptLexiconCategorySummaryDto, PromptLexiconEntryDto, PromptLexiconListQueryDto,
     PromptLexiconPageDto, PromptLexiconStatsDto, PromptLexiconSubcategorySummaryDto,
     PromptTraceDto, UpsertPromptChunkRequestDto,
 };
-use nai_atelier_app_api::resource::ResourceRefDto;
-use nai_atelier_app_api::settings::{
+use atelier_app_api::resource::ResourceRefDto;
+use atelier_app_api::settings::{
     GenerationDefaultsDto, ImageVariantSettingsDto, WorkspaceSettingsDto,
 };
-use nai_atelier_app_api::vibe::{
+use atelier_app_api::vibe::{
     EnsuredVibeEncodingDto, ExportedVibeDocumentDto, ImportedVibeDocumentsDto,
     VibeDocumentEntryDto, VibeExportFormatDto, VibeModelDto,
 };
-use nai_atelier_artifacts::{ArtifactKind, VisualAssetRole};
-use nai_atelier_gallery::{
+use atelier_artifacts::{ArtifactKind, VisualAssetRole};
+use atelier_gallery::{
     GalleryImageReference, GalleryItem, GalleryQuery, GallerySafetyOverride, GallerySourceKind,
     ImageReferenceTarget,
 };
-use nai_atelier_generation::{
+use atelier_generation::{
     GenerationPlanContext, ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, StreamMode,
     UcPreset,
 };
-use nai_atelier_jobs::{
+use atelier_jobs::{
     BatchStatus, QueueDelay, QueueDirective, RunHistoryKind, RunHistoryQuery, RunHistoryRecord,
     RunHistoryStatus, RunOutputRecord,
 };
-use nai_atelier_kernel::{EnsuredVibeEncoding, ExportedVibeDocument, ImportedVibeDocuments};
-use nai_atelier_prompt_lexicon::{
+use atelier_kernel::{EnsuredVibeEncoding, ExportedVibeDocument, ImportedVibeDocuments};
+use atelier_prompt_lexicon::{
     PromptLexiconCatalog, PromptLexiconEntry, PromptLexiconListPage, PromptLexiconListQuery,
     PromptLexiconMatchField, PromptLexiconMatchRank,
 };
-use nai_atelier_prompt_resources::{
+use atelier_prompt_resources::{
     CompiledPrompt, PromptChunk, PromptChunkId, PromptChunkKey, PromptFunctionTraceEntry,
     PromptTrace, UpsertPromptChunkRequest,
 };
-use nai_atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
-use nai_atelier_safety::{SafetyAssessment, SafetyLabel, SafetyRiskBand};
-use nai_atelier_secrets::{ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretValue};
-use nai_atelier_settings::{GenerationDefaults, ImageVariantSettings, WorkspaceSettings};
-use nai_atelier_vibe::{VibeDocumentEntry, VibeExportFormat, VibeModel};
+use atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
+use atelier_safety::{SafetyAssessment, SafetyLabel, SafetyRiskBand};
+use atelier_secrets::{ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretValue};
+use atelier_settings::{GenerationDefaults, ImageVariantSettings, WorkspaceSettings};
+use atelier_vibe::{VibeDocumentEntry, VibeExportFormat, VibeModel};
 
 use crate::{AppError, AppResult};
 

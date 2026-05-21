@@ -1,5 +1,5 @@
-use nai_atelier_prompt::{FunctionValue, parse_prompt};
-use nai_atelier_resource_catalog::ResourceRef;
+use atelier_prompt::{FunctionValue, parse_prompt};
+use atelier_resource_catalog::ResourceRef;
 
 use crate::PromptResourceError;
 use crate::references::chunk_references_in_text;

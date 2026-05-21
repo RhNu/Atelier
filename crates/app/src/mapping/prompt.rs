@@ -121,7 +121,7 @@ pub fn lexicon_page_to_dto(value: PromptLexiconListPage) -> PromptLexiconPageDto
 }
 
 pub fn lexicon_search_to_page(
-    value: nai_atelier_prompt_lexicon::PromptLexiconSearchResult,
+    value: atelier_prompt_lexicon::PromptLexiconSearchResult,
     limit: usize,
 ) -> PromptLexiconPageDto {
     PromptLexiconPageDto {

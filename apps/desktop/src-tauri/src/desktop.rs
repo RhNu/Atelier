@@ -5,11 +5,11 @@ use crate::desktop_system::{
     DesktopFileDialog, DesktopNotifier, DesktopPathOpener, DesktopPaths, DesktopSystem,
     DesktopSystemError, DesktopSystemResult, PickFilesOptions,
 };
-use nai_atelier_adapter_keyring::KeyringSecretStore;
-use nai_atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
-use nai_atelier_app::{AppCommandHost, GenerationWorkerCancel};
-use nai_atelier_app_api::event::{AppEventDto, AppEventKindDto};
-use nai_atelier_app_api::generation::QueueDirectiveDto;
+use atelier_adapter_keyring::KeyringSecretStore;
+use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
+use atelier_app::{AppCommandHost, GenerationWorkerCancel};
+use atelier_app_api::event::{AppEventDto, AppEventKindDto};
+use atelier_app_api::generation::QueueDirectiveDto;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_notification::NotificationExt;
@@ -163,7 +163,7 @@ impl DesktopGenerationWorker {
                 .await;
             if let Err(error) = result {
                 let notifier = TauriNotifier::new(app_handle.clone());
-                let _ = system.notify("NAI Atelier generation failed", &error.message, &notifier);
+                let _ = system.notify("Atelier generation failed", &error.message, &notifier);
                 log::warn!("generation worker stopped with error: {}", error.message);
             }
             if let Some(next_directive) = worker.finish(run_id) {
@@ -211,7 +211,7 @@ pub fn build_desktop_state(
 ) -> Result<DesktopState, Box<dyn std::error::Error>> {
     let system = Arc::new(DesktopSystem::new(resolve_desktop_paths(&app_handle)?));
     let safety_scanner = match system.resolve_safety_assets() {
-        Ok(assets) => match nai_atelier_adapter_safety_onnx::build_safety_scanner(assets) {
+        Ok(assets) => match atelier_adapter_safety_onnx::build_safety_scanner(assets) {
             Ok(scanner) => scanner,
             Err(error) => {
                 log::warn!("safety scanner is unavailable: {error}");
@@ -248,7 +248,7 @@ fn resolve_desktop_paths(app_handle: &AppHandle) -> Result<DesktopPaths, tauri::
     let app_cache_dir = app_handle.path().app_cache_dir()?;
     let suggested_workspace_dir = app_handle.path().document_dir().map_or_else(
         |_| app_data_dir.join("workspaces"),
-        |document_dir| document_dir.join("NAI Atelier"),
+        |document_dir| document_dir.join("Atelier"),
     );
     let resource_dir = app_handle.path().resource_dir().ok();
 
@@ -267,7 +267,7 @@ fn subscribe_window_events(
     system: Arc<DesktopSystem>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     host.subscribe_events(Arc::new(move |event| {
-        if let Err(error) = app_handle.emit("nai-atelier-event", event.clone()) {
+        if let Err(error) = app_handle.emit("atelier-event", event.clone()) {
             log::warn!("failed to emit app event to window: {error}");
         }
         notify_for_generation_event(&system, &app_handle, &event);
@@ -285,7 +285,7 @@ fn notify_for_generation_event(
     match &event.kind {
         AppEventKindDto::JobSucceeded { job_id, .. } => {
             let _ = system.notify(
-                "NAI Atelier generation complete",
+                "Atelier generation complete",
                 &format!("Job {job_id} finished."),
                 &notifier,
             );
@@ -294,7 +294,7 @@ fn notify_for_generation_event(
             job_id, message, ..
         } => {
             let _ = system.notify(
-                "NAI Atelier generation failed",
+                "Atelier generation failed",
                 &format!("Job {job_id} failed: {message}"),
                 &notifier,
             );
@@ -420,7 +420,7 @@ impl DesktopNotifier for TauriNotifier {
 
 #[cfg(test)]
 mod tests {
-    use nai_atelier_app_api::generation::{QueueDelayDto, QueueDirectiveDto};
+    use atelier_app_api::generation::{QueueDelayDto, QueueDirectiveDto};
 
     use super::WorkerState;
 

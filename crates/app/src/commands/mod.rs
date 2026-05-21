@@ -12,14 +12,14 @@ mod workspace;
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use nai_atelier_adapter_keyring::KeyringSecretStore;
-use nai_atelier_adapter_novelai::{
+use atelier_adapter_keyring::KeyringSecretStore;
+use atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory,
 };
-use nai_atelier_app_api::{error::ErrorEnvelopeDto, event::AppEventDto};
-use nai_atelier_safety::SafetyScanner;
-use nai_atelier_secrets::SecretStore;
-use nai_atelier_vibe::EmbeddedVibeDocumentExtractor;
+use atelier_app_api::{error::ErrorEnvelopeDto, event::AppEventDto};
+use atelier_safety::SafetyScanner;
+use atelier_secrets::SecretStore;
+use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
 use crate::{AppError, AppEventListener, AppResult, AtelierApp};
 
@@ -142,7 +142,7 @@ where
 {
     pub(crate) async fn open_app(
         &self,
-        request: nai_atelier_app_api::workspace::OpenWorkspaceRequestDto,
+        request: atelier_app_api::workspace::OpenWorkspaceRequestDto,
     ) -> CommandResult<Arc<AtelierApp<S, F, E>>> {
         let root = request.root;
         let same_root = self

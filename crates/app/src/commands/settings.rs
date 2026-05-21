@@ -1,4 +1,4 @@
-use nai_atelier_app_api::settings::{
+use atelier_app_api::settings::{
     ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
 

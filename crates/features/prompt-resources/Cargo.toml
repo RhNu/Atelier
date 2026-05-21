@@ -1,13 +1,13 @@
 [package]
-name = "nai-atelier-prompt-resources"
+name = "atelier-prompt-resources"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-nai-atelier-prompt = { workspace = true }
-nai-atelier-resource-catalog = { workspace = true }
+atelier-prompt = { workspace = true }
+atelier-resource-catalog = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

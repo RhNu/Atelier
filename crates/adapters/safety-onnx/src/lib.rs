@@ -2,10 +2,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use image::{DynamicImage, ImageFormat, RgbImage, codecs::jpeg::JpegEncoder, imageops};
-use nai_atelier_safety::{
+use atelier_safety::{
     SafetyAssessment, SafetyError, SafetyModelScore, SafetyResult, SafetyScanInput, SafetyScanner,
 };
+use image::{DynamicImage, ImageFormat, RgbImage, codecs::jpeg::JpegEncoder, imageops};
 use ort::{session::Session, value::Tensor};
 
 pub const OPEN_NSFW_MODEL_ID: &str = "open_nsfw@onnx";
@@ -132,7 +132,7 @@ impl SafetyScanner for OrtNsfwScanner {
 }
 
 fn scores_to_assessment(
-    resource: nai_atelier_resource_catalog::ResourceRef,
+    resource: atelier_resource_catalog::ResourceRef,
     values: &[f32],
 ) -> SafetyResult<SafetyAssessment> {
     let nsfw = values
@@ -173,7 +173,7 @@ fn ort_error_to_safety(error: impl std::fmt::Display) -> SafetyError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nai_atelier_resource_catalog::{ResourceId, ResourceRef};
+    use atelier_resource_catalog::{ResourceId, ResourceRef};
 
     #[test]
     fn build_scanner_returns_none_without_assets() {
@@ -190,7 +190,7 @@ mod tests {
             panic!("missing model should not load");
         };
 
-        assert_eq!(error.kind(), nai_atelier_safety::SafetyErrorKind::Scanner);
+        assert_eq!(error.kind(), atelier_safety::SafetyErrorKind::Scanner);
     }
 
     #[test]
@@ -246,15 +246,15 @@ mod tests {
 
     #[test]
     fn bundled_onnx_smoke_test() {
-        if std::env::var_os("NAI_ATELIER_RUN_SAFETY_ONNX_SMOKE").is_none() {
+        if std::env::var_os("ATELIER_RUN_SAFETY_ONNX_SMOKE").is_none() {
             return;
         }
-        let model_path = std::env::var_os("NAI_ATELIER_SAFETY_ONNX_MODEL")
+        let model_path = std::env::var_os("ATELIER_SAFETY_ONNX_MODEL")
             .map(PathBuf::from)
-            .expect("NAI_ATELIER_SAFETY_ONNX_MODEL must point to open-nsfw.onnx");
-        let runtime_library_path = std::env::var_os("NAI_ATELIER_ONNX_RUNTIME")
+            .expect("ATELIER_SAFETY_ONNX_MODEL must point to open-nsfw.onnx");
+        let runtime_library_path = std::env::var_os("ATELIER_ONNX_RUNTIME")
             .map(PathBuf::from)
-            .expect("NAI_ATELIER_ONNX_RUNTIME must point to the ONNX Runtime library");
+            .expect("ATELIER_ONNX_RUNTIME must point to the ONNX Runtime library");
         let scanner = OrtNsfwScanner::load(NsfwRuntimeAssets {
             model_path,
             runtime_library_path: Some(runtime_library_path),

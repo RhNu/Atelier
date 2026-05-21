@@ -4,15 +4,13 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
+use atelier_app_api::generation::{QueueDelayDto, QueueDirectiveDto, RunGenerationJobRequestDto};
 use futures_timer::Delay;
-use nai_atelier_app_api::generation::{
-    QueueDelayDto, QueueDirectiveDto, RunGenerationJobRequestDto,
-};
 
 use crate::commands::{AppCommandHost, CommandResult};
-use nai_atelier_adapter_novelai::NovelAiClientFactory;
-use nai_atelier_secrets::SecretStore;
-use nai_atelier_vibe::EmbeddedVibeDocumentExtractor;
+use atelier_adapter_novelai::NovelAiClientFactory;
+use atelier_secrets::SecretStore;
+use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
 #[derive(Clone, Debug, Default)]
 pub struct GenerationWorkerCancel {

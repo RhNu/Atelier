@@ -1,10 +1,10 @@
 mod support;
 
-use futures_executor::block_on;
-use nai_atelier_prompt_resources::{
+use atelier_prompt_resources::{
     DeletePromptChunkResult, PromptChunkKey, PromptChunkService, PromptResourceErrorKind,
     UpsertPromptChunkRequest,
 };
+use futures_executor::block_on;
 use support::MemoryPromptResourceRepository;
 
 #[test]
@@ -133,7 +133,7 @@ fn unreferenced_chunk_can_be_deleted() {
 }
 
 fn request(
-    chunk_id: Option<nai_atelier_prompt_resources::PromptChunkId>,
+    chunk_id: Option<atelier_prompt_resources::PromptChunkId>,
     key: &str,
     content: &str,
 ) -> UpsertPromptChunkRequest {

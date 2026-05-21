@@ -2,21 +2,21 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use futures_executor::block_on;
-use nai_atelier_adapter_storage_fs::{
+use atelier_adapter_storage_fs::{
     FileSystemResourceBlobStore, FileSystemWorkspaceLock, FileSystemWorkspaceStore,
 };
-use nai_atelier_resource_catalog::{
+use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, BuildVariantRequest, BuiltResourceVariant, ResourceBlobStore,
     ResourceCatalog, ResourceCatalogError, ResourceCatalogRepository, ResourceCatalogTransaction,
     ResourceId, ResourceKind, ResourceLifecycle, ResourceOwner, ResourceOwnerKind, ResourceRecord,
     ResourceRef, ResourceRelation, ResourceState, ResourceVariant, ResourceVariantBuilder,
     VariantId,
 };
-use nai_atelier_workspace::{
+use atelier_workspace::{
     WorkspaceErrorKind, WorkspaceLayout, WorkspaceLock, WorkspaceLockRequest,
     WorkspaceRelativePath, WorkspaceRoot, WorkspaceSlot, WorkspaceStore,
 };
+use futures_executor::block_on;
 
 #[test]
 fn initialize_creates_workspace_manifest_and_internal_directories() {
@@ -241,7 +241,7 @@ fn storage_blob_store_registers_resource_through_resource_catalog() {
         let owner = ResourceOwner::new(ResourceOwnerKind::Job, "job-1");
 
         let reference = catalog
-            .register_resource(nai_atelier_resource_catalog::RegisterResourceRequest {
+            .register_resource(atelier_resource_catalog::RegisterResourceRequest {
                 resource_id: ResourceId::new("generated-1"),
                 kind: ResourceKind::GeneratedImage,
                 lifecycle: ResourceLifecycle::JobScoped,
@@ -307,7 +307,7 @@ struct RepositoryState {
 impl ResourceCatalogRepository for SimpleRepository {
     async fn begin_transaction(
         &self,
-    ) -> nai_atelier_resource_catalog::ResourceResult<Box<dyn ResourceCatalogTransaction>> {
+    ) -> atelier_resource_catalog::ResourceResult<Box<dyn ResourceCatalogTransaction>> {
         Ok(Box::new(SimpleTransaction {
             state: Arc::clone(&self.state),
         }))
@@ -316,7 +316,7 @@ impl ResourceCatalogRepository for SimpleRepository {
     async fn get_ready_record(
         &self,
         id: &ResourceId,
-    ) -> nai_atelier_resource_catalog::ResourceResult<Option<ResourceRecord>> {
+    ) -> atelier_resource_catalog::ResourceResult<Option<ResourceRecord>> {
         Ok(self
             .state
             .lock()
@@ -330,33 +330,32 @@ impl ResourceCatalogRepository for SimpleRepository {
     async fn list_ready_refs_by_owner(
         &self,
         _owner: &ResourceOwner,
-    ) -> nai_atelier_resource_catalog::ResourceResult<Vec<ResourceRef>> {
+    ) -> atelier_resource_catalog::ResourceResult<Vec<ResourceRef>> {
         Ok(Vec::new())
     }
 
     async fn list_ready_links_by_owner(
         &self,
         _owner: &ResourceOwner,
-    ) -> nai_atelier_resource_catalog::ResourceResult<Vec<nai_atelier_resource_catalog::ResourceLink>>
-    {
+    ) -> atelier_resource_catalog::ResourceResult<Vec<atelier_resource_catalog::ResourceLink>> {
         Ok(Vec::new())
     }
 
     async fn get_variant(
         &self,
         _id: &VariantId,
-    ) -> nai_atelier_resource_catalog::ResourceResult<Option<ResourceVariant>> {
+    ) -> atelier_resource_catalog::ResourceResult<Option<ResourceVariant>> {
         Ok(None)
     }
 
-    async fn scan_orphan_blobs(&self) -> nai_atelier_resource_catalog::ResourceResult<Vec<BlobId>> {
+    async fn scan_orphan_blobs(&self) -> atelier_resource_catalog::ResourceResult<Vec<BlobId>> {
         Ok(Vec::new())
     }
 
     async fn record_orphan_blob(
         &self,
         _blob_id: &BlobId,
-    ) -> nai_atelier_resource_catalog::ResourceResult<()> {
+    ) -> atelier_resource_catalog::ResourceResult<()> {
         Ok(())
     }
 }
@@ -370,7 +369,7 @@ impl ResourceCatalogTransaction for SimpleTransaction {
     async fn insert_pending_record(
         &mut self,
         record: ResourceRecord,
-    ) -> nai_atelier_resource_catalog::ResourceResult<()> {
+    ) -> atelier_resource_catalog::ResourceResult<()> {
         self.state
             .lock()
             .unwrap()
@@ -381,29 +380,29 @@ impl ResourceCatalogTransaction for SimpleTransaction {
 
     async fn attach_owner(
         &mut self,
-        _link: nai_atelier_resource_catalog::ResourceLink,
-    ) -> nai_atelier_resource_catalog::ResourceResult<()> {
+        _link: atelier_resource_catalog::ResourceLink,
+    ) -> atelier_resource_catalog::ResourceResult<()> {
         Ok(())
     }
 
     async fn detach_owner(
         &mut self,
-        _link: &nai_atelier_resource_catalog::ResourceLink,
-    ) -> nai_atelier_resource_catalog::ResourceResult<()> {
+        _link: &atelier_resource_catalog::ResourceLink,
+    ) -> atelier_resource_catalog::ResourceResult<()> {
         Ok(())
     }
 
     async fn count_owner_links(
         &self,
         _id: &ResourceId,
-    ) -> nai_atelier_resource_catalog::ResourceResult<usize> {
+    ) -> atelier_resource_catalog::ResourceResult<usize> {
         Ok(1)
     }
 
     async fn mark_ready(
         &mut self,
         id: &ResourceId,
-    ) -> nai_atelier_resource_catalog::ResourceResult<()> {
+    ) -> atelier_resource_catalog::ResourceResult<()> {
         self.state
             .lock()
             .unwrap()
@@ -417,29 +416,29 @@ impl ResourceCatalogTransaction for SimpleTransaction {
     async fn mark_delete_pending(
         &mut self,
         _id: &ResourceId,
-    ) -> nai_atelier_resource_catalog::ResourceResult<()> {
+    ) -> atelier_resource_catalog::ResourceResult<()> {
         Ok(())
     }
 
     async fn insert_variant(
         &mut self,
         _variant: ResourceVariant,
-    ) -> nai_atelier_resource_catalog::ResourceResult<()> {
+    ) -> atelier_resource_catalog::ResourceResult<()> {
         Ok(())
     }
 
     async fn clear_orphan_blob_marker(
         &mut self,
         _blob_id: &BlobId,
-    ) -> nai_atelier_resource_catalog::ResourceResult<()> {
+    ) -> atelier_resource_catalog::ResourceResult<()> {
         Ok(())
     }
 
-    async fn commit(self: Box<Self>) -> nai_atelier_resource_catalog::ResourceResult<()> {
+    async fn commit(self: Box<Self>) -> atelier_resource_catalog::ResourceResult<()> {
         Ok(())
     }
 
-    async fn rollback(self: Box<Self>) -> nai_atelier_resource_catalog::ResourceResult<()> {
+    async fn rollback(self: Box<Self>) -> atelier_resource_catalog::ResourceResult<()> {
         Ok(())
     }
 }
@@ -451,7 +450,7 @@ impl ResourceVariantBuilder for NullVariantBuilder {
     async fn build_variant(
         &self,
         _request: BuildVariantRequest,
-    ) -> nai_atelier_resource_catalog::ResourceResult<BuiltResourceVariant> {
+    ) -> atelier_resource_catalog::ResourceResult<BuiltResourceVariant> {
         Err(ResourceCatalogError::variant_builder(
             "variant building is not used in this test",
         ))

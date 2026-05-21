@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use nai_atelier_prompt::{ExtensionCall, parse_prompt};
+use atelier_prompt::{ExtensionCall, parse_prompt};
 
 use crate::functions::{PromptFunctionContext, PromptFunctionRegistry, PromptFunctionTraceEntry};
 use crate::text::{ExpandedPromptFragment, render_expanded_prompt_fragments};

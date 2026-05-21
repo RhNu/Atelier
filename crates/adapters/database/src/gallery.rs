@@ -1,7 +1,7 @@
 #![allow(clippy::significant_drop_tightening)]
 
 use async_trait::async_trait;
-use nai_atelier_gallery::{
+use atelier_gallery::{
     GalleryError, GalleryIndex, GalleryItem, GalleryItemId, GalleryQuery, GalleryResult,
     GallerySafetyOverride,
 };

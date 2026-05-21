@@ -1,9 +1,9 @@
 mod support;
 
+use atelier_director::{DirectorTool, RunDirectorToolRequest};
+use atelier_kernel::{KernelEventKind, KernelRuntime, RunDirectorTool};
+use atelier_resource_catalog::ResourceKind;
 use futures_executor::block_on;
-use nai_atelier_director::{DirectorTool, RunDirectorToolRequest};
-use nai_atelier_kernel::{KernelEventKind, KernelRuntime, RunDirectorTool};
-use nai_atelier_resource_catalog::ResourceKind;
 
 use support::MemoryKernelPorts;
 
@@ -31,7 +31,7 @@ fn director_tool_result_is_persisted_and_indexed() {
         assert_eq!(result.artifact_id.as_str(), "director:director-1");
         assert_eq!(
             result.item.artifact_kind,
-            nai_atelier_artifacts::ArtifactKind::DirectorResult
+            atelier_artifacts::ArtifactKind::DirectorResult
         );
         assert_eq!(
             ports.operations(),

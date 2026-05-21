@@ -1,5 +1,5 @@
-use nai_atelier_generation::{CharacterReference, CharacterReferenceType};
-use nai_atelier_resource_catalog::{ResourceKind, ResourceRef};
+use atelier_generation::{CharacterReference, CharacterReferenceType};
+use atelier_resource_catalog::{ResourceKind, ResourceRef};
 use thiserror::Error;
 
 pub type PreciseReferenceResult<T> = Result<T, PreciseReferenceError>;

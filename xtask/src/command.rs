@@ -12,7 +12,7 @@ const DEFAULT_WARN_LINES: usize = 600;
 const DEFAULT_DENY_LINES: usize = 1200;
 
 #[derive(Debug, Parser)]
-#[command(about = "NAI Atelier workspace automation")]
+#[command(about = "Atelier workspace automation")]
 struct Xtask {
     #[command(subcommand)]
     command: XtaskCommand,

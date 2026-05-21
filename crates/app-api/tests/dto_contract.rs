@@ -1,40 +1,40 @@
-use nai_atelier_app_api::account::{
+use atelier_app_api::account::{
     ApiKeyRecordDto, CreateApiKeyRequestDto, DeleteApiKeyRequestDto, DeleteApiKeyResponseDto,
     ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto, UpdateApiKeyRequestDto,
 };
-use nai_atelier_app_api::director::{
+use atelier_app_api::director::{
     DirectorToolDto, DirectorToolResultDto, RunDirectorToolRequestDto,
 };
-use nai_atelier_app_api::error::ErrorEnvelopeDto;
-use nai_atelier_app_api::event::{AppEventKindDto, AppEventPageDto, EventsSinceRequestDto};
-use nai_atelier_app_api::gallery::{
+use atelier_app_api::error::ErrorEnvelopeDto;
+use atelier_app_api::event::{AppEventKindDto, AppEventPageDto, EventsSinceRequestDto};
+use atelier_app_api::gallery::{
     GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto, GalleryItemDto,
     GallerySafetyDto, GallerySafetyLabelDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
     GallerySourceKindDto,
 };
-use nai_atelier_app_api::generation::{
+use atelier_app_api::generation::{
     CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
     ControlNetConfigDto, ControlNetInputDto, GenerateImageRequestDto, GenerationStatusQueryDto,
     ImageModelDto, Img2ImgRequestDto, QueueDirectiveDto, RunGenerationJobRequestDto,
 };
-use nai_atelier_app_api::history::{
+use atelier_app_api::history::{
     RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto, RunHistoryItemDto,
     RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto, RunHistoryQueryDto,
     RunHistoryStatusDto,
 };
-use nai_atelier_app_api::prompt::{
+use atelier_app_api::prompt::{
     DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, GetPromptChunkRequestDto,
     ListPromptChunksRequestDto, PromptChunkPageDto, PromptLexiconSearchQueryDto,
 };
-use nai_atelier_app_api::resource::{
+use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
     ImportImageResourceResponseDto, ResourceImageDto, ResourceRefDto,
 };
-use nai_atelier_app_api::settings::{
+use atelier_app_api::settings::{
     GenerationDefaultsDto, ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto,
     UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
-use nai_atelier_app_api::workspace::CloseWorkspaceResponseDto;
+use atelier_app_api::workspace::CloseWorkspaceResponseDto;
 use serde_json::json;
 
 #[path = "dto_contract/account_prompt_generation.rs"]
@@ -148,11 +148,11 @@ fn gallery_item_can_report_complete_safety_assessment() {
         nsfw_score: Some(0.91),
         safe_score: Some(0.09),
         raw_scores: vec![
-            nai_atelier_app_api::gallery::GallerySafetyScoreDto {
+            atelier_app_api::gallery::GallerySafetyScoreDto {
                 label: "safe".to_owned(),
                 score: 0.09,
             },
-            nai_atelier_app_api::gallery::GallerySafetyScoreDto {
+            atelier_app_api::gallery::GallerySafetyScoreDto {
                 label: "nsfw".to_owned(),
                 score: 0.91,
             },

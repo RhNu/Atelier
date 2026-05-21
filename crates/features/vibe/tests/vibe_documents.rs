@@ -1,4 +1,4 @@
-use nai_atelier_vibe::{
+use atelier_vibe::{
     VibeDocumentCodec, VibeEncodeSettings, VibeExportFormat, VibeModel, VibeSourceIdentity,
 };
 
@@ -117,7 +117,7 @@ fn exports_single_and_bundle_in_official_formats() {
     let export_entries = single
         .entries
         .iter()
-        .map(nai_atelier_vibe::VibeImportEntry::export_entry)
+        .map(atelier_vibe::VibeImportEntry::export_entry)
         .collect::<Vec<_>>();
     let single_export =
         VibeDocumentCodec::export_text(&export_entries, VibeExportFormat::Naiv4vibe)

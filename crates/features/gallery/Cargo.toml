@@ -1,14 +1,14 @@
 [package]
-name = "nai-atelier-gallery"
+name = "atelier-gallery"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-nai-atelier-artifacts = { workspace = true }
-nai-atelier-resource-catalog = { workspace = true }
-nai-atelier-safety = { workspace = true }
+atelier-artifacts = { workspace = true }
+atelier-resource-catalog = { workspace = true }
+atelier-safety = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

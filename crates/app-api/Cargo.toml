@@ -1,5 +1,5 @@
 [package]
-name = "nai-atelier-app-api"
+name = "atelier-app-api"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true

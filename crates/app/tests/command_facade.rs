@@ -2,52 +2,52 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use futures_executor::block_on;
-use nai_atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
-use nai_atelier_app::AppCommandHost;
-use nai_atelier_app::GenerationWorkerCancel;
-use nai_atelier_app_api::account::{
+use atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
+use atelier_app::AppCommandHost;
+use atelier_app::GenerationWorkerCancel;
+use atelier_app_api::account::{
     CreateApiKeyRequestDto, ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto,
 };
-use nai_atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
-use nai_atelier_app_api::event::{AppEventDto, AppEventKindDto, EventsSinceRequestDto};
-use nai_atelier_app_api::gallery::{
+use atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
+use atelier_app_api::event::{AppEventDto, AppEventKindDto, EventsSinceRequestDto};
+use atelier_app_api::gallery::{
     GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto, GalleryQueryDto,
     GallerySafetyOverrideDto, SetGallerySafetyOverrideRequestDto,
 };
-use nai_atelier_app_api::generation::{
+use atelier_app_api::generation::{
     GenerateImageRequestDto, GenerationPlanContextDto, GenerationStatusQueryDto,
     GenerationWorkRequestDto, ImageModelDto, QueueDirectiveDto, RunGenerationJobRequestDto,
     SubmitGenerationRequestDto,
 };
-use nai_atelier_app_api::prompt::{
+use atelier_app_api::prompt::{
     DeletePromptChunkRequestDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
 };
-use nai_atelier_app_api::resource::{
+use atelier_app_api::resource::{
     ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
 };
-use nai_atelier_app_api::settings::{
+use atelier_app_api::settings::{
     GenerationDefaultsDto, ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto,
     WorkspaceSettingsDto,
 };
-use nai_atelier_app_api::vibe::{
+use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, ExportVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
     VibeExportFormatDto, VibeModelDto,
 };
-use nai_atelier_app_api::workspace::OpenWorkspaceRequestDto;
-use nai_atelier_director::{
+use atelier_app_api::workspace::OpenWorkspaceRequestDto;
+use atelier_director::{
     DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
-use nai_atelier_generation::{
+use atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationClientError,
     GenerationResult, ImageStreamResult, NovelAiGenerationClient,
 };
-use nai_atelier_secrets::{
+use atelier_secrets::{
     SecretRecordId, SecretStore, SecretValue, SecretsResult, SubscriptionClient,
     SubscriptionResult, SubscriptionSummary,
 };
-use nai_atelier_vibe::{EncodeVibeRequest, EncodedVibe, NovelAiVibeClient, VibeResult};
+use atelier_vibe::{EncodeVibeRequest, EncodedVibe, NovelAiVibeClient, VibeResult};
+use futures_executor::block_on;
 
 #[path = "command_facade/session_commands.rs"]
 mod session_commands;
@@ -92,7 +92,7 @@ async fn create_active_key(host: &AppCommandHost<MemorySecretStore, RecordingFac
 
 async fn upsert_hero_chunk(
     host: &AppCommandHost<MemorySecretStore, RecordingFactory>,
-) -> nai_atelier_app_api::prompt::PromptChunkDto {
+) -> atelier_app_api::prompt::PromptChunkDto {
     let hero = host
         .upsert_prompt_chunk(UpsertPromptChunkRequestDto {
             chunk_id: None,
@@ -110,7 +110,7 @@ async fn upsert_hero_chunk(
 
 async fn upsert_scene_chunk(
     host: &AppCommandHost<MemorySecretStore, RecordingFactory>,
-) -> nai_atelier_app_api::prompt::PromptChunkDto {
+) -> atelier_app_api::prompt::PromptChunkDto {
     host.upsert_prompt_chunk(UpsertPromptChunkRequestDto {
         chunk_id: None,
         key: "scene".to_owned(),
@@ -205,7 +205,7 @@ impl SecretStore for MemorySecretStore {
             .rev()
             .find(|(candidate, _)| candidate == id.as_str())
             .map(|(_, value)| SecretValue::new(value.clone()))
-            .ok_or_else(|| nai_atelier_secrets::SecretsError::missing_secret(id.as_str()))
+            .ok_or_else(|| atelier_secrets::SecretsError::missing_secret(id.as_str()))
     }
 
     async fn delete_secret(&self, id: &SecretRecordId) -> SecretsResult<bool> {

@@ -1,10 +1,10 @@
 [package]
-name = "nai-atelier-precise-reference"
+name = "atelier-precise-reference"
 version = "0.1.0"
 edition = "2024"
 publish.workspace = true
 
 [dependencies]
-nai-atelier-generation = { workspace = true }
-nai-atelier-resource-catalog = { workspace = true }
+atelier-generation = { workspace = true }
+atelier-resource-catalog = { workspace = true }
 thiserror = { workspace = true }

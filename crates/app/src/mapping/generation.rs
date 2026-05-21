@@ -17,7 +17,7 @@ pub fn queue_directive_to_dto(value: QueueDirective) -> QueueDirectiveDto {
 
 pub fn generation_status_to_dto(
     batch: Option<BatchStatus>,
-    job: Option<nai_atelier_jobs::JobStatus>,
+    job: Option<atelier_jobs::JobStatus>,
 ) -> GenerationStatusDto {
     GenerationStatusDto {
         batch_status: batch.map(|value| batch_status_as_str(value).to_owned()),
@@ -36,16 +36,16 @@ const fn batch_status_as_str(value: BatchStatus) -> &'static str {
     }
 }
 
-const fn job_status_as_str(value: nai_atelier_jobs::JobStatus) -> &'static str {
+const fn job_status_as_str(value: atelier_jobs::JobStatus) -> &'static str {
     match value {
-        nai_atelier_jobs::JobStatus::Queued => "queued",
-        nai_atelier_jobs::JobStatus::Preparing => "preparing",
-        nai_atelier_jobs::JobStatus::Running => "running",
-        nai_atelier_jobs::JobStatus::WaitingRetry => "waiting_retry",
-        nai_atelier_jobs::JobStatus::Blocked => "blocked",
-        nai_atelier_jobs::JobStatus::Succeeded => "succeeded",
-        nai_atelier_jobs::JobStatus::Failed => "failed",
-        nai_atelier_jobs::JobStatus::Skipped => "skipped",
+        atelier_jobs::JobStatus::Queued => "queued",
+        atelier_jobs::JobStatus::Preparing => "preparing",
+        atelier_jobs::JobStatus::Running => "running",
+        atelier_jobs::JobStatus::WaitingRetry => "waiting_retry",
+        atelier_jobs::JobStatus::Blocked => "blocked",
+        atelier_jobs::JobStatus::Succeeded => "succeeded",
+        atelier_jobs::JobStatus::Failed => "failed",
+        atelier_jobs::JobStatus::Skipped => "skipped",
     }
 }
 

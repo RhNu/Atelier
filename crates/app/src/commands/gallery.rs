@@ -1,4 +1,4 @@
-use nai_atelier_app_api::gallery::{
+use atelier_app_api::gallery::{
     GalleryImageReferenceDto, GalleryImageReferenceRequestDto, GalleryItemDto, GalleryPageDto,
     GalleryQueryDto, SetGallerySafetyOverrideRequestDto,
 };

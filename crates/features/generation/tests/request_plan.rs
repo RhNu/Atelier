@@ -1,4 +1,4 @@
-use nai_atelier_generation::{
+use atelier_generation::{
     Character, CharacterPosition, GenerateImageRequest, GenerationErrorKind, GenerationOutputMode,
     GenerationPlanContext, SeedMode, plan_generation_request,
 };
