@@ -32,8 +32,6 @@ Subscription probe 是显式动作：
 
 ## 非目标
 
-- 不新增 `app-api` DTO。
-- 不新增 host-neutral `app` use case。
-- 不暴露 Tauri command。
-- 不接前端。
+- 本决策初版不新增 `app-api` DTO、host-neutral `app` use case 或 Tauri command；当前实现已经通过 `app-api`、`app` command facade 和 Tauri command 暴露账户管理与显式 probe。
+- 前端接入仍不是本文决策范围。
 - 不做自动 key 轮换、冷却、失败 fallback 或保存时自动 probe。

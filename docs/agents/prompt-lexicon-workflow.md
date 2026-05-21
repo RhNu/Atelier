@@ -72,7 +72,8 @@ Rust CSV parser 会丢弃旧 JS 简易 parser 误切出的 malformed 行。例�
 
 ## 非目标
 
-- 不新增 `app-api`、`app`、Tauri command 或前端 Lexicon 页面。
+- 本决策初版不新增 `app-api`、`app` 或 Tauri command；当前实现已经通过 `app-api`、`app` command facade 和 Tauri command 暴露 embedded lexicon catalog/list/search。
+- 前端 Lexicon 页面仍不是本文决策范围。
 - 不把词库做成通用多模型 tag 平台。
 - 不在 feature crate 内做文件 I/O、下载、增量更新或用户自定义词库编辑。
 - 不通过 SQLite 持久化词库；`ResourceKind::LexiconBundle` 仍保留给后续 workspace-scoped/imported bundle 设计。

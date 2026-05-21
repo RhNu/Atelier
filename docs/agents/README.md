@@ -62,10 +62,7 @@ Implemented or partially implemented:
 - `crates/adapters/keyring`
 - `crates/adapters/novelai`
 - `crates/adapters/safety-onnx`
-
-Still planned or intentionally not present:
-
-- `adapters/desktop-system`
+- `crates/adapters/desktop-system`
 
 ## Non-Goals
 

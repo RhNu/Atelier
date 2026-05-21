@@ -64,22 +64,15 @@ crates/
 
   adapters/
     database/
+    desktop-system/
     image-codec/
     keyring/
     novelai/
+    safety-onnx/
     storage-fs/
 
 apps/
   desktop/src-tauri/
-```
-
-Planned but not currently present:
-
-```text
-crates/
-  adapters/
-    safety-onnx/
-    desktop-system/
 ```
 
 ## Core Responsibilities
@@ -120,8 +113,10 @@ Adapters are the boundary for real I/O:
 - `image-codec`: PNG/JPEG/WebP probing plus deterministic gallery/export variant encoding.
 - `keyring`: system credential storage for secret values.
 - `novelai`: `novelai-bridge` integration and resolver-backed NovelAI clients.
+- `safety-onnx`: optional OpenNSFW-style ONNX safety scanner built from host-provided model/runtime paths.
+- `desktop-system`: desktop host glue for path picking, open/reveal guards, notifications, and bundled resource path resolution.
 
-External library types should not leak upward into feature crates, `kernel`, or future `app-api`.
+External library types should not leak upward into feature crates, `kernel`, or `app-api`.
 
 ### `app` and `app-api`
 
@@ -155,4 +150,4 @@ When adding an adapter dependency, answer:
 - Is the dependency limited to `adapters/*` or desktop host glue?
 - Is there a fake or in-memory replacement?
 - Are external errors converted at the adapter boundary?
-- Are external library types kept out of feature crates, `kernel`, and future `app-api`?
+- Are external library types kept out of feature crates, `kernel`, and `app-api`?

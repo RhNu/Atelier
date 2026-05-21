@@ -65,7 +65,7 @@ v4 migration 创建：
 
 ## 非目标
 
-- 不暴露 Tauri command。
-- 不决定最终 app-api DTO。
+- database adapter 不直接暴露 Tauri command；命令入口由 `app` command facade 和桌面 host 负责。
+- database adapter 不决定 `app-api` DTO；它只维护 adapter-local persistence DTO。
 - 不把 database adapter 变成业务规则 owner。
 - 不让 SQLite 类型泄漏到 feature、kernel 或 app-api。
