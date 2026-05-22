@@ -1,5 +1,5 @@
-import type { MouseEvent, ReactNode } from "react";
 import { Minus, PanelLeftClose, Square, X } from "lucide-react";
+import { useCallback, type MouseEvent, type ReactNode } from "react";
 
 import { AppButton, AppIconButton, AppPanel, AppToastHost } from "../components/ui";
 import { routeNavItems, type RouteNavItem } from "../routes/nav";
@@ -33,6 +33,18 @@ async function controlWindow(action: "close" | "maximize" | "minimize") {
   }
 
   await appWindow.minimize();
+}
+
+function handleMinimizeWindow() {
+  void controlWindow("minimize");
+}
+
+function handleMaximizeWindow() {
+  void controlWindow("maximize");
+}
+
+function handleCloseWindow() {
+  void controlWindow("close");
 }
 
 function getFallbackPath(): string {
@@ -71,7 +83,7 @@ export function AppShell({
           </div>
           <div data-tauri-drag-region>
             <p className="text-sm font-semibold text-white">Atelier</p>
-            <p className="text-[11px] uppercase text-app-muted">NovelAI workspace</p>
+            <p className="text-[11px] text-app-muted uppercase">NovelAI workspace</p>
           </div>
         </div>
         <div className="titlebar-no-drag flex h-full items-center">
@@ -79,7 +91,7 @@ export function AppShell({
             type="button"
             aria-label="Minimize window"
             className="grid h-full w-11 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
-            onClick={() => void controlWindow("minimize")}
+            onClick={handleMinimizeWindow}
           >
             <Minus aria-hidden="true" className="size-4" />
           </button>
@@ -87,7 +99,7 @@ export function AppShell({
             type="button"
             aria-label="Maximize window"
             className="grid h-full w-11 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
-            onClick={() => void controlWindow("maximize")}
+            onClick={handleMaximizeWindow}
           >
             <Square aria-hidden="true" className="size-3.5" />
           </button>
@@ -95,7 +107,7 @@ export function AppShell({
             type="button"
             aria-label="Close window"
             className="grid h-full w-11 place-items-center text-app-muted hover:bg-rose-500 hover:text-white"
-            onClick={() => void controlWindow("close")}
+            onClick={handleCloseWindow}
           >
             <X aria-hidden="true" className="size-4" />
           </button>
@@ -105,7 +117,7 @@ export function AppShell({
       {showWorkspaceGate ? (
         <main className="flex min-h-0 flex-1 items-center justify-center p-6">
           <AppPanel className="w-full max-w-xl p-6">
-            <p className="text-xs font-semibold uppercase text-brand-200">Workspace</p>
+            <p className="text-xs font-semibold text-brand-200 uppercase">Workspace</p>
             <h1 className="mt-2 text-xl font-semibold text-white">Open an Atelier workspace</h1>
             <p className="mt-3 text-sm text-app-muted">
               {fatalBootError
@@ -129,25 +141,13 @@ export function AppShell({
             {routeNavItems.map((item) => {
               const active = activePath === item.to;
               return (
-                <a
+                <RouteNavLink
                   key={item.to}
-                  href={item.to}
-                  aria-label={item.label}
-                  aria-current={active ? "page" : undefined}
-                  className={[
-                    "grid size-10 place-items-center border transition-colors",
-                    active
-                      ? "border-brand-400/70 bg-brand-500/20 text-brand-100"
-                      : "border-transparent text-app-muted hover:bg-app-surface hover:text-app-text",
-                  ].join(" ")}
-                  title={item.label}
-                  onClick={(event) => {
-                    handleNavClick(event, item, setLastRoute, onNavigate);
-                  }}
-                >
-                  <item.icon aria-hidden="true" className="size-5" />
-                  <span className="sr-only">{item.label}</span>
-                </a>
+                  active={active}
+                  item={item}
+                  onNavigate={onNavigate}
+                  setLastRoute={setLastRoute}
+                />
               );
             })}
           </nav>
@@ -170,6 +170,44 @@ export function AppShell({
 
       <AppToastHost />
     </div>
+  );
+}
+
+function RouteNavLink({
+  active,
+  item,
+  onNavigate,
+  setLastRoute,
+}: {
+  active: boolean;
+  item: RouteNavItem;
+  onNavigate?: (to: RouteNavItem["to"]) => void;
+  setLastRoute: (route: string) => void;
+}) {
+  const handleClick = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>) => {
+      handleNavClick(event, item, setLastRoute, onNavigate);
+    },
+    [item, onNavigate, setLastRoute],
+  );
+
+  return (
+    <a
+      href={item.to}
+      aria-label={item.label}
+      aria-current={active ? "page" : undefined}
+      className={[
+        "grid size-10 place-items-center border transition-colors",
+        active
+          ? "border-brand-400/70 bg-brand-500/20 text-brand-100"
+          : "border-transparent text-app-muted hover:bg-app-surface hover:text-app-text",
+      ].join(" ")}
+      title={item.label}
+      onClick={handleClick}
+    >
+      <item.icon aria-hidden="true" className="size-5" />
+      <span className="sr-only">{item.label}</span>
+    </a>
   );
 }
 

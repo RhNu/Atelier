@@ -1,5 +1,3 @@
-import { atelierCommands } from "./commands";
-import { invokeAtelierCommand } from "./tauri-client";
 import type {
   ApiKeyRecordDto,
   CloseWorkspaceResponseDto,
@@ -56,6 +54,8 @@ import type {
   WorkspaceSettingsDto,
   WorkspaceStatusDto,
 } from "../../types";
+import { atelierCommands } from "./commands";
+import { invokeAtelierCommand } from "./tauri-client";
 
 export type DesktopPathsDto = {
   app_data_dir: string;

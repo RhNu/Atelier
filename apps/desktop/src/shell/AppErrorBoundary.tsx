@@ -15,6 +15,10 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     error: null,
   };
 
+  handleRetry = () => {
+    this.setState({ error: null });
+  };
+
   static getDerivedStateFromError(error: Error): AppErrorBoundaryState {
     return { error };
   }
@@ -28,16 +32,12 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
       return (
         <div className="flex h-svh items-center justify-center bg-app-bg p-6">
           <AppPanel className="max-w-xl p-6">
-            <p className="text-xs font-semibold uppercase text-rose-100">Frontend error</p>
+            <p className="text-xs font-semibold text-rose-100 uppercase">Frontend error</p>
             <h1 className="mt-2 text-lg font-semibold text-white">
               Atelier could not render this view
             </h1>
             <p className="mt-3 text-sm text-app-muted">{this.state.error.message}</p>
-            <AppButton
-              className="mt-5"
-              variant="secondary"
-              onClick={() => this.setState({ error: null })}
-            >
+            <AppButton className="mt-5" variant="secondary" onClick={this.handleRetry}>
               Retry
             </AppButton>
           </AppPanel>

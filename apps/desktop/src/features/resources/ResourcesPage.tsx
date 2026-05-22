@@ -15,7 +15,7 @@ export function ResourcesPage() {
     <div className="flex h-full min-h-0 flex-col">
       <AppToolbar>
         <div>
-          <p className="text-xs font-semibold uppercase text-brand-200">Resources</p>
+          <p className="text-xs font-semibold text-brand-200 uppercase">Resources</p>
           <h1 className="text-lg font-semibold text-white">Prompt and Image Resources</h1>
         </div>
         <AppButton variant="secondary">

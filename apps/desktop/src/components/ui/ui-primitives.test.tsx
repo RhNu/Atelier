@@ -8,9 +8,14 @@ import { AppTabs } from "./AppTabs";
 import { EmptyState } from "./EmptyState";
 import { SafetyBadge } from "./SafetyBadge";
 
+const tabItems = [
+  { value: "generate", label: "Generate" },
+  { value: "gallery", label: "Gallery" },
+] as const;
+
 describe("UI primitives", () => {
   it("renders accessible command and icon buttons", async () => {
-    const onClick = vi.fn();
+    const onClick = vi.fn<() => void>();
 
     render(
       <>
@@ -26,16 +31,11 @@ describe("UI primitives", () => {
   });
 
   it("renders tabs and selected safety state", () => {
+    const onChange = vi.fn<(value: string) => void>();
+
     render(
       <>
-        <AppTabs
-          value="gallery"
-          tabs={[
-            { value: "generate", label: "Generate" },
-            { value: "gallery", label: "Gallery" },
-          ]}
-          onChange={vi.fn()}
-        />
+        <AppTabs value="gallery" tabs={tabItems} onChange={onChange} />
         <SafetyBadge label="sensitive" />
         <EmptyState title="No artifacts" description="Generate images to populate this view." />
       </>,

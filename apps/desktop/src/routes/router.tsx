@@ -1,12 +1,12 @@
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 
+import { EmptyState } from "../components/ui";
 import { DirectorPage } from "../features/director";
 import { GalleryPage } from "../features/gallery";
 import { GeneratePage } from "../features/generation";
 import { LexiconPage } from "../features/lexicon";
 import { ResourcesPage } from "../features/resources";
 import { SettingsPage } from "../features/settings";
-import { EmptyState } from "../components/ui";
 import { RootWorkbenchLayout } from "./RootWorkbenchLayout";
 export { routeNavItems } from "./nav";
 

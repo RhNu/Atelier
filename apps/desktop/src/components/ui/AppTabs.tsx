@@ -1,3 +1,5 @@
+import { useCallback } from "react";
+
 type AppTabItem = {
   value: string;
   label: string;
@@ -19,24 +21,46 @@ export function AppTabs({ value, tabs, onChange, label = "Tabs" }: AppTabsProps)
       className="inline-flex border border-app-border bg-black/10"
     >
       {tabs.map((tab) => (
-        <button
+        <AppTabButton
           key={tab.value}
-          type="button"
-          role="tab"
-          aria-selected={tab.value === value}
-          disabled={tab.disabled}
-          className={[
-            "h-8 border-r border-app-border px-3 text-sm transition-colors last:border-r-0",
-            tab.value === value
-              ? "bg-brand-500/20 text-brand-100"
-              : "text-app-muted hover:bg-app-surface hover:text-app-text",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-          ].join(" ")}
-          onClick={() => onChange(tab.value)}
-        >
-          {tab.label}
-        </button>
+          selected={tab.value === value}
+          tab={tab}
+          onChange={onChange}
+        />
       ))}
     </div>
+  );
+}
+
+function AppTabButton({
+  tab,
+  selected,
+  onChange,
+}: {
+  tab: AppTabItem;
+  selected: boolean;
+  onChange: (value: string) => void;
+}) {
+  const handleClick = useCallback(() => {
+    onChange(tab.value);
+  }, [onChange, tab.value]);
+
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      disabled={tab.disabled}
+      className={[
+        "h-8 border-r border-app-border px-3 text-sm transition-colors last:border-r-0",
+        selected
+          ? "bg-brand-500/20 text-brand-100"
+          : "text-app-muted hover:bg-app-surface hover:text-app-text",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+      ].join(" ")}
+      onClick={handleClick}
+    >
+      {tab.label}
+    </button>
   );
 }

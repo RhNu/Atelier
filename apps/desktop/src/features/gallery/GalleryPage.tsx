@@ -22,7 +22,7 @@ export function GalleryPage() {
     <div className="flex h-full min-h-0 flex-col">
       <AppToolbar>
         <div>
-          <p className="text-xs font-semibold uppercase text-brand-200">Gallery</p>
+          <p className="text-xs font-semibold text-brand-200 uppercase">Gallery</p>
           <h1 className="text-lg font-semibold text-white">Workspace Gallery</h1>
         </div>
         <div className="flex items-center gap-2">

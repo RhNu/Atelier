@@ -64,7 +64,7 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
 
       await clearWorkspaceScopedQueryCache(queryClient);
       queryClient.setQueryData(queryKeys.workspace.status(), status);
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspace.root() });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.workspace.root() });
     },
   });
 
@@ -73,7 +73,7 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
     onSuccess: async () => {
       await clearWorkspaceScopedQueryCache(queryClient);
       queryClient.setQueryData(queryKeys.workspace.status(), null);
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspace.root() });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.workspace.root() });
     },
   });
 

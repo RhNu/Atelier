@@ -1,4 +1,5 @@
 import { Clapperboard, ScanSearch } from "lucide-react";
+import { useCallback, type ChangeEvent } from "react";
 
 import { AppButton, AppPanel, AppToolbar, EmptyState } from "../../components/ui";
 import { useTemporaryEditorStore } from "../../stores/workspace-ui-store";
@@ -12,12 +13,18 @@ export function DirectorPage() {
   const readinessQuery = useDirectorReadinessQuery();
   const directorNote = useTemporaryEditorStore((state) => state.directorNote);
   const setDirectorNote = useTemporaryEditorStore((state) => state.setDirectorNote);
+  const handleDirectorNoteChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setDirectorNote(event.target.value);
+    },
+    [setDirectorNote],
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <AppToolbar>
         <div>
-          <p className="text-xs font-semibold uppercase text-brand-200">Director</p>
+          <p className="text-xs font-semibold text-brand-200 uppercase">Director</p>
           <h1 className="text-lg font-semibold text-white">NovelAI Director Tools</h1>
         </div>
         <AppButton variant="secondary">
@@ -65,12 +72,13 @@ export function DirectorPage() {
                 </p>
               </div>
             )}
-            <label className="grid gap-2 text-xs font-semibold uppercase text-app-muted">
+            <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
               Notes
               <textarea
+                aria-label="Notes"
                 value={directorNote}
-                onChange={(event) => setDirectorNote(event.target.value)}
-                className="min-h-40 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal normal-case text-app-text outline-none focus:border-brand-400"
+                onChange={handleDirectorNoteChange}
+                className="min-h-40 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
               />
             </label>
           </div>

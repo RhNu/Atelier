@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { X } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { AppIconButton } from "./AppIconButton";
 
@@ -17,8 +17,8 @@ export function AppModal({ open, title, children, onClose }: AppModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/58 px-4 backdrop-blur-sm">
-      <section
-        role="dialog"
+      <dialog
+        open
         aria-modal="true"
         aria-label={title}
         className="max-h-[88vh] w-full max-w-3xl overflow-hidden border border-app-border bg-app-panel shadow-app-panel"
@@ -28,7 +28,7 @@ export function AppModal({ open, title, children, onClose }: AppModalProps) {
           <AppIconButton icon={X} label="Close" onClick={onClose} />
         </header>
         <div className="max-h-[calc(88vh-56px)] overflow-y-auto p-4">{children}</div>
-      </section>
+      </dialog>
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { QueryClient } from "@tanstack/react-query";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { AppEventDto } from "../../types";
 import { queryKeys } from "./query-keys";
@@ -18,8 +18,8 @@ export function applyAtelierEventInvalidations(queryClient: QueryClient, event: 
     case "generation_planned":
     case "job_failed":
     case "job_succeeded":
-      queryClient.invalidateQueries({ queryKey: queryKeys.generation.root() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.history.root() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.generation.root() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.history.root() });
       break;
     case "generation_stream_chunk":
       break;
@@ -27,13 +27,13 @@ export function applyAtelierEventInvalidations(queryClient: QueryClient, event: 
     case "gallery_indexed":
     case "safety_scan_failed":
     case "director_safety_scan_failed":
-      queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.history.root() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.history.root() });
       break;
   }
 
   if (event.kind.kind === "job_succeeded") {
-    queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() });
   }
 }

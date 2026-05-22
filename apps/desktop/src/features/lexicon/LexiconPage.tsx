@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { useCallback, type ChangeEvent } from "react";
 
 import { AppPanel, AppTabs, AppToolbar, EmptyState } from "../../components/ui";
 import { useTemporaryEditorStore } from "../../stores/workspace-ui-store";
@@ -8,27 +9,39 @@ function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Command failed";
 }
 
+const lexiconViewTabs = [
+  { value: "catalog", label: "Catalog" },
+  { value: "search", label: "Search" },
+] as const;
+
+function ignoreLexiconViewChange() {
+  return undefined;
+}
+
 export function LexiconPage() {
   const catalogQuery = usePromptLexiconCatalogQuery();
   const lexiconSearch = useTemporaryEditorStore((state) => state.lexiconSearch);
   const setLexiconSearch = useTemporaryEditorStore((state) => state.setLexiconSearch);
   const categories = catalogQuery.data?.categories ?? [];
+  const handleSearchChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setLexiconSearch(event.target.value);
+    },
+    [setLexiconSearch],
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <AppToolbar>
         <div>
-          <p className="text-xs font-semibold uppercase text-brand-200">Lexicon</p>
+          <p className="text-xs font-semibold text-brand-200 uppercase">Lexicon</p>
           <h1 className="text-lg font-semibold text-white">NovelAI Prompt Lexicon</h1>
         </div>
         <AppTabs
           value="catalog"
           label="Lexicon views"
-          tabs={[
-            { value: "catalog", label: "Catalog" },
-            { value: "search", label: "Search" },
-          ]}
-          onChange={() => undefined}
+          tabs={lexiconViewTabs}
+          onChange={ignoreLexiconViewChange}
         />
       </AppToolbar>
 
@@ -41,25 +54,26 @@ export function LexiconPage() {
             <label className="relative block">
               <Search
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-muted"
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-app-muted"
               />
               <input
+                aria-label="Search tags"
                 value={lexiconSearch}
-                onChange={(event) => setLexiconSearch(event.target.value)}
-                className="h-9 w-full border border-app-border bg-black/20 pl-9 pr-3 text-sm text-app-text outline-none focus:border-brand-400"
+                onChange={handleSearchChange}
+                className="h-9 w-full border border-app-border bg-black/20 pr-3 pl-9 text-sm text-app-text outline-none focus:border-brand-400"
                 placeholder="Search tags"
               />
             </label>
             {catalogQuery.data ? (
               <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
                 <div className="border border-app-border bg-app-surface p-3">
-                  <dt className="text-xs uppercase text-app-muted">Tags</dt>
+                  <dt className="text-xs text-app-muted uppercase">Tags</dt>
                   <dd className="mt-1 font-semibold text-app-text">
                     {catalogQuery.data.stats.total_tags}
                   </dd>
                 </div>
                 <div className="border border-app-border bg-app-surface p-3">
-                  <dt className="text-xs uppercase text-app-muted">Sources</dt>
+                  <dt className="text-xs text-app-muted uppercase">Sources</dt>
                   <dd className="mt-1 font-semibold text-app-text">
                     {catalogQuery.data.stats.source_count}
                   </dd>

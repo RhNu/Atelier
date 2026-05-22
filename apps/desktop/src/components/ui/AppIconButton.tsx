@@ -1,7 +1,7 @@
-import type { ButtonHTMLAttributes } from "react";
 import type { LucideIcon } from "lucide-react";
+import type { ButtonHTMLAttributes } from "react";
 
-type AppIconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
+type AppIconButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "type"> & {
   icon: LucideIcon;
   label: string;
   selected?: boolean;
@@ -12,12 +12,11 @@ export function AppIconButton({
   label,
   selected = false,
   className = "",
-  type = "button",
   ...props
 }: AppIconButtonProps) {
   return (
     <button
-      type={type}
+      type="button"
       aria-label={label}
       title={label}
       className={[

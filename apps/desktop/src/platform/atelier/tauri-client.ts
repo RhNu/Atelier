@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AtelierCommandName } from "./commands";
 import type { ErrorEnvelopeDto } from "../../types";
+import type { AtelierCommandName } from "./commands";
 
 export class AtelierCommandError extends Error {
   code: string;

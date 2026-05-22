@@ -44,6 +44,16 @@ function readProjectFile(filePath: string): string {
   return readFileSync(filePath, "utf8");
 }
 
+function hasStringPermissions(value: unknown): value is { permissions: string[] } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "permissions" in value &&
+    Array.isArray(value.permissions) &&
+    value.permissions.every((permission) => typeof permission === "string")
+  );
+}
+
 function collectSourceFiles(): string[] {
   return walkFiles(srcRoot).filter((filePath) => {
     const projectPath = toProjectPath(filePath);
@@ -58,9 +68,11 @@ function collectSourceFiles(): string[] {
 
 describe("frontend architecture guards", () => {
   it("keeps the planned frontend foundation areas present", () => {
-    for (const relativePath of REQUIRED_FRONTEND_AREAS) {
-      expect(existsSync(path.join(projectRoot, relativePath)), relativePath).toBe(true);
-    }
+    const missingPaths = REQUIRED_FRONTEND_AREAS.filter(
+      (relativePath) => !existsSync(path.join(projectRoot, relativePath)),
+    );
+
+    expect(missingPaths).toEqual([]);
   });
 
   it("keeps views and feature pages away from direct Tauri calls", () => {
@@ -95,9 +107,15 @@ describe("frontend architecture guards", () => {
   });
 
   it("keeps custom titlebar window permissions available", () => {
-    const capability = JSON.parse(
+    const capability: unknown = JSON.parse(
       readProjectFile(path.join(projectRoot, "src-tauri/capabilities/default.json")),
-    ) as { permissions: string[] };
+    );
+
+    expect(hasStringPermissions(capability)).toBe(true);
+
+    if (!hasStringPermissions(capability)) {
+      throw new Error("Capability permissions must be a string array.");
+    }
 
     expect(capability.permissions).toEqual(
       expect.arrayContaining([

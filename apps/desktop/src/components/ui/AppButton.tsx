@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type AppButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+type AppButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type"> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
   children: ReactNode;
 };
@@ -19,12 +19,11 @@ export function AppButton({
   variant = "primary",
   className = "",
   children,
-  type = "button",
   ...props
 }: AppButtonProps) {
   return (
     <button
-      type={type}
+      type="button"
       className={[
         "inline-flex h-9 items-center justify-center gap-2 border px-3 text-sm font-semibold transition-colors",
         "disabled:cursor-not-allowed disabled:opacity-50",

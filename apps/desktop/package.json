@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
-    "lint": "oxlint -c .oxlintrc.json",
+    "lint": "oxlint -c .oxlintrc.json --type-aware --report-unused-disable-directives",
+    "lint:base": "oxlint -c .oxlintrc.json --report-unused-disable-directives",
     "test": "vitest run",
     "typecheck": "tsc -b",
     "preview": "vite preview"
@@ -38,6 +39,7 @@
     "jsdom": "^29.1.1",
     "oxfmt": "^0.50.0",
     "oxlint": "^1.65.0",
+    "oxlint-tsgolint": "^0.23.0",
     "typescript": "~6.0.2",
     "vite": "^8.0.12",
     "vitest": "^4.1.6"

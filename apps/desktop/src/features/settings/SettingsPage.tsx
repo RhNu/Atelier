@@ -15,7 +15,7 @@ export function SettingsPage() {
     <div className="flex h-full min-h-0 flex-col">
       <AppToolbar>
         <div>
-          <p className="text-xs font-semibold uppercase text-brand-200">Settings</p>
+          <p className="text-xs font-semibold text-brand-200 uppercase">Settings</p>
           <h1 className="text-lg font-semibold text-white">Workspace Settings</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export function SettingsPage() {
 function SettingMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="border border-app-border bg-app-surface p-3">
-      <p className="text-xs uppercase text-app-muted">{label}</p>
+      <p className="text-xs text-app-muted uppercase">{label}</p>
       <p className="mt-2 truncate text-sm font-semibold text-app-text">{value}</p>
     </div>
   );

@@ -1,4 +1,5 @@
 import { Loader2, Pause, Play, Square, WandSparkles } from "lucide-react";
+import { useCallback, type ChangeEvent } from "react";
 
 import {
   AppButton,
@@ -8,11 +9,11 @@ import {
   EmptyState,
   ResourceImage,
 } from "../../components/ui";
+import { useGenerationDraftStore } from "../../stores/workspace-ui-store";
 import {
   useGenerationStatusQuery,
   useLatestRunHistoryQuery,
 } from "./data/useGenerationStatusQuery";
-import { useGenerationDraftStore } from "../../stores/workspace-ui-store";
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Command failed";
@@ -27,12 +28,24 @@ export function GeneratePage() {
   const setNegativePrompt = useGenerationDraftStore((state) => state.setNegativePrompt);
   const status = statusQuery.data;
   const historyItems = historyQuery.data?.items ?? [];
+  const handlePromptChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setPrompt(event.target.value);
+    },
+    [setPrompt],
+  );
+  const handleNegativePromptChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setNegativePrompt(event.target.value);
+    },
+    [setNegativePrompt],
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <AppToolbar>
         <div>
-          <p className="text-xs font-semibold uppercase text-brand-200">Generate</p>
+          <p className="text-xs font-semibold text-brand-200 uppercase">Generate</p>
           <h1 className="text-lg font-semibold text-white">NovelAI Image Workspace</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -69,15 +82,15 @@ export function GeneratePage() {
           </div>
           <div className="grid grid-cols-3 border-t border-app-border text-sm">
             <div className="border-r border-app-border p-3">
-              <p className="text-xs uppercase text-app-muted">Batch</p>
+              <p className="text-xs text-app-muted uppercase">Batch</p>
               <p className="mt-1 font-semibold text-app-text">{status?.batch_status ?? "idle"}</p>
             </div>
             <div className="border-r border-app-border p-3">
-              <p className="text-xs uppercase text-app-muted">Job</p>
+              <p className="text-xs text-app-muted uppercase">Job</p>
               <p className="mt-1 font-semibold text-app-text">{status?.job_status ?? "idle"}</p>
             </div>
             <div className="p-3">
-              <p className="text-xs uppercase text-app-muted">History</p>
+              <p className="text-xs text-app-muted uppercase">History</p>
               <p className="mt-1 font-semibold text-app-text">{historyItems.length} recent</p>
             </div>
           </div>
@@ -89,20 +102,22 @@ export function GeneratePage() {
               <h2 className="text-sm font-semibold text-white">Prompt Stack</h2>
             </header>
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3">
-              <label className="grid gap-2 text-xs font-semibold uppercase text-app-muted">
+              <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
                 Positive prompt
                 <textarea
+                  aria-label="Positive prompt"
                   value={prompt}
-                  onChange={(event) => setPrompt(event.target.value)}
-                  className="min-h-40 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal normal-case text-app-text outline-none focus:border-brand-400"
+                  onChange={handlePromptChange}
+                  className="min-h-40 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
                 />
               </label>
-              <label className="grid gap-2 text-xs font-semibold uppercase text-app-muted">
+              <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
                 Undesired content
                 <textarea
+                  aria-label="Undesired content"
                   value={negativePrompt}
-                  onChange={(event) => setNegativePrompt(event.target.value)}
-                  className="min-h-24 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal normal-case text-app-text outline-none focus:border-brand-400"
+                  onChange={handleNegativePromptChange}
+                  className="min-h-24 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
                 />
               </label>
             </div>

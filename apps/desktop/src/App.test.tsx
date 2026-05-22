@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { render, screen } from "@testing-library/react";
+
 import App from "./App";
 import { createAtelierQueryClient } from "./app/query-client";
 
@@ -9,8 +10,8 @@ vi.mock("./features/workspace/useWorkspaceStatus", () => ({
     workspacePending: false,
     workspaceErrorCode: undefined,
     workspaceErrorMessage: undefined,
-    openWorkspace: vi.fn(),
-    closeWorkspace: vi.fn(),
+    openWorkspace: vi.fn<() => void>(),
+    closeWorkspace: vi.fn<() => void>(),
     openingWorkspace: false,
     closingWorkspace: false,
   }),

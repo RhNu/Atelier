@@ -2,8 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 
 import { AtelierCommandError, invokeAtelierCommand } from "./tauri-client";
 
+type InvokeFunction = typeof invoke;
+
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
+  invoke: vi.fn<InvokeFunction>(),
 }));
 
 const invokeMock = vi.mocked(invoke);

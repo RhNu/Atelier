@@ -1,15 +1,19 @@
-import type { QueryClient } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 
 import { applyAtelierEventInvalidations } from "./events";
 
 describe("applyAtelierEventInvalidations", () => {
   it("invalidates generation, history, and gallery data for completed jobs", () => {
     const invalidated: unknown[] = [];
-    const queryClient = {
-      invalidateQueries: vi.fn((options: { queryKey: unknown[] }) => {
-        invalidated.push(options.queryKey);
-      }),
-    } as unknown as QueryClient;
+    const queryClient = new QueryClient();
+    const invalidateQueries = vi
+      .spyOn(queryClient, "invalidateQueries")
+      .mockImplementation((options) => {
+        if (options?.queryKey) {
+          invalidated.push(options.queryKey);
+        }
+        return Promise.resolve();
+      });
 
     applyAtelierEventInvalidations(queryClient, {
       sequence: 42,
@@ -23,12 +27,12 @@ describe("applyAtelierEventInvalidations", () => {
     expect(invalidated).toContainEqual(["generation"]);
     expect(invalidated).toContainEqual(["history"]);
     expect(invalidated).toContainEqual(["gallery"]);
+    expect(invalidateQueries).toHaveBeenCalledTimes(3);
   });
 
   it("does not refetch command-backed queries for stream chunks", () => {
-    const queryClient = {
-      invalidateQueries: vi.fn(),
-    } as unknown as QueryClient;
+    const queryClient = new QueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
     applyAtelierEventInvalidations(queryClient, {
       sequence: 43,
@@ -45,6 +49,6 @@ describe("applyAtelierEventInvalidations", () => {
       },
     });
 
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+    expect(invalidateQueries).not.toHaveBeenCalled();
   });
 });
