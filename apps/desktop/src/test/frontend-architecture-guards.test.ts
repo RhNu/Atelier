@@ -19,6 +19,11 @@ const REQUIRED_FRONTEND_AREAS = [
   "src/routes",
 ] as const;
 
+const REQUIRED_FRONTEND_DOCS = [
+  "docs/agents/frontend-architecture.md",
+  "docs/agents/frontend-workbench-foundation.md",
+] as const;
+
 const QUERY_HOOK_ALLOWED_PATH_PATTERNS = [
   /^src\/features\/[^/]+\/data\//u,
   /^src\/features\/[^/]+\/runtime\//u,
@@ -58,7 +63,7 @@ function collectSourceFiles(): string[] {
   return walkFiles(srcRoot).filter((filePath) => {
     const projectPath = toProjectPath(filePath);
     return (
-      /\.(ts|tsx)$/u.test(filePath) &&
+      /\.(css|ts|tsx)$/u.test(filePath) &&
       !projectPath.includes("/test/") &&
       !projectPath.endsWith(".d.ts") &&
       !projectPath.includes("/types/generated/")
@@ -67,6 +72,18 @@ function collectSourceFiles(): string[] {
 }
 
 describe("frontend architecture guards", () => {
+  it("keeps frontend architecture guidance documented and discoverable", () => {
+    const missingDocs = REQUIRED_FRONTEND_DOCS.filter(
+      (relativePath) => !existsSync(path.join(projectRoot, "..", "..", relativePath)),
+    );
+    const agentsReadme = readProjectFile(
+      path.join(projectRoot, "..", "..", "docs/agents/README.md"),
+    );
+
+    expect(missingDocs).toEqual([]);
+    expect(agentsReadme).toContain("frontend-architecture.md");
+  });
+
   it("keeps the planned frontend foundation areas present", () => {
     const missingPaths = REQUIRED_FRONTEND_AREAS.filter(
       (relativePath) => !existsSync(path.join(projectRoot, relativePath)),
@@ -93,6 +110,21 @@ describe("frontend architecture guards", () => {
       .filter((relativePath) =>
         QUERY_HOOK_ALLOWED_PATH_PATTERNS.every((pattern) => !pattern.test(relativePath)),
       );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps active frontend source free of rounded marketing styling", () => {
+    const offenders = collectSourceFiles()
+      .filter((filePath) => {
+        const contents = readProjectFile(filePath);
+        return (
+          /\brounded(?:-[a-z0-9[\]/.%]+)?\b/u.test(contents) ||
+          /\bborder-radius\s*:/u.test(contents) ||
+          /\bhero\b/u.test(contents)
+        );
+      })
+      .map(toProjectPath);
 
     expect(offenders).toEqual([]);
   });

@@ -15,6 +15,10 @@ For architecture or backend work, also read:
 1. `project-intent.md`
 2. `architecture.md`
 
+For frontend work in `apps/desktop`, also read:
+
+1. `frontend-architecture.md`
+
 For task-specific context, read only the relevant decision records:
 
 - `kernel-generation-workflow.md`: implemented `kernel` generation, streaming, Vibe, and precise-reference workflow boundaries.

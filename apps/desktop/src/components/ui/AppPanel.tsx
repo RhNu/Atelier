@@ -1,7 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 
 type AppPanelProps = HTMLAttributes<HTMLElement> & {
-  as?: "section" | "article" | "aside" | "div";
+  as?: "section" | "article" | "aside" | "div" | "nav";
   children: ReactNode;
 };
 

@@ -19,6 +19,7 @@ export const queryKeys = {
     root: () => ["account"] as const,
     apiKeys: () => ["account", "api-keys"] as const,
     activeProbe: () => ["account", "active-probe"] as const,
+    keyProbe: (id: string) => ["account", "key-probe", id] as const,
   },
   settings: {
     root: () => ["settings"] as const,
