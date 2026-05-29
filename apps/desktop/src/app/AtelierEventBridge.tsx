@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
+import { recordGenerationEvent } from "../features/generation/state/generation-event-store";
 import { applyAtelierEventInvalidations, listenToAtelierEvents } from "../platform/atelier";
 
 export function AtelierEventBridge() {
@@ -11,6 +12,7 @@ export function AtelierEventBridge() {
     let unlisten: (() => void) | null = null;
 
     listenToAtelierEvents((event) => {
+      recordGenerationEvent(event);
       applyAtelierEventInvalidations(queryClient, event);
     })
       .then((nextUnlisten) => {

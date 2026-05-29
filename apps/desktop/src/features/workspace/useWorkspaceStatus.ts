@@ -8,6 +8,7 @@ import {
   workspaceApi,
 } from "../../platform/atelier";
 import type { WorkspaceStatusDto } from "../../types";
+import { resetGenerationEventState } from "../generation/state/generation-event-store";
 
 export type WorkspaceStatusView = {
   workspaceStatus: WorkspaceStatusDto | null;
@@ -62,6 +63,7 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
         return;
       }
 
+      resetGenerationEventState();
       await clearWorkspaceScopedQueryCache(queryClient);
       queryClient.setQueryData(queryKeys.workspace.status(), status);
       await queryClient.invalidateQueries({ queryKey: queryKeys.workspace.root() });
@@ -71,6 +73,7 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
   const closeMutation = useMutation({
     mutationFn: () => workspaceApi.close(),
     onSuccess: async () => {
+      resetGenerationEventState();
       await clearWorkspaceScopedQueryCache(queryClient);
       queryClient.setQueryData(queryKeys.workspace.status(), null);
       await queryClient.invalidateQueries({ queryKey: queryKeys.workspace.root() });

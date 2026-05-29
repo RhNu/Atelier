@@ -1,45 +1,150 @@
-import { Loader2, Pause, Play, Square, WandSparkles } from "lucide-react";
-import { useCallback, type ChangeEvent } from "react";
+import { Pause, Play, Square } from "lucide-react";
+import { useCallback, useState } from "react";
 
+import { AppIconButton, AppToolbar, EmptyState } from "../../components/ui";
+import type { CompiledPromptDto, RunHistoryItemDto } from "../../types";
+import { AdvancedPlaceholders } from "./components/AdvancedPlaceholders";
+import { GenerationHistoryRail } from "./components/GenerationHistoryRail";
+import { GenerationParamsPanel } from "./components/GenerationParamsPanel";
+import { GenerationPreviewStage } from "./components/GenerationPreviewStage";
+import { GenerationPromptPanel } from "./components/GenerationPromptPanel";
 import {
-  AppButton,
-  AppIconButton,
-  AppPanel,
-  AppToolbar,
-  EmptyState,
-  ResourceImage,
-} from "../../components/ui";
-import { useGenerationDraftStore } from "../../stores/workspace-ui-store";
+  useCompilePromptMutation,
+  useGenerationSettingsQuery,
+  usePauseGenerationMutation,
+  useResourceImageQuery,
+  useResumeGenerationMutation,
+  useStopGenerationMutation,
+  useSubmitGenerationMutation,
+} from "./data/useGenerationActions";
 import {
   useGenerationStatusQuery,
   useLatestRunHistoryQuery,
 } from "./data/useGenerationStatusQuery";
+import { buildSubmitGenerationRequest, canSubmitGenerationDraft } from "./model/generation-draft";
+import { useGenerationEventStore } from "./state/generation-event-store";
+import { useGenerationDraft } from "./state/useGenerationDraft";
+
+const EMPTY_HISTORY_ITEMS: ReadonlyArray<RunHistoryItemDto> = [];
+
+type QueueControlsProps = {
+  canPause: boolean;
+  canResume: boolean;
+  canStop: boolean;
+  pausePending: boolean;
+  resumePending: boolean;
+  stopPending: boolean;
+  onPause: () => void;
+  onResume: () => void;
+  onStop: () => void;
+};
+
+type QueueActionHandlersProps = {
+  pause: () => Promise<unknown>;
+  resume: () => Promise<unknown>;
+  stop: () => Promise<unknown>;
+  setQueueError: (error: string | null) => void;
+};
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Command failed";
 }
 
 export function GeneratePage() {
+  const settingsQuery = useGenerationSettingsQuery();
   const statusQuery = useGenerationStatusQuery();
   const historyQuery = useLatestRunHistoryQuery();
-  const prompt = useGenerationDraftStore((state) => state.prompt);
-  const negativePrompt = useGenerationDraftStore((state) => state.negativePrompt);
-  const setPrompt = useGenerationDraftStore((state) => state.setPrompt);
-  const setNegativePrompt = useGenerationDraftStore((state) => state.setNegativePrompt);
+  const submitMutation = useSubmitGenerationMutation();
+  const pauseMutation = usePauseGenerationMutation();
+  const resumeMutation = useResumeGenerationMutation();
+  const stopMutation = useStopGenerationMutation();
+  const compileMutation = useCompilePromptMutation();
+  const { draft, patchDraft, patchSize } = useGenerationDraft(settingsQuery.data);
+  const activePreview = useGenerationEventStore((state) => state.activePreview);
+  const lastError = useGenerationEventStore((state) => state.lastError);
+  const selectedHistoryItemId = useGenerationEventStore((state) => state.selectedHistoryItemId);
+  const selectHistoryItem = useGenerationEventStore((state) => state.selectHistoryItem);
+  const finalResource = activePreview?.kind === "resource" ? activePreview.resource : null;
+  const finalImageQuery = useResourceImageQuery(finalResource);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [queueError, setQueueError] = useState<string | null>(null);
+  const [compileError, setCompileError] = useState<string | null>(null);
+  const [positivePreview, setPositivePreview] = useState<CompiledPromptDto | null>(null);
+  const [negativePreview, setNegativePreview] = useState<CompiledPromptDto | null>(null);
+
   const status = statusQuery.data;
-  const historyItems = historyQuery.data?.items ?? [];
-  const handlePromptChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
-      setPrompt(event.target.value);
-    },
-    [setPrompt],
-  );
-  const handleNegativePromptChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
-      setNegativePrompt(event.target.value);
-    },
-    [setNegativePrompt],
-  );
+  const historyItems = historyQuery.data?.items ?? EMPTY_HISTORY_ITEMS;
+  const batchStatus = status?.batch_status ?? null;
+  const canPause = batchStatus === "running" || batchStatus === "waiting";
+  const canResume = batchStatus === "paused";
+  const canStop =
+    batchStatus === "running" || batchStatus === "waiting" || batchStatus === "paused";
+  const { handlePause, handleResume, handleStop } = useQueueActionHandlers({
+    pause: pauseMutation.mutateAsync,
+    resume: resumeMutation.mutateAsync,
+    stop: stopMutation.mutateAsync,
+    setQueueError,
+  });
+
+  const handleSubmit = useCallback(() => {
+    if (!draft || submitMutation.isPending) {
+      return;
+    }
+
+    if (!canSubmitGenerationDraft(draft)) {
+      setValidationError("Positive prompt is required.");
+      return;
+    }
+
+    setValidationError(null);
+    setSubmitError(null);
+    void (async () => {
+      try {
+        await submitMutation.mutateAsync(buildSubmitGenerationRequest(draft));
+      } catch (error) {
+        setSubmitError(formatError(error));
+      }
+    })();
+  }, [draft, submitMutation]);
+
+  const handleCompile = useCallback(() => {
+    if (!draft) {
+      return;
+    }
+
+    setCompileError(null);
+    setPositivePreview(null);
+    setNegativePreview(null);
+
+    void (async () => {
+      try {
+        if (draft.prompt.trim().length > 0) {
+          setPositivePreview(
+            await compileMutation.mutateAsync({ prompt: draft.prompt, max_depth: 8 }),
+          );
+        }
+        if (draft.negativePrompt.trim().length > 0) {
+          setNegativePreview(
+            await compileMutation.mutateAsync({
+              prompt: draft.negativePrompt,
+              max_depth: 8,
+            }),
+          );
+        }
+      } catch (error) {
+        setCompileError(formatError(error));
+      }
+    })();
+  }, [compileMutation, draft]);
+
+  if (settingsQuery.isError) {
+    return <GenerationSettingsError error={settingsQuery.error} />;
+  }
+
+  if (settingsQuery.isPending || !draft) {
+    return <GenerationLoadingState />;
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -48,113 +153,135 @@ export function GeneratePage() {
           <p className="text-xs font-semibold text-brand-200 uppercase">Generate</p>
           <h1 className="text-lg font-semibold text-white">NovelAI Image Workspace</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <AppIconButton icon={Pause} label="Pause queue" />
-          <AppIconButton icon={Play} label="Resume queue" />
-          <AppIconButton icon={Square} label="Stop queue" />
-          <AppButton>
-            <WandSparkles aria-hidden="true" className="size-4" />
-            Queue generation
-          </AppButton>
-        </div>
+        <QueueControls
+          canPause={canPause}
+          canResume={canResume}
+          canStop={canStop}
+          pausePending={pauseMutation.isPending}
+          resumePending={resumeMutation.isPending}
+          stopPending={stopMutation.isPending}
+          onPause={handlePause}
+          onResume={handleResume}
+          onStop={handleStop}
+        />
       </AppToolbar>
+      {queueError ? (
+        <p className="border-b border-app-border bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+          {queueError}
+        </p>
+      ) : null}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] gap-3 p-3">
-        <AppPanel className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
-          <div className="min-h-0 bg-black/30 p-4">
-            {statusQuery.isPending ? (
-              <div className="flex h-full items-center justify-center text-app-muted">
-                <Loader2 aria-hidden="true" className="mr-2 size-4 animate-spin" />
-                Checking queue
-              </div>
-            ) : statusQuery.isError ? (
-              <EmptyState
-                title="Generation status unavailable"
-                description={formatError(statusQuery.error)}
-              />
-            ) : (
-              <ResourceImage
-                src={null}
-                fallbackLabel="No active preview"
-                className="h-full min-h-[320px] w-full"
-              />
-            )}
-          </div>
-          <div className="grid grid-cols-3 border-t border-app-border text-sm">
-            <div className="border-r border-app-border p-3">
-              <p className="text-xs text-app-muted uppercase">Batch</p>
-              <p className="mt-1 font-semibold text-app-text">{status?.batch_status ?? "idle"}</p>
-            </div>
-            <div className="border-r border-app-border p-3">
-              <p className="text-xs text-app-muted uppercase">Job</p>
-              <p className="mt-1 font-semibold text-app-text">{status?.job_status ?? "idle"}</p>
-            </div>
-            <div className="p-3">
-              <p className="text-xs text-app-muted uppercase">History</p>
-              <p className="mt-1 font-semibold text-app-text">{historyItems.length} recent</p>
-            </div>
-          </div>
-        </AppPanel>
-
-        <aside className="grid min-h-0 grid-rows-[minmax(0,1fr)_240px] gap-3">
-          <AppPanel className="flex min-h-0 flex-col overflow-hidden">
-            <header className="border-b border-app-border px-4 py-3">
-              <h2 className="text-sm font-semibold text-white">Prompt Stack</h2>
-            </header>
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3">
-              <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
-                Positive prompt
-                <textarea
-                  aria-label="Positive prompt"
-                  value={prompt}
-                  onChange={handlePromptChange}
-                  className="min-h-40 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
-                />
-              </label>
-              <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
-                Undesired content
-                <textarea
-                  aria-label="Undesired content"
-                  value={negativePrompt}
-                  onChange={handleNegativePromptChange}
-                  className="min-h-24 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
-                />
-              </label>
-            </div>
-          </AppPanel>
-
-          <AppPanel className="min-h-0 overflow-hidden">
-            <header className="border-b border-app-border px-4 py-3">
-              <h2 className="text-sm font-semibold text-white">Recent Runs</h2>
-            </header>
-            <div className="h-[188px] overflow-auto p-2">
-              {historyQuery.isPending ? (
-                <p className="p-3 text-sm text-app-muted">Loading history</p>
-              ) : historyQuery.isError ? (
-                <p className="p-3 text-sm text-rose-100">{formatError(historyQuery.error)}</p>
-              ) : historyItems.length === 0 ? (
-                <EmptyState title="No runs" />
-              ) : (
-                <div className="grid gap-2">
-                  {historyItems.map((item) => (
-                    <article
-                      key={item.run_id}
-                      className="border border-app-border bg-app-surface/65 p-3"
-                    >
-                      <p className="text-sm font-semibold text-app-text">
-                        {item.title ?? item.run_id}
-                      </p>
-                      <p className="mt-1 text-xs text-app-muted">
-                        {item.kind} / {item.status}
-                      </p>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
-          </AppPanel>
+      <div className="grid min-h-0 flex-1 grid-cols-[420px_minmax(0,1fr)_280px] gap-3 p-3">
+        <aside className="grid min-h-0 grid-rows-[minmax(0,1.1fr)_minmax(0,1fr)_auto] gap-3">
+          <GenerationPromptPanel
+            draft={draft}
+            submitError={submitError}
+            validationError={validationError}
+            compileError={compileError}
+            compilePending={compileMutation.isPending}
+            submitPending={submitMutation.isPending}
+            positivePreview={positivePreview}
+            negativePreview={negativePreview}
+            onPatch={patchDraft}
+            onSubmit={handleSubmit}
+            onCompile={handleCompile}
+          />
+          <GenerationParamsPanel draft={draft} onPatch={patchDraft} onPatchSize={patchSize} />
+          <AdvancedPlaceholders />
         </aside>
+
+        <GenerationPreviewStage
+          preview={activePreview}
+          finalImage={finalImageQuery.data}
+          finalImagePending={finalImageQuery.isPending && Boolean(finalResource)}
+          finalImageError={finalImageQuery.isError ? formatError(finalImageQuery.error) : null}
+          status={status}
+          statusError={statusQuery.isError ? formatError(statusQuery.error) : null}
+          lastError={lastError?.message ?? null}
+        />
+
+        <GenerationHistoryRail
+          items={historyItems}
+          pending={historyQuery.isPending}
+          error={historyQuery.isError ? formatError(historyQuery.error) : null}
+          selectedItemId={selectedHistoryItemId}
+          onSelect={selectHistoryItem}
+        />
       </div>
+    </div>
+  );
+}
+
+function useQueueActionHandlers({ pause, resume, stop, setQueueError }: QueueActionHandlersProps) {
+  const runQueueCommand = useCallback(
+    (command: () => Promise<unknown>) => {
+      setQueueError(null);
+      void command().catch((error: unknown) => {
+        setQueueError(formatError(error));
+      });
+    },
+    [setQueueError],
+  );
+  const handlePause = useCallback(() => {
+    runQueueCommand(pause);
+  }, [pause, runQueueCommand]);
+  const handleResume = useCallback(() => {
+    runQueueCommand(resume);
+  }, [resume, runQueueCommand]);
+  const handleStop = useCallback(() => {
+    runQueueCommand(stop);
+  }, [runQueueCommand, stop]);
+
+  return { handlePause, handleResume, handleStop };
+}
+
+function GenerationLoadingState() {
+  return (
+    <div className="flex h-full min-h-0 items-center justify-center p-6">
+      <EmptyState title="Loading generation defaults" />
+    </div>
+  );
+}
+
+function GenerationSettingsError({ error }: { error: unknown }) {
+  return (
+    <div className="flex h-full min-h-0 items-center justify-center p-6">
+      <EmptyState title="Generation settings unavailable" description={formatError(error)} />
+    </div>
+  );
+}
+
+function QueueControls({
+  canPause,
+  canResume,
+  canStop,
+  pausePending,
+  resumePending,
+  stopPending,
+  onPause,
+  onResume,
+  onStop,
+}: QueueControlsProps) {
+  return (
+    <div className="flex items-center gap-2">
+      <AppIconButton
+        icon={Pause}
+        label="Pause queue"
+        disabled={!canPause || pausePending}
+        onClick={onPause}
+      />
+      <AppIconButton
+        icon={Play}
+        label="Resume queue"
+        disabled={!canResume || resumePending}
+        onClick={onResume}
+      />
+      <AppIconButton
+        icon={Square}
+        label="Stop queue"
+        disabled={!canStop || stopPending}
+        onClick={onStop}
+      />
     </div>
   );
 }
