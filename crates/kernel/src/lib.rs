@@ -10,10 +10,11 @@ mod workflow;
 pub use error::{KernelError, KernelResult};
 pub use event::{KernelEvent, KernelEventKind, KernelFailureDetail};
 pub use payload::{
-    EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
-    GenerationWorkRequest, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
-    ImportedVibeDocuments, PreparedGenerationPayload, RanDirectorTool, RunDirectorTool,
-    SubmitGenerationWork, SubmittedGenerationPayload,
+    CompiledGenerationCharacterPrompts, CompiledGenerationPrompts, EnsureVibeEncoding,
+    EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument, GenerationWorkRequest,
+    ImportEmbeddedPngVibeDocument, ImportVibeDocument, ImportedVibeDocuments,
+    PreparedGenerationPayload, RanDirectorTool, RunDirectorTool, SubmitGenerationBatch,
+    SubmitGenerationBatchJob, SubmitGenerationWork, SubmittedGenerationPayload,
 };
 pub use ports::{
     GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEventSink,

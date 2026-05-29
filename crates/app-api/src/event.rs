@@ -61,6 +61,8 @@ pub enum AppEventKindDto {
     GalleryIndexed {
         batch_id: String,
         job_id: String,
+        sample_index: u32,
+        artifact_id: String,
         item_id: String,
     },
     SafetyScanFailed {

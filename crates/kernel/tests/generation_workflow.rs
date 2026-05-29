@@ -3,8 +3,8 @@ mod support;
 use std::time::Duration;
 
 use atelier_generation::{
-    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationClientError,
-    GenerationPlanContext, ImageModel, ImageStreamEvent,
+    CharacterPosition, GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage,
+    GenerationClientError, GenerationPlanContext, ImageModel, ImageStreamEvent,
 };
 use atelier_jobs::{BatchId, JobId, JobStatus, QueueDelay, QueueDirective, RetryPolicy};
 use atelier_kernel::{
@@ -192,6 +192,58 @@ fn image_generation_compiles_plans_persists_and_indexes_samples() {
                 .events()
                 .iter()
                 .any(|event| matches!(event.kind, KernelEventKind::GalleryIndexed { .. }))
+        );
+    });
+}
+
+#[test]
+fn generation_workflow_compiles_negative_and_character_prompt_scopes() {
+    block_on(async {
+        let ports = MemoryKernelPorts::default()
+            .with_compiled_prompt("@chunk(main)", "expanded main")
+            .with_compiled_prompt("@chunk(uc)", "expanded uc")
+            .with_compiled_prompt("@chunk(hero)", "expanded hero")
+            .with_compiled_prompt("@chunk(hero_uc)", "expanded hero uc")
+            .with_generated_images(vec![GeneratedImage {
+                bytes: vec![1],
+                mime_type: None,
+                seed: None,
+            }]);
+        let mut runtime = KernelRuntime::new(ports.clone());
+        let job_id = JobId::new("job-compile-scopes");
+
+        runtime
+            .submit_generation_work(SubmitGenerationWork {
+                batch_id: BatchId::new("batch-compile-scopes"),
+                job_id: job_id.clone(),
+                request: GenerationWorkRequest::Image(GenerateImageRequest {
+                    prompt: "@chunk(main)".to_owned(),
+                    negative_prompt: Some("@chunk(uc)".to_owned()),
+                    characters: Some(vec![atelier_generation::Character {
+                        prompt: "@chunk(hero)".to_owned(),
+                        negative_prompt: Some("@chunk(hero_uc)".to_owned()),
+                        position: CharacterPosition::default(),
+                        enabled: true,
+                    }]),
+                    model: ImageModel::NaiDiffusion45Full,
+                    ..Default::default()
+                }),
+                context: GenerationPlanContext::default(),
+            })
+            .await
+            .unwrap();
+
+        runtime.run_scheduled_generation_job(&job_id).await.unwrap();
+
+        assert_eq!(ports.compile_call_count(), 4);
+        let request = ports.generated_requests().pop().expect("request recorded");
+        assert_eq!(request.prompt, "expanded main");
+        assert_eq!(request.negative_prompt.as_deref(), Some("expanded uc"));
+        let characters = request.characters.expect("characters preserved");
+        assert_eq!(characters[0].prompt, "expanded hero");
+        assert_eq!(
+            characters[0].negative_prompt.as_deref(),
+            Some("expanded hero uc")
         );
     });
 }

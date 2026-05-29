@@ -39,6 +39,8 @@ export type AppEventKindDto =
       kind: "gallery_indexed";
       batch_id: string;
       job_id: string;
+      sample_index: number;
+      artifact_id: string;
       item_id: string;
     }
   | {

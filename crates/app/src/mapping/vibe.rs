@@ -1,7 +1,8 @@
 use super::{
     EnsuredVibeEncoding, EnsuredVibeEncodingDto, ExportedVibeDocument, ExportedVibeDocumentDto,
     ImportedVibeDocuments, ImportedVibeDocumentsDto, VibeDocumentEntry, VibeDocumentEntryDto,
-    VibeExportFormat, VibeExportFormatDto, VibeModel, VibeModelDto, resource_ref_to_dto,
+    VibeEncodingConfigDto, VibeExportFormat, VibeExportFormatDto, VibeModel, VibeModelDto,
+    resource_ref_to_dto,
 };
 
 pub fn imported_vibes_to_dto(value: ImportedVibeDocuments) -> ImportedVibeDocumentsDto {
@@ -24,12 +25,21 @@ pub fn ensured_vibe_to_dto(value: &EnsuredVibeEncoding) -> EnsuredVibeEncodingDt
     }
 }
 
-fn vibe_entry_to_dto(value: VibeDocumentEntry) -> VibeDocumentEntryDto {
+pub fn vibe_entry_to_dto(value: VibeDocumentEntry) -> VibeDocumentEntryDto {
     VibeDocumentEntryDto {
         vibe_id: value.summary.document_id.as_str().to_owned(),
         display_name: value.summary.display_name,
         has_image: value.summary.has_image,
         available_model_keys: value.summary.available_model_keys,
+        available_encoding_configs: value
+            .summary
+            .available_encoding_configs
+            .into_iter()
+            .map(|config| VibeEncodingConfigDto {
+                model: vibe_model_to_dto(config.model),
+                information_extracted: config.settings.normalized_information_extracted(),
+            })
+            .collect(),
         document: resource_ref_to_dto(&value.resources.document),
         source_image: value
             .resources
@@ -43,6 +53,17 @@ fn vibe_entry_to_dto(value: VibeDocumentEntry) -> VibeDocumentEntryDto {
             .iter()
             .map(resource_ref_to_dto)
             .collect(),
+    }
+}
+
+pub const fn vibe_model_to_dto(value: VibeModel) -> VibeModelDto {
+    match value {
+        VibeModel::NaiDiffusion45Full => VibeModelDto::NaiDiffusion45Full,
+        VibeModel::NaiDiffusion45Curated => VibeModelDto::NaiDiffusion45Curated,
+        VibeModel::NaiDiffusion4Full => VibeModelDto::NaiDiffusion4Full,
+        VibeModel::NaiDiffusion4Curated => VibeModelDto::NaiDiffusion4Curated,
+        VibeModel::NaiDiffusion3 => VibeModelDto::NaiDiffusion3,
+        VibeModel::NaiDiffusion3Furry => VibeModelDto::NaiDiffusion3Furry,
     }
 }
 

@@ -54,6 +54,13 @@ pub struct GetResourceImageRequestDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct SaveResourceImageRequestDto {
+    pub resource: ResourceRefDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggested_file_name: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ResourceImageDto {
     pub image_base64: String,
     #[serde(skip_serializing_if = "Option::is_none")]

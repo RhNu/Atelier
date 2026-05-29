@@ -47,6 +47,36 @@ impl GenerationPayloadStore for DatabaseGenerationPayloadStore {
             .map_err(sql_error)
     }
 
+    async fn save_submitted_payloads(
+        &self,
+        payloads: Vec<SubmittedGenerationPayload>,
+    ) -> KernelResult<()> {
+        let encoded = payloads
+            .iter()
+            .map(|payload| {
+                SubmittedGenerationPayloadDto::encode_domain(payload)
+                    .map(|json| (payload.payload_ref.as_str().to_owned(), json))
+                    .map_err(kernel_error)
+            })
+            .collect::<KernelResult<Vec<_>>>()?;
+        let mut connection = self.connection.lock().map_err(kernel_error)?;
+        let transaction = connection.transaction().map_err(sql_error)?;
+        for (payload_ref, json) in encoded {
+            transaction
+                .execute(
+                    r"
+                    INSERT INTO generation_payloads(payload_ref, payload_kind, payload_json)
+                    VALUES (?1, 'submitted', ?2)
+                    ON CONFLICT(payload_kind, payload_ref) DO UPDATE
+                    SET payload_json = excluded.payload_json
+                    ",
+                    params![payload_ref, json],
+                )
+                .map_err(sql_error)?;
+        }
+        transaction.commit().map_err(sql_error)
+    }
+
     async fn get_submitted_payload(
         &self,
         payload_ref: &JobPayloadRef,

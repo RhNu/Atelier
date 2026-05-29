@@ -89,6 +89,16 @@ pub struct RunHistoryPageDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DeleteRunHistoryItemsRequestDto {
+    pub run_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DeleteRunHistoryItemsResponseDto {
+    pub deleted: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RerunGenerationHistoryItemRequestDto {
     pub run_id: String,
     pub batch_id: String,

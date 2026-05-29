@@ -39,8 +39,10 @@ fn vibe_repository_round_trips_documents_and_cached_encodings() {
                 .get_document(&VibeId::new("vibe-1"))
                 .await
                 .unwrap(),
-            Some(entry)
+            Some(entry.clone())
         );
+        assert_eq!(repository.list_documents(0, 10).await.unwrap(), vec![entry]);
+        assert_eq!(repository.count_documents().await.unwrap(), 1);
         assert_eq!(
             repository
                 .find_cached_encoding(&source, &settings)

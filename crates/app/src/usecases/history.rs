@@ -2,6 +2,7 @@ use atelier_adapter_database::DatabaseRunHistoryRepository;
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::QueueDirectiveDto;
 use atelier_app_api::history::{
+    DeleteRunHistoryItemsRequestDto, DeleteRunHistoryItemsResponseDto,
     RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto, RunHistoryPageDto,
     RunHistoryQueryDto,
 };
@@ -63,6 +64,20 @@ where
             query.limit,
             total,
         ))
+    }
+
+    pub async fn delete_items(
+        &self,
+        request: DeleteRunHistoryItemsRequestDto,
+    ) -> AppResult<DeleteRunHistoryItemsResponseDto> {
+        let deleted = self
+            .app
+            .inner
+            .run_history
+            .delete_run_history_items(&request.run_ids)
+            .await
+            .map_err(|error| AppError::new("run_history", error.to_string()))?;
+        Ok(DeleteRunHistoryItemsResponseDto { deleted })
     }
 
     pub async fn rerun_generation(

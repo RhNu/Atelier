@@ -114,12 +114,10 @@ fn kernel_event_to_dto(event: KernelEvent) -> AppEventDto {
         KernelEventKind::GalleryIndexed {
             batch_id,
             job_id,
+            sample_index,
+            artifact_id,
             item_id,
-        } => AppEventKindDto::GalleryIndexed {
-            batch_id: batch_id.as_str().to_owned(),
-            job_id: job_id.as_str().to_owned(),
-            item_id: item_id.as_str().to_owned(),
-        },
+        } => gallery_indexed_to_dto(&batch_id, &job_id, sample_index, &artifact_id, &item_id),
         KernelEventKind::SafetyScanFailed {
             batch_id,
             job_id,
@@ -156,6 +154,22 @@ fn kernel_event_to_dto(event: KernelEvent) -> AppEventDto {
         },
     };
     AppEventDto { sequence, kind }
+}
+
+fn gallery_indexed_to_dto(
+    batch_id: &atelier_jobs::BatchId,
+    job_id: &atelier_jobs::JobId,
+    sample_index: u32,
+    artifact_id: &atelier_artifacts::ArtifactId,
+    item_id: &atelier_gallery::GalleryItemId,
+) -> AppEventKindDto {
+    AppEventKindDto::GalleryIndexed {
+        batch_id: batch_id.as_str().to_owned(),
+        job_id: job_id.as_str().to_owned(),
+        sample_index,
+        artifact_id: artifact_id.as_str().to_owned(),
+        item_id: item_id.as_str().to_owned(),
+    }
 }
 
 const fn output_mode_as_str(mode: GenerationOutputMode) -> &'static str {

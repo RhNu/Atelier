@@ -49,6 +49,8 @@ pub enum KernelEventKind {
     GalleryIndexed {
         batch_id: BatchId,
         job_id: JobId,
+        sample_index: u32,
+        artifact_id: ArtifactId,
         item_id: GalleryItemId,
     },
     SafetyScanFailed {

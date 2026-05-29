@@ -1,4 +1,9 @@
-import type { GalleryQueryDto, ResourceRefDto, RunHistoryQueryDto } from "../../types";
+import type {
+  GalleryQueryDto,
+  ListVibeDocumentsRequestDto,
+  ResourceRefDto,
+  RunHistoryQueryDto,
+} from "../../types";
 
 type GalleryQueryKeyInput = Pick<GalleryQueryDto, "limit" | "offset"> &
   Partial<Omit<GalleryQueryDto, "limit" | "offset">>;
@@ -28,6 +33,7 @@ export const queryKeys = {
   generation: {
     root: () => ["generation"] as const,
     status: (jobId?: string | null) => ["generation", "status", jobId ?? null] as const,
+    estimate: (request: unknown) => ["generation", "estimate", request] as const,
   },
   history: {
     root: () => ["history"] as const,
@@ -51,6 +57,8 @@ export const queryKeys = {
   },
   vibe: {
     root: () => ["vibe"] as const,
+    list: (query: ListVibeDocumentsRequestDto) => ["vibe", "list", query] as const,
+    get: (vibeId: string) => ["vibe", "get", vibeId] as const,
   },
   director: {
     root: () => ["director"] as const,

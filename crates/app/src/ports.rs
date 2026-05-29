@@ -147,6 +147,13 @@ where
         self.payloads.save_submitted_payload(payload).await
     }
 
+    async fn save_submitted_payloads(
+        &self,
+        payloads: Vec<SubmittedGenerationPayload>,
+    ) -> KernelResult<()> {
+        self.payloads.save_submitted_payloads(payloads).await
+    }
+
     async fn get_submitted_payload(
         &self,
         payload_ref: &atelier_jobs::JobPayloadRef,
@@ -455,6 +462,18 @@ where
 
     async fn get_document(&self, id: &VibeId) -> VibeDomainResult<Option<VibeDocumentEntry>> {
         self.vibes.get_document(id).await
+    }
+
+    async fn list_documents(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> VibeDomainResult<Vec<VibeDocumentEntry>> {
+        self.vibes.list_documents(offset, limit).await
+    }
+
+    async fn count_documents(&self) -> VibeDomainResult<usize> {
+        self.vibes.count_documents().await
     }
 
     async fn find_cached_encoding(

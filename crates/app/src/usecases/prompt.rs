@@ -1,5 +1,6 @@
 use super::{
-    AppError, AppResult, AtelierApp, CompilePromptRequest, CompilePromptRequestDto,
+    AppError, AppResult, AtelierApp, CompileGenerationPromptRequestDto, CompilePromptRequest,
+    CompilePromptRequestDto, CompiledGenerationCharacterPromptDto, CompiledGenerationPromptDto,
     CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
     GetPromptChunkRequestDto, ListPromptChunksRequestDto, PromptChunkDto, PromptChunkId,
     PromptChunkKey, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
@@ -105,6 +106,57 @@ where
             .await
             .map(|compiled| compiled_prompt_to_dto(&compiled))
             .map_err(AppError::from)
+    }
+
+    pub async fn compile_generation_preview(
+        &self,
+        request: CompileGenerationPromptRequestDto,
+    ) -> AppResult<CompiledGenerationPromptDto> {
+        let prompt = self
+            .compile_preview(CompilePromptRequestDto {
+                prompt: request.prompt,
+                max_depth: request.max_depth,
+            })
+            .await?;
+        let negative_prompt = match request.negative_prompt {
+            Some(prompt) if !prompt.trim().is_empty() => Some(
+                self.compile_preview(CompilePromptRequestDto {
+                    prompt,
+                    max_depth: request.max_depth,
+                })
+                .await?,
+            ),
+            _ => None,
+        };
+        let mut characters = Vec::with_capacity(request.characters.len());
+        for character in request.characters {
+            let prompt = self
+                .compile_preview(CompilePromptRequestDto {
+                    prompt: character.prompt,
+                    max_depth: request.max_depth,
+                })
+                .await?;
+            let negative_prompt = match character.negative_prompt {
+                Some(prompt) if !prompt.trim().is_empty() => Some(
+                    self.compile_preview(CompilePromptRequestDto {
+                        prompt,
+                        max_depth: request.max_depth,
+                    })
+                    .await?,
+                ),
+                _ => None,
+            };
+            characters.push(CompiledGenerationCharacterPromptDto {
+                prompt,
+                negative_prompt,
+                enabled: character.enabled,
+            });
+        }
+        Ok(CompiledGenerationPromptDto {
+            prompt,
+            negative_prompt,
+            characters,
+        })
     }
 
     pub fn lexicon_catalog(&self) -> PromptLexiconCatalogDto {

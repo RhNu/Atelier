@@ -51,9 +51,21 @@ export function useGenerationParamHandlers({ onPatch, onPatchSize }: GenerationP
     },
     [onPatch],
   );
+  const handleSeedModeChange = useCallback(
+    (value: string) => {
+      onPatch({ seedMode: value === "fixed" ? "fixed" : "random" });
+    },
+    [onPatch],
+  );
   const handleSamplesChange = useCallback(
     (nSamples: number) => {
       onPatch({ nSamples });
+    },
+    [onPatch],
+  );
+  const handleRequestCountChange = useCallback(
+    (requestCount: number) => {
+      onPatch({ requestCount });
     },
     [onPatch],
   );
@@ -119,7 +131,9 @@ export function useGenerationParamHandlers({ onPatch, onPatchSize }: GenerationP
     handleStepsChange,
     handleScaleChange,
     handleSeedChange,
+    handleSeedModeChange,
     handleSamplesChange,
+    handleRequestCountChange,
     handleSamplerChange,
     handleNoiseScheduleChange,
     handleUcPresetChange,

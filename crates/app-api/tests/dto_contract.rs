@@ -14,25 +14,33 @@ use atelier_app_api::gallery::{
 };
 use atelier_app_api::generation::{
     CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
-    ControlNetConfigDto, ControlNetInputDto, GenerateImageRequestDto, GenerationStatusQueryDto,
-    ImageModelDto, Img2ImgRequestDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    ControlNetConfigDto, ControlNetInputDto, GenerateImageRequestDto, GenerationAnlasEstimateDto,
+    GenerationEstimateRequestDto, GenerationStatusQueryDto, ImageModelDto, Img2ImgRequestDto,
+    QueueDirectiveDto, RunGenerationJobRequestDto, StreamModeDto, SubmitGenerationBatchJobDto,
+    SubmitGenerationBatchRequestDto,
 };
 use atelier_app_api::history::{
+    DeleteRunHistoryItemsRequestDto, DeleteRunHistoryItemsResponseDto,
     RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto, RunHistoryItemDto,
     RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto, RunHistoryQueryDto,
     RunHistoryStatusDto,
 };
 use atelier_app_api::prompt::{
+    CompileGenerationCharacterPromptDto, CompileGenerationPromptRequestDto,
     DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, GetPromptChunkRequestDto,
     ListPromptChunksRequestDto, PromptChunkPageDto, PromptLexiconSearchQueryDto,
 };
 use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-    ImportImageResourceResponseDto, ResourceImageDto, ResourceRefDto,
+    ImportImageResourceResponseDto, ResourceImageDto, ResourceRefDto, SaveResourceImageRequestDto,
 };
 use atelier_app_api::settings::{
     GenerationDefaultsDto, ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto,
     UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+};
+use atelier_app_api::vibe::{
+    GetVibeDocumentRequestDto, ListVibeDocumentsRequestDto, VibeDocumentEntryDto,
+    VibeDocumentPageDto, VibeEncodingConfigDto, VibeModelDto,
 };
 use atelier_app_api::workspace::CloseWorkspaceResponseDto;
 use serde_json::json;

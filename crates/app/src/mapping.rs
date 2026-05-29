@@ -25,7 +25,7 @@ use atelier_app_api::settings::{
 };
 use atelier_app_api::vibe::{
     EnsuredVibeEncodingDto, ExportedVibeDocumentDto, ImportedVibeDocumentsDto,
-    VibeDocumentEntryDto, VibeExportFormatDto, VibeModelDto,
+    VibeDocumentEntryDto, VibeEncodingConfigDto, VibeExportFormatDto, VibeModelDto,
 };
 use atelier_artifacts::{ArtifactKind, VisualAssetRole};
 use atelier_gallery::{

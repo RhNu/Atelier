@@ -1,31 +1,52 @@
+/* eslint-disable max-lines, max-lines-per-function */
 import { Pause, Play, Square } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { AppIconButton, AppToolbar, EmptyState } from "../../components/ui";
-import type { CompiledPromptDto, RunHistoryItemDto } from "../../types";
-import { AdvancedPlaceholders } from "./components/AdvancedPlaceholders";
+import type {
+  CompiledGenerationPromptDto,
+  RunHistoryItemDto,
+  RunHistoryOutputDto,
+  RunHistoryStatusDto,
+  VibeDocumentEntryDto,
+} from "../../types";
+import { AdvancedGenerationInputs } from "./components/AdvancedGenerationInputs";
 import { GenerationHistoryRail } from "./components/GenerationHistoryRail";
 import { GenerationParamsPanel } from "./components/GenerationParamsPanel";
 import { GenerationPreviewStage } from "./components/GenerationPreviewStage";
 import { GenerationPromptPanel } from "./components/GenerationPromptPanel";
 import {
   useCompilePromptMutation,
+  useActiveAccountProbeQuery,
+  useDeleteRunHistoryMutation,
+  useGalleryImageReferenceMutation,
+  useGenerationEstimateQuery,
   useGenerationSettingsQuery,
+  useEnsureVibeEncodingFromResourceMutation,
+  useImportVibeDocumentsMutation,
   usePauseGenerationMutation,
+  usePickImageResourcesMutation,
+  useRerunGenerationMutation,
   useResourceImageQuery,
   useResumeGenerationMutation,
+  useSaveResourceImageMutation,
   useStopGenerationMutation,
   useSubmitGenerationMutation,
+  useExportVibeDocumentMutation,
+  useVibeDocumentsQuery,
 } from "./data/useGenerationActions";
+import { useGenerationStatusQuery, useRunHistoryQuery } from "./data/useGenerationStatusQuery";
 import {
-  useGenerationStatusQuery,
-  useLatestRunHistoryQuery,
-} from "./data/useGenerationStatusQuery";
-import { buildSubmitGenerationRequest, canSubmitGenerationDraft } from "./model/generation-draft";
+  buildSubmitGenerationBatchRequest,
+  canSubmitGenerationDraft,
+  createGenerationRunIds,
+} from "./model/generation-draft";
 import { useGenerationEventStore } from "./state/generation-event-store";
 import { useGenerationDraft } from "./state/useGenerationDraft";
 
 const EMPTY_HISTORY_ITEMS: ReadonlyArray<RunHistoryItemDto> = [];
+const EMPTY_VIBE_DOCUMENTS: ReadonlyArray<VibeDocumentEntryDto> = [];
+const HISTORY_PAGE_LIMIT = 8;
 
 type QueueControlsProps = {
   canPause: boolean;
@@ -53,28 +74,53 @@ function formatError(error: unknown): string {
 export function GeneratePage() {
   const settingsQuery = useGenerationSettingsQuery();
   const statusQuery = useGenerationStatusQuery();
-  const historyQuery = useLatestRunHistoryQuery();
+  const accountQuery = useActiveAccountProbeQuery();
   const submitMutation = useSubmitGenerationMutation();
+  const rerunMutation = useRerunGenerationMutation();
+  const deleteHistoryMutation = useDeleteRunHistoryMutation();
+  const saveResourceMutation = useSaveResourceImageMutation();
+  const imageReferenceMutation = useGalleryImageReferenceMutation();
+  const imageImportMutation = usePickImageResourcesMutation();
+  const ensureVibeEncodingMutation = useEnsureVibeEncodingFromResourceMutation();
+  const importVibeMutation = useImportVibeDocumentsMutation();
+  const exportVibeMutation = useExportVibeDocumentMutation();
   const pauseMutation = usePauseGenerationMutation();
   const resumeMutation = useResumeGenerationMutation();
   const stopMutation = useStopGenerationMutation();
   const compileMutation = useCompilePromptMutation();
   const { draft, patchDraft, patchSize } = useGenerationDraft(settingsQuery.data);
+  const isOpus = accountQuery.data?.is_opus ?? false;
+  const estimateQuery = useGenerationEstimateQuery(draft, isOpus);
   const activePreview = useGenerationEventStore((state) => state.activePreview);
+  const filmstrip = useGenerationEventStore((state) => state.filmstrip);
+  const selectPreview = useGenerationEventStore((state) => state.selectPreview);
   const lastError = useGenerationEventStore((state) => state.lastError);
   const selectedHistoryItemId = useGenerationEventStore((state) => state.selectedHistoryItemId);
   const selectHistoryItem = useGenerationEventStore((state) => state.selectHistoryItem);
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<"all" | RunHistoryStatusDto>(
+    "all",
+  );
+  const [historyOffset, setHistoryOffset] = useState(0);
+  const historyQuery = useRunHistoryQuery({
+    offset: historyOffset,
+    limit: HISTORY_PAGE_LIMIT,
+    kind: "generation",
+    status: historyStatusFilter === "all" ? null : historyStatusFilter,
+  });
   const finalResource = activePreview?.kind === "resource" ? activePreview.resource : null;
   const finalImageQuery = useResourceImageQuery(finalResource);
+  const vibeDocumentsQuery = useVibeDocumentsQuery({ offset: 0, limit: 32 });
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [queueError, setQueueError] = useState<string | null>(null);
   const [compileError, setCompileError] = useState<string | null>(null);
-  const [positivePreview, setPositivePreview] = useState<CompiledPromptDto | null>(null);
-  const [negativePreview, setNegativePreview] = useState<CompiledPromptDto | null>(null);
+  const [historyActionError, setHistoryActionError] = useState<string | null>(null);
+  const [compiledPreview, setCompiledPreview] = useState<CompiledGenerationPromptDto | null>(null);
 
   const status = statusQuery.data;
   const historyItems = historyQuery.data?.items ?? EMPTY_HISTORY_ITEMS;
+  const selectedHistoryItem =
+    historyItems.find((item) => item.run_id === selectedHistoryItemId) ?? null;
   const batchStatus = status?.batch_status ?? null;
   const canPause = batchStatus === "running" || batchStatus === "waiting";
   const canResume = batchStatus === "paused";
@@ -101,12 +147,163 @@ export function GeneratePage() {
     setSubmitError(null);
     void (async () => {
       try {
-        await submitMutation.mutateAsync(buildSubmitGenerationRequest(draft));
+        await submitMutation.mutateAsync(
+          buildSubmitGenerationBatchRequest(draft, undefined, { isOpus }),
+        );
       } catch (error) {
         setSubmitError(formatError(error));
       }
     })();
-  }, [draft, submitMutation]);
+  }, [draft, isOpus, submitMutation]);
+
+  const handleHistoryStatusFilterChange = useCallback((status: "all" | RunHistoryStatusDto) => {
+    setHistoryStatusFilter(status);
+    setHistoryOffset(0);
+  }, []);
+
+  const handlePreviousHistoryPage = useCallback(() => {
+    setHistoryOffset((value) => Math.max(0, value - HISTORY_PAGE_LIMIT));
+  }, []);
+
+  const handleNextHistoryPage = useCallback(() => {
+    setHistoryOffset((value) => value + HISTORY_PAGE_LIMIT);
+  }, []);
+
+  const handleRerunSelected = useCallback(() => {
+    if (!selectedHistoryItem || rerunMutation.isPending) {
+      return;
+    }
+    const ids = createGenerationRunIds(1);
+    const jobId = ids.jobIds[0];
+    if (!jobId) {
+      return;
+    }
+    setHistoryActionError(null);
+    void rerunMutation
+      .mutateAsync({
+        run_id: selectedHistoryItem.run_id,
+        batch_id: ids.batchId,
+        job_id: jobId,
+      })
+      .catch((error: unknown) => setHistoryActionError(formatError(error)));
+  }, [rerunMutation, selectedHistoryItem]);
+
+  const handleDeleteSelected = useCallback(() => {
+    if (!selectedHistoryItem || deleteHistoryMutation.isPending) {
+      return;
+    }
+    setHistoryActionError(null);
+    void deleteHistoryMutation
+      .mutateAsync([selectedHistoryItem.run_id])
+      .then(() => selectHistoryItem(null))
+      .catch((error: unknown) => setHistoryActionError(formatError(error)));
+  }, [deleteHistoryMutation, selectHistoryItem, selectedHistoryItem]);
+
+  const handleExportOutput = useCallback(
+    (output: RunHistoryOutputDto | null, suggestedName: string) => {
+      if (!output || saveResourceMutation.isPending) {
+        return;
+      }
+      setHistoryActionError(null);
+      void saveResourceMutation
+        .mutateAsync({
+          resource: output.resource,
+          suggested_file_name: suggestedName,
+        })
+        .catch((error: unknown) => setHistoryActionError(formatError(error)));
+    },
+    [saveResourceMutation],
+  );
+
+  const handleExportSelected = useCallback(() => {
+    handleExportOutput(
+      preferredHistoryOutput(selectedHistoryItem),
+      selectedHistoryItem ? `${selectedHistoryItem.run_id}-sample` : "generation",
+    );
+  }, [handleExportOutput, selectedHistoryItem]);
+
+  const handleSendOutputToDirector = useCallback(
+    (output: RunHistoryOutputDto | null) => {
+      if (!output?.item_id || imageReferenceMutation.isPending) {
+        return;
+      }
+      setHistoryActionError(null);
+      void imageReferenceMutation
+        .mutateAsync({ item_id: output.item_id, target: "director" })
+        .catch((error: unknown) => setHistoryActionError(formatError(error)));
+    },
+    [imageReferenceMutation],
+  );
+
+  const handleSendSelectedToDirector = useCallback(() => {
+    handleSendOutputToDirector(preferredHistoryOutput(selectedHistoryItem));
+  }, [handleSendOutputToDirector, selectedHistoryItem]);
+
+  const handleSavePreview = useCallback(() => {
+    if (activePreview?.kind !== "resource") {
+      return;
+    }
+    setHistoryActionError(null);
+    void saveResourceMutation
+      .mutateAsync({
+        resource: activePreview.resource,
+        suggested_file_name: `${activePreview.jobId}-sample-${activePreview.sampleIndex}`,
+      })
+      .catch((error: unknown) => setHistoryActionError(formatError(error)));
+  }, [activePreview, saveResourceMutation]);
+
+  const handleSendPreviewToDirector = useCallback(() => {
+    if (activePreview?.kind !== "resource" || !activePreview.galleryItemId) {
+      return;
+    }
+    setHistoryActionError(null);
+    void imageReferenceMutation
+      .mutateAsync({ item_id: activePreview.galleryItemId, target: "director" })
+      .catch((error: unknown) => setHistoryActionError(formatError(error)));
+  }, [activePreview, imageReferenceMutation]);
+
+  const handleImportVibeDocuments = useCallback(() => {
+    setHistoryActionError(null);
+    void importVibeMutation
+      .mutateAsync()
+      .catch((error: unknown) => setHistoryActionError(formatError(error)));
+  }, [importVibeMutation]);
+
+  const handlePickImageResources = useCallback(
+    async (kind: "source_image" | "reference_image") => {
+      const imported = await imageImportMutation.mutateAsync({ kind, extensions: [] });
+      return imported.map((item) => item.resource);
+    },
+    [imageImportMutation],
+  );
+
+  const handlePickVibeEncoding = useCallback(async () => {
+    if (!draft) {
+      return null;
+    }
+    const [imported] = await imageImportMutation.mutateAsync({
+      kind: "control_net_image",
+      extensions: [],
+    });
+    if (!imported) {
+      return null;
+    }
+    return ensureVibeEncodingMutation.mutateAsync({
+      resource: imported.resource,
+      model: draft.model,
+      informationExtracted: 1,
+    });
+  }, [draft, ensureVibeEncodingMutation, imageImportMutation]);
+
+  const handleExportVibeDocument = useCallback(
+    (vibeId: string) => {
+      setHistoryActionError(null);
+      void exportVibeMutation
+        .mutateAsync([vibeId])
+        .catch((error: unknown) => setHistoryActionError(formatError(error)));
+    },
+    [exportVibeMutation],
+  );
 
   const handleCompile = useCallback(() => {
     if (!draft) {
@@ -114,20 +311,23 @@ export function GeneratePage() {
     }
 
     setCompileError(null);
-    setPositivePreview(null);
-    setNegativePreview(null);
+    setCompiledPreview(null);
 
     void (async () => {
       try {
         if (draft.prompt.trim().length > 0) {
-          setPositivePreview(
-            await compileMutation.mutateAsync({ prompt: draft.prompt, max_depth: 8 }),
-          );
-        }
-        if (draft.negativePrompt.trim().length > 0) {
-          setNegativePreview(
+          setCompiledPreview(
             await compileMutation.mutateAsync({
-              prompt: draft.negativePrompt,
+              prompt: draft.prompt,
+              negative_prompt: draft.negativePrompt.trim().length > 0 ? draft.negativePrompt : null,
+              characters: draft.characters
+                .map((character) => ({
+                  prompt: character.prompt.trim(),
+                  negative_prompt:
+                    character.negativePrompt.trim().length > 0 ? character.negativePrompt : null,
+                  enabled: character.enabled,
+                }))
+                .filter((character) => character.enabled && character.prompt.length > 0),
               max_depth: 8,
             }),
           );
@@ -164,10 +364,23 @@ export function GeneratePage() {
           onResume={handleResume}
           onStop={handleStop}
         />
+        <GenerationEconomyStatus
+          accountPending={accountQuery.isPending}
+          accountError={accountQuery.isError ? formatError(accountQuery.error) : null}
+          anlasBalance={accountQuery.data?.anlas_balance ?? null}
+          estimatePending={estimateQuery.isPending}
+          estimateError={estimateQuery.isError ? formatError(estimateQuery.error) : null}
+          estimateTotal={estimateQuery.data?.total_cost ?? null}
+        />
       </AppToolbar>
       {queueError ? (
         <p className="border-b border-app-border bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
           {queueError}
+        </p>
+      ) : null}
+      {historyActionError ? (
+        <p className="border-b border-app-border bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+          {historyActionError}
         </p>
       ) : null}
 
@@ -180,14 +393,27 @@ export function GeneratePage() {
             compileError={compileError}
             compilePending={compileMutation.isPending}
             submitPending={submitMutation.isPending}
-            positivePreview={positivePreview}
-            negativePreview={negativePreview}
+            compiledPreview={compiledPreview}
             onPatch={patchDraft}
             onSubmit={handleSubmit}
             onCompile={handleCompile}
           />
           <GenerationParamsPanel draft={draft} onPatch={patchDraft} onPatchSize={patchSize} />
-          <AdvancedPlaceholders />
+          <AdvancedGenerationInputs
+            draft={draft}
+            onPatch={patchDraft}
+            vibeDocuments={vibeDocumentsQuery.data?.items ?? EMPTY_VIBE_DOCUMENTS}
+            vibePending={vibeDocumentsQuery.isPending}
+            vibeError={vibeDocumentsQuery.isError ? formatError(vibeDocumentsQuery.error) : null}
+            vibeImportPending={importVibeMutation.isPending}
+            vibeExportPending={exportVibeMutation.isPending}
+            imageImportPending={imageImportMutation.isPending}
+            vibeEnsurePending={ensureVibeEncodingMutation.isPending}
+            onPickImageResources={handlePickImageResources}
+            onPickVibeEncoding={handlePickVibeEncoding}
+            onImportVibeDocuments={handleImportVibeDocuments}
+            onExportVibeDocument={handleExportVibeDocument}
+          />
         </aside>
 
         <GenerationPreviewStage
@@ -198,6 +424,12 @@ export function GeneratePage() {
           status={status}
           statusError={statusQuery.isError ? formatError(statusQuery.error) : null}
           lastError={lastError?.message ?? null}
+          filmstrip={filmstrip}
+          savePending={saveResourceMutation.isPending}
+          handoffPending={imageReferenceMutation.isPending}
+          onSelectPreview={selectPreview}
+          onSavePreview={handleSavePreview}
+          onSendPreviewToDirector={handleSendPreviewToDirector}
         />
 
         <GenerationHistoryRail
@@ -205,7 +437,22 @@ export function GeneratePage() {
           pending={historyQuery.isPending}
           error={historyQuery.isError ? formatError(historyQuery.error) : null}
           selectedItemId={selectedHistoryItemId}
+          statusFilter={historyStatusFilter}
+          offset={historyQuery.data?.offset ?? historyOffset}
+          limit={historyQuery.data?.limit ?? HISTORY_PAGE_LIMIT}
+          total={historyQuery.data?.total ?? 0}
+          rerunPending={rerunMutation.isPending}
+          deletePending={deleteHistoryMutation.isPending}
+          exportPending={saveResourceMutation.isPending}
+          handoffPending={imageReferenceMutation.isPending}
           onSelect={selectHistoryItem}
+          onStatusFilterChange={handleHistoryStatusFilterChange}
+          onPreviousPage={handlePreviousHistoryPage}
+          onNextPage={handleNextHistoryPage}
+          onRerunSelected={handleRerunSelected}
+          onDeleteSelected={handleDeleteSelected}
+          onExportSelected={handleExportSelected}
+          onSendSelectedToDirector={handleSendSelectedToDirector}
         />
       </div>
     </div>
@@ -233,6 +480,52 @@ function useQueueActionHandlers({ pause, resume, stop, setQueueError }: QueueAct
   }, [runQueueCommand, stop]);
 
   return { handlePause, handleResume, handleStop };
+}
+
+function preferredHistoryOutput(item: RunHistoryItemDto | null): RunHistoryOutputDto | null {
+  if (!item) {
+    return null;
+  }
+  return (
+    item.outputs.find((output) => output.asset_role === "original") ??
+    item.outputs.find((output) => output.asset_role === "primary") ??
+    item.outputs[0] ??
+    null
+  );
+}
+
+function GenerationEconomyStatus({
+  accountPending,
+  accountError,
+  anlasBalance,
+  estimatePending,
+  estimateError,
+  estimateTotal,
+}: {
+  accountPending: boolean;
+  accountError: string | null;
+  anlasBalance: number | null;
+  estimatePending: boolean;
+  estimateError: string | null;
+  estimateTotal: number | null;
+}) {
+  const accountLabel = accountError
+    ? accountError
+    : accountPending
+      ? "Account"
+      : `${anlasBalance ?? 0} Anlas`;
+  const estimateLabel = estimateError
+    ? "Estimate unavailable"
+    : estimatePending
+      ? "Estimating"
+      : `${estimateTotal ?? 0} planned`;
+
+  return (
+    <div className="flex items-center gap-2 text-xs text-app-muted">
+      <span className="border border-app-border bg-app-panel px-2 py-1">{accountLabel}</span>
+      <span className="border border-app-border bg-app-panel px-2 py-1">{estimateLabel}</span>
+    </div>
+  );
 }
 
 function GenerationLoadingState() {

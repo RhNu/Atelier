@@ -88,6 +88,41 @@ pub struct CompiledPromptDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CompileGenerationCharacterPromptDto {
+    pub prompt: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub negative_prompt: Option<String>,
+    pub enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CompileGenerationPromptRequestDto {
+    pub prompt: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub negative_prompt: Option<String>,
+    #[serde(default)]
+    pub characters: Vec<CompileGenerationCharacterPromptDto>,
+    #[serde(default = "default_max_depth")]
+    pub max_depth: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CompiledGenerationCharacterPromptDto {
+    pub prompt: CompiledPromptDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub negative_prompt: Option<CompiledPromptDto>,
+    pub enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CompiledGenerationPromptDto {
+    pub prompt: CompiledPromptDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub negative_prompt: Option<CompiledPromptDto>,
+    pub characters: Vec<CompiledGenerationCharacterPromptDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptTraceDto {
     pub raw_prompt: String,
     pub expanded_prompt: String,

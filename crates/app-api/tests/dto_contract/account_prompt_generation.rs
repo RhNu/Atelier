@@ -257,7 +257,10 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
         }),
         controlnet: Some(ControlNetConfigDto {
             images: vec![ControlNetInputDto {
-                vibe_data_cache: "cache-key".to_owned(),
+                encoding: ResourceRefDto {
+                    id: "vibe-encoding".to_owned(),
+                    variant_id: None,
+                },
                 info_extracted: 0.7,
                 strength: 0.8,
             }],
@@ -310,7 +313,7 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
             },
             "controlnet": {
                 "images": [{
-                    "vibe_data_cache": "cache-key",
+                    "encoding": { "id": "vibe-encoding" },
                     "info_extracted": 0.7_f32,
                     "strength": 0.8_f32
                 }],
@@ -332,6 +335,172 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
                 "enabled": true
             }],
             "use_coords": true
+        })
+    );
+}
+
+#[test]
+fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
+    let request = SubmitGenerationBatchRequestDto {
+        batch_id: "batch-1".to_owned(),
+        jobs: vec![
+            SubmitGenerationBatchJobDto {
+                job_id: "job-1".to_owned(),
+                work: atelier_app_api::generation::GenerationWorkRequestDto::Image(
+                    GenerateImageRequestDto {
+                        prompt: "first".to_owned(),
+                        seed: 42,
+                        ..GenerateImageRequestDto::default()
+                    },
+                ),
+            },
+            SubmitGenerationBatchJobDto {
+                job_id: "job-2".to_owned(),
+                work: atelier_app_api::generation::GenerationWorkRequestDto::Stream(
+                    atelier_app_api::generation::GenerateImageStreamRequestDto {
+                        base: GenerateImageRequestDto {
+                            prompt: "second".to_owned(),
+                            seed: 42,
+                            ..GenerateImageRequestDto::default()
+                        },
+                        stream: StreamModeDto::default(),
+                    },
+                ),
+            },
+        ],
+        context: atelier_app_api::generation::GenerationPlanContextDto {
+            request_count: 2,
+            pending_vibe_encode_count: 1,
+            is_opus: true,
+        },
+    };
+
+    assert_eq!(
+        serde_json::to_value(request).unwrap(),
+        json!({
+            "batch_id": "batch-1",
+            "jobs": [
+                {
+                    "job_id": "job-1",
+                    "work": {
+                        "kind": "image",
+                        "request": {
+                            "prompt": "first",
+                            "model": "nai-diffusion-4-5-full",
+                            "size": { "width": 832, "height": 1216 },
+                            "quality": true,
+                            "uc_preset": "light",
+                            "steps": 23,
+                            "scale": 5.0,
+                            "sampler": "k_euler_ancestral",
+                            "noise_schedule": "karras",
+                            "seed": 42,
+                            "n_samples": 1,
+                            "cfg_rescale": 0.0,
+                            "variety_boost": false,
+                            "strict_mode": false
+                        }
+                    }
+                },
+                {
+                    "job_id": "job-2",
+                    "work": {
+                        "kind": "stream",
+                        "request": {
+                            "base": {
+                                "prompt": "second",
+                                "model": "nai-diffusion-4-5-full",
+                                "size": { "width": 832, "height": 1216 },
+                                "quality": true,
+                                "uc_preset": "light",
+                                "steps": 23,
+                                "scale": 5.0,
+                                "sampler": "k_euler_ancestral",
+                                "noise_schedule": "karras",
+                                "seed": 42,
+                                "n_samples": 1,
+                                "cfg_rescale": 0.0,
+                                "variety_boost": false,
+                                "strict_mode": false
+                            },
+                            "stream": "sse"
+                        }
+                    }
+                }
+            ],
+            "context": {
+                "request_count": 2,
+                "pending_vibe_encode_count": 1,
+                "is_opus": true
+            }
+        })
+    );
+}
+
+#[test]
+fn generation_prompt_compile_preview_accepts_all_prompt_scopes() {
+    let request = CompileGenerationPromptRequestDto {
+        prompt: "@chunk(main)".to_owned(),
+        negative_prompt: Some("@chunk(negative)".to_owned()),
+        characters: vec![CompileGenerationCharacterPromptDto {
+            prompt: "@chunk(hero)".to_owned(),
+            negative_prompt: Some("@chunk(hero_negative)".to_owned()),
+            enabled: true,
+        }],
+        max_depth: 8,
+    };
+
+    assert_eq!(
+        serde_json::to_value(request).unwrap(),
+        json!({
+            "prompt": "@chunk(main)",
+            "negative_prompt": "@chunk(negative)",
+            "characters": [{
+                "prompt": "@chunk(hero)",
+                "negative_prompt": "@chunk(hero_negative)",
+                "enabled": true
+            }],
+            "max_depth": 8
+        })
+    );
+}
+
+#[test]
+fn generation_estimate_dto_returns_anlas_breakdown() {
+    let request = GenerationEstimateRequestDto {
+        request: GenerateImageRequestDto {
+            prompt: "1girl".to_owned(),
+            n_samples: 2,
+            ..GenerateImageRequestDto::default()
+        },
+        context: atelier_app_api::generation::GenerationPlanContextDto {
+            request_count: 3,
+            pending_vibe_encode_count: 1,
+            is_opus: true,
+        },
+    };
+    let estimate = GenerationAnlasEstimateDto {
+        per_sample_cost: 5,
+        per_request_cost: 5,
+        total_cost: 17,
+        adjusted_resolution: 1_011_712,
+        opus_discount_applied: true,
+        pending_encode_cost: 2,
+    };
+
+    assert_eq!(
+        serde_json::to_value(request).unwrap()["context"]["request_count"],
+        json!(3)
+    );
+    assert_eq!(
+        serde_json::to_value(estimate).unwrap(),
+        json!({
+            "per_sample_cost": 5,
+            "per_request_cost": 5,
+            "total_cost": 17,
+            "adjusted_resolution": 1_011_712,
+            "opus_discount_applied": true,
+            "pending_encode_cost": 2
         })
     );
 }

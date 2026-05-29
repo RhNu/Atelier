@@ -2,10 +2,14 @@ import type {
   ApiKeyRecordDto,
   CloseWorkspaceResponseDto,
   CompilePromptRequestDto,
+  CompileGenerationPromptRequestDto,
+  CompiledGenerationPromptDto,
   CompiledPromptDto,
   CreateApiKeyRequestDto,
   DeleteApiKeyRequestDto,
   DeleteApiKeyResponseDto,
+  DeleteRunHistoryItemsRequestDto,
+  DeleteRunHistoryItemsResponseDto,
   DeletePromptChunkRequestDto,
   DeletePromptChunkResponseDto,
   EnsureVibeEncodingRequestDto,
@@ -19,12 +23,16 @@ import type {
   GalleryPageDto,
   GalleryQueryDto,
   GenerationStatusDto,
+  GenerationAnlasEstimateDto,
+  GenerationEstimateRequestDto,
   GenerationStatusQueryDto,
   GetPromptChunkRequestDto,
   GetResourceImageRequestDto,
+  GetVibeDocumentRequestDto,
   ImageResourceKindDto,
   ImportImageResourceResponseDto,
   ImportedVibeDocumentsDto,
+  ListVibeDocumentsRequestDto,
   ListPromptChunksRequestDto,
   OpenWorkspaceRequestDto,
   ProbeApiKeyRequestDto,
@@ -38,6 +46,7 @@ import type {
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryItemResponseDto,
   ResourceImageDto,
+  SaveResourceImageRequestDto,
   ResetWorkspaceSettingsResponseDto,
   RunDirectorToolRequestDto,
   DirectorToolResultDto,
@@ -47,10 +56,13 @@ import type {
   SetActiveApiKeyRequestDto,
   SetGallerySafetyOverrideRequestDto,
   SubmitGenerationRequestDto,
+  SubmitGenerationBatchRequestDto,
   SubscriptionSummaryDto,
   UpdateApiKeyRequestDto,
   UpdateWorkspaceSettingsRequestDto,
   UpsertPromptChunkRequestDto,
+  VibeDocumentEntryDto,
+  VibeDocumentPageDto,
   WorkspaceSettingsDto,
   WorkspaceStatusDto,
 } from "../../types";
@@ -89,6 +101,8 @@ export const desktopApi = {
       atelierCommands.pickAndImportEmbeddedPngVibeDocuments,
       { options },
     ),
+  saveResourceImage: (request: SaveResourceImageRequestDto) =>
+    invokeAtelierCommand<{ path: string } | null>(atelierCommands.saveResourceImage, { request }),
   openPath: (path: string) => invokeAtelierCommand<void>(atelierCommands.openPath, { path }),
   revealPath: (path: string) => invokeAtelierCommand<void>(atelierCommands.revealPath, { path }),
 };
@@ -129,6 +143,11 @@ export const promptApi = {
     }),
   compilePreview: (request: CompilePromptRequestDto) =>
     invokeAtelierCommand<CompiledPromptDto>(atelierCommands.compilePromptPreview, { request }),
+  compileGenerationPreview: (request: CompileGenerationPromptRequestDto) =>
+    invokeAtelierCommand<CompiledGenerationPromptDto>(
+      atelierCommands.compileGenerationPromptPreview,
+      { request },
+    ),
   lexiconCatalog: () =>
     invokeAtelierCommand<PromptLexiconCatalogDto>(atelierCommands.promptLexiconCatalog),
   lexiconList: (request: PromptLexiconListQueryDto) =>
@@ -155,6 +174,12 @@ export const settingsApi = {
 export const generationApi = {
   submit: (request: SubmitGenerationRequestDto) =>
     invokeAtelierCommand<QueueDirectiveDto>(atelierCommands.submitGeneration, { request }),
+  submitBatch: (request: SubmitGenerationBatchRequestDto) =>
+    invokeAtelierCommand<QueueDirectiveDto>(atelierCommands.submitGenerationBatch, { request }),
+  estimate: (request: GenerationEstimateRequestDto) =>
+    invokeAtelierCommand<GenerationAnlasEstimateDto>(atelierCommands.estimateGeneration, {
+      request,
+    }),
   runJob: (request: RunGenerationJobRequestDto) =>
     invokeAtelierCommand<QueueDirectiveDto>(atelierCommands.runGenerationJob, { request }),
   pause: () => invokeAtelierCommand<QueueDirectiveDto>(atelierCommands.pauseGenerationQueue),
@@ -169,6 +194,10 @@ export const generationApi = {
 export const historyApi = {
   list: (request: RunHistoryQueryDto) =>
     invokeAtelierCommand<RunHistoryPageDto>(atelierCommands.queryRunHistory, { request }),
+  deleteItems: (request: DeleteRunHistoryItemsRequestDto) =>
+    invokeAtelierCommand<DeleteRunHistoryItemsResponseDto>(atelierCommands.deleteRunHistoryItems, {
+      request,
+    }),
   rerunGeneration: (request: RerunGenerationHistoryItemRequestDto) =>
     invokeAtelierCommand<RerunGenerationHistoryItemResponseDto>(
       atelierCommands.rerunGenerationHistoryItem,
@@ -182,6 +211,10 @@ export const directorApi = {
 };
 
 export const vibeApi = {
+  listDocuments: (request: ListVibeDocumentsRequestDto) =>
+    invokeAtelierCommand<VibeDocumentPageDto>(atelierCommands.listVibeDocuments, { request }),
+  getDocument: (request: GetVibeDocumentRequestDto) =>
+    invokeAtelierCommand<VibeDocumentEntryDto>(atelierCommands.getVibeDocument, { request }),
   ensureEncoding: (request: EnsureVibeEncodingRequestDto) =>
     invokeAtelierCommand<EnsuredVibeEncodingDto>(atelierCommands.ensureVibeEncoding, { request }),
   saveDocument: (request: ExportVibeDocumentRequestDto) =>

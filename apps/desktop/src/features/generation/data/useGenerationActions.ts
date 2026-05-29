@@ -1,17 +1,52 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  accountApi,
+  desktopApi,
+  galleryApi,
   generationApi,
+  historyApi,
   promptApi,
   queryKeys,
   resourceApi,
   settingsApi,
+  vibeApi,
 } from "../../../platform/atelier";
 import type {
-  CompilePromptRequestDto,
+  CompileGenerationPromptRequestDto,
+  GalleryImageReferenceRequestDto,
+  ImageModelDto,
+  ImageResourceKindDto,
+  GenerationEstimateRequestDto,
+  ListVibeDocumentsRequestDto,
   ResourceRefDto,
-  SubmitGenerationRequestDto,
+  RerunGenerationHistoryItemRequestDto,
+  SaveResourceImageRequestDto,
+  SubmitGenerationBatchRequestDto,
+  VibeModelDto,
 } from "../../../types";
+import type { GenerationDraft } from "../model/generation-draft";
+import {
+  buildGenerationEstimateCacheKey,
+  buildGenerationEstimateRequest,
+} from "../model/generation-draft";
+
+type PickImageResourcesRequest = {
+  kind: ImageResourceKindDto;
+  extensions?: string[];
+};
+
+type EnsureVibeEncodingFromResourceRequest = {
+  resource: ResourceRefDto;
+  model: ImageModelDto;
+  informationExtracted: number;
+};
+
+export type EnsuredVibeEncodingFromResource = {
+  encoding: ResourceRefDto;
+  sourceImage: ResourceRefDto;
+  sourceSha256: string;
+};
 
 export function useGenerationSettingsQuery() {
   return useQuery({
@@ -20,14 +55,114 @@ export function useGenerationSettingsQuery() {
   });
 }
 
+export function useActiveAccountProbeQuery() {
+  return useQuery({
+    queryKey: queryKeys.account.activeProbe(),
+    queryFn: () => accountApi.probeActive(),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useGenerationEstimateQuery(draft: GenerationDraft | null, isOpus: boolean) {
+  const request = draft ? buildGenerationEstimateRequest(draft, { isOpus }) : null;
+  const estimateKey = draft ? buildGenerationEstimateCacheKey(draft, { isOpus }) : null;
+
+  return useQuery({
+    queryKey: estimateKey
+      ? queryKeys.generation.estimate(estimateKey)
+      : queryKeys.generation.estimate(null),
+    queryFn: () => {
+      if (!request) {
+        throw new Error("generation estimate request is required");
+      }
+      return generationApi.estimate(request satisfies GenerationEstimateRequestDto);
+    },
+    enabled: Boolean(request),
+    retry: false,
+  });
+}
+
+export function usePickImageResourcesMutation() {
+  return useMutation({
+    mutationFn: ({ kind, extensions = [] }: PickImageResourcesRequest) =>
+      desktopApi.pickAndImportImageResources(kind, { extensions }),
+  });
+}
+
+export function useEnsureVibeEncodingFromResourceMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      resource,
+      model,
+      informationExtracted,
+    }: EnsureVibeEncodingFromResourceRequest): Promise<EnsuredVibeEncodingFromResource> => {
+      const image = await resourceApi.image({ resource });
+      const sourceSha256 = await sha256Base64(image.image_base64);
+      const ensured = await vibeApi.ensureEncoding({
+        vibe_id: resource.id,
+        source_sha256: sourceSha256,
+        image: image.image_base64,
+        model: model as VibeModelDto,
+        information_extracted: informationExtracted,
+      });
+      return {
+        encoding: ensured.resource,
+        sourceImage: resource,
+        sourceSha256,
+      };
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
+    },
+  });
+}
+
 export function useSubmitGenerationMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: SubmitGenerationRequestDto) => generationApi.submit(request),
+    mutationFn: (request: SubmitGenerationBatchRequestDto) => generationApi.submitBatch(request),
     onSuccess: async () => {
       await invalidateGenerationWorkbench(queryClient);
     },
+  });
+}
+
+export function useRerunGenerationMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: RerunGenerationHistoryItemRequestDto) =>
+      historyApi.rerunGeneration(request),
+    onSuccess: async () => {
+      await invalidateGenerationWorkbench(queryClient);
+    },
+  });
+}
+
+export function useDeleteRunHistoryMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (runIds: string[]) => historyApi.deleteItems({ run_ids: runIds }),
+    onSuccess: async () => {
+      await invalidateGenerationWorkbench(queryClient);
+    },
+  });
+}
+
+export function useSaveResourceImageMutation() {
+  return useMutation({
+    mutationFn: (request: SaveResourceImageRequestDto) => desktopApi.saveResourceImage(request),
+  });
+}
+
+export function useGalleryImageReferenceMutation() {
+  return useMutation({
+    mutationFn: (request: GalleryImageReferenceRequestDto) => galleryApi.imageReference(request),
   });
 }
 
@@ -66,7 +201,8 @@ export function useStopGenerationMutation() {
 
 export function useCompilePromptMutation() {
   return useMutation({
-    mutationFn: (request: CompilePromptRequestDto) => promptApi.compilePreview(request),
+    mutationFn: (request: CompileGenerationPromptRequestDto) =>
+      promptApi.compileGenerationPreview(request),
   });
 }
 
@@ -83,6 +219,34 @@ export function useResourceImageQuery(resource: ResourceRefDto | null) {
   });
 }
 
+export function useVibeDocumentsQuery(query: ListVibeDocumentsRequestDto) {
+  return useQuery({
+    queryKey: queryKeys.vibe.list(query),
+    queryFn: () => vibeApi.listDocuments(query),
+  });
+}
+
+export function useImportVibeDocumentsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => desktopApi.pickAndImportVibeDocuments({ extensions: [] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
+    },
+  });
+}
+
+export function useExportVibeDocumentMutation() {
+  return useMutation({
+    mutationFn: (vibeIds: string[]) =>
+      vibeApi.saveDocument({
+        vibe_ids: vibeIds,
+        format: vibeIds.length === 1 ? "naiv4vibe" : "naiv4vibebundle",
+      }),
+  });
+}
+
 async function invalidateGenerationWorkbench(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.generation.root() }),
@@ -90,4 +254,34 @@ async function invalidateGenerationWorkbench(queryClient: ReturnType<typeof useQ
     queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
   ]);
+}
+
+async function sha256Base64(value: string): Promise<string> {
+  const bytes = base64ToBytes(value);
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) {
+    return fallbackHash(bytes);
+  }
+  const input = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(input).set(bytes);
+  const digest = await subtle.digest("SHA-256", input);
+  return bytesToHex(new Uint8Array(digest));
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const binary = globalThis.atob(value);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function fallbackHash(bytes: Uint8Array): string {
+  let hash = 0x811c9dc5;
+  for (const byte of bytes) {
+    hash ^= byte;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash.toString(16).padStart(8, "0");
 }

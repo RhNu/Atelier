@@ -1,12 +1,14 @@
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::{
-    GenerationStatusDto, GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
-    SubmitGenerationRequestDto,
+    GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationStatusDto,
+    GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
 };
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
 use crate::commands::{AppCommandHost, CommandResult};
+use crate::usecases::estimate_generation_anlas;
 
 impl<S, F, E> AppCommandHost<S, F, E>
 where
@@ -23,6 +25,29 @@ where
         request: SubmitGenerationRequestDto,
     ) -> CommandResult<QueueDirectiveDto> {
         Self::command_result(self.current_app()?.generation().submit(request).await)
+    }
+
+    /// Submits a multi-job generation batch without running queued jobs inline.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open, no API key is active, or queue persistence fails.
+    pub async fn submit_generation_batch(
+        &self,
+        request: SubmitGenerationBatchRequestDto,
+    ) -> CommandResult<QueueDirectiveDto> {
+        Self::command_result(self.current_app()?.generation().submit_batch(request).await)
+    }
+
+    /// Estimates `NovelAI` Anlas cost for a generation request.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or the estimate request is invalid.
+    pub fn estimate_generation(
+        &self,
+        request: &GenerationEstimateRequestDto,
+    ) -> CommandResult<GenerationAnlasEstimateDto> {
+        self.current_app()?;
+        Self::command_result(estimate_generation_anlas(request))
     }
 
     /// Runs one scheduled generation job.

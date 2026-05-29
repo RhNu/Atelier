@@ -63,6 +63,49 @@ impl VibeRepository for DatabaseVibeRepository {
             .transpose()
     }
 
+    async fn list_documents(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> VibeDomainResult<Vec<VibeDocumentEntry>> {
+        let connection = self.connection.lock().map_err(vibe_error)?;
+        let mut statement = connection
+            .prepare(
+                r"
+                SELECT document_json
+                FROM vibe_documents
+                ORDER BY display_name ASC, vibe_id ASC
+                LIMIT ?1 OFFSET ?2
+                ",
+            )
+            .map_err(sql_error)?;
+        let rows = statement
+            .query_map(
+                params![
+                    i64::try_from(limit).unwrap_or(i64::MAX),
+                    i64::try_from(offset).unwrap_or(i64::MAX),
+                ],
+                |row| row.get::<_, String>(0),
+            )
+            .map_err(sql_error)?;
+        rows.map(|row| {
+            row.map_err(sql_error)
+                .and_then(|text| VibeDocumentEntryDto::decode_domain(&text).map_err(vibe_error))
+        })
+        .collect()
+    }
+
+    async fn count_documents(&self) -> VibeDomainResult<usize> {
+        let connection = self.connection.lock().map_err(vibe_error)?;
+        let count = connection
+            .query_row("SELECT COUNT(*) FROM vibe_documents", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .map_err(sql_error)?;
+        usize::try_from(count)
+            .map_err(|error| VibeError::new(VibeErrorKind::Repository, error.to_string()))
+    }
+
     async fn find_cached_encoding(
         &self,
         source: &VibeSourceIdentity,

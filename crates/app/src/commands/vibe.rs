@@ -1,8 +1,9 @@
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
-    ExportedVibeDocumentDto, ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
-    ImportedVibeDocumentsDto,
+    ExportedVibeDocumentDto, GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
+    ImportVibeDocumentRequestDto, ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto,
+    VibeDocumentEntryDto, VibeDocumentPageDto,
 };
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
@@ -51,6 +52,28 @@ where
         request: ExportVibeDocumentRequestDto,
     ) -> CommandResult<ExportedVibeDocumentDto> {
         Self::command_result(self.current_app()?.vibe().export_document(request).await)
+    }
+
+    /// Lists workspace-scoped Vibe documents available to generation.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or the Vibe catalog cannot be read.
+    pub async fn list_vibe_documents(
+        &self,
+        request: ListVibeDocumentsRequestDto,
+    ) -> CommandResult<VibeDocumentPageDto> {
+        Self::command_result(self.current_app()?.vibe().list_documents(request).await)
+    }
+
+    /// Reads one workspace-scoped Vibe document entry.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or the Vibe document does not exist.
+    pub async fn get_vibe_document(
+        &self,
+        request: GetVibeDocumentRequestDto,
+    ) -> CommandResult<VibeDocumentEntryDto> {
+        Self::command_result(self.current_app()?.vibe().get_document(request).await)
     }
 
     /// Ensures a Vibe encoding exists for the requested model/settings.

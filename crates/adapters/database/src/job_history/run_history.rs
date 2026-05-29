@@ -196,6 +196,25 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
         Ok(exists)
     }
 
+    async fn delete_run_history_items(&self, run_ids: &[String]) -> JobResult<usize> {
+        if run_ids.is_empty() {
+            return Ok(0);
+        }
+
+        let mut deleted = 0;
+        {
+            let mut connection = self.connection.lock().map_err(job_store_error)?;
+            let transaction = connection.transaction().map_err(job_store_error)?;
+            for run_id in run_ids {
+                deleted += transaction
+                    .execute("DELETE FROM run_history WHERE run_id = ?1", params![run_id])
+                    .map_err(job_store_error)?;
+            }
+            transaction.commit().map_err(job_store_error)?;
+        }
+        Ok(deleted)
+    }
+
     async fn upsert_run_output(&self, output: RunOutputRecord) -> JobResult<()> {
         {
             let connection = self.connection.lock().map_err(job_store_error)?;

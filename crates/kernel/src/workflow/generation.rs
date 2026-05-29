@@ -7,7 +7,7 @@ use atelier_generation::{
     SeedMode, plan_generation_request, plan_generation_stream_request,
 };
 use atelier_jobs::{JobFailureImpact, JobId, QueueDelay, QueueDirective, RetryPolicy};
-use atelier_prompt_resources::CompilePromptRequest;
+use atelier_prompt_resources::{CompilePromptRequest, PromptResourceResult};
 use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
     ResourceOwner, ResourceOwnerKind, ResourceRelation, ResourceVariantKind,
@@ -15,8 +15,9 @@ use atelier_resource_catalog::{
 
 use crate::runtime::{prepared_payload_ref, submitted_payload_ref};
 use crate::{
-    GenerationPayloadStore, GenerationWorkRequest, KernelClock, KernelError, KernelEventKind,
-    KernelEventSink, KernelFailureDetail, KernelGenerationPorts, KernelResult, KernelRuntime,
+    CompiledGenerationCharacterPrompts, CompiledGenerationPrompts, GenerationPayloadStore,
+    GenerationWorkRequest, KernelClock, KernelError, KernelEventKind, KernelEventSink,
+    KernelFailureDetail, KernelGenerationPorts, KernelResult, KernelRuntime,
     PreparedGenerationPayload,
 };
 
@@ -41,11 +42,7 @@ where
         })
         .await;
 
-    let compiled = match runtime
-        .ports_ref()
-        .compile_prompt(CompilePromptRequest::new(submitted.request.prompt()))
-        .await
-    {
+    let compiled = match compile_generation_prompts(runtime.ports_ref(), &submitted.request).await {
         Ok(compiled) => compiled,
         Err(error) => {
             let error = KernelError::from(error);
@@ -57,14 +54,11 @@ where
         .emit(KernelEventKind::PromptCompiled {
             batch_id: submitted.batch_id.clone(),
             job_id: job_id.clone(),
-            expanded_prompt: compiled.expanded_prompt.clone(),
+            expanded_prompt: compiled.prompt.expanded_prompt.clone(),
         })
         .await;
 
-    let request = submitted
-        .request
-        .clone()
-        .with_prompt(compiled.expanded_prompt.clone());
+    let request = submitted.request.clone().with_compiled_prompts(&compiled);
     let plan = match plan_request(request.clone(), submitted.context) {
         Ok(plan) => plan,
         Err(error) => {
@@ -89,7 +83,7 @@ where
             batch_id: submitted.batch_id.clone(),
             job_id: job_id.clone(),
             request,
-            compiled_prompt: compiled.clone(),
+            compiled_prompt: compiled.prompt.clone(),
             plan: plan.clone(),
         })
         .await
@@ -106,7 +100,7 @@ where
                 &submitted.batch_id,
                 job_id,
                 &prepared_ref,
-                &compiled.expanded_prompt,
+                &compiled.prompt.expanded_prompt,
                 &plan,
             )
             .await
@@ -121,13 +115,64 @@ where
                 &submitted.batch_id,
                 job_id,
                 &prepared_ref,
-                &compiled.expanded_prompt,
+                &compiled.prompt.expanded_prompt,
                 &plan,
                 request,
             )
             .await
         }
     }
+}
+
+async fn compile_generation_prompts<P>(
+    ports: &P,
+    request: &GenerationWorkRequest,
+) -> PromptResourceResult<CompiledGenerationPrompts>
+where
+    P: KernelGenerationPorts,
+{
+    let prompt = ports
+        .compile_prompt(CompilePromptRequest::new(request.prompt()))
+        .await?;
+    let negative_prompt = compile_optional_prompt(ports, request.negative_prompt()).await?;
+    let mut characters = Vec::new();
+    if let Some(request_characters) = request.characters() {
+        characters.reserve(request_characters.len());
+        for character in request_characters {
+            characters.push(CompiledGenerationCharacterPrompts {
+                prompt: compile_optional_prompt(ports, Some(character.prompt.as_str())).await?,
+                negative_prompt: compile_optional_prompt(
+                    ports,
+                    character.negative_prompt.as_deref(),
+                )
+                .await?,
+            });
+        }
+    }
+    Ok(CompiledGenerationPrompts {
+        prompt,
+        negative_prompt,
+        characters,
+    })
+}
+
+async fn compile_optional_prompt<P>(
+    ports: &P,
+    prompt: Option<&str>,
+) -> PromptResourceResult<Option<atelier_prompt_resources::CompiledPrompt>>
+where
+    P: KernelGenerationPorts,
+{
+    let Some(prompt) = prompt else {
+        return Ok(None);
+    };
+    if prompt.trim().is_empty() {
+        return Ok(None);
+    }
+    ports
+        .compile_prompt(CompilePromptRequest::new(prompt))
+        .await
+        .map(Some)
 }
 
 fn plan_request(
@@ -290,13 +335,15 @@ where
             job_id: sample.job_id.clone(),
             sample_index: sample.sample_index,
             resource,
-            artifact_id,
+            artifact_id: artifact_id.clone(),
         })
         .await;
     runtime
         .emit(KernelEventKind::GalleryIndexed {
             batch_id: sample.batch_id.clone(),
             job_id: sample.job_id.clone(),
+            sample_index: sample.sample_index,
+            artifact_id,
             item_id: item.id,
         })
         .await;

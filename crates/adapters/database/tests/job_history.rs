@@ -150,6 +150,48 @@ fn run_output_upsert_replaces_records_without_variant_id() {
 }
 
 #[test]
+fn run_history_delete_removes_records_and_associated_outputs_only() {
+    block_on(async {
+        let repository =
+            DatabaseRunHistoryRepository::new(DatabaseConnection::open_memory().unwrap());
+        repository
+            .upsert_run_history(generation_history())
+            .await
+            .unwrap();
+        repository
+            .upsert_run_history(director_history())
+            .await
+            .unwrap();
+        repository
+            .upsert_run_output(original_output())
+            .await
+            .unwrap();
+
+        let deleted = repository
+            .delete_run_history_items(&["job-1".to_owned(), "missing".to_owned()])
+            .await
+            .unwrap();
+
+        assert_eq!(deleted, 1);
+        assert!(repository.get_run_history("job-1").await.unwrap().is_none());
+        assert!(
+            repository
+                .get_run_history("director-1")
+                .await
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            repository
+                .list_run_outputs("job-1")
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    });
+}
+
+#[test]
 fn migrations_add_queue_and_history_tables_to_existing_v3_database() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("atelier.sqlite3");

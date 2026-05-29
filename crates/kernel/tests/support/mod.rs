@@ -16,8 +16,8 @@ use atelier_director::{
 };
 use atelier_gallery::{GalleryIndex, GalleryItem, GalleryItemId, GalleryResult};
 use atelier_generation::{
-    GeneratedImage, GenerationClientError, GenerationResult, ImageStreamEvent, ImageStreamResult,
-    NovelAiGenerationClient,
+    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationClientError,
+    GenerationResult, ImageStreamEvent, ImageStreamResult, NovelAiGenerationClient,
 };
 use atelier_kernel::{
     GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEvent, KernelEventSink,
@@ -48,7 +48,10 @@ struct State {
     events: Vec<KernelEvent>,
     operations: Vec<String>,
     expanded_prompt: String,
+    compiled_prompts: BTreeMap<String, String>,
     generated_images: Vec<GeneratedImage>,
+    generated_requests: Vec<GenerateImageRequest>,
+    stream_requests: Vec<GenerateImageStreamRequest>,
     director_output: Option<DirectorToolOutput>,
     stream_items: VecDeque<GenerationResult<ImageStreamEvent>>,
     resources: BTreeMap<String, RegisteredResource>,
@@ -85,6 +88,15 @@ impl MemoryKernelPorts {
         let mut state = self.state.lock().unwrap();
         prompt.clone_into(&mut state.expanded_prompt);
         drop(state);
+        self
+    }
+
+    pub fn with_compiled_prompt(self, raw: &str, expanded: &str) -> Self {
+        self.state
+            .lock()
+            .unwrap()
+            .compiled_prompts
+            .insert(raw.to_owned(), expanded.to_owned());
         self
     }
 
@@ -208,6 +220,14 @@ impl MemoryKernelPorts {
             .count()
     }
 
+    pub fn generated_requests(&self) -> Vec<GenerateImageRequest> {
+        self.state.lock().unwrap().generated_requests.clone()
+    }
+
+    pub fn stream_requests(&self) -> Vec<GenerateImageStreamRequest> {
+        self.state.lock().unwrap().stream_requests.clone()
+    }
+
     pub fn encode_vibe_call_count(&self) -> usize {
         self.operations()
             .into_iter()
@@ -254,6 +274,19 @@ impl GenerationPayloadStore for MemoryKernelPorts {
         Ok(())
     }
 
+    async fn save_submitted_payloads(
+        &self,
+        payloads: Vec<SubmittedGenerationPayload>,
+    ) -> atelier_kernel::KernelResult<()> {
+        let mut state = self.state.lock().unwrap();
+        for payload in payloads {
+            let key = payload.payload_ref.as_str().to_owned();
+            state.operations.push("save_submitted".to_owned());
+            state.submitted.insert(key, payload);
+        }
+        Ok(())
+    }
+
     async fn get_submitted_payload(
         &self,
         payload_ref: &atelier_jobs::JobPayloadRef,
@@ -297,11 +330,12 @@ impl KernelGenerationPorts for MemoryKernelPorts {
                 "compile failed",
             ));
         }
-        let expanded = if state.expanded_prompt.is_empty() {
-            request.prompt.clone()
-        } else {
-            state.expanded_prompt.clone()
-        };
+        let expanded = state
+            .compiled_prompts
+            .get(&request.prompt)
+            .cloned()
+            .or_else(|| (!state.expanded_prompt.is_empty()).then(|| state.expanded_prompt.clone()))
+            .unwrap_or_else(|| request.prompt.clone());
         Ok(CompiledPrompt {
             expanded_prompt: expanded.clone(),
             trace: PromptTrace {
@@ -447,10 +481,11 @@ impl KernelDirectorPorts for MemoryKernelPorts {
 impl NovelAiGenerationClient for MemoryKernelPorts {
     async fn generate(
         &self,
-        _request: atelier_generation::GenerateImageRequest,
+        request: atelier_generation::GenerateImageRequest,
     ) -> GenerationResult<Vec<GeneratedImage>> {
         let mut state = self.state.lock().unwrap();
         state.operations.push("generate".to_owned());
+        state.generated_requests.push(request);
         if let Some(error) = state.fail_generate.clone() {
             return Err(error);
         }
@@ -459,10 +494,11 @@ impl NovelAiGenerationClient for MemoryKernelPorts {
 
     async fn generate_stream(
         &self,
-        _request: atelier_generation::GenerateImageStreamRequest,
+        request: atelier_generation::GenerateImageStreamRequest,
     ) -> GenerationResult<ImageStreamResult> {
         let mut state = self.state.lock().unwrap();
         state.operations.push("generate_stream".to_owned());
+        state.stream_requests.push(request);
         let items = state.stream_items.drain(..).collect::<Vec<_>>();
         Ok(Box::pin(stream::iter(items)))
     }

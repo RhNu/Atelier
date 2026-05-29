@@ -1,8 +1,9 @@
 use atelier_app_api::prompt::{
-    CompilePromptRequestDto, CompiledPromptDto, DeletePromptChunkRequestDto,
-    DeletePromptChunkResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
-    PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
-    PromptLexiconPageDto, PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
+    CompileGenerationPromptRequestDto, CompilePromptRequestDto, CompiledGenerationPromptDto,
+    CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
+    GetPromptChunkRequestDto, ListPromptChunksRequestDto, PromptChunkDto, PromptChunkPageDto,
+    PromptLexiconCatalogDto, PromptLexiconListQueryDto, PromptLexiconPageDto,
+    PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
 };
 
 use crate::commands::{AppCommandHost, CommandResult};
@@ -66,6 +67,22 @@ where
         request: CompilePromptRequestDto,
     ) -> CommandResult<CompiledPromptDto> {
         Self::command_result(self.current_app()?.prompt().compile_preview(request).await)
+    }
+
+    /// Compiles all Generation prompt scopes using persisted prompt resources.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or prompt compilation fails.
+    pub async fn compile_generation_prompt_preview(
+        &self,
+        request: CompileGenerationPromptRequestDto,
+    ) -> CommandResult<CompiledGenerationPromptDto> {
+        Self::command_result(
+            self.current_app()?
+                .prompt()
+                .compile_generation_preview(request)
+                .await,
+        )
     }
 
     /// Returns prompt lexicon catalog metadata.

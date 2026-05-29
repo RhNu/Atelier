@@ -1,3 +1,5 @@
+import { useCallback } from "react";
+
 import { AppPanel } from "../../../components/ui";
 import type { GenerationDraft } from "../model/generation-draft";
 import {
@@ -25,6 +27,20 @@ const IMAGE_FORMAT_OPTIONS: ReadonlyArray<SelectOption> = [
   { value: "default", label: "NovelAI default" },
   ...toSelectOptions(generationImageFormatOptions),
 ];
+const SEED_MODE_OPTIONS: ReadonlyArray<SelectOption> = [
+  { value: "random", label: "Random" },
+  { value: "fixed", label: "Fixed" },
+];
+const SIZE_PRESETS: ReadonlyArray<{ label: string; width: number; height: number }> = [
+  { label: "Portrait", width: 832, height: 1216 },
+  { label: "Landscape", width: 1216, height: 832 },
+  { label: "Square", width: 1024, height: 1024 },
+  { label: "Large portrait", width: 1024, height: 1536 },
+  { label: "Large landscape", width: 1536, height: 1024 },
+  { label: "Small portrait", width: 512, height: 768 },
+  { label: "Small landscape", width: 768, height: 512 },
+  { label: "Small square", width: 640, height: 640 },
+];
 
 export function GenerationParamsPanel({ draft, onPatch, onPatchSize }: GenerationParamsPanelProps) {
   const handlers = useGenerationParamHandlers({ onPatch, onPatchSize });
@@ -41,6 +57,11 @@ export function GenerationParamsPanel({ draft, onPatch, onPatchSize }: Generatio
           options={MODEL_OPTIONS}
           onChange={handlers.handleModelChange}
         />
+        <div className="grid grid-cols-2 gap-2">
+          {SIZE_PRESETS.map((preset) => (
+            <SizePresetButton key={preset.label} preset={preset} onPatchSize={onPatchSize} />
+          ))}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <NumberField
             label="Width"
@@ -75,13 +96,28 @@ export function GenerationParamsPanel({ draft, onPatch, onPatchSize }: Generatio
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
+          <SelectField
+            label="Seed mode"
+            value={draft.seedMode}
+            options={SEED_MODE_OPTIONS}
+            onChange={handlers.handleSeedModeChange}
+          />
           <NumberField label="Seed" value={draft.seed} onChange={handlers.handleSeedChange} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <NumberField
             label="Samples"
             value={draft.nSamples}
             min={1}
             max={4}
             onChange={handlers.handleSamplesChange}
+          />
+          <NumberField
+            label="Requests"
+            value={draft.requestCount}
+            min={1}
+            max={8}
+            onChange={handlers.handleRequestCountChange}
           />
         </div>
         <SelectField
@@ -140,5 +176,27 @@ export function GenerationParamsPanel({ draft, onPatch, onPatchSize }: Generatio
         </div>
       </div>
     </AppPanel>
+  );
+}
+
+function SizePresetButton({
+  preset,
+  onPatchSize,
+}: {
+  preset: { label: string; width: number; height: number };
+  onPatchSize: (patch: Partial<GenerationDraft["size"]>) => void;
+}) {
+  const handleClick = useCallback(() => {
+    onPatchSize({ width: preset.width, height: preset.height });
+  }, [onPatchSize, preset.height, preset.width]);
+
+  return (
+    <button
+      type="button"
+      className="border border-app-border bg-app-surface/70 px-2 py-1 text-left text-xs text-app-text hover:border-brand-400"
+      onClick={handleClick}
+    >
+      {preset.label}
+    </button>
   );
 }

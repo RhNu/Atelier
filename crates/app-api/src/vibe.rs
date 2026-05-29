@@ -55,12 +55,39 @@ pub struct EnsureVibeEncodingRequestDto {
     pub information_extracted: f32,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct VibeEncodingConfigDto {
+    pub model: VibeModelDto,
+    pub information_extracted: f32,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ListVibeDocumentsRequestDto {
+    pub offset: usize,
+    pub limit: usize,
+}
+
+impl Default for ListVibeDocumentsRequestDto {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            limit: 50,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct GetVibeDocumentRequestDto {
+    pub vibe_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct VibeDocumentEntryDto {
     pub vibe_id: String,
     pub display_name: String,
     pub has_image: bool,
     pub available_model_keys: Vec<String>,
+    pub available_encoding_configs: Vec<VibeEncodingConfigDto>,
     pub document: ResourceRefDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_image: Option<ResourceRefDto>,
@@ -69,7 +96,15 @@ pub struct VibeDocumentEntryDto {
     pub encodings: Vec<ResourceRefDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct VibeDocumentPageDto {
+    pub items: Vec<VibeDocumentEntryDto>,
+    pub total: usize,
+    pub offset: usize,
+    pub limit: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ImportedVibeDocumentsDto {
     pub entries: Vec<VibeDocumentEntryDto>,
 }

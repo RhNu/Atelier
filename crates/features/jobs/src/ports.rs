@@ -38,6 +38,8 @@ pub trait RunHistoryRepository: Send + Sync {
 
     async fn run_history_batch_exists(&self, batch_id: &str) -> JobResult<bool>;
 
+    async fn delete_run_history_items(&self, run_ids: &[String]) -> JobResult<usize>;
+
     async fn upsert_run_output(&self, output: RunOutputRecord) -> JobResult<()>;
 
     async fn list_run_outputs(&self, run_id: &str) -> JobResult<Vec<RunOutputRecord>>;

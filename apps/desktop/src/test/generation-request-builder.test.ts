@@ -1,5 +1,6 @@
+/* eslint-disable max-lines-per-function */
 import {
-  buildSubmitGenerationRequest,
+  buildSubmitGenerationBatchRequest,
   createGenerationDraft,
 } from "../features/generation/model/generation-draft";
 import type { WorkspaceSettingsDto } from "../types";
@@ -42,40 +43,44 @@ describe("generation request builder", () => {
       scale: 5,
       sampler: "k_euler_ancestral",
       noiseSchedule: "karras",
+      seedMode: "random",
       seed: 0,
       nSamples: 1,
+      requestCount: 1,
       cfgRescale: 0,
       varietyBoost: false,
       imageFormat: null,
       strictMode: false,
       streamEnabled: true,
+      i2i: null,
+      vibe: { enabled: false, strength: 1, slots: [] },
+      preciseReferences: [],
+      characters: [],
+      characterPositionMode: "global",
     });
   });
 
-  it("builds stream generation work and leaves advanced image inputs unset", () => {
+  it("builds a stream generation batch and keeps fixed seed stable across jobs", () => {
     const draft = {
       ...createGenerationDraft(settings),
       prompt: "1girl, atelier lighting",
       negativePrompt: "low quality",
       steps: 28,
+      seedMode: "fixed" as const,
       seed: 1234,
       nSamples: 2,
+      requestCount: 2,
       imageFormat: "png" as const,
     };
 
-    const request = buildSubmitGenerationRequest(draft, {
+    const request = buildSubmitGenerationBatchRequest(draft, {
       batchId: "batch-test",
-      jobId: "job-test",
+      jobIds: ["job-a", "job-b"],
     });
 
-    expect(request).toEqual({
-      batch_id: "batch-test",
-      job_id: "job-test",
-      context: {
-        request_count: 1,
-        pending_vibe_encode_count: 0,
-        is_opus: false,
-      },
+    expect(request.batch_id).toBe("batch-test");
+    expect(request.jobs[0]).toEqual({
+      job_id: "job-a",
       work: {
         kind: "stream",
         request: {
@@ -106,5 +111,170 @@ describe("generation request builder", () => {
         },
       },
     });
+    expect(request.jobs[1]?.job_id).toBe("job-b");
+    expect(request.context).toEqual({
+      request_count: 2,
+      pending_vibe_encode_count: 0,
+      is_opus: false,
+    });
+    const secondBase =
+      request.jobs[1]?.work.kind === "stream" ? request.jobs[1].work.request.base : null;
+    expect(secondBase?.prompt).toBe("1girl, atelier lighting");
+    expect(secondBase?.seed).toBe(1234);
+  });
+
+  it("builds resource-backed i2i, vibe, and character payloads", () => {
+    const draft = {
+      ...createGenerationDraft(settings),
+      prompt: "1girl",
+      negativePrompt: "low quality",
+      i2i: {
+        image: { id: "source-image", variant_id: null },
+        mask: { id: "mask-image", variant_id: null },
+        strength: 0.64,
+        noise: 0.12,
+      },
+      vibe: {
+        enabled: true,
+        strength: 0.9,
+        slots: [
+          {
+            id: "slot-a",
+            encoding: { id: "vibe-encoding", variant_id: null },
+            informationExtracted: 0.7,
+            strength: 0.4,
+            displayName: "vibe-a",
+            sourceImage: null,
+            sourceSha256: null,
+          },
+        ],
+      },
+      characters: [
+        {
+          id: "char-a",
+          prompt: "hero",
+          negativePrompt: "flat",
+          enabled: true,
+          position: { x: 0.2, y: 0.8 },
+        },
+      ],
+      characterPositionMode: "manual" as const,
+    };
+
+    const request = buildSubmitGenerationBatchRequest(draft, {
+      batchId: "batch-test",
+      jobIds: ["job-test"],
+    });
+
+    const base = request.jobs[0]?.work.kind === "stream" ? request.jobs[0].work.request.base : null;
+    expect(base).toMatchObject({
+      i2i: {
+        image: { kind: "resource_ref", resource: { id: "source-image", variant_id: null } },
+        mask: { kind: "resource_ref", resource: { id: "mask-image", variant_id: null } },
+        strength: 0.64,
+        noise: 0.12,
+      },
+      controlnet: {
+        strength: 0.9,
+        images: [
+          {
+            encoding: { id: "vibe-encoding", variant_id: null },
+            info_extracted: 0.7,
+            strength: 0.4,
+          },
+        ],
+      },
+      character_references: null,
+      characters: [
+        {
+          prompt: "hero",
+          negative_prompt: "flat",
+          enabled: true,
+          position: { x: 0.2, y: 0.8 },
+        },
+      ],
+      use_coords: true,
+    });
+  });
+
+  it("omits disabled or blank character rows from submit payloads", () => {
+    const draft = {
+      ...createGenerationDraft(settings),
+      prompt: "1girl",
+      characters: [
+        {
+          id: "char-empty",
+          prompt: "",
+          negativePrompt: "",
+          enabled: true,
+          position: { x: 0.1, y: 0.2 },
+        },
+        {
+          id: "char-disabled",
+          prompt: "disabled character",
+          negativePrompt: "",
+          enabled: false,
+          position: { x: 0.3, y: 0.4 },
+        },
+      ],
+      characterPositionMode: "manual" as const,
+    };
+
+    const request = buildSubmitGenerationBatchRequest(draft, {
+      batchId: "batch-test",
+      jobIds: ["job-test"],
+    });
+
+    const base = request.jobs[0]?.work.kind === "stream" ? request.jobs[0].work.request.base : null;
+    expect(base?.characters).toBeNull();
+    expect(base?.use_coords).toBeNull();
+  });
+
+  it("prefers precise references over vibe controlnet because NovelAI forbids both together", () => {
+    const draft = {
+      ...createGenerationDraft(settings),
+      prompt: "1girl",
+      vibe: {
+        enabled: true,
+        strength: 1,
+        slots: [
+          {
+            id: "slot-a",
+            encoding: { id: "vibe-encoding", variant_id: null },
+            informationExtracted: 1,
+            strength: 1,
+            displayName: "vibe-a",
+            sourceImage: null,
+            sourceSha256: null,
+          },
+        ],
+      },
+      preciseReferences: [
+        {
+          id: "ref-a",
+          image: { id: "ref-image", variant_id: null },
+          referenceType: "character_and_style" as const,
+          fidelity: 0.5,
+          strength: 0.6,
+          displayName: "ref-a",
+        },
+      ],
+    };
+
+    const request = buildSubmitGenerationBatchRequest(draft, {
+      batchId: "batch-test",
+      jobIds: ["job-test"],
+    });
+
+    const base = request.jobs[0]?.work.kind === "stream" ? request.jobs[0].work.request.base : null;
+    expect(base?.controlnet).toBeNull();
+    expect(base?.character_references).toEqual([
+      {
+        image: { kind: "resource_ref", resource: { id: "ref-image", variant_id: null } },
+        reference_type: "character_and_style",
+        fidelity: 0.5,
+        strength: 0.6,
+      },
+    ]);
   });
 });

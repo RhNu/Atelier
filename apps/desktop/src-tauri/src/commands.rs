@@ -26,30 +26,34 @@ use atelier_app_api::{
         GalleryQueryDto, SetGallerySafetyOverrideRequestDto,
     },
     generation::{
-        GenerationStatusDto, GenerationStatusQueryDto, QueueDirectiveDto,
-        RunGenerationJobRequestDto, SubmitGenerationRequestDto,
+        GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationStatusDto,
+        GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+        SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
     },
     history::{
+        DeleteRunHistoryItemsRequestDto, DeleteRunHistoryItemsResponseDto,
         RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto,
         RunHistoryPageDto, RunHistoryQueryDto,
     },
     prompt::{
-        CompilePromptRequestDto, CompiledPromptDto, DeletePromptChunkRequestDto,
-        DeletePromptChunkResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
-        PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
-        PromptLexiconPageDto, PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
+        CompileGenerationPromptRequestDto, CompilePromptRequestDto, CompiledGenerationPromptDto,
+        CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
+        GetPromptChunkRequestDto, ListPromptChunksRequestDto, PromptChunkDto, PromptChunkPageDto,
+        PromptLexiconCatalogDto, PromptLexiconListQueryDto, PromptLexiconPageDto,
+        PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
     },
     resource::{
         GetResourceImageRequestDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-        ImportImageResourceResponseDto, ResourceImageDto,
+        ImportImageResourceResponseDto, ResourceImageDto, SaveResourceImageRequestDto,
     },
     settings::{
         ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
     },
     vibe::{
         EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
-        ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
-        ImportedVibeDocumentsDto,
+        GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
+        ImportVibeDocumentRequestDto, ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto,
+        VibeDocumentEntryDto, VibeDocumentPageDto,
     },
     workspace::{CloseWorkspaceResponseDto, OpenWorkspaceRequestDto, WorkspaceStatusDto},
 };
@@ -167,6 +171,33 @@ pub async fn save_vibe_document(
     };
 
     desktop_result(write_file_text(&path, &exported.content))?;
+    desktop_result(state.system.allow_user_path(&path))?;
+    Ok(Some(SavedDesktopFileDto { path }))
+}
+
+#[tauri::command]
+pub async fn save_resource_image(
+    state: State<'_, DesktopState>,
+    request: SaveResourceImageRequestDto,
+) -> CommandResult<Option<SavedDesktopFileDto>> {
+    let image = state
+        .host
+        .get_resource_image(GetResourceImageRequestDto {
+            resource: request.resource,
+        })
+        .await?;
+    let extension = image_extension(image.mime_type.as_deref());
+    let default_file_name = resource_file_name(request.suggested_file_name, extension);
+    let dialog = TauriDialog::new(state.app_handle.clone());
+    let Some(path) = desktop_result(dialog.save_file(Some(&default_file_name), Some(extension)))?
+    else {
+        return Ok(None);
+    };
+    let bytes = STANDARD
+        .decode(image.image_base64.trim())
+        .map_err(|error| ErrorEnvelopeDto::new("resource_decode_error", error.to_string()))?;
+
+    desktop_result(write_file_bytes(&path, &bytes))?;
     desktop_result(state.system.allow_user_path(&path))?;
     Ok(Some(SavedDesktopFileDto { path }))
 }
@@ -299,6 +330,14 @@ pub async fn compile_prompt_preview(
 }
 
 #[tauri::command]
+pub async fn compile_generation_prompt_preview(
+    state: State<'_, DesktopState>,
+    request: CompileGenerationPromptRequestDto,
+) -> CommandResult<CompiledGenerationPromptDto> {
+    state.host.compile_generation_prompt_preview(request).await
+}
+
+#[tauri::command]
 pub fn prompt_lexicon_catalog(
     state: State<'_, DesktopState>,
 ) -> CommandResult<PromptLexiconCatalogDto> {
@@ -362,6 +401,24 @@ pub async fn submit_generation(
 }
 
 #[tauri::command]
+pub async fn submit_generation_batch(
+    state: State<'_, DesktopState>,
+    request: SubmitGenerationBatchRequestDto,
+) -> CommandResult<QueueDirectiveDto> {
+    let directive = state.host.submit_generation_batch(request).await?;
+    state.kick_generation_worker(directive.clone());
+    Ok(directive)
+}
+
+#[tauri::command]
+pub fn estimate_generation(
+    state: State<'_, DesktopState>,
+    request: GenerationEstimateRequestDto,
+) -> CommandResult<GenerationAnlasEstimateDto> {
+    state.host.estimate_generation(&request)
+}
+
+#[tauri::command]
 pub async fn run_generation_job(
     state: State<'_, DesktopState>,
     request: RunGenerationJobRequestDto,
@@ -422,6 +479,14 @@ pub async fn query_run_history(
 }
 
 #[tauri::command]
+pub async fn delete_run_history_items(
+    state: State<'_, DesktopState>,
+    request: DeleteRunHistoryItemsRequestDto,
+) -> CommandResult<DeleteRunHistoryItemsResponseDto> {
+    state.host.delete_run_history_items(request).await
+}
+
+#[tauri::command]
 pub async fn rerun_generation_history_item(
     state: State<'_, DesktopState>,
     request: RerunGenerationHistoryItemRequestDto,
@@ -445,6 +510,22 @@ pub async fn ensure_vibe_encoding(
     request: EnsureVibeEncodingRequestDto,
 ) -> CommandResult<EnsuredVibeEncodingDto> {
     state.host.ensure_vibe_encoding(request).await
+}
+
+#[tauri::command]
+pub async fn list_vibe_documents(
+    state: State<'_, DesktopState>,
+    request: ListVibeDocumentsRequestDto,
+) -> CommandResult<VibeDocumentPageDto> {
+    state.host.list_vibe_documents(request).await
+}
+
+#[tauri::command]
+pub async fn get_vibe_document(
+    state: State<'_, DesktopState>,
+    request: GetVibeDocumentRequestDto,
+) -> CommandResult<VibeDocumentEntryDto> {
+    state.host.get_vibe_document(request).await
 }
 
 #[tauri::command]
@@ -529,6 +610,35 @@ fn write_file_text(path: &Path, content: &str) -> DesktopSystemResult<()> {
     })
 }
 
+fn write_file_bytes(path: &Path, content: &[u8]) -> DesktopSystemResult<()> {
+    fs::write(path, content).map_err(|error| {
+        DesktopSystemError::new(format!("failed to write file {}: {error}", path.display()))
+    })
+}
+
+fn image_extension(mime_type: Option<&str>) -> &'static str {
+    match mime_type {
+        Some("image/jpeg" | "image/jpg") => "jpg",
+        Some("image/webp") => "webp",
+        Some("image/gif") => "gif",
+        _ => "png",
+    }
+}
+
+fn resource_file_name(suggested_file_name: Option<String>, extension: &str) -> String {
+    let Some(name) = suggested_file_name
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+    else {
+        return format!("generation.{extension}");
+    };
+    if Path::new(&name).extension().is_some() {
+        name
+    } else {
+        format!("{name}.{extension}")
+    }
+}
+
 fn file_name(path: &Path) -> String {
     path.file_name()
         .and_then(|file_name| file_name.to_str())
@@ -580,6 +690,19 @@ mod tests {
 
         assert_eq!(request.file_name, "embedded.png");
         assert_eq!(request.png_bytes_base64, "AQIDBA==");
+    }
+
+    #[test]
+    fn resource_file_name_adds_detected_extension_when_missing() {
+        assert_eq!(
+            resource_file_name(Some("sample".to_owned()), "webp"),
+            "sample.webp"
+        );
+        assert_eq!(
+            resource_file_name(Some("sample.png".to_owned()), "webp"),
+            "sample.png"
+        );
+        assert_eq!(image_extension(Some("image/jpeg")), "jpg");
     }
 
     #[test]

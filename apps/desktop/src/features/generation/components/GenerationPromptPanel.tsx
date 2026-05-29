@@ -2,7 +2,7 @@ import { Eye, WandSparkles } from "lucide-react";
 import { useCallback, type ChangeEvent } from "react";
 
 import { AppButton, AppPanel } from "../../../components/ui";
-import type { CompiledPromptDto } from "../../../types";
+import type { CompiledGenerationPromptDto, CompiledPromptDto } from "../../../types";
 import type { GenerationDraft } from "../model/generation-draft";
 
 type GenerationPromptPanelProps = {
@@ -12,8 +12,7 @@ type GenerationPromptPanelProps = {
   compileError: string | null;
   compilePending: boolean;
   submitPending: boolean;
-  positivePreview: CompiledPromptDto | null;
-  negativePreview: CompiledPromptDto | null;
+  compiledPreview: CompiledGenerationPromptDto | null;
   onPatch: (patch: Partial<GenerationDraft>) => void;
   onSubmit: () => void;
   onCompile: () => void;
@@ -26,8 +25,7 @@ export function GenerationPromptPanel({
   compileError,
   compilePending,
   submitPending,
-  positivePreview,
-  negativePreview,
+  compiledPreview,
   onPatch,
   onSubmit,
   onCompile,
@@ -76,8 +74,18 @@ export function GenerationPromptPanel({
         {validationError ? <p className="text-sm text-amber-200">{validationError}</p> : null}
         {submitError ? <p className="text-sm text-rose-100">{submitError}</p> : null}
         {compileError ? <p className="text-sm text-rose-100">{compileError}</p> : null}
-        <CompiledPromptPreview title="Positive preview" preview={positivePreview} />
-        <CompiledPromptPreview title="Negative preview" preview={negativePreview} />
+        <CompiledPromptPreview title="Positive preview" preview={compiledPreview?.prompt ?? null} />
+        <CompiledPromptPreview
+          title="Negative preview"
+          preview={compiledPreview?.negative_prompt ?? null}
+        />
+        {compiledPreview?.characters.map((character, index) => (
+          <CompiledPromptPreview
+            key={`character-${index}`}
+            title={`Character ${index + 1} preview`}
+            preview={character.prompt}
+          />
+        ))}
       </div>
       <footer className="border-t border-app-border p-3">
         <AppButton className="w-full" onClick={onSubmit} disabled={submitPending}>

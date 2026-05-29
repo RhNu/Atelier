@@ -26,6 +26,16 @@ pub trait GenerationPayloadStore: Send + Sync {
     async fn save_submitted_payload(&self, payload: SubmittedGenerationPayload)
     -> KernelResult<()>;
 
+    async fn save_submitted_payloads(
+        &self,
+        payloads: Vec<SubmittedGenerationPayload>,
+    ) -> KernelResult<()> {
+        for payload in payloads {
+            self.save_submitted_payload(payload).await?;
+        }
+        Ok(())
+    }
+
     async fn get_submitted_payload(
         &self,
         payload_ref: &JobPayloadRef,

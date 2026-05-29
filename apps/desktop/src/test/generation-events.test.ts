@@ -58,6 +58,8 @@ describe("generation event store", () => {
           kind: "gallery_indexed",
           batch_id: "batch-1",
           job_id: "job-1",
+          sample_index: 1,
+          artifact_id: "artifact-1",
           item_id: "gallery-1",
         },
         2,
@@ -89,6 +91,50 @@ describe("generation event store", () => {
       jobId: "job-1",
       message: "NovelAI unavailable",
     });
+  });
+
+  it("associates gallery ids with the matching persisted sample only", () => {
+    recordGenerationEvent(
+      event({
+        kind: "sample_persisted",
+        batch_id: "batch-1",
+        job_id: "job-1",
+        sample_index: 0,
+        resource: { id: "resource:generated:job-1:0", variant_id: null },
+        artifact_id: "artifact-0",
+      }),
+    );
+    recordGenerationEvent(
+      event(
+        {
+          kind: "sample_persisted",
+          batch_id: "batch-1",
+          job_id: "job-1",
+          sample_index: 1,
+          resource: { id: "resource:generated:job-1:1", variant_id: null },
+          artifact_id: "artifact-1",
+        },
+        2,
+      ),
+    );
+    recordGenerationEvent(
+      event(
+        {
+          kind: "gallery_indexed",
+          batch_id: "batch-1",
+          job_id: "job-1",
+          sample_index: 0,
+          artifact_id: "artifact-0",
+          item_id: "gallery-0",
+        },
+        3,
+      ),
+    );
+
+    expect(useGenerationEventStore.getState().filmstrip).toMatchObject([
+      { kind: "resource", sampleIndex: 0, artifactId: "artifact-0", galleryItemId: "gallery-0" },
+      { kind: "resource", sampleIndex: 1, artifactId: "artifact-1", galleryItemId: null },
+    ]);
   });
 
   it("clears stale job errors when generation continues or succeeds", () => {

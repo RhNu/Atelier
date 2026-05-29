@@ -1,15 +1,16 @@
 use super::{
-    AppError, AppResult, ArtifactSource, AtelierApp, BatchId, CharacterReference,
-    CharacterReferenceDto, GalleryQuery, GallerySourceKind, GenerateImageRequest,
-    GenerateImageRequestDto, GenerateImageStreamRequest, GenerateImageStreamRequestDto,
+    AnlasEstimate, AppError, AppResult, ArtifactSource, AtelierApp, BatchId, CharacterReference,
+    CharacterReferenceDto, ControlNetConfig, ControlNetConfigDto, ControlNetInput, GalleryQuery,
+    GallerySourceKind, GenerateImageRequest, GenerateImageRequestDto, GenerateImageStreamRequest,
+    GenerateImageStreamRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
     GenerationStatusDto, GenerationWorkRequest, GenerationWorkRequestDto, ImageInputDto, ImageSize,
     Img2ImgRequest, Img2ImgRequestDto, JobId, JobQueueRepository, NovelAiClientFactory,
     QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
-    SecretStore, SecretsErrorKind, SubmitGenerationRequestDto, SubmitGenerationWork,
-    character_reference_type_to_domain, characters_to_domain, controlnet_to_domain,
-    ensure_generation_history_target_is_new, generation_status_to_dto, generation_work_title,
-    image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
-    plan_context_to_domain, queue_directive_to_dto, resource_ref_from_dto,
+    SecretStore, SecretsErrorKind, SubmitGenerationBatch, SubmitGenerationBatchJob,
+    SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
+    character_reference_type_to_domain, characters_to_domain, generation_status_to_dto,
+    generation_work_title, image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
+    plan_context_to_domain, plan_generation_request, queue_directive_to_dto, resource_ref_from_dto,
     resource_variant_kind_as_str, run_history_status_from_job_status, sampler_to_domain,
     stream_mode_to_domain, sync_generation_history_from_queue_snapshot, uc_preset_to_domain,
     upsert_generation_history_record, visual_asset_role_as_str,
@@ -29,6 +30,21 @@ where
         &self,
         request: SubmitGenerationRequestDto,
     ) -> AppResult<QueueDirectiveDto> {
+        self.submit_batch(SubmitGenerationBatchRequestDto {
+            batch_id: request.batch_id,
+            jobs: vec![SubmitGenerationBatchJobDto {
+                job_id: request.job_id,
+                work: request.work,
+            }],
+            context: request.context,
+        })
+        .await
+    }
+
+    pub async fn submit_batch(
+        &self,
+        request: SubmitGenerationBatchRequestDto,
+    ) -> AppResult<QueueDirectiveDto> {
         self.app
             .inner
             .api_keys
@@ -41,30 +57,39 @@ where
                     AppError::from(error)
                 }
             })?;
-        let title = generation_work_title(&request.work);
         let batch_id = request.batch_id.clone();
-        let job_id = request.job_id.clone();
-        ensure_generation_history_target_is_new(&self.app.inner.run_history, &batch_id, &job_id)
-            .await?;
-        let work = self.submit_request_to_domain(request).await?;
+        ensure_generation_batch_target_is_new(
+            &self.app.inner.run_history,
+            &batch_id,
+            request.jobs.iter().map(|job| job.job_id.as_str()),
+        )
+        .await?;
+        let titles = request
+            .jobs
+            .iter()
+            .map(|job| (job.job_id.clone(), generation_work_title(&job.work)))
+            .collect::<Vec<_>>();
+        let work = self.submit_batch_request_to_domain(request).await?;
         let mut kernel = self.app.inner.kernel.lock().await;
         let directive = kernel
-            .submit_generation_work(work)
+            .submit_generation_batch(work)
             .await
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
         drop(kernel);
         self.persist_queue_snapshot(&directive, &snapshot).await?;
-        self.upsert_generation_history(
-            &batch_id,
-            &job_id,
-            RunHistoryStatus::Queued,
-            title,
-            None,
-            None,
-        )
-        .await?;
+        for (job_id, title) in titles {
+            self.upsert_generation_history(
+                &batch_id,
+                &job_id,
+                RunHistoryStatus::Queued,
+                title,
+                None,
+                None,
+            )
+            .await?;
+        }
         Ok(directive)
     }
 
@@ -156,14 +181,20 @@ where
         )
     }
 
-    async fn submit_request_to_domain(
+    async fn submit_batch_request_to_domain(
         &self,
-        request: SubmitGenerationRequestDto,
-    ) -> AppResult<SubmitGenerationWork> {
-        Ok(SubmitGenerationWork {
+        request: SubmitGenerationBatchRequestDto,
+    ) -> AppResult<SubmitGenerationBatch> {
+        let mut jobs = Vec::with_capacity(request.jobs.len());
+        for job in request.jobs {
+            jobs.push(SubmitGenerationBatchJob {
+                job_id: JobId::new(job.job_id),
+                request: self.work_request_to_domain(job.work).await?,
+            });
+        }
+        Ok(SubmitGenerationBatch {
             batch_id: BatchId::new(request.batch_id),
-            job_id: JobId::new(request.job_id),
-            request: self.work_request_to_domain(request.work).await?,
+            jobs,
             context: plan_context_to_domain(request.context),
         })
     }
@@ -215,7 +246,7 @@ where
             cfg_rescale: value.cfg_rescale,
             variety_boost: value.variety_boost,
             i2i: self.optional_i2i_to_domain(value.i2i).await?,
-            controlnet: value.controlnet.map(controlnet_to_domain),
+            controlnet: self.optional_controlnet_to_domain(value.controlnet).await?,
             character_references: self
                 .optional_character_references_to_domain(value.character_references)
                 .await?,
@@ -224,6 +255,36 @@ where
             image_format: value.image_format.map(image_format_to_domain),
             strict_mode: value.strict_mode,
         })
+    }
+
+    async fn optional_controlnet_to_domain(
+        &self,
+        value: Option<ControlNetConfigDto>,
+    ) -> AppResult<Option<ControlNetConfig>> {
+        let Some(config) = value else {
+            return Ok(None);
+        };
+        let mut images = Vec::with_capacity(config.images.len());
+        for image in config.images {
+            let reference = resource_ref_from_dto(image.encoding);
+            let kernel = self.app.inner.kernel.lock().await;
+            let vibe_data_cache = kernel
+                .ports()
+                .resource_reader
+                .read_resource_base64(&reference)
+                .await
+                .map_err(AppError::from)?;
+            drop(kernel);
+            images.push(ControlNetInput {
+                vibe_data_cache,
+                info_extracted: image.info_extracted,
+                strength: image.strength,
+            });
+        }
+        Ok(Some(ControlNetConfig {
+            images,
+            strength: config.strength,
+        }))
     }
 
     async fn optional_i2i_to_domain(
@@ -421,5 +482,140 @@ where
             offset += item_count;
         }
         Ok(())
+    }
+}
+
+async fn ensure_generation_batch_target_is_new<'a, R, I>(
+    repository: &R,
+    batch_id: &str,
+    job_ids: I,
+) -> AppResult<()>
+where
+    R: RunHistoryRepository,
+    I: IntoIterator<Item = &'a str>,
+{
+    let job_ids = job_ids.into_iter().collect::<Vec<_>>();
+    if job_ids.is_empty() {
+        return Err(AppError::new(
+            "invalid_request",
+            "generation batch requires at least one job",
+        ));
+    }
+    let mut unique = std::collections::BTreeSet::new();
+    for job_id in &job_ids {
+        if !unique.insert(*job_id) {
+            return Err(AppError::new(
+                "invalid_request",
+                "generation batch contains duplicate job_id",
+            ));
+        }
+    }
+    if repository
+        .run_history_batch_exists(batch_id)
+        .await
+        .map_err(|error| AppError::new("run_history", error.to_string()))?
+    {
+        return Err(AppError::new(
+            "invalid_request",
+            "generation batch_id already exists in run history",
+        ));
+    }
+    for job_id in job_ids {
+        if repository
+            .get_run_history(job_id)
+            .await
+            .map_err(|error| AppError::new("run_history", error.to_string()))?
+            .is_some()
+        {
+            return Err(AppError::new(
+                "invalid_request",
+                "generation job_id already exists in run history",
+            ));
+        }
+    }
+    Ok(())
+}
+
+const fn anlas_estimate_to_dto(value: AnlasEstimate) -> GenerationAnlasEstimateDto {
+    GenerationAnlasEstimateDto {
+        per_sample_cost: value.per_sample_cost,
+        per_request_cost: value.per_request_cost,
+        total_cost: value.total_cost,
+        adjusted_resolution: value.adjusted_resolution,
+        opus_discount_applied: value.opus_discount_applied,
+        pending_encode_cost: value.pending_encode_cost,
+    }
+}
+
+pub fn estimate_generation_anlas(
+    request: &GenerationEstimateRequestDto,
+) -> AppResult<GenerationAnlasEstimateDto> {
+    let plan = plan_generation_request(
+        estimate_request_to_domain(&request.request),
+        plan_context_to_domain(request.context),
+    )
+    .map_err(|error| AppError::new("invalid_request", error.to_string()))?;
+    Ok(anlas_estimate_to_dto(plan.anlas_estimate))
+}
+
+fn estimate_request_to_domain(value: &GenerateImageRequestDto) -> GenerateImageRequest {
+    GenerateImageRequest {
+        prompt: if value.prompt.trim().is_empty() {
+            "estimate".to_owned()
+        } else {
+            value.prompt.clone()
+        },
+        model: image_model_to_domain(value.model),
+        size: ImageSize {
+            width: value.size.width,
+            height: value.size.height,
+        },
+        negative_prompt: value.negative_prompt.clone(),
+        quality: value.quality,
+        uc_preset: uc_preset_to_domain(value.uc_preset),
+        steps: value.steps,
+        scale: value.scale,
+        sampler: sampler_to_domain(value.sampler),
+        noise_schedule: noise_schedule_to_domain(value.noise_schedule),
+        seed: value.seed,
+        n_samples: value.n_samples,
+        cfg_rescale: value.cfg_rescale,
+        variety_boost: value.variety_boost,
+        i2i: value.i2i.as_ref().map(|i2i| Img2ImgRequest {
+            image: "estimate".to_owned(),
+            strength: i2i.strength,
+            noise: i2i.noise,
+            mask: i2i.mask.as_ref().map(|_| "estimate".to_owned()),
+        }),
+        controlnet: value
+            .controlnet
+            .as_ref()
+            .map(|controlnet| ControlNetConfig {
+                images: controlnet
+                    .images
+                    .iter()
+                    .map(|image| ControlNetInput {
+                        vibe_data_cache: "estimate".to_owned(),
+                        info_extracted: image.info_extracted,
+                        strength: image.strength,
+                    })
+                    .collect(),
+                strength: controlnet.strength,
+            }),
+        character_references: value.character_references.as_ref().map(|references| {
+            references
+                .iter()
+                .map(|reference| CharacterReference {
+                    image: "estimate".to_owned(),
+                    reference_type: character_reference_type_to_domain(reference.reference_type),
+                    fidelity: reference.fidelity,
+                    strength: reference.strength,
+                })
+                .collect()
+        }),
+        characters: value.characters.clone().map(characters_to_domain),
+        use_coords: value.use_coords,
+        image_format: value.image_format.map(image_format_to_domain),
+        strict_mode: value.strict_mode,
     }
 }

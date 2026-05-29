@@ -1,5 +1,6 @@
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::history::{
+    DeleteRunHistoryItemsRequestDto, DeleteRunHistoryItemsResponseDto,
     RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto, RunHistoryPageDto,
     RunHistoryQueryDto,
 };
@@ -23,6 +24,17 @@ where
         request: RunHistoryQueryDto,
     ) -> CommandResult<RunHistoryPageDto> {
         Self::command_result(self.current_app()?.history().query(request).await)
+    }
+
+    /// Deletes run history rows and their history output index rows.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or history cannot be updated.
+    pub async fn delete_run_history_items(
+        &self,
+        request: DeleteRunHistoryItemsRequestDto,
+    ) -> CommandResult<DeleteRunHistoryItemsResponseDto> {
+        Self::command_result(self.current_app()?.history().delete_items(request).await)
     }
 
     /// Creates a new generation job from a previous generation history item.

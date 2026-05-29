@@ -66,6 +66,37 @@ impl VibeRepository for MemoryKernelPorts {
             .cloned())
     }
 
+    async fn list_documents(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> VibeDomainResult<Vec<VibeDocumentEntry>> {
+        let mut entries = self
+            .state
+            .lock()
+            .unwrap()
+            .vibe_documents
+            .values()
+            .cloned()
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| {
+            left.summary
+                .display_name
+                .cmp(&right.summary.display_name)
+                .then_with(|| {
+                    left.summary
+                        .document_id
+                        .as_str()
+                        .cmp(right.summary.document_id.as_str())
+                })
+        });
+        Ok(entries.into_iter().skip(offset).take(limit).collect())
+    }
+
+    async fn count_documents(&self) -> VibeDomainResult<usize> {
+        Ok(self.state.lock().unwrap().vibe_documents.len())
+    }
+
     async fn find_cached_encoding(
         &self,
         source: &VibeSourceIdentity,

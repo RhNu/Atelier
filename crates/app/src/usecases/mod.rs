@@ -9,15 +9,17 @@ use atelier_app_api::event::AppEventDto;
 use atelier_app_api::gallery::{GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto};
 use atelier_app_api::generation::{
     CharacterDto, CharacterReferenceDto, CharacterReferenceTypeDto, ControlNetConfigDto,
-    ControlNetInputDto, GenerateImageRequestDto, GenerateImageStreamRequestDto,
-    GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto, QueueDirectiveDto,
+    GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationAnlasEstimateDto,
+    GenerationEstimateRequestDto, GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto,
+    QueueDirectiveDto, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
     SubmitGenerationRequestDto,
 };
 use atelier_app_api::prompt::{
-    CompilePromptRequestDto, CompiledPromptDto, DeletePromptChunkRequestDto,
-    DeletePromptChunkResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
-    PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
-    PromptLexiconPageDto, UpsertPromptChunkRequestDto,
+    CompileGenerationPromptRequestDto, CompilePromptRequestDto,
+    CompiledGenerationCharacterPromptDto, CompiledGenerationPromptDto, CompiledPromptDto,
+    DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, GetPromptChunkRequestDto,
+    ListPromptChunksRequestDto, PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto,
+    PromptLexiconListQueryDto, PromptLexiconPageDto, UpsertPromptChunkRequestDto,
 };
 use atelier_app_api::resource::ImageInputDto;
 use atelier_app_api::settings::{
@@ -25,16 +27,18 @@ use atelier_app_api::settings::{
 };
 use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
-    ExportedVibeDocumentDto, ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
-    ImportedVibeDocumentsDto,
+    ExportedVibeDocumentDto, GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
+    ImportVibeDocumentRequestDto, ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto,
+    VibeDocumentEntryDto, VibeDocumentPageDto,
 };
 use atelier_app_api::workspace::WorkspaceStatusDto;
 use atelier_artifacts::{ArtifactSource, VisualAssetRole};
 use atelier_director::{DirectorTool, RunDirectorToolRequest};
 use atelier_gallery::{GalleryItemId, GalleryQuery, GallerySourceKind};
 use atelier_generation::{
-    Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
-    ControlNetInput, GenerateImageRequest, GenerateImageStreamRequest, ImageSize, Img2ImgRequest,
+    AnlasEstimate, Character, CharacterPosition, CharacterReference, CharacterReferenceType,
+    ControlNetConfig, ControlNetInput, GenerateImageRequest, GenerateImageStreamRequest, ImageSize,
+    Img2ImgRequest, plan_generation_request,
 };
 use atelier_jobs::{
     BatchId, JobId, JobQueueRepository, JobStatus, RunHistoryKind, RunHistoryRecord,
@@ -42,7 +46,7 @@ use atelier_jobs::{
 };
 use atelier_kernel::{
     EnsureVibeEncoding, ExportVibeDocument, GenerationWorkRequest, ImportEmbeddedPngVibeDocument,
-    ImportVibeDocument, RunDirectorTool, SubmitGenerationWork,
+    ImportVibeDocument, RunDirectorTool, SubmitGenerationBatch, SubmitGenerationBatchJob,
 };
 use atelier_prompt_resources::{CompilePromptRequest, PromptChunkId, PromptChunkKey};
 use atelier_resource_catalog::ResourceVariantKind;
@@ -56,8 +60,7 @@ mod history;
 mod resource;
 
 pub use history::{
-    HistoryUseCases, ensure_generation_history_target_is_new,
-    sync_generation_history_from_queue_snapshot, upsert_generation_history_record,
+    HistoryUseCases, sync_generation_history_from_queue_snapshot, upsert_generation_history_record,
 };
 pub use resource::ResourceUseCases;
 
@@ -71,7 +74,7 @@ use crate::mapping::{
     noise_schedule_to_domain, plan_context_to_domain, prompt_chunk_to_dto, queue_directive_to_dto,
     resource_ref_from_dto, resource_ref_to_dto, safety_override_to_domain, sampler_to_domain,
     stream_mode_to_domain, subscription_to_dto, uc_preset_to_domain, upsert_prompt_chunk_to_domain,
-    vibe_format_to_domain, vibe_model_to_domain, workspace_settings_to_domain,
+    vibe_entry_to_dto, vibe_format_to_domain, vibe_model_to_domain, workspace_settings_to_domain,
     workspace_settings_to_dto,
 };
 use crate::{AppError, AppResult};
@@ -91,29 +94,11 @@ pub use director::DirectorUseCases;
 pub use events::EventsUseCases;
 pub use gallery::GalleryUseCases;
 pub use generation::GenerationUseCases;
+pub use generation::estimate_generation_anlas;
 pub use prompt::PromptUseCases;
 pub use settings::SettingsUseCases;
 pub use vibe::VibeUseCases;
 pub use workspace::WorkspaceUseCases;
-
-fn controlnet_to_domain(value: ControlNetConfigDto) -> ControlNetConfig {
-    ControlNetConfig {
-        images: value
-            .images
-            .into_iter()
-            .map(controlnet_input_to_domain)
-            .collect(),
-        strength: value.strength,
-    }
-}
-
-fn controlnet_input_to_domain(value: ControlNetInputDto) -> ControlNetInput {
-    ControlNetInput {
-        vibe_data_cache: value.vibe_data_cache,
-        info_extracted: value.info_extracted,
-        strength: value.strength,
-    }
-}
 
 fn characters_to_domain(value: Vec<CharacterDto>) -> Vec<Character> {
     value

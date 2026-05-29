@@ -1,12 +1,14 @@
 use super::{
     AppError, AppResult, AtelierApp, Engine, EnsureVibeEncoding, EnsureVibeEncodingRequestDto,
     EnsuredVibeEncodingDto, ExportVibeDocument, ExportVibeDocumentRequestDto,
-    ExportedVibeDocumentDto, ImportEmbeddedPngVibeDocument,
+    ExportedVibeDocumentDto, GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocument,
     ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocument, ImportVibeDocumentRequestDto,
-    ImportedVibeDocumentsDto, NovelAiClientFactory, STANDARD, SecretStore, VibeEncodeSettings,
-    VibeId, VibeSourceIdentity, ensured_vibe_to_dto, exported_vibe_to_dto, imported_vibes_to_dto,
-    vibe_format_to_domain, vibe_model_to_domain,
+    ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto, NovelAiClientFactory, STANDARD,
+    SecretStore, VibeDocumentEntryDto, VibeDocumentPageDto, VibeEncodeSettings, VibeId,
+    VibeSourceIdentity, ensured_vibe_to_dto, exported_vibe_to_dto, imported_vibes_to_dto,
+    vibe_entry_to_dto, vibe_format_to_domain, vibe_model_to_domain,
 };
+use atelier_vibe::VibeRepository;
 
 pub struct VibeUseCases<'a, S, F, E> {
     pub(crate) app: &'a AtelierApp<S, F, E>,
@@ -62,6 +64,50 @@ where
             .await
             .map(exported_vibe_to_dto)
             .map_err(AppError::from)
+    }
+
+    pub async fn list_documents(
+        &self,
+        request: ListVibeDocumentsRequestDto,
+    ) -> AppResult<VibeDocumentPageDto> {
+        let (entries, total) = {
+            let kernel = self.app.inner.kernel.lock().await;
+            let entries = kernel
+                .ports()
+                .list_documents(request.offset, request.limit)
+                .await
+                .map_err(AppError::from)?;
+            let total = kernel
+                .ports()
+                .count_documents()
+                .await
+                .map_err(AppError::from)?;
+            drop(kernel);
+            (entries, total)
+        };
+        Ok(VibeDocumentPageDto {
+            items: entries.into_iter().map(vibe_entry_to_dto).collect(),
+            total,
+            offset: request.offset,
+            limit: request.limit,
+        })
+    }
+
+    pub async fn get_document(
+        &self,
+        request: GetVibeDocumentRequestDto,
+    ) -> AppResult<VibeDocumentEntryDto> {
+        let entry = {
+            let kernel = self.app.inner.kernel.lock().await;
+            let entry = kernel
+                .ports()
+                .get_document(&VibeId::new(request.vibe_id))
+                .await
+                .map_err(AppError::from)?;
+            drop(kernel);
+            entry.ok_or_else(|| AppError::new("vibe_not_found", "vibe document does not exist"))?
+        };
+        Ok(vibe_entry_to_dto(entry))
     }
 
     pub async fn ensure_encoding(

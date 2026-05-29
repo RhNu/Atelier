@@ -9,8 +9,8 @@ use crate::{
     GenerationPayloadStore, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
     ImportedVibeDocuments, KernelClock, KernelDirectorPorts, KernelError, KernelEvent,
     KernelEventKind, KernelEventSink, KernelGenerationPorts, KernelPreciseReferencePorts,
-    KernelResult, KernelVibePorts, RanDirectorTool, RunDirectorTool, SubmitGenerationWork,
-    SubmittedGenerationPayload,
+    KernelResult, KernelVibePorts, RanDirectorTool, RunDirectorTool, SubmitGenerationBatch,
+    SubmitGenerationBatchJob, SubmitGenerationWork, SubmittedGenerationPayload,
 };
 
 #[derive(Clone, Debug)]
@@ -134,27 +134,48 @@ where
         &mut self,
         work: SubmitGenerationWork,
     ) -> KernelResult<QueueDirective> {
-        let payload_ref = submitted_payload_ref(&work.job_id);
-        let payload = SubmittedGenerationPayload {
-            payload_ref: payload_ref.clone(),
-            batch_id: work.batch_id.clone(),
-            job_id: work.job_id.clone(),
-            request: work.request,
-            context: work.context,
-        };
-        let mut candidate_queue = self.queue.clone();
-        let directive = candidate_queue.submit_batch(
-            work.batch_id.clone(),
-            vec![SubmitJob {
+        self.submit_generation_batch(SubmitGenerationBatch {
+            batch_id: work.batch_id,
+            jobs: vec![SubmitGenerationBatchJob {
                 job_id: work.job_id,
+                request: work.request,
+            }],
+            context: work.context,
+        })
+        .await
+    }
+
+    /// Stores submitted generation payloads and enqueues a multi-job batch.
+    ///
+    /// # Errors
+    /// Returns an error when payload storage fails or the queue rejects the batch.
+    pub async fn submit_generation_batch(
+        &mut self,
+        batch: SubmitGenerationBatch,
+    ) -> KernelResult<QueueDirective> {
+        let mut payloads = Vec::with_capacity(batch.jobs.len());
+        let mut jobs = Vec::with_capacity(batch.jobs.len());
+        for job in batch.jobs {
+            let payload_ref = submitted_payload_ref(&job.job_id);
+            payloads.push(SubmittedGenerationPayload {
+                payload_ref: payload_ref.clone(),
+                batch_id: batch.batch_id.clone(),
+                job_id: job.job_id.clone(),
+                request: job.request,
+                context: batch.context,
+            });
+            jobs.push(SubmitJob {
+                job_id: job.job_id,
                 kind: JobKind::GenerateImage,
                 payload_ref,
-            }],
-        )?;
-        self.ports.save_submitted_payload(payload).await?;
+            });
+        }
+        let mut candidate_queue = self.queue.clone();
+        let directive = candidate_queue.submit_batch(batch.batch_id.clone(), jobs)?;
+        self.ports.save_submitted_payloads(payloads).await?;
         self.queue = candidate_queue;
         self.emit(KernelEventKind::BatchSubmitted {
-            batch_id: work.batch_id,
+            batch_id: batch.batch_id,
         })
         .await;
         Ok(directive)

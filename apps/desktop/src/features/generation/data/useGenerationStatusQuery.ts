@@ -18,8 +18,12 @@ export function useGenerationStatusQuery() {
 }
 
 export function useLatestRunHistoryQuery() {
+  return useRunHistoryQuery(latestHistoryQuery);
+}
+
+export function useRunHistoryQuery(query: RunHistoryQueryDto) {
   return useQuery({
-    queryKey: queryKeys.history.list(latestHistoryQuery),
-    queryFn: () => historyApi.list(latestHistoryQuery),
+    queryKey: queryKeys.history.list(query),
+    queryFn: () => historyApi.list(query),
   });
 }

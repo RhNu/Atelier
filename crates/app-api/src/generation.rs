@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::resource::ImageInputDto;
+use crate::resource::{ImageInputDto, ResourceRefDto};
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum ImageModelDto {
@@ -94,7 +94,7 @@ pub struct Img2ImgRequestDto {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ControlNetInputDto {
-    pub vibe_data_cache: String,
+    pub encoding: ResourceRefDto,
     pub info_extracted: f32,
     pub strength: f32,
 }
@@ -238,6 +238,35 @@ pub struct SubmitGenerationRequestDto {
     pub job_id: String,
     pub work: GenerationWorkRequestDto,
     pub context: GenerationPlanContextDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct SubmitGenerationBatchJobDto {
+    pub job_id: String,
+    pub work: GenerationWorkRequestDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct SubmitGenerationBatchRequestDto {
+    pub batch_id: String,
+    pub jobs: Vec<SubmitGenerationBatchJobDto>,
+    pub context: GenerationPlanContextDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationEstimateRequestDto {
+    pub request: GenerateImageRequestDto,
+    pub context: GenerationPlanContextDto,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct GenerationAnlasEstimateDto {
+    pub per_sample_cost: u64,
+    pub per_request_cost: u64,
+    pub total_cost: u64,
+    pub adjusted_resolution: u64,
+    pub opus_discount_applied: bool,
+    pub pending_encode_cost: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

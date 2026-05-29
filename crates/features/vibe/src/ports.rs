@@ -24,6 +24,14 @@ pub trait VibeRepository: Send + Sync {
 
     async fn get_document(&self, id: &VibeId) -> VibeDomainResult<Option<VibeDocumentEntry>>;
 
+    async fn list_documents(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> VibeDomainResult<Vec<VibeDocumentEntry>>;
+
+    async fn count_documents(&self) -> VibeDomainResult<usize>;
+
     async fn find_cached_encoding(
         &self,
         source: &VibeSourceIdentity,
