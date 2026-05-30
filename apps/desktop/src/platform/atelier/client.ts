@@ -8,6 +8,8 @@ import type {
   CreateApiKeyRequestDto,
   DeleteApiKeyRequestDto,
   DeleteApiKeyResponseDto,
+  DeleteGalleryItemsRequestDto,
+  DeleteGalleryItemsResponseDto,
   DeleteRunHistoryItemsRequestDto,
   DeleteRunHistoryItemsResponseDto,
   DeletePromptChunkRequestDto,
@@ -226,6 +228,10 @@ export const galleryApi = {
     invokeAtelierCommand<GalleryPageDto>(atelierCommands.queryGallery, { request }),
   setSafetyOverride: (request: SetGallerySafetyOverrideRequestDto) =>
     invokeAtelierCommand<GalleryItemDto>(atelierCommands.setGallerySafetyOverride, { request }),
+  deleteItems: (request: DeleteGalleryItemsRequestDto) =>
+    invokeAtelierCommand<DeleteGalleryItemsResponseDto>(atelierCommands.deleteGalleryItems, {
+      request,
+    }),
   imageReference: (request: GalleryImageReferenceRequestDto) =>
     invokeAtelierCommand<GalleryImageReferenceDto>(atelierCommands.galleryImageReference, {
       request,

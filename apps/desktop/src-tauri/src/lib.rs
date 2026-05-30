@@ -67,6 +67,7 @@ pub fn run() {
             commands::get_vibe_document,
             commands::query_gallery,
             commands::set_gallery_safety_override,
+            commands::delete_gallery_items,
             commands::gallery_image_reference,
             commands::events_since,
         ])

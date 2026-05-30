@@ -52,6 +52,31 @@ where
         self.index.query_items(query).await
     }
 
+    /// Returns existing gallery items for the given IDs, ignoring missing IDs.
+    ///
+    /// # Errors
+    /// Returns an error when the gallery index cannot be queried.
+    pub async fn get_items(&self, item_ids: &[GalleryItemId]) -> GalleryResult<Vec<GalleryItem>> {
+        let mut items = Vec::new();
+        for item_id in item_ids {
+            if let Some(item) = self.index.get_item(item_id).await? {
+                items.push(item);
+            }
+        }
+        Ok(items)
+    }
+
+    /// Deletes indexed gallery items and returns the records that existed.
+    ///
+    /// # Errors
+    /// Returns an error when the gallery index cannot be updated.
+    pub async fn delete_items(
+        &self,
+        item_ids: &[GalleryItemId],
+    ) -> GalleryResult<Vec<GalleryItem>> {
+        self.index.delete_items(item_ids).await
+    }
+
     /// Sets or clears a manual safety override.
     ///
     /// # Errors

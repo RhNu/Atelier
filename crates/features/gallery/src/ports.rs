@@ -10,6 +10,8 @@ pub trait GalleryIndex: Send + Sync {
 
     async fn query_items(&self, query: GalleryQuery) -> GalleryResult<Vec<GalleryItem>>;
 
+    async fn delete_items(&self, ids: &[GalleryItemId]) -> GalleryResult<Vec<GalleryItem>>;
+
     async fn set_safety_override(
         &self,
         id: &GalleryItemId,

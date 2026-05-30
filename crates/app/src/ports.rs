@@ -13,13 +13,13 @@ use atelier_adapter_image_codec::{
 use atelier_adapter_novelai::{NovelAiClientFactory, ResolverBackedNovelAiAdapter};
 use atelier_adapter_storage_fs::{FileSystemResourceBlobStore, FileSystemResourceContentReader};
 use atelier_artifacts::{
-    ArtifactKind, ArtifactRecord, ArtifactResult, ArtifactService, RegisterArtifactRequest,
-    VisualAssetRef, VisualAssetRole,
+    ArtifactKind, ArtifactRecord, ArtifactResult, ArtifactService, ArtifactSource,
+    RegisterArtifactRequest, VisualAssetRef, VisualAssetRole,
 };
 use atelier_director::{
     DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
-use atelier_gallery::{GalleryItem, GalleryResult, GalleryService};
+use atelier_gallery::{GalleryError, GalleryItem, GalleryResult, GalleryService};
 use atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
     ImageStreamResult, NovelAiGenerationClient,
@@ -37,7 +37,8 @@ use atelier_prompt_resources::{
 };
 use atelier_resource_catalog::{
     BlobWriteIntent, BuiltResourceVariant, CreateVariantRequest, RegisterResourceRequest,
-    ResourceCatalog, ResourceRef, ResourceResult, ResourceVariantKind, VariantId,
+    ResourceCatalog, ResourceId, ResourceOwner, ResourceOwnerKind, ResourceRef, ResourceRelation,
+    ResourceResult, ResourceVariantKind, VariantId,
 };
 use atelier_safety::{SafetyAssessment, SafetyError, SafetyResult, SafetyScanInput, SafetyScanner};
 use atelier_secrets::{ApiKeyRegistryService, SecretStore};
@@ -254,9 +255,12 @@ where
         indexed_at_ms: u64,
         safety_assessment: Option<SafetyAssessment>,
     ) -> GalleryResult<GalleryItem> {
-        self.gallery
+        let item = self
+            .gallery
             .index_artifact(artifact, indexed_at_ms, safety_assessment)
-            .await
+            .await?;
+        self.reassign_gallery_resource_ownership(&item).await?;
+        Ok(item)
     }
 }
 
@@ -310,9 +314,12 @@ where
         indexed_at_ms: u64,
         safety_assessment: Option<SafetyAssessment>,
     ) -> GalleryResult<GalleryItem> {
-        self.gallery
+        let item = self
+            .gallery
             .index_artifact(artifact, indexed_at_ms, safety_assessment)
-            .await
+            .await?;
+        self.reassign_gallery_resource_ownership(&item).await?;
+        Ok(item)
     }
 }
 
@@ -322,6 +329,33 @@ where
     F: Send + Sync,
     E: Send + Sync,
 {
+    async fn reassign_gallery_resource_ownership(&self, item: &GalleryItem) -> GalleryResult<()> {
+        let gallery_owner = ResourceOwner::new(ResourceOwnerKind::GalleryItem, item.id.as_str());
+        let transient_owner = transient_resource_owner(item);
+        for resource_id in gallery_resource_ids(item) {
+            self.resources
+                .attach_owner(
+                    &resource_id,
+                    gallery_owner.clone(),
+                    ResourceRelation::Primary,
+                )
+                .await
+                .map_err(gallery_repository_error)?;
+            if let Some(owner) = &transient_owner {
+                let result = self
+                    .resources
+                    .detach_owner(&resource_id, owner, ResourceRelation::Primary)
+                    .await;
+                if let Err(error) = result
+                    && error.kind != atelier_resource_catalog::ResourceCatalogErrorKind::NotFound
+                {
+                    return Err(gallery_repository_error(error));
+                }
+            }
+        }
+        Ok(())
+    }
+
     async fn add_generated_gallery_variants(&self, request: &mut RegisterArtifactRequest) {
         if !matches!(
             request.kind,
@@ -408,6 +442,33 @@ where
             .await
             .map(Some)
     }
+}
+
+fn transient_resource_owner(item: &GalleryItem) -> Option<ResourceOwner> {
+    match &item.source {
+        ArtifactSource::GenerationJob { job_id, .. } => {
+            Some(ResourceOwner::new(ResourceOwnerKind::Job, job_id.clone()))
+        }
+        ArtifactSource::DirectorRun { run_id } => Some(ResourceOwner::new(
+            ResourceOwnerKind::DirectorRun,
+            run_id.clone(),
+        )),
+        ArtifactSource::Import { .. } => None,
+    }
+}
+
+fn gallery_resource_ids(item: &GalleryItem) -> Vec<ResourceId> {
+    let mut ids = vec![item.primary_resource.id.clone()];
+    for asset in &item.assets {
+        if !ids.contains(&asset.resource.id) {
+            ids.push(asset.resource.id.clone());
+        }
+    }
+    ids
+}
+
+fn gallery_repository_error(error: impl std::fmt::Display) -> GalleryError {
+    GalleryError::repository(error.to_string())
 }
 
 const fn resource_variant_kind_as_str(value: ResourceVariantKind) -> &'static str {

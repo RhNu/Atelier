@@ -5,9 +5,9 @@ use async_trait::async_trait;
 use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, BuildVariantRequest, BuiltResourceVariant, ReleaseOutcome,
     ResourceBlobStore, ResourceCatalogError, ResourceCatalogRepository, ResourceCatalogTransaction,
-    ResourceId, ResourceLink, ResourceMetadata, ResourceOwner, ResourceRecord, ResourceRef,
-    ResourceResult, ResourceState, ResourceVariant, ResourceVariantBuilder, StagedBlob,
-    StagedBlobToken, VariantId,
+    ResourceCleanupCandidate, ResourceId, ResourceLink, ResourceMetadata, ResourceOwner,
+    ResourceRecord, ResourceRef, ResourceResult, ResourceState, ResourceVariant,
+    ResourceVariantBuilder, StagedBlob, StagedBlobToken, VariantId,
 };
 
 #[derive(Clone, Default)]
@@ -138,6 +138,55 @@ impl ResourceCatalogRepository for FakeRepository {
 
     async fn get_variant(&self, id: &VariantId) -> ResourceResult<Option<ResourceVariant>> {
         Ok(self.state.lock().unwrap().variants.get(id).cloned())
+    }
+
+    async fn list_delete_pending_resources(&self) -> ResourceResult<Vec<ResourceCleanupCandidate>> {
+        let mut candidates = {
+            let state = self.state.lock().unwrap();
+            state
+                .records
+                .values()
+                .filter(|record| record.state == ResourceState::DeletePending)
+                .map(|record| ResourceCleanupCandidate {
+                    record: record.clone(),
+                    variants: state
+                        .variants
+                        .values()
+                        .filter(|variant| variant.resource_id == record.id)
+                        .cloned()
+                        .collect(),
+                })
+                .collect::<Vec<_>>()
+        };
+        candidates.sort_by(|left, right| left.record.id.cmp(&right.record.id));
+        Ok(candidates)
+    }
+
+    async fn blob_is_referenced_outside_resource(
+        &self,
+        resource_id: &ResourceId,
+        blob_id: &BlobId,
+    ) -> ResourceResult<bool> {
+        let state = self.state.lock().unwrap();
+        Ok(state
+            .records
+            .values()
+            .any(|record| &record.id != resource_id && &record.blob_id == blob_id)
+            || state
+                .variants
+                .values()
+                .any(|variant| &variant.resource_id != resource_id && &variant.blob_id == blob_id))
+    }
+
+    async fn delete_resource_record(&self, id: &ResourceId) -> ResourceResult<()> {
+        let mut state = self.state.lock().unwrap();
+        state.records.remove(id);
+        state.links.retain(|link| &link.resource_id != id);
+        state
+            .variants
+            .retain(|_, variant| &variant.resource_id != id);
+        drop(state);
+        Ok(())
     }
 
     async fn scan_orphan_blobs(&self) -> ResourceResult<Vec<BlobId>> {

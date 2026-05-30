@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
 use crate::model::{
-    BlobId, BlobWriteIntent, ResourceId, ResourceLink, ResourceRecord, ResourceRef,
-    ResourceVariant, ResourceVariantKind, StagedBlob, StagedBlobToken, VariantId,
+    BlobId, BlobWriteIntent, ResourceCleanupCandidate, ResourceId, ResourceLink, ResourceRecord,
+    ResourceRef, ResourceVariant, ResourceVariantKind, StagedBlob, StagedBlobToken, VariantId,
 };
 use crate::{ResourceOwner, ResourceResult};
 
@@ -23,6 +23,16 @@ pub trait ResourceCatalogRepository: Send + Sync {
     ) -> ResourceResult<Vec<ResourceLink>>;
 
     async fn get_variant(&self, id: &VariantId) -> ResourceResult<Option<ResourceVariant>>;
+
+    async fn list_delete_pending_resources(&self) -> ResourceResult<Vec<ResourceCleanupCandidate>>;
+
+    async fn blob_is_referenced_outside_resource(
+        &self,
+        resource_id: &ResourceId,
+        blob_id: &BlobId,
+    ) -> ResourceResult<bool>;
+
+    async fn delete_resource_record(&self, id: &ResourceId) -> ResourceResult<()>;
 
     async fn scan_orphan_blobs(&self) -> ResourceResult<Vec<BlobId>>;
 

@@ -258,3 +258,27 @@ fn delete_run_history_dtos_have_stable_shapes() {
         json!({ "deleted": 2 })
     );
 }
+
+#[test]
+fn delete_gallery_item_dtos_have_stable_shapes() {
+    assert_eq!(
+        serde_json::to_value(DeleteGalleryItemsRequestDto {
+            item_ids: vec!["artifact:job-1:sample:0".to_owned()],
+        })
+        .unwrap(),
+        json!({ "item_ids": ["artifact:job-1:sample:0"] })
+    );
+    assert_eq!(
+        serde_json::to_value(DeleteGalleryItemsResponseDto {
+            deleted: 1,
+            resources_released: 1,
+            blobs_deleted: 5,
+        })
+        .unwrap(),
+        json!({
+            "deleted": 1,
+            "resources_released": 1,
+            "blobs_deleted": 5
+        })
+    );
+}

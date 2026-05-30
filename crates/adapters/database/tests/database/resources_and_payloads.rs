@@ -68,6 +68,50 @@ fn resource_catalog_repository_round_trips_records_links_variants_and_orphans() 
 }
 
 #[test]
+fn resource_cleanup_removes_delete_pending_rows_and_unshared_blobs() {
+    block_on(async {
+        let connection = DatabaseConnection::open_memory().unwrap();
+        let repository = DatabaseResourceCatalogRepository::new(connection);
+        let blob_store = MemoryBlobStore::default();
+        let catalog = ResourceCatalog::new(repository.clone(), blob_store, NullVariantBuilder);
+        let owner = ResourceOwner::new(ResourceOwnerKind::GalleryItem, "gallery-1");
+
+        let reference = catalog
+            .register_resource(RegisterResourceRequest {
+                owner: owner.clone(),
+                ..generated_resource("cleanup-res-1", vec![9])
+            })
+            .await
+            .unwrap();
+        let variant = catalog
+            .create_variant(CreateVariantRequest {
+                source: reference.clone(),
+                variant_id: VariantId::new("cleanup-preview-1"),
+                kind: ResourceVariantKind::Preview,
+            })
+            .await
+            .unwrap();
+        catalog
+            .detach_owner(&reference.id, &owner, ResourceRelation::Primary)
+            .await
+            .unwrap();
+
+        let report = catalog.cleanup_delete_pending().await.unwrap();
+
+        assert_eq!(report.resources_deleted, 1);
+        assert_eq!(report.blobs_deleted, 2);
+        assert!(
+            repository
+                .get_ready_record(&reference.id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(repository.get_variant(&variant.id).await.unwrap().is_none());
+    });
+}
+
+#[test]
 fn resource_catalog_transactions_are_serialized_until_rollback() {
     block_on(async {
         let repository =

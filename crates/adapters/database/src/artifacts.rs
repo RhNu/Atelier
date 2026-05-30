@@ -1,5 +1,7 @@
 use async_trait::async_trait;
-use atelier_artifacts::{ArtifactError, ArtifactRecord, ArtifactRepository, ArtifactResult};
+use atelier_artifacts::{
+    ArtifactError, ArtifactId, ArtifactRecord, ArtifactRepository, ArtifactResult,
+};
 use atelier_gallery::GallerySourceKind;
 use rusqlite::params;
 
@@ -55,6 +57,30 @@ impl ArtifactRepository for DatabaseArtifactRepository {
             )
             .map(|_| ())
             .map_err(sql_error)
+    }
+
+    async fn delete_artifacts(&self, ids: &[ArtifactId]) -> ArtifactResult<usize> {
+        if ids.is_empty() {
+            return Ok(0);
+        }
+
+        let deleted = {
+            let mut connection = self.connection.lock().map_err(artifact_error)?;
+            let transaction = connection.transaction().map_err(sql_error)?;
+            let mut deleted = 0;
+            for id in ids {
+                deleted += transaction
+                    .execute(
+                        "DELETE FROM artifacts WHERE artifact_id = ?1",
+                        params![id.as_str()],
+                    )
+                    .map_err(sql_error)?;
+            }
+            transaction.commit().map_err(sql_error)?;
+            drop(connection);
+            deleted
+        };
+        Ok(deleted)
     }
 }
 

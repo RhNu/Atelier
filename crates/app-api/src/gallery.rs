@@ -142,6 +142,18 @@ pub struct SetGallerySafetyOverrideRequestDto {
     pub manual_safety_override: Option<GallerySafetyOverrideDto>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DeleteGalleryItemsRequestDto {
+    pub item_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DeleteGalleryItemsResponseDto {
+    pub deleted: usize,
+    pub resources_released: usize,
+    pub blobs_deleted: usize,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum GalleryImageReferenceTargetDto {

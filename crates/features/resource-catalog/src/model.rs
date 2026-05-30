@@ -225,3 +225,15 @@ pub struct RepairReport {
     pub deleted_orphan_blobs: usize,
     pub cleared_orphan_markers: usize,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResourceCleanupCandidate {
+    pub record: ResourceRecord,
+    pub variants: Vec<ResourceVariant>,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct ResourceCleanupReport {
+    pub resources_deleted: usize,
+    pub blobs_deleted: usize,
+}

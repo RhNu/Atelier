@@ -135,6 +135,41 @@ impl GalleryIndex for DatabaseGalleryIndex {
         }
     }
 
+    async fn delete_items(&self, ids: &[GalleryItemId]) -> GalleryResult<Vec<GalleryItem>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let deleted = {
+            let mut connection = self.connection.lock().map_err(gallery_error)?;
+            let transaction = connection.transaction().map_err(sql_error)?;
+            let mut deleted = Vec::new();
+            for id in ids {
+                let item = transaction
+                    .query_row(
+                        "SELECT item_json, manual_safety_override FROM gallery_items WHERE item_id = ?1",
+                        params![id.as_str()],
+                        gallery_item_from_row,
+                    )
+                    .optional()
+                    .map_err(sql_error)?;
+                if let Some(item) = item {
+                    transaction
+                        .execute(
+                            "DELETE FROM gallery_items WHERE item_id = ?1",
+                            params![id.as_str()],
+                        )
+                        .map_err(sql_error)?;
+                    deleted.push(item);
+                }
+            }
+            transaction.commit().map_err(sql_error)?;
+            drop(connection);
+            deleted
+        };
+        Ok(deleted)
+    }
+
     async fn set_safety_override(
         &self,
         id: &GalleryItemId,

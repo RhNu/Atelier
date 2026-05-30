@@ -11,14 +11,16 @@ use atelier_app_api::account::{
 use atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
 use atelier_app_api::event::{AppEventDto, AppEventKindDto, EventsSinceRequestDto};
 use atelier_app_api::gallery::{
-    GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto, GalleryQueryDto,
-    GallerySafetyOverrideDto, SetGallerySafetyOverrideRequestDto,
+    DeleteGalleryItemsRequestDto, GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto,
+    GalleryQueryDto, GallerySafetyLabelDto, GallerySafetyOverrideDto,
+    SetGallerySafetyOverrideRequestDto,
 };
 use atelier_app_api::generation::{
     GenerateImageRequestDto, GenerationPlanContextDto, GenerationStatusQueryDto,
     GenerationWorkRequestDto, ImageModelDto, QueueDirectiveDto, RunGenerationJobRequestDto,
     SubmitGenerationRequestDto,
 };
+use atelier_app_api::history::RunHistoryQueryDto;
 use atelier_app_api::prompt::{
     DeletePromptChunkRequestDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,

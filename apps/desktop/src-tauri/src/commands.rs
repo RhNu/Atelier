@@ -22,8 +22,9 @@ use atelier_app_api::{
     error::ErrorEnvelopeDto,
     event::{AppEventPageDto, EventsSinceRequestDto},
     gallery::{
-        GalleryImageReferenceDto, GalleryImageReferenceRequestDto, GalleryItemDto, GalleryPageDto,
-        GalleryQueryDto, SetGallerySafetyOverrideRequestDto,
+        DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceDto,
+        GalleryImageReferenceRequestDto, GalleryItemDto, GalleryPageDto, GalleryQueryDto,
+        SetGallerySafetyOverrideRequestDto,
     },
     generation::{
         GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationStatusDto,
@@ -542,6 +543,14 @@ pub async fn set_gallery_safety_override(
     request: SetGallerySafetyOverrideRequestDto,
 ) -> CommandResult<GalleryItemDto> {
     state.host.set_gallery_safety_override(request).await
+}
+
+#[tauri::command]
+pub async fn delete_gallery_items(
+    state: State<'_, DesktopState>,
+    request: DeleteGalleryItemsRequestDto,
+) -> CommandResult<DeleteGalleryItemsResponseDto> {
+    state.host.delete_gallery_items(request).await
 }
 
 #[tauri::command]

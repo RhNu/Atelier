@@ -81,18 +81,75 @@ fn generation_events_and_gallery_commands_share_session() {
         );
         assert_eq!(reference.asset_role, "original");
 
-        let overridden = host
-            .set_gallery_safety_override(SetGallerySafetyOverrideRequestDto {
-                item_id,
-                manual_safety_override: Some(GallerySafetyOverrideDto::Hidden),
-            })
-            .await
-            .unwrap();
-        assert_eq!(
-            overridden.manual_safety_override,
-            Some(GallerySafetyOverrideDto::Hidden)
-        );
+        assert_gallery_delete_removes_indexed_outputs(&host, item_id).await;
     });
+}
+
+async fn assert_gallery_delete_removes_indexed_outputs(
+    host: &AppCommandHost<MemorySecretStore, RecordingFactory>,
+    item_id: String,
+) {
+    let overridden = host
+        .set_gallery_safety_override(SetGallerySafetyOverrideRequestDto {
+            item_id: item_id.clone(),
+            manual_safety_override: Some(GallerySafetyOverrideDto::Hidden),
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        overridden.manual_safety_override,
+        Some(GallerySafetyOverrideDto::Hidden)
+    );
+
+    let history_before_delete = host
+        .query_run_history(RunHistoryQueryDto {
+            offset: 0,
+            limit: 10,
+            kind: None,
+            status: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(history_before_delete.items.len(), 2);
+    assert!(history_before_delete.items.iter().any(|item| {
+        item.outputs
+            .iter()
+            .any(|output| output.item_id.as_deref() == Some(overridden.item_id.as_str()))
+    }));
+
+    let deleted = host
+        .delete_gallery_items(DeleteGalleryItemsRequestDto {
+            item_ids: vec![overridden.item_id],
+        })
+        .await
+        .unwrap();
+    assert_eq!(deleted.deleted, 1);
+    assert_eq!(deleted.resources_released, 1);
+
+    let gallery_after_delete = host
+        .query_gallery(GalleryQueryDto {
+            offset: 0,
+            limit: 10,
+            safety_label: Some(GallerySafetyLabelDto::Hidden),
+            ..GalleryQueryDto::default()
+        })
+        .await
+        .unwrap();
+    assert_eq!(gallery_after_delete.total, 0);
+    let history_after_delete = host
+        .query_run_history(RunHistoryQueryDto {
+            offset: 0,
+            limit: 10,
+            kind: None,
+            status: None,
+        })
+        .await
+        .unwrap();
+    assert!(history_after_delete.items.iter().all(|item| {
+        item.outputs
+            .iter()
+            .all(|output| output.item_id.as_deref() != Some(item_id.as_str()))
+    }));
 }
 
 #[test]

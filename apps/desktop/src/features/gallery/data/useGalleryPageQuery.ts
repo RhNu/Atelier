@@ -9,6 +9,7 @@ import {
   settingsApi,
 } from "../../../platform/atelier";
 import type {
+  DeleteGalleryItemsRequestDto,
   GalleryQueryDto,
   ResourceRefDto,
   SaveResourceImageRequestDto,
@@ -52,6 +53,21 @@ export function useSetGallerySafetyOverrideMutation() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+      ]);
+    },
+  });
+}
+
+export function useDeleteGalleryItemsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: DeleteGalleryItemsRequestDto) => galleryApi.deleteItems(request),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.history.root() }),
       ]);
     },
   });

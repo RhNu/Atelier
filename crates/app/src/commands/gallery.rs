@@ -1,6 +1,7 @@
 use atelier_app_api::gallery::{
-    GalleryImageReferenceDto, GalleryImageReferenceRequestDto, GalleryItemDto, GalleryPageDto,
-    GalleryQueryDto, SetGallerySafetyOverrideRequestDto,
+    DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceDto,
+    GalleryImageReferenceRequestDto, GalleryItemDto, GalleryPageDto, GalleryQueryDto,
+    SetGallerySafetyOverrideRequestDto,
 };
 
 use crate::commands::{AppCommandHost, CommandResult};
@@ -33,6 +34,17 @@ where
                 .set_safety_override(&request.item_id, request.manual_safety_override)
                 .await,
         )
+    }
+
+    /// Deletes gallery items, associated artifact/output index rows, and released resources.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or gallery/resource storage fails.
+    pub async fn delete_gallery_items(
+        &self,
+        request: DeleteGalleryItemsRequestDto,
+    ) -> CommandResult<DeleteGalleryItemsResponseDto> {
+        Self::command_result(self.current_app()?.gallery().delete_items(request).await)
     }
 
     /// Returns a resource reference suitable for downstream image handoff.

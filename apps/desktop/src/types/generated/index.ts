@@ -18,6 +18,8 @@ export type { ControlNetInputDto } from "./ControlNetInputDto";
 export type { CreateApiKeyRequestDto } from "./CreateApiKeyRequestDto";
 export type { DeleteApiKeyRequestDto } from "./DeleteApiKeyRequestDto";
 export type { DeleteApiKeyResponseDto } from "./DeleteApiKeyResponseDto";
+export type { DeleteGalleryItemsRequestDto } from "./DeleteGalleryItemsRequestDto";
+export type { DeleteGalleryItemsResponseDto } from "./DeleteGalleryItemsResponseDto";
 export type { DeletePromptChunkRequestDto } from "./DeletePromptChunkRequestDto";
 export type { DeletePromptChunkResponseDto } from "./DeletePromptChunkResponseDto";
 export type { DeleteRunHistoryItemsRequestDto } from "./DeleteRunHistoryItemsRequestDto";

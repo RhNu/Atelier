@@ -8,9 +8,9 @@ use atelier_adapter_storage_fs::{
 use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, BuildVariantRequest, BuiltResourceVariant, ResourceBlobStore,
     ResourceCatalog, ResourceCatalogError, ResourceCatalogRepository, ResourceCatalogTransaction,
-    ResourceId, ResourceKind, ResourceLifecycle, ResourceOwner, ResourceOwnerKind, ResourceRecord,
-    ResourceRef, ResourceRelation, ResourceState, ResourceVariant, ResourceVariantBuilder,
-    VariantId,
+    ResourceCleanupCandidate, ResourceId, ResourceKind, ResourceLifecycle, ResourceOwner,
+    ResourceOwnerKind, ResourceRecord, ResourceRef, ResourceRelation, ResourceState,
+    ResourceVariant, ResourceVariantBuilder, VariantId,
 };
 use atelier_workspace::{
     WorkspaceErrorKind, WorkspaceLayout, WorkspaceLock, WorkspaceLockRequest,
@@ -346,6 +346,28 @@ impl ResourceCatalogRepository for SimpleRepository {
         _id: &VariantId,
     ) -> atelier_resource_catalog::ResourceResult<Option<ResourceVariant>> {
         Ok(None)
+    }
+
+    async fn list_delete_pending_resources(
+        &self,
+    ) -> atelier_resource_catalog::ResourceResult<Vec<ResourceCleanupCandidate>> {
+        Ok(Vec::new())
+    }
+
+    async fn blob_is_referenced_outside_resource(
+        &self,
+        _resource_id: &ResourceId,
+        _blob_id: &BlobId,
+    ) -> atelier_resource_catalog::ResourceResult<bool> {
+        Ok(false)
+    }
+
+    async fn delete_resource_record(
+        &self,
+        id: &ResourceId,
+    ) -> atelier_resource_catalog::ResourceResult<()> {
+        self.state.lock().unwrap().records.remove(id);
+        Ok(())
     }
 
     async fn scan_orphan_blobs(&self) -> atelier_resource_catalog::ResourceResult<Vec<BlobId>> {

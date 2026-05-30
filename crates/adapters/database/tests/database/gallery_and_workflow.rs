@@ -166,6 +166,39 @@ fn gallery_query_filters_safety_label_before_sql_pagination() {
 }
 
 #[test]
+fn gallery_delete_items_returns_deleted_records_and_ignores_missing_ids() {
+    block_on(async {
+        let connection = DatabaseConnection::open_memory().unwrap();
+        let gallery = DatabaseGalleryIndex::new(connection);
+        let first = gallery_item("delete-first", 30, 0.04);
+        let second = gallery_item("delete-second", 20, 0.04);
+        let first_id = first.id.clone();
+        let second_id = second.id.clone();
+
+        gallery.upsert_item(first).await.unwrap();
+        gallery.upsert_item(second).await.unwrap();
+
+        let deleted = gallery
+            .delete_items(&[
+                first_id.clone(),
+                GalleryItemId::new("artifact:missing"),
+                second_id.clone(),
+            ])
+            .await
+            .unwrap();
+
+        assert_eq!(gallery_item_ids(&deleted), vec![first_id, second_id]);
+        assert!(
+            gallery
+                .query_items(GalleryQuery::default())
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    });
+}
+
+#[test]
 fn generation_workflow_can_use_database_backed_payload_resource_artifact_and_gallery_ports() {
     block_on(async {
         let connection = DatabaseConnection::open_memory().unwrap();

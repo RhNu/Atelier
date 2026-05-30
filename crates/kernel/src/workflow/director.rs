@@ -29,7 +29,7 @@ where
         .register_director_resource(RegisterResourceRequest {
             resource_id: ResourceId::new(format!("resource:director:{run_id}")),
             kind: ResourceKind::DirectorResult,
-            lifecycle: ResourceLifecycle::WorkspaceScoped,
+            lifecycle: ResourceLifecycle::JobScoped,
             owner: ResourceOwner::new(ResourceOwnerKind::DirectorRun, run_id.clone()),
             relation: ResourceRelation::Primary,
             blob: BlobWriteIntent::Bytes(output.bytes),

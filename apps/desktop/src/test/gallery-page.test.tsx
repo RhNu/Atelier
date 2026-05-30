@@ -8,6 +8,8 @@ import type {
   GalleryItemDto,
   GalleryPageDto,
   GalleryQueryDto,
+  DeleteGalleryItemsRequestDto,
+  DeleteGalleryItemsResponseDto,
   GetResourceImageRequestDto,
   ResourceImageDto,
   SaveResourceImageRequestDto,
@@ -20,6 +22,8 @@ const mocks = vi.hoisted(() => ({
     list: vi.fn<(request: GalleryQueryDto) => Promise<GalleryPageDto>>(),
     setSafetyOverride:
       vi.fn<(request: SetGallerySafetyOverrideRequestDto) => Promise<GalleryItemDto>>(),
+    deleteItems:
+      vi.fn<(request: DeleteGalleryItemsRequestDto) => Promise<DeleteGalleryItemsResponseDto>>(),
   },
   resourceApi: {
     image: vi.fn<(request: GetResourceImageRequestDto) => Promise<ResourceImageDto>>(),
@@ -52,6 +56,9 @@ vi.mock("../platform/atelier", () => ({
         "image",
         resource,
       ],
+    },
+    history: {
+      root: () => ["history"],
     },
     settings: {
       workspace: () => ["settings", "workspace"],
@@ -171,6 +178,11 @@ function setup(options?: { blurSensitive?: boolean; items?: GalleryItemDto[] }) 
       manualOverride: request.manual_safety_override ?? null,
     }),
   );
+  mocks.galleryApi.deleteItems.mockResolvedValue({
+    deleted: 1,
+    resources_released: 1,
+    blobs_deleted: 3,
+  });
   mocks.resourceApi.image.mockImplementation(async ({ resource }) => ({
     image_base64: `image-${resource.id}:${resource.variant_id ?? "base"}`,
     mime_type: "image/png",
@@ -272,6 +284,47 @@ describe("GalleryPage", () => {
     await user.click(screen.getByRole("button", { name: "Export selected image" }));
     expect(await screen.findByText("export failed")).toBeInTheDocument();
     expect(screen.queryByText("override failed")).not.toBeInTheDocument();
+  });
+
+  it("confirms hard delete and deletes the selected gallery item", async () => {
+    const { user } = setup();
+
+    await user.click(await screen.findByRole("button", { name: "Select safe-item" }));
+    await user.click(screen.getByRole("button", { name: "Delete selected gallery item" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Delete gallery item" });
+    expect(within(dialog).getByText("safe-item")).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
+
+    expect(mocks.galleryApi.deleteItems).toHaveBeenCalledWith({
+      item_ids: ["safe-item"],
+    });
+  });
+
+  it("keeps the selected item visible when hard delete fails", async () => {
+    const { user } = setup();
+    mocks.galleryApi.deleteItems.mockRejectedValueOnce(new Error("delete failed"));
+
+    await user.click(await screen.findByRole("button", { name: "Select safe-item" }));
+    await user.click(screen.getByRole("button", { name: "Delete selected gallery item" }));
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Delete gallery item" })).getByRole("button", {
+        name: "Delete permanently",
+      }),
+    );
+
+    expect(
+      await within(screen.getByRole("dialog", { name: "Delete gallery item" })).findByText(
+        "delete failed",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select safe-item" })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("complementary", { name: "Gallery item details" })).getByText(
+        "safe-item",
+      ),
+    ).toBeInTheDocument();
   });
 });
 

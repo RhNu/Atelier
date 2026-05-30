@@ -1,6 +1,7 @@
 use crate::model::{
-    CreateVariantRequest, RegisterResourceRequest, ReleaseOutcome, RepairReport, ResourceLink,
-    ResourceRecord, ResourceRef, ResourceState, ResourceVariant,
+    BlobId, CreateVariantRequest, RegisterResourceRequest, ReleaseOutcome, RepairReport,
+    ResourceCleanupReport, ResourceLink, ResourceRecord, ResourceRef, ResourceState,
+    ResourceVariant,
 };
 use crate::ports::{
     BuildVariantRequest, ResourceBlobStore, ResourceCatalogRepository, ResourceVariantBuilder,
@@ -128,6 +129,29 @@ where
             remaining_owner_links,
             delete_pending,
         })
+    }
+
+    /// Marks a ready resource as delete-pending when it has no owner links.
+    ///
+    /// This is an explicit cleanup operation for legacy records whose lifecycle
+    /// was not auto-releasable when created.
+    ///
+    /// # Errors
+    /// Returns an error when the resource is not ready or catalog persistence
+    /// fails.
+    pub async fn mark_delete_pending_if_unowned(
+        &self,
+        resource_id: &ResourceId,
+    ) -> ResourceResult<bool> {
+        self.ready_record(resource_id).await?;
+        let mut tx = self.repository.begin_transaction().await?;
+        let remaining_owner_links = tx.count_owner_links(resource_id).await?;
+        let marked = remaining_owner_links == 0;
+        if marked {
+            tx.mark_delete_pending(resource_id).await?;
+        }
+        tx.commit().await?;
+        Ok(marked)
     }
 
     /// Returns a ready resource record for an opaque reference.
@@ -260,6 +284,40 @@ where
         Ok(report)
     }
 
+    /// Deletes resources already marked `DeletePending` and removes unshared
+    /// base and variant blobs from storage.
+    ///
+    /// # Errors
+    /// Returns an error when catalog scanning, blob deletion, or catalog row
+    /// cleanup fails. If blob deletion fails, the delete-pending catalog record
+    /// is left in place so a later cleanup can retry it.
+    pub async fn cleanup_delete_pending(&self) -> ResourceResult<ResourceCleanupReport> {
+        let candidates = self.repository.list_delete_pending_resources().await?;
+        let mut report = ResourceCleanupReport::default();
+        for candidate in candidates {
+            let mut deleted_blobs = 0;
+            for blob_id in unique_blob_ids(&candidate.record.blob_id, &candidate.variants) {
+                if self
+                    .repository
+                    .blob_is_referenced_outside_resource(&candidate.record.id, &blob_id)
+                    .await?
+                {
+                    continue;
+                }
+                if self.blob_store.blob_exists(&blob_id).await? {
+                    self.blob_store.delete_blob(&blob_id).await?;
+                    deleted_blobs += 1;
+                }
+            }
+            self.repository
+                .delete_resource_record(&candidate.record.id)
+                .await?;
+            report.resources_deleted += 1;
+            report.blobs_deleted += deleted_blobs;
+        }
+        Ok(report)
+    }
+
     async fn ready_record(&self, id: &ResourceId) -> ResourceResult<ResourceRecord> {
         self.repository.get_ready_record(id).await?.ok_or_else(|| {
             ResourceCatalogError::not_found("resource is not ready or does not exist")
@@ -278,4 +336,14 @@ where
             )),
         }
     }
+}
+
+fn unique_blob_ids(base_blob_id: &BlobId, variants: &[ResourceVariant]) -> Vec<BlobId> {
+    let mut blob_ids = vec![base_blob_id.clone()];
+    for variant in variants {
+        if !blob_ids.contains(&variant.blob_id) {
+            blob_ids.push(variant.blob_id.clone());
+        }
+    }
+    blob_ids
 }

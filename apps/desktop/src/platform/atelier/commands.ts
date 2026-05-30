@@ -50,6 +50,7 @@ export const atelierCommands = {
   getVibeDocument: "get_vibe_document",
   queryGallery: "query_gallery",
   setGallerySafetyOverride: "set_gallery_safety_override",
+  deleteGalleryItems: "delete_gallery_items",
   galleryImageReference: "gallery_image_reference",
   eventsSince: "events_since",
 } as const;

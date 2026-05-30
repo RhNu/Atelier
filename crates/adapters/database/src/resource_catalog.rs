@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use atelier_artifacts::{ArtifactError, ArtifactResourceReader, ArtifactResult};
 use atelier_resource_catalog::{
     BlobId, ResourceCatalogError, ResourceCatalogRepository, ResourceCatalogTransaction,
-    ResourceId, ResourceLink, ResourceMetadata, ResourceOwner, ResourceRecord, ResourceRef,
-    ResourceResult, ResourceState, ResourceVariant, VariantId,
+    ResourceCleanupCandidate, ResourceId, ResourceLink, ResourceMetadata, ResourceOwner,
+    ResourceRecord, ResourceRef, ResourceResult, ResourceState, ResourceVariant, VariantId,
 };
 use rusqlite::{OptionalExtension, Row, params};
 
@@ -116,6 +116,69 @@ impl ResourceCatalogRepository for DatabaseResourceCatalogRepository {
             )
             .optional()
             .map_err(sql_error)
+    }
+
+    async fn list_delete_pending_resources(&self) -> ResourceResult<Vec<ResourceCleanupCandidate>> {
+        let connection = self.connection.lock().map_err(resource_error)?;
+        let mut statement = connection
+            .prepare(resource_select_sql("WHERE state = 'delete_pending' ORDER BY id ASC").as_str())
+            .map_err(sql_error)?;
+        let rows = statement
+            .query_map([], resource_record_from_row)
+            .map_err(sql_error)?;
+        let records = rows.collect::<Result<Vec<_>, _>>().map_err(sql_error)?;
+        records
+            .into_iter()
+            .map(|record| {
+                let variants = list_variants_for_resource(&connection, &record.id)?;
+                Ok(ResourceCleanupCandidate { record, variants })
+            })
+            .collect()
+    }
+
+    async fn blob_is_referenced_outside_resource(
+        &self,
+        resource_id: &ResourceId,
+        blob_id: &BlobId,
+    ) -> ResourceResult<bool> {
+        let connection = self.connection.lock().map_err(resource_error)?;
+        connection
+            .query_row(
+                r"
+                SELECT EXISTS(
+                    SELECT 1 FROM resources
+                    WHERE blob_id = ?2 AND id <> ?1
+                    UNION ALL
+                    SELECT 1 FROM resource_variants
+                    WHERE blob_id = ?2 AND resource_id <> ?1
+                )
+                ",
+                params![resource_id.as_str(), blob_id.as_str()],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(sql_error)
+    }
+
+    async fn delete_resource_record(&self, id: &ResourceId) -> ResourceResult<()> {
+        {
+            let mut connection = self.connection.lock().map_err(resource_error)?;
+            let tx = connection.transaction().map_err(sql_error)?;
+            tx.execute(
+                "DELETE FROM resource_links WHERE resource_id = ?1",
+                params![id.as_str()],
+            )
+            .map_err(sql_error)?;
+            tx.execute(
+                "DELETE FROM resource_variants WHERE resource_id = ?1",
+                params![id.as_str()],
+            )
+            .map_err(sql_error)?;
+            tx.execute("DELETE FROM resources WHERE id = ?1", params![id.as_str()])
+                .map_err(sql_error)?;
+            tx.commit().map_err(sql_error)?;
+            drop(connection);
+        }
+        Ok(())
     }
 
     async fn scan_orphan_blobs(&self) -> ResourceResult<Vec<BlobId>> {
@@ -398,6 +461,27 @@ fn resource_link_from_row(row: &Row<'_>) -> rusqlite::Result<ResourceLink> {
         },
         relation_from_str(&relation).map_err(to_sql_error)?,
     ))
+}
+
+fn list_variants_for_resource(
+    connection: &rusqlite::Connection,
+    resource_id: &ResourceId,
+) -> ResourceResult<Vec<ResourceVariant>> {
+    let mut statement = connection
+        .prepare(
+            r"
+            SELECT variant_id, resource_id, kind, blob_id, mime_type, byte_size,
+                   content_hash, width, height, created_at_ms
+            FROM resource_variants
+            WHERE resource_id = ?1
+            ORDER BY variant_id ASC
+            ",
+        )
+        .map_err(sql_error)?;
+    let rows = statement
+        .query_map(params![resource_id.as_str()], resource_variant_from_row)
+        .map_err(sql_error)?;
+    rows.collect::<Result<Vec<_>, _>>().map_err(sql_error)
 }
 
 fn resource_variant_from_row(row: &Row<'_>) -> rusqlite::Result<ResourceVariant> {

@@ -1,14 +1,15 @@
 import { ImageIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AppButton, AppPanel, AppToolbar } from "../../components/ui";
-import type { GalleryQueryDto } from "../../types";
+import { AppButton, AppModal, AppPanel, AppToolbar } from "../../components/ui";
+import type { GalleryItemDto, GalleryQueryDto } from "../../types";
 import { GalleryFilters } from "./components/GalleryFilters";
 import { GalleryGrid } from "./components/GalleryGrid";
 import { GalleryInspector } from "./components/GalleryInspector";
 import {
   useGalleryPageQuery,
   useGallerySettingsQuery,
+  useDeleteGalleryItemsMutation,
   useSaveGalleryImageMutation,
   useSetGallerySafetyOverrideMutation,
 } from "./data/useGalleryPageQuery";
@@ -45,8 +46,6 @@ export function GalleryPage() {
 
   const galleryQuery = useGalleryPageQuery(query);
   const settingsQuery = useGallerySettingsQuery();
-  const setSafetyOverrideMutation = useSetGallerySafetyOverrideMutation();
-  const saveImageMutation = useSaveGalleryImageMutation();
   const visibleItems = useMemo(
     () =>
       (galleryQuery.data?.items ?? []).filter((item) => matchesSafetyFilter(item, safetyFilter)),
@@ -57,10 +56,15 @@ export function GalleryPage() {
   const blurSensitive =
     settingsQuery.data?.frontend.gallery.blur_sensitive_images === true && !settingsQuery.isError;
   const total = galleryQuery.data?.total ?? 0;
-  const mutationError = setSafetyOverrideMutation.error ?? saveImageMutation.error;
-  const commandError = mutationError ? formatError(mutationError) : null;
   const canGoPrevious = offset > 0;
   const canGoNext = offset + PAGE_LIMIT < total;
+  const clearSelection = useCallback(() => setSelectedItemId(null), []);
+  const commands = useGalleryItemCommands({
+    selectedItem,
+    visibleItems,
+    overrideValue,
+    onDeleteSuccess: clearSelection,
+  });
 
   useEffect(() => {
     setSelectedItemId((current) =>
@@ -92,29 +96,6 @@ export function GalleryPage() {
     [],
   );
   const nextPage = useCallback(() => setOffset((current) => current + PAGE_LIMIT), []);
-
-  const applyOverride = useCallback(() => {
-    if (selectedItem) {
-      setSafetyOverrideMutation.reset();
-      saveImageMutation.reset();
-      setSafetyOverrideMutation.mutate({
-        item_id: selectedItem.item_id,
-        manual_safety_override: parseSafetyOverride(overrideValue),
-      });
-    }
-  }, [overrideValue, saveImageMutation, selectedItem, setSafetyOverrideMutation]);
-
-  const exportSelected = useCallback(() => {
-    if (selectedItem) {
-      setSafetyOverrideMutation.reset();
-      saveImageMutation.reset();
-      const asset = preferredExportAsset(selectedItem);
-      saveImageMutation.mutate({
-        resource: asset.resource,
-        suggested_file_name: suggestedGalleryExportFileName(selectedItem.item_id, asset.role),
-      });
-    }
-  }, [saveImageMutation, selectedItem, setSafetyOverrideMutation]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -173,13 +154,166 @@ export function GalleryPage() {
           blurSensitive={blurSensitive}
           overrideValue={overrideValue}
           onOverrideChange={setOverrideValue}
-          onApplyOverride={applyOverride}
-          onExport={exportSelected}
-          applyingOverride={setSafetyOverrideMutation.isPending}
-          exporting={saveImageMutation.isPending}
-          commandError={commandError}
+          onApplyOverride={commands.applyOverride}
+          onExport={commands.exportSelected}
+          onDelete={commands.openDeleteConfirmation}
+          applyingOverride={commands.applyingOverride}
+          exporting={commands.exporting}
+          deleting={commands.deleting}
+          commandError={commands.commandError}
         />
       </div>
+
+      <GalleryDeleteConfirmation
+        targetId={commands.deleteTargetId}
+        target={commands.deleteTarget}
+        deleting={commands.deleting}
+        error={commands.deleteError}
+        onClose={commands.closeDeleteConfirmation}
+        onConfirm={commands.confirmDelete}
+      />
     </div>
+  );
+}
+
+function useGalleryItemCommands({
+  selectedItem,
+  visibleItems,
+  overrideValue,
+  onDeleteSuccess,
+}: {
+  selectedItem: GalleryItemDto | null;
+  visibleItems: GalleryItemDto[];
+  overrideValue: string;
+  onDeleteSuccess: () => void;
+}) {
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const setSafetyOverrideMutation = useSetGallerySafetyOverrideMutation();
+  const deleteGalleryItemsMutation = useDeleteGalleryItemsMutation();
+  const saveImageMutation = useSaveGalleryImageMutation();
+  const deleteTarget =
+    visibleItems.find((item) => item.item_id === deleteTargetId) ??
+    (deleteTargetId === selectedItem?.item_id ? selectedItem : null);
+  const commandMutationError = setSafetyOverrideMutation.error ?? saveImageMutation.error;
+
+  const resetCommandErrors = useCallback(() => {
+    setSafetyOverrideMutation.reset();
+    saveImageMutation.reset();
+    deleteGalleryItemsMutation.reset();
+  }, [deleteGalleryItemsMutation, saveImageMutation, setSafetyOverrideMutation]);
+
+  const applyOverride = useCallback(() => {
+    if (selectedItem) {
+      resetCommandErrors();
+      setSafetyOverrideMutation.mutate({
+        item_id: selectedItem.item_id,
+        manual_safety_override: parseSafetyOverride(overrideValue),
+      });
+    }
+  }, [overrideValue, resetCommandErrors, selectedItem, setSafetyOverrideMutation]);
+
+  const exportSelected = useCallback(() => {
+    if (selectedItem) {
+      resetCommandErrors();
+      const asset = preferredExportAsset(selectedItem);
+      saveImageMutation.mutate({
+        resource: asset.resource,
+        suggested_file_name: suggestedGalleryExportFileName(selectedItem.item_id, asset.role),
+      });
+    }
+  }, [resetCommandErrors, saveImageMutation, selectedItem]);
+
+  const openDeleteConfirmation = useCallback(() => {
+    if (selectedItem) {
+      resetCommandErrors();
+      setDeleteTargetId(selectedItem.item_id);
+    }
+  }, [resetCommandErrors, selectedItem]);
+
+  const closeDeleteConfirmation = useCallback(() => {
+    if (!deleteGalleryItemsMutation.isPending) {
+      setDeleteTargetId(null);
+    }
+  }, [deleteGalleryItemsMutation.isPending]);
+
+  const confirmDelete = useCallback(() => {
+    if (!deleteTargetId) {
+      return;
+    }
+
+    resetCommandErrors();
+    deleteGalleryItemsMutation.mutate(
+      { item_ids: [deleteTargetId] },
+      {
+        onSuccess: () => {
+          setDeleteTargetId(null);
+          onDeleteSuccess();
+        },
+      },
+    );
+  }, [deleteGalleryItemsMutation, deleteTargetId, onDeleteSuccess, resetCommandErrors]);
+
+  return {
+    applyingOverride: setSafetyOverrideMutation.isPending,
+    commandError: commandMutationError ? formatError(commandMutationError) : null,
+    confirmDelete,
+    closeDeleteConfirmation,
+    deleteError: deleteGalleryItemsMutation.error
+      ? formatError(deleteGalleryItemsMutation.error)
+      : null,
+    deleteTarget,
+    deleteTargetId,
+    deleting: deleteGalleryItemsMutation.isPending,
+    exportSelected,
+    exporting: saveImageMutation.isPending,
+    openDeleteConfirmation,
+    applyOverride,
+  };
+}
+
+function GalleryDeleteConfirmation({
+  targetId,
+  target,
+  deleting,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  targetId: string | null;
+  target: GalleryItemDto | null;
+  deleting: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <AppModal open={Boolean(targetId)} title="Delete gallery item" onClose={onClose}>
+      <div className="grid gap-4">
+        <div className="grid gap-2 text-sm text-app-text">
+          <p>
+            Delete <span className="font-semibold text-white">{targetId}</span> permanently from
+            Gallery.
+          </p>
+          <p className="text-app-muted">
+            This also removes linked output metadata and may delete unreferenced workspace image
+            files from disk.
+          </p>
+          {target ? <p className="text-xs text-app-muted">Artifact: {target.artifact_id}</p> : null}
+        </div>
+        {error ? (
+          <p className="border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex justify-end gap-2">
+          <AppButton variant="secondary" onClick={onClose} disabled={deleting}>
+            Cancel
+          </AppButton>
+          <AppButton variant="danger" onClick={onConfirm} disabled={deleting}>
+            Delete permanently
+          </AppButton>
+        </div>
+      </div>
+    </AppModal>
   );
 }

@@ -1,4 +1,4 @@
-import { Download, ShieldCheck } from "lucide-react";
+import { Download, ShieldCheck, Trash2 } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useCallback } from "react";
 
@@ -21,8 +21,10 @@ type GalleryInspectorProps = {
   onOverrideChange: (value: string) => void;
   onApplyOverride: () => void;
   onExport: () => void;
+  onDelete: () => void;
   applyingOverride: boolean;
   exporting: boolean;
+  deleting: boolean;
   commandError: string | null;
 };
 
@@ -128,8 +130,10 @@ function InspectorActions({
   onOverrideChange,
   onApplyOverride,
   onExport,
+  onDelete,
   applyingOverride,
   exporting,
+  deleting,
 }: GalleryInspectorProps & { item: GalleryItemDto }) {
   const handleOverrideChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => onOverrideChange(event.target.value),
@@ -167,6 +171,10 @@ function InspectorActions({
           Export selected image
         </AppButton>
       </div>
+      <AppButton variant="danger" onClick={onDelete} disabled={deleting} className="w-full">
+        <Trash2 aria-hidden="true" className="size-4" />
+        Delete selected gallery item
+      </AppButton>
       <p className="text-xs text-app-muted">Export target: {exportAsset.role}</p>
     </section>
   );

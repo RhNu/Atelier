@@ -1,6 +1,6 @@
 use crate::{
-    ArtifactError, ArtifactRecord, ArtifactRepository, ArtifactResourceReader, ArtifactResult,
-    RegisterArtifactRequest,
+    ArtifactError, ArtifactId, ArtifactRecord, ArtifactRepository, ArtifactResourceReader,
+    ArtifactResult, RegisterArtifactRequest,
 };
 
 #[derive(Clone, Debug)]
@@ -55,5 +55,13 @@ where
         };
         self.repository.insert_artifact(record.clone()).await?;
         Ok(record)
+    }
+
+    /// Deletes artifact records by id.
+    ///
+    /// # Errors
+    /// Returns an error when repository persistence fails.
+    pub async fn delete_artifacts(&self, ids: &[ArtifactId]) -> ArtifactResult<usize> {
+        self.repository.delete_artifacts(ids).await
     }
 }

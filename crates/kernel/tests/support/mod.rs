@@ -534,6 +534,20 @@ impl ArtifactRepository for MemoryKernelPorts {
             .insert(record.id.as_str().to_owned(), record);
         Ok(())
     }
+
+    async fn delete_artifacts(
+        &self,
+        ids: &[atelier_artifacts::ArtifactId],
+    ) -> ArtifactResult<usize> {
+        let mut state = self.state.lock().unwrap();
+        let mut deleted = 0;
+        for id in ids {
+            if state.artifacts.remove(id.as_str()).is_some() {
+                deleted += 1;
+            }
+        }
+        Ok(deleted)
+    }
 }
 
 #[async_trait]
@@ -593,5 +607,16 @@ impl GalleryIndex for MemoryKernelPorts {
             .ok_or_else(|| atelier_gallery::GalleryError::not_found("missing item"))?;
         item.manual_safety_override = manual_safety_override;
         Ok(item.clone())
+    }
+
+    async fn delete_items(&self, ids: &[GalleryItemId]) -> GalleryResult<Vec<GalleryItem>> {
+        let mut state = self.state.lock().unwrap();
+        let mut deleted = Vec::new();
+        for id in ids {
+            if let Some(item) = state.gallery_items.remove(id.as_str()) {
+                deleted.push(item);
+            }
+        }
+        Ok(deleted)
     }
 }

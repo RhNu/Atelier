@@ -267,6 +267,16 @@ impl ArtifactRepository for FakeArtifactRepository {
         self.records.lock().unwrap().push(record);
         Ok(())
     }
+
+    async fn delete_artifacts(
+        &self,
+        ids: &[ArtifactId],
+    ) -> atelier_artifacts::ArtifactResult<usize> {
+        let mut records = self.records.lock().unwrap();
+        let original_len = records.len();
+        records.retain(|record| !ids.iter().any(|id| id == &record.id));
+        Ok(original_len - records.len())
+    }
 }
 
 fn generated_request(id: &str) -> RegisterArtifactRequest {

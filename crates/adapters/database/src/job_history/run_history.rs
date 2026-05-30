@@ -296,4 +296,26 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
         };
         Ok(outputs)
     }
+
+    async fn delete_run_outputs_by_item_ids(&self, item_ids: &[String]) -> JobResult<usize> {
+        if item_ids.is_empty() {
+            return Ok(0);
+        }
+
+        let mut deleted = 0;
+        {
+            let mut connection = self.connection.lock().map_err(job_store_error)?;
+            let transaction = connection.transaction().map_err(job_store_error)?;
+            for item_id in item_ids {
+                deleted += transaction
+                    .execute(
+                        "DELETE FROM run_outputs WHERE item_id = ?1",
+                        params![item_id],
+                    )
+                    .map_err(job_store_error)?;
+            }
+            transaction.commit().map_err(job_store_error)?;
+        }
+        Ok(deleted)
+    }
 }

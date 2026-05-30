@@ -361,6 +361,62 @@ fn image_reference_for_missing_item_returns_not_found() {
     });
 }
 
+#[test]
+fn delete_items_removes_existing_items_and_ignores_missing_ids() {
+    block_on(async {
+        let index = FakeGalleryIndex::default();
+        let service = GalleryService::new(index.clone());
+        let first = service
+            .index_artifact(generated_artifact("artifact-1", 10), 10, None)
+            .await
+            .unwrap();
+        let second = service
+            .index_artifact(generated_artifact("artifact-2", 20), 20, None)
+            .await
+            .unwrap();
+
+        let deleted = service
+            .delete_items(&[
+                first.id.clone(),
+                GalleryItemId::new("artifact:missing"),
+                second.id.clone(),
+            ])
+            .await
+            .unwrap();
+
+        assert_eq!(item_ids(&deleted), vec![first.id, second.id]);
+        assert!(index.items().is_empty());
+    });
+}
+
+#[test]
+fn get_items_returns_existing_records_without_deleting_them() {
+    block_on(async {
+        let index = FakeGalleryIndex::default();
+        let service = GalleryService::new(index.clone());
+        let first = service
+            .index_artifact(generated_artifact("artifact-1", 10), 10, None)
+            .await
+            .unwrap();
+        let second = service
+            .index_artifact(generated_artifact("artifact-2", 20), 20, None)
+            .await
+            .unwrap();
+
+        let items = service
+            .get_items(&[
+                first.id.clone(),
+                GalleryItemId::new("artifact:missing"),
+                second.id.clone(),
+            ])
+            .await
+            .unwrap();
+
+        assert_eq!(item_ids(&items), vec![first.id, second.id]);
+        assert_eq!(index.items().len(), 2);
+    });
+}
+
 #[derive(Clone, Default)]
 struct FakeGalleryIndex {
     items: Arc<Mutex<BTreeMap<GalleryItemId, GalleryItem>>>,
@@ -391,6 +447,17 @@ impl GalleryIndex for FakeGalleryIndex {
         query: GalleryQuery,
     ) -> atelier_gallery::GalleryResult<Vec<GalleryItem>> {
         Ok(query.apply(self.items()))
+    }
+
+    async fn delete_items(
+        &self,
+        ids: &[GalleryItemId],
+    ) -> atelier_gallery::GalleryResult<Vec<GalleryItem>> {
+        let mut items = self.items.lock().unwrap();
+        Ok(ids
+            .iter()
+            .filter_map(|id| items.remove(id))
+            .collect::<Vec<_>>())
     }
 
     async fn set_safety_override(

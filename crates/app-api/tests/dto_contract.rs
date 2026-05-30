@@ -8,9 +8,9 @@ use atelier_app_api::director::{
 use atelier_app_api::error::ErrorEnvelopeDto;
 use atelier_app_api::event::{AppEventKindDto, AppEventPageDto, EventsSinceRequestDto};
 use atelier_app_api::gallery::{
-    GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto, GalleryItemDto,
-    GallerySafetyDto, GallerySafetyLabelDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
-    GallerySourceKindDto,
+    DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceRequestDto,
+    GalleryImageReferenceTargetDto, GalleryItemDto, GallerySafetyDto, GallerySafetyLabelDto,
+    GallerySafetyRiskBandDto, GallerySafetyScanStateDto, GallerySourceKindDto,
 };
 use atelier_app_api::generation::{
     CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
