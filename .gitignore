@@ -21,3 +21,5 @@ Thumbs.db
 .worktrees/
 worktrees/
 
+# Development Cache
+/.dev/
