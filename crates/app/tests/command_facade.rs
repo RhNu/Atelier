@@ -22,8 +22,9 @@ use atelier_app_api::generation::{
 };
 use atelier_app_api::history::RunHistoryQueryDto;
 use atelier_app_api::prompt::{
-    DeletePromptChunkRequestDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
-    PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
+    CompileGenerationPromptRequestDto, DeletePromptChunkRequestDto, GetPromptChunkRequestDto,
+    ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptLexiconSearchQueryDto,
+    PromptPresetKindDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
 };
 use atelier_app_api::resource::{
     ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
@@ -34,6 +35,7 @@ use atelier_app_api::settings::{
 };
 use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, ExportVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
+    ListVibeDocumentsRequestDto, RenameVibeDocumentRequestDto, SetVibeDocumentHiddenRequestDto,
     VibeExportFormatDto, VibeModelDto,
 };
 use atelier_app_api::workspace::OpenWorkspaceRequestDto;

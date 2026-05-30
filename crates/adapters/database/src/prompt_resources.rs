@@ -2,8 +2,9 @@
 
 use async_trait::async_trait;
 use atelier_prompt_resources::{
-    ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptResourceError,
-    PromptResourceReader, PromptResourceRepository, PromptResourceResult, rewrite_chunk_references,
+    ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptPreset, PromptPresetId,
+    PromptPresetKind, PromptResourceError, PromptResourceReader, PromptResourceRepository,
+    PromptResourceResult, rewrite_chunk_references,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
 use rusqlite::{OptionalExtension, Params, params};
@@ -63,6 +64,58 @@ impl PromptResourceReader for DatabasePromptResourceRepository {
         let rows = statement
             .query_map([], prompt_chunk_from_row)
             .map_err(sql_error)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(sql_error)
+    }
+
+    async fn get_preset_by_id(
+        &self,
+        id: &PromptPresetId,
+    ) -> PromptResourceResult<Option<PromptPreset>> {
+        let connection = self.connection.lock().map_err(prompt_error)?;
+        connection
+            .query_row(
+                prompt_preset_select("WHERE preset_id = ?1").as_str(),
+                params![id.as_str()],
+                prompt_preset_from_row,
+            )
+            .optional()
+            .map_err(sql_error)
+    }
+
+    async fn list_presets(
+        &self,
+        kind: Option<PromptPresetKind>,
+        include_disabled: bool,
+    ) -> PromptResourceResult<Vec<PromptPreset>> {
+        let connection = self.connection.lock().map_err(prompt_error)?;
+        let (where_clause, kind_text) = match kind {
+            Some(kind) if include_disabled => {
+                ("WHERE preset_kind = ?1", Some(preset_kind_to_str(kind)))
+            }
+            Some(kind) => (
+                "WHERE preset_kind = ?1 AND enabled = 1",
+                Some(preset_kind_to_str(kind)),
+            ),
+            None if include_disabled => ("", None),
+            None => ("WHERE enabled = 1", None),
+        };
+        let mut statement = connection
+            .prepare(
+                prompt_preset_select(&format!(
+                    "{where_clause} ORDER BY sort_order ASC, name ASC, preset_id ASC"
+                ))
+                .as_str(),
+            )
+            .map_err(sql_error)?;
+        let rows = if let Some(kind_text) = kind_text {
+            statement
+                .query_map(params![kind_text], prompt_preset_from_row)
+                .map_err(sql_error)?
+        } else {
+            statement
+                .query_map([], prompt_preset_from_row)
+                .map_err(sql_error)?
+        };
         rows.collect::<Result<Vec<_>, _>>().map_err(sql_error)
     }
 }
@@ -135,6 +188,25 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
                 .map_err(sql_error)?;
             }
         }
+
+        for (preset_id, column, content) in prompt_preset_text_fields(&tx)? {
+            let rewritten = rewrite_chunk_references(&content, old_key, &chunk.key);
+            if rewritten != content {
+                let sql = format!(
+                    "UPDATE prompt_presets SET {column} = ?2, updated_at_ms = ?3 WHERE preset_id = ?1"
+                );
+                tx.execute(
+                    &sql,
+                    params![
+                        preset_id,
+                        rewritten,
+                        i64::try_from(chunk.updated_at_ms)
+                            .map_err(|error| PromptResourceError::repository(error.to_string()))?,
+                    ],
+                )
+                .map_err(sql_error)?;
+            }
+        }
         tx.commit().map_err(sql_error)
     }
 
@@ -153,7 +225,7 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
         &self,
         key: &PromptChunkKey,
     ) -> PromptResourceResult<Vec<ChunkReference>> {
-        Ok(self
+        let mut references = self
             .list_chunks()
             .await?
             .into_iter()
@@ -162,7 +234,58 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
                 chunk_id: chunk.id,
                 key: chunk.key,
             })
-            .collect())
+            .collect::<Vec<_>>();
+        references.extend(
+            self.list_presets(None, true)
+                .await?
+                .into_iter()
+                .filter(|preset| preset.references_chunk(key))
+                .map(|preset| ChunkReference {
+                    chunk_id: PromptChunkId::new(preset.id.as_str()),
+                    key: key.clone(),
+                }),
+        );
+        Ok(references)
+    }
+
+    async fn allocate_preset_id(&self) -> PromptResourceResult<PromptPresetId> {
+        let connection = self.connection.lock().map_err(prompt_error)?;
+        let mut next = connection
+            .query_row("SELECT COUNT(*) + 1 FROM prompt_presets", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .map_err(sql_error)?
+            .max(1);
+        loop {
+            let id = PromptPresetId::new(format!("preset-{next}"));
+            let exists = connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM prompt_presets WHERE preset_id = ?1)",
+                    params![id.as_str()],
+                    |row| row.get::<_, bool>(0),
+                )
+                .map_err(sql_error)?;
+            if !exists {
+                return Ok(id);
+            }
+            next += 1;
+        }
+    }
+
+    async fn save_preset(&self, preset: PromptPreset) -> PromptResourceResult<()> {
+        let connection = self.connection.lock().map_err(prompt_error)?;
+        upsert_preset(&*connection, &preset)
+    }
+
+    async fn delete_preset(&self, id: &PromptPresetId) -> PromptResourceResult<()> {
+        let connection = self.connection.lock().map_err(prompt_error)?;
+        connection
+            .execute(
+                "DELETE FROM prompt_presets WHERE preset_id = ?1",
+                params![id.as_str()],
+            )
+            .map(|_| ())
+            .map_err(sql_error)
     }
 }
 
@@ -199,6 +322,68 @@ fn upsert_chunk(connection: &impl SqlExecutor, chunk: &PromptChunk) -> PromptRes
                 i64::try_from(chunk.created_at_ms)
                     .map_err(|error| PromptResourceError::repository(error.to_string()))?,
                 i64::try_from(chunk.updated_at_ms)
+                    .map_err(|error| PromptResourceError::repository(error.to_string()))?,
+            ],
+        )
+        .map(|_| ())
+        .map_err(sql_error)
+}
+
+fn upsert_preset(connection: &impl SqlExecutor, preset: &PromptPreset) -> PromptResourceResult<()> {
+    connection
+        .execute_sql(
+            r"
+            INSERT INTO prompt_presets(
+                preset_id, preset_kind, name, category, description, sort_order, enabled,
+                before_text, after_text, replace_text, uc_before_text, uc_after_text,
+                uc_replace_text, quality_override, uc_preset_override,
+                preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms
+            )
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
+            ON CONFLICT(preset_id) DO UPDATE SET
+                preset_kind = excluded.preset_kind,
+                name = excluded.name,
+                category = excluded.category,
+                description = excluded.description,
+                sort_order = excluded.sort_order,
+                enabled = excluded.enabled,
+                before_text = excluded.before_text,
+                after_text = excluded.after_text,
+                replace_text = excluded.replace_text,
+                uc_before_text = excluded.uc_before_text,
+                uc_after_text = excluded.uc_after_text,
+                uc_replace_text = excluded.uc_replace_text,
+                quality_override = excluded.quality_override,
+                uc_preset_override = excluded.uc_preset_override,
+                preview_resource_id = excluded.preview_resource_id,
+                preview_variant_id = excluded.preview_variant_id,
+                updated_at_ms = excluded.updated_at_ms
+            ",
+            params![
+                preset.id.as_str(),
+                preset_kind_to_str(preset.kind),
+                preset.name,
+                preset.category.as_deref(),
+                preset.description.as_deref(),
+                preset.order,
+                preset.enabled,
+                preset.before,
+                preset.after,
+                preset.replace,
+                preset.uc_before,
+                preset.uc_after,
+                preset.uc_replace,
+                preset.quality_override.as_deref(),
+                preset.uc_preset_override.as_deref(),
+                preset.preview_thumb.as_ref().map(|value| value.id.as_str()),
+                preset
+                    .preview_thumb
+                    .as_ref()
+                    .and_then(|value| value.variant_id.as_ref())
+                    .map(VariantId::as_str),
+                i64::try_from(preset.created_at_ms)
+                    .map_err(|error| PromptResourceError::repository(error.to_string()))?,
+                i64::try_from(preset.updated_at_ms)
                     .map_err(|error| PromptResourceError::repository(error.to_string()))?,
             ],
         )
@@ -247,6 +432,89 @@ fn prompt_chunk_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptChun
         created_at_ms: i64_to_u64(row.get(7)?)?,
         updated_at_ms: i64_to_u64(row.get(8)?)?,
     })
+}
+
+fn prompt_preset_select(where_clause: &str) -> String {
+    format!(
+        r"
+        SELECT preset_id, preset_kind, name, category, description, sort_order, enabled,
+               before_text, after_text, replace_text, uc_before_text, uc_after_text,
+               uc_replace_text, quality_override, uc_preset_override,
+               preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms
+        FROM prompt_presets {where_clause}
+        "
+    )
+}
+
+fn prompt_preset_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptPreset> {
+    let preview_resource_id = row.get::<_, Option<String>>(15)?;
+    let preview_variant_id = row.get::<_, Option<String>>(16)?;
+    Ok(PromptPreset {
+        id: PromptPresetId::new(row.get::<_, String>(0)?),
+        kind: preset_kind_from_str(&row.get::<_, String>(1)?).map_err(to_sql_error)?,
+        name: row.get(2)?,
+        category: row.get(3)?,
+        description: row.get(4)?,
+        order: row.get(5)?,
+        enabled: row.get(6)?,
+        before: row.get(7)?,
+        after: row.get(8)?,
+        replace: row.get(9)?,
+        uc_before: row.get(10)?,
+        uc_after: row.get(11)?,
+        uc_replace: row.get(12)?,
+        quality_override: row.get(13)?,
+        uc_preset_override: row.get(14)?,
+        preview_thumb: preview_resource_id.map(|id| {
+            ResourceRef::new(ResourceId::new(id), preview_variant_id.map(VariantId::new))
+        }),
+        created_at_ms: i64_to_u64(row.get(17)?)?,
+        updated_at_ms: i64_to_u64(row.get(18)?)?,
+    })
+}
+
+fn prompt_preset_text_fields(
+    connection: &rusqlite::Transaction<'_>,
+) -> PromptResourceResult<Vec<(String, &'static str, String)>> {
+    let mut items = Vec::new();
+    for column in [
+        "before_text",
+        "after_text",
+        "replace_text",
+        "uc_before_text",
+        "uc_after_text",
+        "uc_replace_text",
+    ] {
+        let sql = format!("SELECT preset_id, {column} FROM prompt_presets ORDER BY preset_id");
+        let mut statement = connection.prepare(&sql).map_err(sql_error)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(sql_error)?;
+        for row in rows {
+            let (preset_id, content) = row.map_err(sql_error)?;
+            items.push((preset_id, column, content));
+        }
+    }
+    Ok(items)
+}
+
+const fn preset_kind_to_str(kind: PromptPresetKind) -> &'static str {
+    match kind {
+        PromptPresetKind::Main => "main",
+        PromptPresetKind::Character => "character",
+    }
+}
+
+fn preset_kind_from_str(value: &str) -> PromptResourceResult<PromptPresetKind> {
+    match value {
+        "main" => Ok(PromptPresetKind::Main),
+        "character" => Ok(PromptPresetKind::Character),
+        _ => Err(PromptResourceError::repository(format!(
+            "unknown prompt preset kind `{value}`"
+        ))),
+    }
 }
 
 fn i64_to_u64(value: i64) -> rusqlite::Result<u64> {

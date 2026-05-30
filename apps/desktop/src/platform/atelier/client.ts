@@ -14,6 +14,8 @@ import type {
   DeleteRunHistoryItemsResponseDto,
   DeletePromptChunkRequestDto,
   DeletePromptChunkResponseDto,
+  DeletePromptPresetRequestDto,
+  DeletePromptPresetResponseDto,
   EnsureVibeEncodingRequestDto,
   EnsuredVibeEncodingDto,
   EventsSinceRequestDto,
@@ -36,6 +38,7 @@ import type {
   ImportedVibeDocumentsDto,
   ListVibeDocumentsRequestDto,
   ListPromptChunksRequestDto,
+  ListPromptPresetsRequestDto,
   OpenWorkspaceRequestDto,
   ProbeApiKeyRequestDto,
   PromptChunkDto,
@@ -44,6 +47,8 @@ import type {
   PromptLexiconListQueryDto,
   PromptLexiconPageDto,
   PromptLexiconSearchQueryDto,
+  PromptPresetDto,
+  PromptPresetPageDto,
   QueueDirectiveDto,
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryItemResponseDto,
@@ -57,12 +62,15 @@ import type {
   RunHistoryQueryDto,
   SetActiveApiKeyRequestDto,
   SetGallerySafetyOverrideRequestDto,
+  RenameVibeDocumentRequestDto,
+  SetVibeDocumentHiddenRequestDto,
   SubmitGenerationRequestDto,
   SubmitGenerationBatchRequestDto,
   SubscriptionSummaryDto,
   UpdateApiKeyRequestDto,
   UpdateWorkspaceSettingsRequestDto,
   UpsertPromptChunkRequestDto,
+  UpsertPromptPresetRequestDto,
   VibeDocumentEntryDto,
   VibeDocumentPageDto,
   WorkspaceSettingsDto,
@@ -143,6 +151,14 @@ export const promptApi = {
     invokeAtelierCommand<DeletePromptChunkResponseDto>(atelierCommands.deletePromptChunk, {
       request,
     }),
+  upsertPreset: (request: UpsertPromptPresetRequestDto) =>
+    invokeAtelierCommand<PromptPresetDto>(atelierCommands.upsertPromptPreset, { request }),
+  listPresets: (request: ListPromptPresetsRequestDto) =>
+    invokeAtelierCommand<PromptPresetPageDto>(atelierCommands.listPromptPresets, { request }),
+  deletePreset: (request: DeletePromptPresetRequestDto) =>
+    invokeAtelierCommand<DeletePromptPresetResponseDto>(atelierCommands.deletePromptPreset, {
+      request,
+    }),
   compilePreview: (request: CompilePromptRequestDto) =>
     invokeAtelierCommand<CompiledPromptDto>(atelierCommands.compilePromptPreview, { request }),
   compileGenerationPreview: (request: CompileGenerationPromptRequestDto) =>
@@ -217,6 +233,12 @@ export const vibeApi = {
     invokeAtelierCommand<VibeDocumentPageDto>(atelierCommands.listVibeDocuments, { request }),
   getDocument: (request: GetVibeDocumentRequestDto) =>
     invokeAtelierCommand<VibeDocumentEntryDto>(atelierCommands.getVibeDocument, { request }),
+  renameDocument: (request: RenameVibeDocumentRequestDto) =>
+    invokeAtelierCommand<VibeDocumentEntryDto>(atelierCommands.renameVibeDocument, { request }),
+  setDocumentHidden: (request: SetVibeDocumentHiddenRequestDto) =>
+    invokeAtelierCommand<VibeDocumentEntryDto>(atelierCommands.setVibeDocumentHidden, {
+      request,
+    }),
   ensureEncoding: (request: EnsureVibeEncodingRequestDto) =>
     invokeAtelierCommand<EnsuredVibeEncodingDto>(atelierCommands.ensureVibeEncoding, { request }),
   saveDocument: (request: ExportVibeDocumentRequestDto) =>

@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 
-use crate::{ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptResourceResult};
+use crate::{
+    ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptPreset, PromptPresetId,
+    PromptPresetKind, PromptResourceResult,
+};
 
 #[async_trait]
 pub trait PromptResourceReader: Send + Sync {
@@ -15,6 +18,17 @@ pub trait PromptResourceReader: Send + Sync {
     ) -> PromptResourceResult<Option<PromptChunk>>;
 
     async fn list_chunks(&self) -> PromptResourceResult<Vec<PromptChunk>>;
+
+    async fn get_preset_by_id(
+        &self,
+        id: &PromptPresetId,
+    ) -> PromptResourceResult<Option<PromptPreset>>;
+
+    async fn list_presets(
+        &self,
+        kind: Option<PromptPresetKind>,
+        include_disabled: bool,
+    ) -> PromptResourceResult<Vec<PromptPreset>>;
 }
 
 #[async_trait]
@@ -35,4 +49,10 @@ pub trait PromptResourceRepository: PromptResourceReader {
         &self,
         key: &PromptChunkKey,
     ) -> PromptResourceResult<Vec<ChunkReference>>;
+
+    async fn allocate_preset_id(&self) -> PromptResourceResult<PromptPresetId>;
+
+    async fn save_preset(&self, preset: PromptPreset) -> PromptResourceResult<()>;
+
+    async fn delete_preset(&self, id: &PromptPresetId) -> PromptResourceResult<()>;
 }

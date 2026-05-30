@@ -10,11 +10,14 @@ fn vibe_repository_round_trips_documents_and_cached_encodings() {
                 document_id: VibeId::new("vibe-1"),
                 display_name: "Style A".to_owned(),
                 has_image: true,
+                hidden: false,
                 available_model_keys: vec!["v4-5full".to_owned()],
                 available_encoding_configs: vec![atelier_vibe::VibeEncodingConfig {
                     model: VibeModel::NaiDiffusion45Full,
                     settings: settings.clone(),
                 }],
+                created_at_ms: 10,
+                updated_at_ms: 10,
             },
             resources: VibeDocumentResources {
                 document: ResourceRef::base(ResourceId::new("vibe-document")),
@@ -41,8 +44,36 @@ fn vibe_repository_round_trips_documents_and_cached_encodings() {
                 .unwrap(),
             Some(entry.clone())
         );
-        assert_eq!(repository.list_documents(0, 10).await.unwrap(), vec![entry]);
-        assert_eq!(repository.count_documents().await.unwrap(), 1);
+        assert_eq!(
+            repository.list_documents(0, 10, false).await.unwrap(),
+            vec![entry.clone()]
+        );
+        let hidden = repository
+            .set_document_hidden(&VibeId::new("vibe-1"), true, 20)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(hidden.summary.hidden);
+        assert_eq!(hidden.summary.updated_at_ms, 20);
+        assert!(
+            repository
+                .list_documents(0, 10, false)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            repository.list_documents(0, 10, true).await.unwrap(),
+            vec![hidden]
+        );
+        assert_eq!(repository.count_documents(false).await.unwrap(), 0);
+        assert_eq!(repository.count_documents(true).await.unwrap(), 1);
+        let renamed = repository
+            .rename_document(&VibeId::new("vibe-1"), "Renamed".to_owned(), 30)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(renamed.summary.display_name, "Renamed");
         assert_eq!(
             repository
                 .find_cached_encoding(&source, &settings)

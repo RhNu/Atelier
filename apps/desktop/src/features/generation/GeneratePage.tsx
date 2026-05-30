@@ -5,11 +5,14 @@ import { useCallback, useState } from "react";
 import { AppIconButton, AppToolbar, EmptyState } from "../../components/ui";
 import type {
   CompiledGenerationPromptDto,
+  PromptPresetDto,
   RunHistoryItemDto,
   RunHistoryOutputDto,
   RunHistoryStatusDto,
   VibeDocumentEntryDto,
 } from "../../types";
+import { setDirectorHandoffInput } from "../director/state/director-handoff-store";
+import { navigateToDirector } from "../director/state/navigate-to-director";
 import { AdvancedGenerationInputs } from "./components/AdvancedGenerationInputs";
 import { GenerationHistoryRail } from "./components/GenerationHistoryRail";
 import { GenerationParamsPanel } from "./components/GenerationParamsPanel";
@@ -26,6 +29,7 @@ import {
   useImportVibeDocumentsMutation,
   usePauseGenerationMutation,
   usePickImageResourcesMutation,
+  usePromptPresetsQuery,
   useRerunGenerationMutation,
   useResourceImageQuery,
   useResumeGenerationMutation,
@@ -46,6 +50,7 @@ import { useGenerationDraft } from "./state/useGenerationDraft";
 
 const EMPTY_HISTORY_ITEMS: ReadonlyArray<RunHistoryItemDto> = [];
 const EMPTY_VIBE_DOCUMENTS: ReadonlyArray<VibeDocumentEntryDto> = [];
+const EMPTY_PROMPT_PRESETS: ReadonlyArray<PromptPresetDto> = [];
 const HISTORY_PAGE_LIMIT = 8;
 
 type QueueControlsProps = {
@@ -89,6 +94,18 @@ export function GeneratePage() {
   const stopMutation = useStopGenerationMutation();
   const compileMutation = useCompilePromptMutation();
   const { draft, patchDraft, patchSize } = useGenerationDraft(settingsQuery.data);
+  const mainPresetsQuery = usePromptPresetsQuery({
+    kind: "main",
+    include_disabled: false,
+    offset: 0,
+    limit: 200,
+  });
+  const characterPresetsQuery = usePromptPresetsQuery({
+    kind: "character",
+    include_disabled: false,
+    offset: 0,
+    limit: 200,
+  });
   const isOpus = accountQuery.data?.is_opus ?? false;
   const estimateQuery = useGenerationEstimateQuery(draft, isOpus);
   const activePreview = useGenerationEventStore((state) => state.activePreview);
@@ -109,7 +126,7 @@ export function GeneratePage() {
   });
   const finalResource = activePreview?.kind === "resource" ? activePreview.resource : null;
   const finalImageQuery = useResourceImageQuery(finalResource);
-  const vibeDocumentsQuery = useVibeDocumentsQuery({ offset: 0, limit: 32 });
+  const vibeDocumentsQuery = useVibeDocumentsQuery({ offset: 0, limit: 32, include_hidden: false });
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [queueError, setQueueError] = useState<string | null>(null);
@@ -230,6 +247,10 @@ export function GeneratePage() {
       setHistoryActionError(null);
       void imageReferenceMutation
         .mutateAsync({ item_id: output.item_id, target: "director" })
+        .then((reference) => {
+          setDirectorHandoffInput(reference.resource);
+          navigateToDirector();
+        })
         .catch((error: unknown) => setHistoryActionError(formatError(error)));
     },
     [imageReferenceMutation],
@@ -259,6 +280,10 @@ export function GeneratePage() {
     setHistoryActionError(null);
     void imageReferenceMutation
       .mutateAsync({ item_id: activePreview.galleryItemId, target: "director" })
+      .then((reference) => {
+        setDirectorHandoffInput(reference.resource);
+        navigateToDirector();
+      })
       .catch((error: unknown) => setHistoryActionError(formatError(error)));
   }, [activePreview, imageReferenceMutation]);
 
@@ -315,19 +340,25 @@ export function GeneratePage() {
 
     void (async () => {
       try {
-        if (draft.prompt.trim().length > 0) {
+        if (draft.prompt.trim().length > 0 || draft.mainPresetId || draft.characters.length > 0) {
           setCompiledPreview(
             await compileMutation.mutateAsync({
               prompt: draft.prompt,
+              main_preset_id: draft.mainPresetId,
               negative_prompt: draft.negativePrompt.trim().length > 0 ? draft.negativePrompt : null,
               characters: draft.characters
                 .map((character) => ({
+                  preset_id: character.presetId,
                   prompt: character.prompt.trim(),
                   negative_prompt:
                     character.negativePrompt.trim().length > 0 ? character.negativePrompt : null,
                   enabled: character.enabled,
                 }))
-                .filter((character) => character.enabled && character.prompt.length > 0),
+                .filter(
+                  (character) =>
+                    character.enabled &&
+                    (character.prompt.length > 0 || Boolean(character.preset_id)),
+                ),
               max_depth: 8,
             }),
           );
@@ -394,6 +425,8 @@ export function GeneratePage() {
             compilePending={compileMutation.isPending}
             submitPending={submitMutation.isPending}
             compiledPreview={compiledPreview}
+            mainPresets={mainPresetsQuery.data?.items ?? EMPTY_PROMPT_PRESETS}
+            mainPresetsPending={mainPresetsQuery.isPending}
             onPatch={patchDraft}
             onSubmit={handleSubmit}
             onCompile={handleCompile}
@@ -402,6 +435,7 @@ export function GeneratePage() {
           <AdvancedGenerationInputs
             draft={draft}
             onPatch={patchDraft}
+            characterPresets={characterPresetsQuery.data?.items ?? EMPTY_PROMPT_PRESETS}
             vibeDocuments={vibeDocumentsQuery.data?.items ?? EMPTY_VIBE_DOCUMENTS}
             vibePending={vibeDocumentsQuery.isPending}
             vibeError={vibeDocumentsQuery.isError ? formatError(vibeDocumentsQuery.error) : null}

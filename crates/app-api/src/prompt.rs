@@ -18,6 +18,66 @@ pub struct PromptChunkDto {
     pub updated_at_ms: u64,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PromptPresetKindDto {
+    Main,
+    Character,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptPresetDto {
+    pub preset_id: String,
+    pub kind: PromptPresetKindDto,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub order: i32,
+    pub enabled: bool,
+    pub before: String,
+    pub after: String,
+    pub replace: String,
+    pub uc_before: String,
+    pub uc_after: String,
+    pub uc_replace: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality_override: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uc_preset_override: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview: Option<ResourceRefDto>,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UpsertPromptPresetRequestDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preset_id: Option<String>,
+    pub kind: PromptPresetKindDto,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub order: i32,
+    pub enabled: bool,
+    pub before: String,
+    pub after: String,
+    pub replace: String,
+    pub uc_before: String,
+    pub uc_after: String,
+    pub uc_replace: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality_override: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uc_preset_override: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview: Option<ResourceRefDto>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UpsertPromptChunkRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -54,13 +114,40 @@ pub struct PromptChunkPageDto {
     pub limit: usize,
 }
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ListPromptPresetsRequestDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<PromptPresetKindDto>,
+    pub include_disabled: bool,
+    pub offset: usize,
+    pub limit: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptPresetPageDto {
+    pub items: Vec<PromptPresetDto>,
+    pub total: usize,
+    pub offset: usize,
+    pub limit: usize,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DeletePromptChunkRequestDto {
     pub chunk_id: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DeletePromptPresetRequestDto {
+    pub preset_id: String,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DeletePromptChunkResponseDto {
+    pub deleted: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DeletePromptPresetResponseDto {
     pub deleted: bool,
 }
 
@@ -89,6 +176,8 @@ pub struct CompiledPromptDto {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct CompileGenerationCharacterPromptDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preset_id: Option<String>,
     pub prompt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub negative_prompt: Option<String>,
@@ -97,6 +186,8 @@ pub struct CompileGenerationCharacterPromptDto {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct CompileGenerationPromptRequestDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub main_preset_id: Option<String>,
     pub prompt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub negative_prompt: Option<String>,
@@ -120,6 +211,10 @@ pub struct CompiledGenerationPromptDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub negative_prompt: Option<CompiledPromptDto>,
     pub characters: Vec<CompiledGenerationCharacterPromptDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quality_override: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uc_preset_override: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

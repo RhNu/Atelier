@@ -11,6 +11,7 @@ import type { SamplerDto } from "./SamplerDto";
 import type { UcPresetDto } from "./UcPresetDto";
 
 export type GenerateImageRequestDto = {
+  main_preset_id: string | null;
   prompt: string;
   model: ImageModelDto;
   size: ImageSizeDto;

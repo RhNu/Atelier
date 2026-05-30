@@ -70,6 +70,7 @@ impl VibeRepository for MemoryKernelPorts {
         &self,
         offset: usize,
         limit: usize,
+        include_hidden: bool,
     ) -> VibeDomainResult<Vec<VibeDocumentEntry>> {
         let mut entries = self
             .state
@@ -77,6 +78,7 @@ impl VibeRepository for MemoryKernelPorts {
             .unwrap()
             .vibe_documents
             .values()
+            .filter(|entry| include_hidden || !entry.summary.hidden)
             .cloned()
             .collect::<Vec<_>>();
         entries.sort_by(|left, right| {
@@ -93,8 +95,45 @@ impl VibeRepository for MemoryKernelPorts {
         Ok(entries.into_iter().skip(offset).take(limit).collect())
     }
 
-    async fn count_documents(&self) -> VibeDomainResult<usize> {
-        Ok(self.state.lock().unwrap().vibe_documents.len())
+    async fn count_documents(&self, include_hidden: bool) -> VibeDomainResult<usize> {
+        Ok(self
+            .state
+            .lock()
+            .unwrap()
+            .vibe_documents
+            .values()
+            .filter(|entry| include_hidden || !entry.summary.hidden)
+            .count())
+    }
+
+    async fn rename_document(
+        &self,
+        id: &VibeId,
+        display_name: String,
+        updated_at_ms: u64,
+    ) -> VibeDomainResult<Option<VibeDocumentEntry>> {
+        let mut state = self.state.lock().unwrap();
+        let Some(entry) = state.vibe_documents.get_mut(id.as_str()) else {
+            return Ok(None);
+        };
+        entry.summary.display_name = display_name;
+        entry.summary.updated_at_ms = updated_at_ms;
+        Ok(Some(entry.clone()))
+    }
+
+    async fn set_document_hidden(
+        &self,
+        id: &VibeId,
+        hidden: bool,
+        updated_at_ms: u64,
+    ) -> VibeDomainResult<Option<VibeDocumentEntry>> {
+        let mut state = self.state.lock().unwrap();
+        let Some(entry) = state.vibe_documents.get_mut(id.as_str()) else {
+            return Ok(None);
+        };
+        entry.summary.hidden = hidden;
+        entry.summary.updated_at_ms = updated_at_ms;
+        Ok(Some(entry.clone()))
     }
 
     async fn find_cached_encoding(

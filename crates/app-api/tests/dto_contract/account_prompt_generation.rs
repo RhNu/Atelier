@@ -170,6 +170,54 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
         .unwrap(),
         json!({ "query": "1girl", "limit": 20 })
     );
+    assert_eq!(
+        serde_json::to_value(ListPromptPresetsRequestDto {
+            kind: Some(PromptPresetKindDto::Main),
+            include_disabled: false,
+            offset: 0,
+            limit: 50,
+        })
+        .unwrap(),
+        json!({
+            "kind": "main",
+            "include_disabled": false,
+            "offset": 0,
+            "limit": 50
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(UpsertPromptPresetRequestDto {
+            preset_id: None,
+            kind: PromptPresetKindDto::Character,
+            name: "Hero".to_owned(),
+            category: None,
+            description: None,
+            order: 0,
+            enabled: true,
+            before: "red hair".to_owned(),
+            after: String::new(),
+            replace: String::new(),
+            uc_before: String::new(),
+            uc_after: "extra arms".to_owned(),
+            uc_replace: String::new(),
+            quality_override: None,
+            uc_preset_override: None,
+            preview: None,
+        })
+        .unwrap(),
+        json!({
+            "kind": "character",
+            "name": "Hero",
+            "order": 0,
+            "enabled": true,
+            "before": "red hair",
+            "after": "",
+            "replace": "",
+            "uc_before": "",
+            "uc_after": "extra arms",
+            "uc_replace": ""
+        })
+    );
 }
 
 #[test]
@@ -273,6 +321,7 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
             strength: 0.75,
         }]),
         characters: Some(vec![CharacterDto {
+            preset_id: None,
             prompt: "hero".to_owned(),
             negative_prompt: Some("lowres".to_owned()),
             position: CharacterPositionDto { x: 0.25, y: 0.75 },
@@ -440,9 +489,11 @@ fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
 #[test]
 fn generation_prompt_compile_preview_accepts_all_prompt_scopes() {
     let request = CompileGenerationPromptRequestDto {
+        main_preset_id: Some("preset-main".to_owned()),
         prompt: "@chunk(main)".to_owned(),
         negative_prompt: Some("@chunk(negative)".to_owned()),
         characters: vec![CompileGenerationCharacterPromptDto {
+            preset_id: Some("preset-character".to_owned()),
             prompt: "@chunk(hero)".to_owned(),
             negative_prompt: Some("@chunk(hero_negative)".to_owned()),
             enabled: true,
@@ -453,9 +504,11 @@ fn generation_prompt_compile_preview_accepts_all_prompt_scopes() {
     assert_eq!(
         serde_json::to_value(request).unwrap(),
         json!({
+            "main_preset_id": "preset-main",
             "prompt": "@chunk(main)",
             "negative_prompt": "@chunk(negative)",
             "characters": [{
+                "preset_id": "preset-character",
                 "prompt": "@chunk(hero)",
                 "negative_prompt": "@chunk(hero_negative)",
                 "enabled": true

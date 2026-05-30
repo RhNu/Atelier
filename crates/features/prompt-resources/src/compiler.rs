@@ -5,7 +5,10 @@ use atelier_prompt::{ExtensionCall, parse_prompt};
 
 use crate::functions::{PromptFunctionContext, PromptFunctionRegistry, PromptFunctionTraceEntry};
 use crate::text::{ExpandedPromptFragment, render_expanded_prompt_fragments};
-use crate::{PromptResourceError, PromptResourceReader, PromptResourceResult};
+use crate::{
+    PromptPreset, PromptPresetId, PromptPresetKind, PromptResourceError, PromptResourceReader,
+    PromptResourceResult,
+};
 
 const DEFAULT_MAX_EXPANSION_DEPTH: usize = 16;
 
@@ -36,6 +39,68 @@ pub struct PromptTrace {
     pub raw_prompt: String,
     pub expanded_prompt: String,
     pub function_calls: Vec<PromptFunctionTraceEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompileCharacterPromptRequest {
+    pub character_index: u32,
+    pub preset_id: Option<PromptPresetId>,
+    pub prompt: String,
+    pub negative_prompt: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompileGenerationPromptRequest {
+    pub main_preset_id: Option<PromptPresetId>,
+    pub prompt: String,
+    pub negative_prompt: String,
+    pub characters: Vec<CompileCharacterPromptRequest>,
+    pub max_depth: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompiledCharacterPrompt {
+    pub character_index: u32,
+    pub prompt: String,
+    pub negative_prompt: String,
+    pub trace: PromptTrace,
+    pub negative_trace: PromptTrace,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompiledGenerationPrompt {
+    pub prompt: String,
+    pub negative_prompt: String,
+    pub characters: Vec<CompiledCharacterPrompt>,
+    pub quality_override: Option<String>,
+    pub uc_preset_override: Option<String>,
+    pub trace: PromptOrchestrationTrace,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PromptOrchestrationTrace {
+    pub used_presets: Vec<UsedPromptPresetTrace>,
+    pub main_prompt: Option<PromptTrace>,
+    pub main_negative_prompt: Option<PromptTrace>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UsedPromptPresetTrace {
+    pub preset_id: PromptPresetId,
+    pub kind: PromptPresetKind,
+    pub name: String,
+}
+
+struct AppliedPromptFields {
+    prompt: String,
+    negative_prompt: String,
+}
+
+struct AppliedMainPromptFields {
+    prompt: String,
+    negative_prompt: String,
+    quality_override: Option<String>,
+    uc_preset_override: Option<String>,
 }
 
 pub struct PromptCompiler<R> {
@@ -92,6 +157,171 @@ where
                 function_calls: trace,
             },
         })
+    }
+
+    /// Applies prompt preset bindings, expands prompt functions, and returns
+    /// compiled generation prompt fields.
+    ///
+    /// # Errors
+    /// Returns an error when a referenced preset is missing or has the wrong
+    /// kind, or when prompt function expansion fails.
+    pub async fn compile_generation_prompt(
+        &self,
+        request: CompileGenerationPromptRequest,
+    ) -> PromptResourceResult<CompiledGenerationPrompt> {
+        let mut trace = PromptOrchestrationTrace::default();
+        let AppliedMainPromptFields {
+            prompt,
+            negative_prompt,
+            quality_override,
+            uc_preset_override,
+        } = self
+            .apply_main_preset(
+                request.main_preset_id.as_ref(),
+                request.prompt,
+                request.negative_prompt,
+                &mut trace,
+            )
+            .await?;
+
+        let prompt = self.compile_prompt_text(prompt, request.max_depth).await?;
+        let negative_prompt = self
+            .compile_prompt_text(negative_prompt, request.max_depth)
+            .await?;
+        trace.main_prompt = Some(prompt.trace.clone());
+        trace.main_negative_prompt = Some(negative_prompt.trace.clone());
+
+        let characters = self
+            .compile_character_prompts(request.characters, request.max_depth, &mut trace)
+            .await?;
+
+        Ok(CompiledGenerationPrompt {
+            prompt: prompt.expanded_prompt,
+            negative_prompt: negative_prompt.expanded_prompt,
+            characters,
+            quality_override,
+            uc_preset_override,
+            trace,
+        })
+    }
+
+    async fn compile_character_prompts(
+        &self,
+        characters: Vec<CompileCharacterPromptRequest>,
+        max_depth: usize,
+        trace: &mut PromptOrchestrationTrace,
+    ) -> PromptResourceResult<Vec<CompiledCharacterPrompt>> {
+        let mut compiled = Vec::with_capacity(characters.len());
+        for character in characters {
+            let character_index = character.character_index;
+            let AppliedPromptFields {
+                prompt,
+                negative_prompt,
+            } = self.apply_character_preset(character, trace).await?;
+            let compiled_prompt = self.compile_prompt_text(prompt, max_depth).await?;
+            let compiled_negative_prompt =
+                self.compile_prompt_text(negative_prompt, max_depth).await?;
+            compiled.push(CompiledCharacterPrompt {
+                character_index,
+                prompt: compiled_prompt.expanded_prompt,
+                negative_prompt: compiled_negative_prompt.expanded_prompt,
+                trace: compiled_prompt.trace,
+                negative_trace: compiled_negative_prompt.trace,
+            });
+        }
+        Ok(compiled)
+    }
+
+    async fn apply_main_preset(
+        &self,
+        preset_id: Option<&PromptPresetId>,
+        prompt: String,
+        negative_prompt: String,
+        trace: &mut PromptOrchestrationTrace,
+    ) -> PromptResourceResult<AppliedMainPromptFields> {
+        let Some(preset_id) = preset_id else {
+            return Ok(AppliedMainPromptFields {
+                prompt,
+                negative_prompt,
+                quality_override: None,
+                uc_preset_override: None,
+            });
+        };
+        let preset = self
+            .require_preset(preset_id, PromptPresetKind::Main)
+            .await?;
+        if !preset.enabled {
+            return Ok(AppliedMainPromptFields {
+                prompt,
+                negative_prompt,
+                quality_override: None,
+                uc_preset_override: None,
+            });
+        }
+        trace_used_preset(trace, &preset);
+        let fields = apply_preset_fields(&prompt, &negative_prompt, &preset);
+        Ok(AppliedMainPromptFields {
+            prompt: fields.prompt,
+            negative_prompt: fields.negative_prompt,
+            quality_override: preset.quality_override,
+            uc_preset_override: preset.uc_preset_override,
+        })
+    }
+
+    async fn apply_character_preset(
+        &self,
+        character: CompileCharacterPromptRequest,
+        trace: &mut PromptOrchestrationTrace,
+    ) -> PromptResourceResult<AppliedPromptFields> {
+        let Some(preset_id) = &character.preset_id else {
+            return Ok(AppliedPromptFields {
+                prompt: character.prompt,
+                negative_prompt: character.negative_prompt,
+            });
+        };
+        let preset = self
+            .require_preset(preset_id, PromptPresetKind::Character)
+            .await?;
+        if !preset.enabled {
+            return Ok(AppliedPromptFields {
+                prompt: character.prompt,
+                negative_prompt: character.negative_prompt,
+            });
+        }
+        trace_used_preset(trace, &preset);
+        Ok(apply_preset_fields(
+            &character.prompt,
+            &character.negative_prompt,
+            &preset,
+        ))
+    }
+
+    async fn compile_prompt_text(
+        &self,
+        prompt: String,
+        max_depth: usize,
+    ) -> PromptResourceResult<CompiledPrompt> {
+        self.compile(CompilePromptRequest { prompt, max_depth })
+            .await
+    }
+
+    async fn require_preset(
+        &self,
+        id: &PromptPresetId,
+        kind: PromptPresetKind,
+    ) -> PromptResourceResult<PromptPreset> {
+        let preset = self
+            .repository
+            .get_preset_by_id(id)
+            .await?
+            .ok_or_else(|| PromptResourceError::not_found("preset does not exist"))?;
+        if preset.kind != kind {
+            return Err(PromptResourceError::invalid_request(format!(
+                "preset `{}` has the wrong kind",
+                id.as_str()
+            )));
+        }
+        Ok(preset)
     }
 
     fn expand_text<'a>(
@@ -196,4 +426,42 @@ where
                 .await
         }
     }
+}
+
+fn apply_prompt_preset(base: &str, before: &str, after: &str, replace: &str) -> String {
+    let body = if replace.trim().is_empty() {
+        base
+    } else {
+        replace
+    };
+    render_expanded_prompt_fragments(
+        [before, body, after]
+            .into_iter()
+            .filter(|fragment| !fragment.trim().is_empty())
+            .map(|fragment| ExpandedPromptFragment::expansion(fragment.to_owned())),
+    )
+}
+
+fn apply_preset_fields(
+    prompt: &str,
+    negative_prompt: &str,
+    preset: &PromptPreset,
+) -> AppliedPromptFields {
+    AppliedPromptFields {
+        prompt: apply_prompt_preset(prompt, &preset.before, &preset.after, &preset.replace),
+        negative_prompt: apply_prompt_preset(
+            negative_prompt,
+            &preset.uc_before,
+            &preset.uc_after,
+            &preset.uc_replace,
+        ),
+    }
+}
+
+fn trace_used_preset(trace: &mut PromptOrchestrationTrace, preset: &PromptPreset) {
+    trace.used_presets.push(UsedPromptPresetTrace {
+        preset_id: preset.id.clone(),
+        kind: preset.kind,
+        name: preset.name.clone(),
+    });
 }

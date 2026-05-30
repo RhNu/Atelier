@@ -28,9 +28,24 @@ pub trait VibeRepository: Send + Sync {
         &self,
         offset: usize,
         limit: usize,
+        include_hidden: bool,
     ) -> VibeDomainResult<Vec<VibeDocumentEntry>>;
 
-    async fn count_documents(&self) -> VibeDomainResult<usize>;
+    async fn count_documents(&self, include_hidden: bool) -> VibeDomainResult<usize>;
+
+    async fn rename_document(
+        &self,
+        id: &VibeId,
+        display_name: String,
+        updated_at_ms: u64,
+    ) -> VibeDomainResult<Option<VibeDocumentEntry>>;
+
+    async fn set_document_hidden(
+        &self,
+        id: &VibeId,
+        hidden: bool,
+        updated_at_ms: u64,
+    ) -> VibeDomainResult<Option<VibeDocumentEntry>>;
 
     async fn find_cached_encoding(
         &self,

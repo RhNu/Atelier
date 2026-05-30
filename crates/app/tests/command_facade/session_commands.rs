@@ -109,6 +109,74 @@ fn account_and_prompt_chunk_commands_share_session() {
 }
 
 #[test]
+fn prompt_preset_commands_share_session() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host();
+        open_workspace(&host, &temp).await;
+
+        let preset = host
+            .upsert_prompt_preset(UpsertPromptPresetRequestDto {
+                preset_id: None,
+                kind: PromptPresetKindDto::Main,
+                name: "Main".to_owned(),
+                category: None,
+                description: None,
+                order: 0,
+                enabled: true,
+                before: "@chunk(hero)".to_owned(),
+                after: "sharp focus".to_owned(),
+                replace: String::new(),
+                uc_before: String::new(),
+                uc_after: String::new(),
+                uc_replace: String::new(),
+                quality_override: Some("qualityTagsV4".to_owned()),
+                uc_preset_override: Some("heavy".to_owned()),
+                preview: None,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(preset.kind, PromptPresetKindDto::Main);
+        assert_eq!(
+            host.list_prompt_presets(ListPromptPresetsRequestDto {
+                kind: Some(PromptPresetKindDto::Main),
+                include_disabled: false,
+                offset: 0,
+                limit: 10,
+            })
+            .await
+            .unwrap()
+            .total,
+            1
+        );
+    });
+}
+
+#[test]
+fn generation_prompt_compile_respects_requested_depth() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host();
+        open_workspace(&host, &temp).await;
+        upsert_hero_chunk(&host).await;
+
+        let error = host
+            .compile_generation_prompt_preview(CompileGenerationPromptRequestDto {
+                prompt: "@chunk(hero)".to_owned(),
+                main_preset_id: None,
+                negative_prompt: None,
+                characters: Vec::new(),
+                max_depth: 0,
+            })
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.code, "prompt_conflict");
+    });
+}
+
+#[test]
 fn resource_import_command_is_available_through_facade() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();

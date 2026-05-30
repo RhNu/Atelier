@@ -49,6 +49,7 @@ export type GenerationPreciseReferenceDraft = {
 
 export type GenerationCharacterDraft = {
   id: string;
+  presetId: string | null;
   prompt: string;
   negativePrompt: string;
   enabled: boolean;
@@ -56,6 +57,7 @@ export type GenerationCharacterDraft = {
 };
 
 export type GenerationDraft = {
+  mainPresetId: string | null;
   prompt: string;
   negativePrompt: string;
   model: ImageModelDto;
@@ -99,6 +101,7 @@ export function createGenerationDraft(settings: WorkspaceSettingsDto): Generatio
   const defaults = settings.generation;
 
   return {
+    mainPresetId: null,
     prompt: "",
     negativePrompt: "",
     model: defaults.model,
@@ -127,7 +130,7 @@ export function createGenerationDraft(settings: WorkspaceSettingsDto): Generatio
 }
 
 export function canSubmitGenerationDraft(draft: GenerationDraft): boolean {
-  return draft.prompt.trim().length > 0;
+  return draft.prompt.trim().length > 0 || Boolean(draft.mainPresetId);
 }
 
 export function createGenerationRunIds(requestCount = 1): GenerationRunIds {
@@ -177,6 +180,8 @@ export function buildGenerationEstimateCacheKey(
     nSamples: draft.nSamples,
     requestCount: draft.requestCount,
     strictMode: draft.strictMode,
+    mainPresetId: draft.mainPresetId,
+    characterPresetIds: draft.characters.map((character) => character.presetId ?? null),
     hasI2i: Boolean(draft.i2i),
     i2iStrength: draft.i2i?.strength ?? null,
     preciseReferenceCount: preciseReferences?.length ?? 0,
@@ -219,6 +224,7 @@ function buildBaseGenerateRequest(draft: GenerationDraft): GenerateImageRequestD
   const characters = buildCharacters(draft);
 
   return {
+    main_preset_id: draft.mainPresetId,
     prompt: draft.prompt,
     model: draft.model,
     size: { ...draft.size },
@@ -252,8 +258,12 @@ function buildBaseGenerateRequest(draft: GenerationDraft): GenerateImageRequestD
 
 function buildCharacters(draft: GenerationDraft): CharacterDto[] | null {
   const characters = draft.characters
-    .filter((character) => character.enabled && character.prompt.trim().length > 0)
+    .filter(
+      (character) =>
+        character.enabled && (character.prompt.trim().length > 0 || Boolean(character.presetId)),
+    )
     .map((character) => ({
+      preset_id: character.presetId,
       prompt: character.prompt,
       negative_prompt: normalizeOptionalText(character.negativePrompt),
       position:

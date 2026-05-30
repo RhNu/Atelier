@@ -59,8 +59,14 @@ struct VibeDocumentSummaryDto {
     document_id: String,
     display_name: String,
     has_image: bool,
+    #[serde(default)]
+    hidden: bool,
     available_model_keys: Vec<String>,
     available_encoding_configs: Vec<VibeEncodingConfigDto>,
+    #[serde(default)]
+    created_at_ms: u64,
+    #[serde(default)]
+    updated_at_ms: u64,
 }
 
 impl From<&VibeDocumentSummary> for VibeDocumentSummaryDto {
@@ -69,12 +75,15 @@ impl From<&VibeDocumentSummary> for VibeDocumentSummaryDto {
             document_id: value.document_id.as_str().to_owned(),
             display_name: value.display_name.clone(),
             has_image: value.has_image,
+            hidden: value.hidden,
             available_model_keys: value.available_model_keys.clone(),
             available_encoding_configs: value
                 .available_encoding_configs
                 .iter()
                 .map(VibeEncodingConfigDto::from)
                 .collect(),
+            created_at_ms: value.created_at_ms,
+            updated_at_ms: value.updated_at_ms,
         }
     }
 }
@@ -85,12 +94,15 @@ impl VibeDocumentSummaryDto {
             document_id: VibeId::new(self.document_id),
             display_name: self.display_name,
             has_image: self.has_image,
+            hidden: self.hidden,
             available_model_keys: self.available_model_keys,
             available_encoding_configs: self
                 .available_encoding_configs
                 .into_iter()
                 .map(VibeEncodingConfigDto::into_domain)
                 .collect::<DatabaseResult<Vec<_>>>()?,
+            created_at_ms: self.created_at_ms,
+            updated_at_ms: self.updated_at_ms,
         })
     }
 }

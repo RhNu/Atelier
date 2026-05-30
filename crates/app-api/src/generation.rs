@@ -135,6 +135,8 @@ impl Default for CharacterPositionDto {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct CharacterDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preset_id: Option<String>,
     pub prompt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub negative_prompt: Option<String>,
@@ -144,6 +146,8 @@ pub struct CharacterDto {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct GenerateImageRequestDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub main_preset_id: Option<String>,
     pub prompt: String,
     pub model: ImageModelDto,
     pub size: ImageSizeDto,
@@ -178,6 +182,7 @@ impl Default for GenerateImageRequestDto {
     fn default() -> Self {
         Self {
             prompt: String::new(),
+            main_preset_id: None,
             model: ImageModelDto::default(),
             size: ImageSizeDto::default(),
             negative_prompt: None,

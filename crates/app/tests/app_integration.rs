@@ -11,9 +11,9 @@ use atelier_app_api::gallery::{
     GalleryQueryDto, GallerySafetyLabelDto, GallerySafetyRiskBandDto, GallerySourceKindDto,
 };
 use atelier_app_api::generation::{
-    GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationPlanContextDto,
-    GenerationWorkRequestDto, ImageModelDto, Img2ImgRequestDto, QueueDirectiveDto, StreamModeDto,
-    SubmitGenerationRequestDto,
+    GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationEstimateRequestDto,
+    GenerationPlanContextDto, GenerationWorkRequestDto, ImageModelDto, Img2ImgRequestDto,
+    QueueDirectiveDto, StreamModeDto, SubmitGenerationRequestDto,
 };
 use atelier_app_api::history::{
     RerunGenerationHistoryItemRequestDto, RunHistoryKindDto, RunHistoryQueryDto,

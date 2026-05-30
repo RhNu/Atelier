@@ -2,6 +2,7 @@
 import type { CompileGenerationCharacterPromptDto } from "./CompileGenerationCharacterPromptDto";
 
 export type CompileGenerationPromptRequestDto = {
+  main_preset_id: string | null;
   prompt: string;
   negative_prompt: string | null;
   characters: Array<CompileGenerationCharacterPromptDto>;

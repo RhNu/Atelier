@@ -11,6 +11,7 @@ import {
 import type {
   DeleteGalleryItemsRequestDto,
   GalleryQueryDto,
+  GalleryImageReferenceRequestDto,
   ResourceRefDto,
   SaveResourceImageRequestDto,
   SetGallerySafetyOverrideRequestDto,
@@ -76,5 +77,11 @@ export function useDeleteGalleryItemsMutation() {
 export function useSaveGalleryImageMutation() {
   return useMutation({
     mutationFn: (request: SaveResourceImageRequestDto) => desktopApi.saveResourceImage(request),
+  });
+}
+
+export function useGalleryImageReferenceMutation() {
+  return useMutation({
+    mutationFn: (request: GalleryImageReferenceRequestDto) => galleryApi.imageReference(request),
   });
 }

@@ -174,8 +174,11 @@ pub struct VibeDocumentSummary {
     pub document_id: VibeId,
     pub display_name: String,
     pub has_image: bool,
+    pub hidden: bool,
     pub available_model_keys: Vec<String>,
     pub available_encoding_configs: Vec<VibeEncodingConfig>,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

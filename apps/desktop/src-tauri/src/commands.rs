@@ -39,9 +39,11 @@ use atelier_app_api::{
     prompt::{
         CompileGenerationPromptRequestDto, CompilePromptRequestDto, CompiledGenerationPromptDto,
         CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
-        GetPromptChunkRequestDto, ListPromptChunksRequestDto, PromptChunkDto, PromptChunkPageDto,
-        PromptLexiconCatalogDto, PromptLexiconListQueryDto, PromptLexiconPageDto,
-        PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
+        DeletePromptPresetRequestDto, DeletePromptPresetResponseDto, GetPromptChunkRequestDto,
+        ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptChunkDto,
+        PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
+        PromptLexiconPageDto, PromptLexiconSearchQueryDto, PromptPresetDto, PromptPresetPageDto,
+        UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
     },
     resource::{
         GetResourceImageRequestDto, ImageResourceKindDto, ImportImageResourceRequestDto,
@@ -54,7 +56,8 @@ use atelier_app_api::{
         EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
         GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
         ImportVibeDocumentRequestDto, ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto,
-        VibeDocumentEntryDto, VibeDocumentPageDto,
+        RenameVibeDocumentRequestDto, SetVibeDocumentHiddenRequestDto, VibeDocumentEntryDto,
+        VibeDocumentPageDto,
     },
     workspace::{CloseWorkspaceResponseDto, OpenWorkspaceRequestDto, WorkspaceStatusDto},
 };
@@ -323,6 +326,30 @@ pub async fn delete_prompt_chunk(
 }
 
 #[tauri::command]
+pub async fn upsert_prompt_preset(
+    state: State<'_, DesktopState>,
+    request: UpsertPromptPresetRequestDto,
+) -> CommandResult<PromptPresetDto> {
+    state.host.upsert_prompt_preset(request).await
+}
+
+#[tauri::command]
+pub async fn list_prompt_presets(
+    state: State<'_, DesktopState>,
+    request: ListPromptPresetsRequestDto,
+) -> CommandResult<PromptPresetPageDto> {
+    state.host.list_prompt_presets(request).await
+}
+
+#[tauri::command]
+pub async fn delete_prompt_preset(
+    state: State<'_, DesktopState>,
+    request: DeletePromptPresetRequestDto,
+) -> CommandResult<DeletePromptPresetResponseDto> {
+    state.host.delete_prompt_preset(request).await
+}
+
+#[tauri::command]
 pub async fn compile_prompt_preview(
     state: State<'_, DesktopState>,
     request: CompilePromptRequestDto,
@@ -412,11 +439,11 @@ pub async fn submit_generation_batch(
 }
 
 #[tauri::command]
-pub fn estimate_generation(
+pub async fn estimate_generation(
     state: State<'_, DesktopState>,
     request: GenerationEstimateRequestDto,
 ) -> CommandResult<GenerationAnlasEstimateDto> {
-    state.host.estimate_generation(&request)
+    state.host.estimate_generation(request).await
 }
 
 #[tauri::command]
@@ -527,6 +554,22 @@ pub async fn get_vibe_document(
     request: GetVibeDocumentRequestDto,
 ) -> CommandResult<VibeDocumentEntryDto> {
     state.host.get_vibe_document(request).await
+}
+
+#[tauri::command]
+pub async fn rename_vibe_document(
+    state: State<'_, DesktopState>,
+    request: RenameVibeDocumentRequestDto,
+) -> CommandResult<VibeDocumentEntryDto> {
+    state.host.rename_vibe_document(request).await
+}
+
+#[tauri::command]
+pub async fn set_vibe_document_hidden(
+    state: State<'_, DesktopState>,
+    request: SetVibeDocumentHiddenRequestDto,
+) -> CommandResult<VibeDocumentEntryDto> {
+    state.host.set_vibe_document_hidden(request).await
 }
 
 #[tauri::command]

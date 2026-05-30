@@ -4,8 +4,10 @@ use super::{
     PromptLexiconCatalogDto, PromptLexiconCategorySummaryDto, PromptLexiconEntry,
     PromptLexiconEntryDto, PromptLexiconListPage, PromptLexiconListQuery,
     PromptLexiconListQueryDto, PromptLexiconMatchField, PromptLexiconMatchRank,
-    PromptLexiconPageDto, PromptLexiconStatsDto, PromptLexiconSubcategorySummaryDto, PromptTrace,
-    PromptTraceDto, UpsertPromptChunkRequest, UpsertPromptChunkRequestDto, resource_ref_from_dto,
+    PromptLexiconPageDto, PromptLexiconStatsDto, PromptLexiconSubcategorySummaryDto, PromptPreset,
+    PromptPresetDto, PromptPresetId, PromptPresetKind, PromptPresetKindDto, PromptTrace,
+    PromptTraceDto, UpsertPromptChunkRequest, UpsertPromptChunkRequestDto,
+    UpsertPromptPresetRequest, UpsertPromptPresetRequestDto, resource_ref_from_dto,
     resource_ref_to_dto,
 };
 
@@ -19,6 +21,66 @@ pub fn prompt_chunk_to_dto(chunk: &PromptChunk) -> PromptChunkDto {
         preview: chunk.preview_thumb.as_ref().map(resource_ref_to_dto),
         created_at_ms: chunk.created_at_ms,
         updated_at_ms: chunk.updated_at_ms,
+    }
+}
+
+pub fn prompt_preset_to_dto(preset: &PromptPreset) -> PromptPresetDto {
+    PromptPresetDto {
+        preset_id: preset.id.as_str().to_owned(),
+        kind: prompt_preset_kind_to_dto(preset.kind),
+        name: preset.name.clone(),
+        category: preset.category.clone(),
+        description: preset.description.clone(),
+        order: preset.order,
+        enabled: preset.enabled,
+        before: preset.before.clone(),
+        after: preset.after.clone(),
+        replace: preset.replace.clone(),
+        uc_before: preset.uc_before.clone(),
+        uc_after: preset.uc_after.clone(),
+        uc_replace: preset.uc_replace.clone(),
+        quality_override: preset.quality_override.clone(),
+        uc_preset_override: preset.uc_preset_override.clone(),
+        preview: preset.preview_thumb.as_ref().map(resource_ref_to_dto),
+        created_at_ms: preset.created_at_ms,
+        updated_at_ms: preset.updated_at_ms,
+    }
+}
+
+pub fn upsert_prompt_preset_to_domain(
+    request: UpsertPromptPresetRequestDto,
+) -> UpsertPromptPresetRequest {
+    UpsertPromptPresetRequest {
+        preset_id: request.preset_id.map(PromptPresetId::new),
+        kind: prompt_preset_kind_to_domain(request.kind),
+        name: request.name,
+        category: request.category,
+        description: request.description,
+        order: request.order,
+        enabled: request.enabled,
+        before: request.before,
+        after: request.after,
+        replace: request.replace,
+        uc_before: request.uc_before,
+        uc_after: request.uc_after,
+        uc_replace: request.uc_replace,
+        quality_override: request.quality_override,
+        uc_preset_override: request.uc_preset_override,
+        preview_thumb: request.preview.map(resource_ref_from_dto),
+    }
+}
+
+pub const fn prompt_preset_kind_to_domain(value: PromptPresetKindDto) -> PromptPresetKind {
+    match value {
+        PromptPresetKindDto::Main => PromptPresetKind::Main,
+        PromptPresetKindDto::Character => PromptPresetKind::Character,
+    }
+}
+
+pub const fn prompt_preset_kind_to_dto(value: PromptPresetKind) -> PromptPresetKindDto {
+    match value {
+        PromptPresetKind::Main => PromptPresetKindDto::Main,
+        PromptPresetKind::Character => PromptPresetKindDto::Character,
     }
 }
 
@@ -42,7 +104,7 @@ pub fn compiled_prompt_to_dto(value: &CompiledPrompt) -> CompiledPromptDto {
     }
 }
 
-fn prompt_trace_to_dto(value: &PromptTrace) -> PromptTraceDto {
+pub fn prompt_trace_to_dto(value: &PromptTrace) -> PromptTraceDto {
     PromptTraceDto {
         raw_prompt: value.raw_prompt.clone(),
         expanded_prompt: value.expanded_prompt.clone(),

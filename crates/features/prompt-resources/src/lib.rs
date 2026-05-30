@@ -9,7 +9,11 @@ mod references;
 mod service;
 mod text;
 
-pub use compiler::{CompilePromptRequest, CompiledPrompt, PromptCompiler, PromptTrace};
+pub use compiler::{
+    CompileCharacterPromptRequest, CompileGenerationPromptRequest, CompilePromptRequest,
+    CompiledCharacterPrompt, CompiledGenerationPrompt, CompiledPrompt, PromptCompiler,
+    PromptOrchestrationTrace, PromptTrace, UsedPromptPresetTrace,
+};
 pub use error::{
     PromptFunctionCycle, PromptResourceError, PromptResourceErrorKind, PromptResourceResult,
 };
@@ -18,9 +22,10 @@ pub use functions::{
     PromptFunctionRegistry, PromptFunctionTraceEntry,
 };
 pub use model::{
-    ChunkReference, DeletePromptChunkResult, PromptChunk, PromptChunkId, PromptChunkKey,
-    UpsertPromptChunkRequest,
+    ChunkReference, DeletePromptChunkResult, DeletePromptPresetResult, PromptChunk, PromptChunkId,
+    PromptChunkKey, PromptPreset, PromptPresetId, PromptPresetKind, UpsertPromptChunkRequest,
+    UpsertPromptPresetRequest,
 };
 pub use ports::{PromptResourceReader, PromptResourceRepository};
 pub use references::{chunk_references_in_text, rewrite_chunk_references};
-pub use service::PromptChunkService;
+pub use service::{PromptChunkService, PromptPresetService};

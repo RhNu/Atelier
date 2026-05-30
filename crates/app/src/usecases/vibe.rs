@@ -3,9 +3,10 @@ use super::{
     EnsuredVibeEncodingDto, ExportVibeDocument, ExportVibeDocumentRequestDto,
     ExportedVibeDocumentDto, GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocument,
     ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocument, ImportVibeDocumentRequestDto,
-    ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto, NovelAiClientFactory, STANDARD,
-    SecretStore, VibeDocumentEntryDto, VibeDocumentPageDto, VibeEncodeSettings, VibeId,
-    VibeSourceIdentity, ensured_vibe_to_dto, exported_vibe_to_dto, imported_vibes_to_dto,
+    ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto, NovelAiClientFactory,
+    RenameVibeDocumentRequestDto, STANDARD, SecretStore, SetVibeDocumentHiddenRequestDto,
+    VibeDocumentEntryDto, VibeDocumentPageDto, VibeEncodeSettings, VibeId, VibeSourceIdentity,
+    ensured_vibe_to_dto, exported_vibe_to_dto, imported_vibes_to_dto, unix_timestamp_ms,
     vibe_entry_to_dto, vibe_format_to_domain, vibe_model_to_domain,
 };
 use atelier_vibe::VibeRepository;
@@ -74,12 +75,12 @@ where
             let kernel = self.app.inner.kernel.lock().await;
             let entries = kernel
                 .ports()
-                .list_documents(request.offset, request.limit)
+                .list_documents(request.offset, request.limit, request.include_hidden)
                 .await
                 .map_err(AppError::from)?;
             let total = kernel
                 .ports()
-                .count_documents()
+                .count_documents(request.include_hidden)
                 .await
                 .map_err(AppError::from)?;
             drop(kernel);
@@ -91,6 +92,55 @@ where
             offset: request.offset,
             limit: request.limit,
         })
+    }
+
+    pub async fn rename_document(
+        &self,
+        request: RenameVibeDocumentRequestDto,
+    ) -> AppResult<VibeDocumentEntryDto> {
+        let display_name = request.display_name.trim();
+        if display_name.is_empty() {
+            return Err(AppError::new(
+                "vibe_invalid_settings",
+                "vibe display name cannot be empty",
+            ));
+        }
+        let entry = {
+            let kernel = self.app.inner.kernel.lock().await;
+            let entry = kernel
+                .ports()
+                .rename_document(
+                    &VibeId::new(request.vibe_id),
+                    display_name.to_owned(),
+                    unix_timestamp_ms(),
+                )
+                .await
+                .map_err(AppError::from)?;
+            drop(kernel);
+            entry.ok_or_else(|| AppError::new("vibe_not_found", "vibe document does not exist"))?
+        };
+        Ok(vibe_entry_to_dto(entry))
+    }
+
+    pub async fn set_document_hidden(
+        &self,
+        request: SetVibeDocumentHiddenRequestDto,
+    ) -> AppResult<VibeDocumentEntryDto> {
+        let entry = {
+            let kernel = self.app.inner.kernel.lock().await;
+            let entry = kernel
+                .ports()
+                .set_document_hidden(
+                    &VibeId::new(request.vibe_id),
+                    request.hidden,
+                    unix_timestamp_ms(),
+                )
+                .await
+                .map_err(AppError::from)?;
+            drop(kernel);
+            entry.ok_or_else(|| AppError::new("vibe_not_found", "vibe document does not exist"))?
+        };
+        Ok(vibe_entry_to_dto(entry))
     }
 
     pub async fn get_document(

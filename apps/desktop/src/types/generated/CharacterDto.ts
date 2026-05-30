@@ -2,6 +2,7 @@
 import type { CharacterPositionDto } from "./CharacterPositionDto";
 
 export type CharacterDto = {
+  preset_id: string | null;
   prompt: string;
   negative_prompt: string | null;
   position: CharacterPositionDto;

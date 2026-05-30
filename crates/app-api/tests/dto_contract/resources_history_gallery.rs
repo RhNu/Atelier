@@ -65,11 +65,14 @@ fn vibe_catalog_dtos_have_stable_metadata_shapes() {
         vibe_id: "vibe-1".to_owned(),
         display_name: "Style A".to_owned(),
         has_image: true,
+        hidden: false,
         available_model_keys: vec!["v4-5full".to_owned()],
         available_encoding_configs: vec![VibeEncodingConfigDto {
             model: VibeModelDto::NaiDiffusion45Full,
             information_extracted: 0.7,
         }],
+        created_at_ms: 10,
+        updated_at_ms: 20,
         document: ResourceRefDto {
             id: "vibe-document:vibe-1".to_owned(),
             variant_id: None,
@@ -92,9 +95,10 @@ fn vibe_catalog_dtos_have_stable_metadata_shapes() {
         serde_json::to_value(ListVibeDocumentsRequestDto {
             offset: 0,
             limit: 20,
+            include_hidden: true,
         })
         .unwrap(),
-        json!({ "offset": 0, "limit": 20 })
+        json!({ "offset": 0, "limit": 20, "include_hidden": true })
     );
     assert_eq!(
         serde_json::to_value(GetVibeDocumentRequestDto {
@@ -116,11 +120,14 @@ fn vibe_catalog_dtos_have_stable_metadata_shapes() {
                 "vibe_id": "vibe-1",
                 "display_name": "Style A",
                 "has_image": true,
+                "hidden": false,
                 "available_model_keys": ["v4-5full"],
                 "available_encoding_configs": [{
                     "model": "nai-diffusion-4-5-full",
                     "information_extracted": 0.7_f32
                 }],
+                "created_at_ms": 10,
+                "updated_at_ms": 20,
                 "document": { "id": "vibe-document:vibe-1" },
                 "source_image": { "id": "vibe-source:vibe-1" },
                 "preview": { "id": "vibe-preview:vibe-1" },

@@ -147,6 +147,182 @@ fn valid_generated_images_get_best_effort_gallery_variants() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
+fn generation_submit_applies_prompt_presets_before_queueing_work() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let secrets = MemorySecretStore::default();
+        let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
+        let app = AtelierApp::open_workspace_with_dependencies(
+            temp.path().to_path_buf(),
+            secrets,
+            factory.clone(),
+        )
+        .await
+        .unwrap();
+
+        app.account()
+            .create_api_key(CreateApiKeyRequestDto {
+                id: "main".to_owned(),
+                display_name: "Main".to_owned(),
+                secret: "active-secret".to_owned(),
+            })
+            .await
+            .unwrap();
+        app.account().set_active_api_key("main").await.unwrap();
+        app.prompt()
+            .upsert_chunk(atelier_app_api::prompt::UpsertPromptChunkRequestDto {
+                chunk_id: None,
+                key: "lighting".to_owned(),
+                content: "cinematic lighting".to_owned(),
+                category: None,
+                description: None,
+                preview: None,
+            })
+            .await
+            .unwrap();
+        let main = app
+            .prompt()
+            .upsert_preset(atelier_app_api::prompt::UpsertPromptPresetRequestDto {
+                preset_id: None,
+                kind: atelier_app_api::prompt::PromptPresetKindDto::Main,
+                name: "Main".to_owned(),
+                category: None,
+                description: None,
+                order: 0,
+                enabled: true,
+                before: "@chunk(lighting)".to_owned(),
+                after: "sharp focus".to_owned(),
+                replace: String::new(),
+                uc_before: "bad anatomy".to_owned(),
+                uc_after: String::new(),
+                uc_replace: String::new(),
+                quality_override: None,
+                uc_preset_override: Some("heavy".to_owned()),
+                preview: None,
+            })
+            .await
+            .unwrap();
+        let character = app
+            .prompt()
+            .upsert_preset(atelier_app_api::prompt::UpsertPromptPresetRequestDto {
+                preset_id: None,
+                kind: atelier_app_api::prompt::PromptPresetKindDto::Character,
+                name: "Hero".to_owned(),
+                category: None,
+                description: None,
+                order: 0,
+                enabled: true,
+                before: "red hair".to_owned(),
+                after: String::new(),
+                replace: String::new(),
+                uc_before: String::new(),
+                uc_after: "extra arms".to_owned(),
+                uc_replace: String::new(),
+                quality_override: None,
+                uc_preset_override: None,
+                preview: None,
+            })
+            .await
+            .unwrap();
+
+        app.generation()
+            .submit(SubmitGenerationRequestDto {
+                batch_id: "batch-1".to_owned(),
+                job_id: "job-1".to_owned(),
+                work: GenerationWorkRequestDto::Image(GenerateImageRequestDto {
+                    main_preset_id: Some(main.preset_id),
+                    prompt: "1girl".to_owned(),
+                    negative_prompt: Some("lowres".to_owned()),
+                    characters: Some(vec![atelier_app_api::generation::CharacterDto {
+                        preset_id: Some(character.preset_id),
+                        prompt: "solo".to_owned(),
+                        negative_prompt: Some("worst quality".to_owned()),
+                        position: atelier_app_api::generation::CharacterPositionDto::default(),
+                        enabled: true,
+                    }]),
+                    ..GenerateImageRequestDto::default()
+                }),
+                context: GenerationPlanContextDto::default(),
+            })
+            .await
+            .unwrap();
+        app.generation().run_job("job-1").await.unwrap();
+
+        let request = factory.generated_requests().remove(0);
+        assert_eq!(request.prompt, "cinematic lighting, 1girl, sharp focus");
+        assert_eq!(
+            request.negative_prompt,
+            Some("bad anatomy, lowres".to_owned())
+        );
+        assert_eq!(request.uc_preset, atelier_generation::UcPreset::Heavy);
+        let character = request.characters.unwrap().remove(0);
+        assert_eq!(character.prompt, "red hair, solo");
+        assert_eq!(
+            character.negative_prompt,
+            Some("worst quality, extra arms".to_owned())
+        );
+    });
+}
+
+#[test]
+fn generation_estimate_applies_character_prompt_presets() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let app = AtelierApp::open_workspace_with_dependencies(
+            temp.path().to_path_buf(),
+            MemorySecretStore::default(),
+            RecordingFactory::default(),
+        )
+        .await
+        .unwrap();
+        let character = app
+            .prompt()
+            .upsert_preset(atelier_app_api::prompt::UpsertPromptPresetRequestDto {
+                preset_id: None,
+                kind: atelier_app_api::prompt::PromptPresetKindDto::Character,
+                name: "Hero".to_owned(),
+                category: None,
+                description: None,
+                order: 0,
+                enabled: true,
+                before: "red hair".to_owned(),
+                after: String::new(),
+                replace: String::new(),
+                uc_before: String::new(),
+                uc_after: String::new(),
+                uc_replace: String::new(),
+                quality_override: None,
+                uc_preset_override: None,
+                preview: None,
+            })
+            .await
+            .unwrap();
+
+        let estimate = app
+            .generation()
+            .estimate(GenerationEstimateRequestDto {
+                request: GenerateImageRequestDto {
+                    prompt: "1girl".to_owned(),
+                    characters: Some(vec![atelier_app_api::generation::CharacterDto {
+                        preset_id: Some(character.preset_id),
+                        prompt: String::new(),
+                        negative_prompt: None,
+                        position: atelier_app_api::generation::CharacterPositionDto::default(),
+                        enabled: true,
+                    }]),
+                    ..GenerateImageRequestDto::default()
+                },
+                context: GenerationPlanContextDto::default(),
+            })
+            .await
+            .unwrap();
+
+        assert!(estimate.total_cost > 0);
+    });
+}
+
+#[test]
 fn valid_streamed_images_get_best_effort_gallery_variants() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();

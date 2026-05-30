@@ -6,8 +6,11 @@ export type VibeDocumentEntryDto = {
   vibe_id: string;
   display_name: string;
   has_image: boolean;
+  hidden: boolean;
   available_model_keys: Array<string>;
   available_encoding_configs: Array<VibeEncodingConfigDto>;
+  created_at_ms: number;
+  updated_at_ms: number;
   document: ResourceRefDto;
   source_image: ResourceRefDto | null;
   preview: ResourceRefDto | null;

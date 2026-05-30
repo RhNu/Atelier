@@ -1,9 +1,11 @@
 use atelier_app_api::prompt::{
     CompileGenerationPromptRequestDto, CompilePromptRequestDto, CompiledGenerationPromptDto,
     CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
-    GetPromptChunkRequestDto, ListPromptChunksRequestDto, PromptChunkDto, PromptChunkPageDto,
+    DeletePromptPresetRequestDto, DeletePromptPresetResponseDto, GetPromptChunkRequestDto,
+    ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkPageDto,
     PromptLexiconCatalogDto, PromptLexiconListQueryDto, PromptLexiconPageDto,
-    PromptLexiconSearchQueryDto, UpsertPromptChunkRequestDto,
+    PromptLexiconSearchQueryDto, PromptPresetDto, PromptPresetPageDto, UpsertPromptChunkRequestDto,
+    UpsertPromptPresetRequestDto,
 };
 
 use crate::commands::{AppCommandHost, CommandResult};
@@ -56,6 +58,39 @@ where
         request: DeletePromptChunkRequestDto,
     ) -> CommandResult<DeletePromptChunkResponseDto> {
         Self::command_result(self.current_app()?.prompt().delete_chunk(request).await)
+    }
+
+    /// Creates or updates a prompt preset.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open, validation fails, or prompt storage fails.
+    pub async fn upsert_prompt_preset(
+        &self,
+        request: UpsertPromptPresetRequestDto,
+    ) -> CommandResult<PromptPresetDto> {
+        Self::command_result(self.current_app()?.prompt().upsert_preset(request).await)
+    }
+
+    /// Lists prompt presets with offset and limit.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or prompt storage fails.
+    pub async fn list_prompt_presets(
+        &self,
+        request: ListPromptPresetsRequestDto,
+    ) -> CommandResult<PromptPresetPageDto> {
+        Self::command_result(self.current_app()?.prompt().list_presets(request).await)
+    }
+
+    /// Deletes a prompt preset.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or prompt storage fails.
+    pub async fn delete_prompt_preset(
+        &self,
+        request: DeletePromptPresetRequestDto,
+    ) -> CommandResult<DeletePromptPresetResponseDto> {
+        Self::command_result(self.current_app()?.prompt().delete_preset(request).await)
     }
 
     /// Compiles a prompt preview using persisted prompt resources.

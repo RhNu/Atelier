@@ -3,7 +3,8 @@ use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
     ExportedVibeDocumentDto, GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
     ImportVibeDocumentRequestDto, ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto,
-    VibeDocumentEntryDto, VibeDocumentPageDto,
+    RenameVibeDocumentRequestDto, SetVibeDocumentHiddenRequestDto, VibeDocumentEntryDto,
+    VibeDocumentPageDto,
 };
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
@@ -85,5 +86,32 @@ where
         request: EnsureVibeEncodingRequestDto,
     ) -> CommandResult<EnsuredVibeEncodingDto> {
         Self::command_result(self.current_app()?.vibe().ensure_encoding(request).await)
+    }
+
+    /// Renames a managed Vibe document.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open, the name is invalid, or the Vibe document is missing.
+    pub async fn rename_vibe_document(
+        &self,
+        request: RenameVibeDocumentRequestDto,
+    ) -> CommandResult<VibeDocumentEntryDto> {
+        Self::command_result(self.current_app()?.vibe().rename_document(request).await)
+    }
+
+    /// Soft-hides or restores a managed Vibe document.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or the Vibe document is missing.
+    pub async fn set_vibe_document_hidden(
+        &self,
+        request: SetVibeDocumentHiddenRequestDto,
+    ) -> CommandResult<VibeDocumentEntryDto> {
+        Self::command_result(
+            self.current_app()?
+                .vibe()
+                .set_document_hidden(request)
+                .await,
+        )
     }
 }

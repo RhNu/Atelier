@@ -12,14 +12,16 @@ use atelier_app_api::generation::{
     GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationAnlasEstimateDto,
     GenerationEstimateRequestDto, GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto,
     QueueDirectiveDto, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
-    SubmitGenerationRequestDto,
+    SubmitGenerationRequestDto, UcPresetDto,
 };
 use atelier_app_api::prompt::{
     CompileGenerationPromptRequestDto, CompilePromptRequestDto,
     CompiledGenerationCharacterPromptDto, CompiledGenerationPromptDto, CompiledPromptDto,
-    DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, GetPromptChunkRequestDto,
-    ListPromptChunksRequestDto, PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto,
-    PromptLexiconListQueryDto, PromptLexiconPageDto, UpsertPromptChunkRequestDto,
+    DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, DeletePromptPresetRequestDto,
+    DeletePromptPresetResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
+    ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto,
+    PromptLexiconListQueryDto, PromptLexiconPageDto, PromptPresetDto, PromptPresetPageDto,
+    UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
 };
 use atelier_app_api::resource::ImageInputDto;
 use atelier_app_api::settings::{
@@ -29,7 +31,8 @@ use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
     ExportedVibeDocumentDto, GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
     ImportVibeDocumentRequestDto, ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto,
-    VibeDocumentEntryDto, VibeDocumentPageDto,
+    RenameVibeDocumentRequestDto, SetVibeDocumentHiddenRequestDto, VibeDocumentEntryDto,
+    VibeDocumentPageDto,
 };
 use atelier_app_api::workspace::WorkspaceStatusDto;
 use atelier_artifacts::{ArtifactSource, VisualAssetRole};
@@ -48,7 +51,10 @@ use atelier_kernel::{
     EnsureVibeEncoding, ExportVibeDocument, GenerationWorkRequest, ImportEmbeddedPngVibeDocument,
     ImportVibeDocument, RunDirectorTool, SubmitGenerationBatch, SubmitGenerationBatchJob,
 };
-use atelier_prompt_resources::{CompilePromptRequest, PromptChunkId, PromptChunkKey};
+use atelier_prompt_resources::{
+    CompileCharacterPromptRequest, CompileGenerationPromptRequest, CompilePromptRequest,
+    PromptChunkId, PromptChunkKey, PromptPresetId,
+};
 use atelier_resource_catalog::ResourceVariantKind;
 use atelier_secrets::{ApiKeyId, SecretStore, SecretValue, SecretsErrorKind};
 use atelier_vibe::{VibeEncodeSettings, VibeId, VibeSourceIdentity};
@@ -71,10 +77,12 @@ use crate::mapping::{
     gallery_query_to_domain, generation_status_to_dto, image_format_to_domain,
     image_model_to_domain, image_reference_target_to_domain, imported_vibes_to_dto,
     lexicon_catalog_to_dto, lexicon_page_to_dto, lexicon_query_to_domain, lexicon_search_to_page,
-    noise_schedule_to_domain, plan_context_to_domain, prompt_chunk_to_dto, queue_directive_to_dto,
-    resource_ref_from_dto, resource_ref_to_dto, safety_override_to_domain, sampler_to_domain,
-    stream_mode_to_domain, subscription_to_dto, uc_preset_to_domain, upsert_prompt_chunk_to_domain,
-    vibe_entry_to_dto, vibe_format_to_domain, vibe_model_to_domain, workspace_settings_to_domain,
+    noise_schedule_to_domain, plan_context_to_domain, prompt_chunk_to_dto,
+    prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
+    queue_directive_to_dto, resource_ref_from_dto, resource_ref_to_dto, safety_override_to_domain,
+    sampler_to_domain, stream_mode_to_domain, subscription_to_dto, uc_preset_to_domain,
+    upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain, vibe_entry_to_dto,
+    vibe_format_to_domain, vibe_model_to_domain, workspace_settings_to_domain,
     workspace_settings_to_dto,
 };
 use crate::{AppError, AppResult};
@@ -94,7 +102,6 @@ pub use director::DirectorUseCases;
 pub use events::EventsUseCases;
 pub use gallery::GalleryUseCases;
 pub use generation::GenerationUseCases;
-pub use generation::estimate_generation_anlas;
 pub use prompt::PromptUseCases;
 pub use settings::SettingsUseCases;
 pub use vibe::VibeUseCases;

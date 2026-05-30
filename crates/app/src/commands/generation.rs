@@ -8,7 +8,6 @@ use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
 use crate::commands::{AppCommandHost, CommandResult};
-use crate::usecases::estimate_generation_anlas;
 
 impl<S, F, E> AppCommandHost<S, F, E>
 where
@@ -42,12 +41,11 @@ where
     ///
     /// # Errors
     /// Returns an error envelope when no workspace is open or the estimate request is invalid.
-    pub fn estimate_generation(
+    pub async fn estimate_generation(
         &self,
-        request: &GenerationEstimateRequestDto,
+        request: GenerationEstimateRequestDto,
     ) -> CommandResult<GenerationAnlasEstimateDto> {
-        self.current_app()?;
-        Self::command_result(estimate_generation_anlas(request))
+        Self::command_result(self.current_app()?.generation().estimate(request).await)
     }
 
     /// Runs one scheduled generation job.

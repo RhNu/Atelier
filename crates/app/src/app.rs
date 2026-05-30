@@ -23,7 +23,7 @@ use atelier_gallery::GalleryService;
 use atelier_jobs::JobQueueRepository;
 use atelier_kernel::KernelRuntime;
 use atelier_prompt_lexicon::PromptLexicon;
-use atelier_prompt_resources::{PromptChunkService, PromptCompiler};
+use atelier_prompt_resources::{PromptChunkService, PromptCompiler, PromptPresetService};
 use atelier_resource_catalog::ResourceCatalog;
 use atelier_safety::SafetyScanner;
 use atelier_secrets::{ApiKeyRegistryService, SecretStore};
@@ -63,6 +63,7 @@ pub struct AppInner<S, F, E> {
     pub settings: SettingsService<DatabaseSettingsRepository>,
     pub settings_state: SharedWorkspaceSettings,
     pub prompt_chunks: PromptChunkService<DatabasePromptResourceRepository>,
+    pub prompt_presets: PromptPresetService<DatabasePromptResourceRepository>,
     pub prompt_compiler: PromptCompiler<DatabasePromptResourceRepository>,
     pub lexicon: PromptLexicon,
     pub gallery: AppGalleryService,
@@ -250,7 +251,8 @@ where
                 api_keys,
                 settings,
                 settings_state,
-                prompt_chunks: PromptChunkService::new(prompt_repository),
+                prompt_chunks: PromptChunkService::new(prompt_repository.clone()),
+                prompt_presets: PromptPresetService::new(prompt_repository),
                 prompt_compiler,
                 lexicon: PromptLexicon::load_embedded().map_err(AppError::from)?,
                 gallery,

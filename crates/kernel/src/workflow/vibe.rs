@@ -12,6 +12,8 @@ use crate::{
     ImportEmbeddedPngVibeDocument, ImportVibeDocument, ImportedVibeDocuments, KernelResult,
     KernelRuntime, KernelVibePorts,
 };
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 
 pub async fn import_vibe_document<P>(
     runtime: &KernelRuntime<P>,
@@ -38,6 +40,7 @@ where
         )
         .await?;
         let source_image = if let Some(payload) = entry.source_image_payload {
+            let bytes = decode_image_payload(&payload)?;
             Some(
                 register_vibe_resource(
                     runtime,
@@ -49,7 +52,7 @@ where
                     ResourceLifecycle::WorkspaceScoped,
                     owner.clone(),
                     ResourceRelation::Source,
-                    payload.as_bytes(),
+                    &bytes,
                 )
                 .await?,
             )
@@ -57,6 +60,7 @@ where
             None
         };
         let preview = if let Some(payload) = entry.preview_payload {
+            let bytes = decode_image_payload(&payload)?;
             Some(
                 register_vibe_resource(
                     runtime,
@@ -68,7 +72,7 @@ where
                     ResourceLifecycle::WorkspaceScoped,
                     owner.clone(),
                     ResourceRelation::Preview,
-                    payload.as_bytes(),
+                    &bytes,
                 )
                 .await?,
             )
@@ -219,6 +223,15 @@ where
     Ok(EnsuredVibeEncoding {
         record,
         created: true,
+    })
+}
+
+fn decode_image_payload(payload: &str) -> Result<Vec<u8>, VibeError> {
+    let encoded = payload
+        .split_once(";base64,")
+        .map_or(payload, |(_, value)| value);
+    STANDARD.decode(encoded.trim()).map_err(|error| {
+        VibeError::invalid_document(format!("image payload is not base64: {error}"))
     })
 }
 

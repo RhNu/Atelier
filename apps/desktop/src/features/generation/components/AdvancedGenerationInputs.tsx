@@ -1,10 +1,11 @@
 /* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises, typescript/no-unsafe-type-assertion */
 import { ImagePlus, Plus, Trash2 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { AppButton, AppPanel } from "../../../components/ui";
 import type {
   CharacterReferenceTypeDto,
+  PromptPresetDto,
   ResourceRefDto,
   VibeDocumentEntryDto,
 } from "../../../types";
@@ -16,6 +17,7 @@ import { PromptCompletionTextarea } from "./prompt-completion";
 type AdvancedGenerationInputsProps = {
   draft: GenerationDraft;
   onPatch: (patch: Partial<GenerationDraft>) => void;
+  characterPresets: ReadonlyArray<PromptPresetDto>;
   vibeDocuments: ReadonlyArray<VibeDocumentEntryDto>;
   vibePending: boolean;
   vibeError: string | null;
@@ -38,6 +40,7 @@ const REFERENCE_TYPE_OPTIONS = [
 export function AdvancedGenerationInputs({
   draft,
   onPatch,
+  characterPresets,
   vibeDocuments,
   vibePending,
   vibeError,
@@ -51,6 +54,15 @@ export function AdvancedGenerationInputs({
   onExportVibeDocument,
 }: AdvancedGenerationInputsProps) {
   const [error, setError] = useState<string | null>(null);
+  const characterPresetOptions = useMemo(
+    () => [
+      { value: "", label: "No character preset" },
+      ...characterPresets
+        .filter((preset) => preset.enabled)
+        .map((preset) => ({ value: preset.preset_id, label: preset.name })),
+    ],
+    [characterPresets],
+  );
   const updateI2i = useCallback(
     (patch: Partial<NonNullable<GenerationDraft["i2i"]>>) => {
       if (!draft.i2i) {
@@ -423,6 +435,7 @@ export function AdvancedGenerationInputs({
                     ...draft.characters,
                     {
                       id: createLocalId("char"),
+                      presetId: null,
                       prompt: "",
                       negativePrompt: "",
                       enabled: true,
@@ -470,6 +483,14 @@ export function AdvancedGenerationInputs({
                 label="Enabled"
                 checked={character.enabled}
                 onChange={(enabled) => patchCharacter(draft, onPatch, character.id, { enabled })}
+              />
+              <SelectField
+                label="Character preset"
+                value={character.presetId ?? ""}
+                options={characterPresetOptions}
+                onChange={(presetId) =>
+                  patchCharacter(draft, onPatch, character.id, { presetId: presetId || null })
+                }
               />
               <PromptCompletionTextarea
                 aria-label={`Character ${index + 1} prompt`}

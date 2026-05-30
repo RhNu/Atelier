@@ -6,4 +6,6 @@ export type CompiledGenerationPromptDto = {
   prompt: CompiledPromptDto;
   negative_prompt: CompiledPromptDto | null;
   characters: Array<CompiledGenerationCharacterPromptDto>;
+  quality_override: string | null;
+  uc_preset_override: string | null;
 };

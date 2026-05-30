@@ -1,16 +1,18 @@
 use super::{
     AnlasEstimate, AppError, AppResult, ArtifactSource, AtelierApp, BatchId, CharacterReference,
-    CharacterReferenceDto, ControlNetConfig, ControlNetConfigDto, ControlNetInput, GalleryQuery,
-    GallerySourceKind, GenerateImageRequest, GenerateImageRequestDto, GenerateImageStreamRequest,
+    CharacterReferenceDto, CompileCharacterPromptRequest, CompileGenerationPromptRequest,
+    ControlNetConfig, ControlNetConfigDto, ControlNetInput, GalleryQuery, GallerySourceKind,
+    GenerateImageRequest, GenerateImageRequestDto, GenerateImageStreamRequest,
     GenerateImageStreamRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
     GenerationStatusDto, GenerationWorkRequest, GenerationWorkRequestDto, ImageInputDto, ImageSize,
     Img2ImgRequest, Img2ImgRequestDto, JobId, JobQueueRepository, NovelAiClientFactory,
-    QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
-    SecretStore, SecretsErrorKind, SubmitGenerationBatch, SubmitGenerationBatchJob,
-    SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
-    character_reference_type_to_domain, characters_to_domain, generation_status_to_dto,
-    generation_work_title, image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
-    plan_context_to_domain, plan_generation_request, queue_directive_to_dto, resource_ref_from_dto,
+    PromptPresetId, QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus,
+    RunOutputRecord, SecretStore, SecretsErrorKind, SubmitGenerationBatch,
+    SubmitGenerationBatchJob, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
+    SubmitGenerationRequestDto, UcPresetDto, character_reference_type_to_domain,
+    characters_to_domain, generation_status_to_dto, generation_work_title, image_format_to_domain,
+    image_model_to_domain, noise_schedule_to_domain, plan_context_to_domain,
+    plan_generation_request, queue_directive_to_dto, resource_ref_from_dto,
     resource_variant_kind_as_str, run_history_status_from_job_status, sampler_to_domain,
     stream_mode_to_domain, sync_generation_history_from_queue_snapshot, uc_preset_to_domain,
     upsert_generation_history_record, visual_asset_role_as_str,
@@ -181,6 +183,21 @@ where
         )
     }
 
+    /// Estimates `NovelAI` Anlas cost after applying prompt preset bindings.
+    ///
+    /// # Errors
+    /// Returns an error when preset compilation or generation planning fails.
+    pub async fn estimate(
+        &self,
+        request: GenerationEstimateRequestDto,
+    ) -> AppResult<GenerationAnlasEstimateDto> {
+        let request = GenerationEstimateRequestDto {
+            request: self.apply_prompt_presets(request.request).await?,
+            context: request.context,
+        };
+        estimate_generation_anlas(&request)
+    }
+
     async fn submit_batch_request_to_domain(
         &self,
         request: SubmitGenerationBatchRequestDto,
@@ -227,6 +244,7 @@ where
         &self,
         value: GenerateImageRequestDto,
     ) -> AppResult<GenerateImageRequest> {
+        let value = self.apply_prompt_presets(value).await?;
         Ok(GenerateImageRequest {
             prompt: value.prompt,
             model: image_model_to_domain(value.model),
@@ -255,6 +273,69 @@ where
             image_format: value.image_format.map(image_format_to_domain),
             strict_mode: value.strict_mode,
         })
+    }
+
+    async fn apply_prompt_presets(
+        &self,
+        mut value: GenerateImageRequestDto,
+    ) -> AppResult<GenerateImageRequestDto> {
+        let has_character_presets = value.characters.as_ref().is_some_and(|characters| {
+            characters
+                .iter()
+                .any(|character| character.preset_id.is_some())
+        });
+        if value.main_preset_id.is_none() && !has_character_presets {
+            return Ok(value);
+        }
+
+        let character_inputs = value.characters.clone().unwrap_or_default();
+        let compiled = self
+            .app
+            .inner
+            .prompt_compiler
+            .compile_generation_prompt(CompileGenerationPromptRequest {
+                main_preset_id: value.main_preset_id.take().map(PromptPresetId::new),
+                prompt: value.prompt.clone(),
+                negative_prompt: value.negative_prompt.clone().unwrap_or_default(),
+                characters: character_inputs
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, character)| CompileCharacterPromptRequest {
+                        character_index: u32::try_from(index).unwrap_or(u32::MAX),
+                        preset_id: character.preset_id.map(PromptPresetId::new),
+                        prompt: character.prompt,
+                        negative_prompt: character.negative_prompt.unwrap_or_default(),
+                    })
+                    .collect(),
+                max_depth: 16,
+            })
+            .await?;
+
+        value.prompt = compiled.prompt;
+        value.negative_prompt =
+            (!compiled.negative_prompt.trim().is_empty()).then_some(compiled.negative_prompt);
+        if let Some(quality_override) = compiled.quality_override.as_deref() {
+            value.quality = quality_override_to_bool(quality_override);
+        }
+        if let Some(uc_preset_override) = compiled.uc_preset_override.as_deref() {
+            value.uc_preset = parse_uc_preset_override(uc_preset_override)?;
+        }
+        if let Some(characters) = value.characters.as_mut() {
+            for (index, character) in characters.iter_mut().enumerate() {
+                if let Some(compiled_character) = compiled
+                    .characters
+                    .iter()
+                    .find(|item| item.character_index == u32::try_from(index).unwrap_or(u32::MAX))
+                {
+                    character.prompt.clone_from(&compiled_character.prompt);
+                    character.negative_prompt =
+                        (!compiled_character.negative_prompt.trim().is_empty())
+                            .then_some(compiled_character.negative_prompt.clone());
+                }
+                character.preset_id = None;
+            }
+        }
+        Ok(value)
     }
 
     async fn optional_controlnet_to_domain(
@@ -617,5 +698,26 @@ fn estimate_request_to_domain(value: &GenerateImageRequestDto) -> GenerateImageR
         use_coords: value.use_coords,
         image_format: value.image_format.map(image_format_to_domain),
         strict_mode: value.strict_mode,
+    }
+}
+
+fn quality_override_to_bool(value: &str) -> bool {
+    !matches!(
+        value.trim().to_ascii_lowercase().as_str(),
+        "" | "false" | "off" | "none" | "disabled"
+    )
+}
+
+fn parse_uc_preset_override(value: &str) -> AppResult<UcPresetDto> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "heavy" => Ok(UcPresetDto::Heavy),
+        "light" => Ok(UcPresetDto::Light),
+        "furry_focus" | "furry-focus" | "furry focus" => Ok(UcPresetDto::FurryFocus),
+        "human_focus" | "human-focus" | "human focus" => Ok(UcPresetDto::HumanFocus),
+        "none" => Ok(UcPresetDto::None),
+        other => Err(AppError::new(
+            "prompt_invalid_request",
+            format!("unknown uc preset override `{other}`"),
+        )),
     }
 }

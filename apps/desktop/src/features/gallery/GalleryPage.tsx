@@ -1,8 +1,11 @@
+/* eslint-disable max-lines */
 import { ImageIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppButton, AppModal, AppPanel, AppToolbar } from "../../components/ui";
 import type { GalleryItemDto, GalleryQueryDto } from "../../types";
+import { setDirectorHandoffInput } from "../director/state/director-handoff-store";
+import { navigateToDirector } from "../director/state/navigate-to-director";
 import { GalleryFilters } from "./components/GalleryFilters";
 import { GalleryGrid } from "./components/GalleryGrid";
 import { GalleryInspector } from "./components/GalleryInspector";
@@ -10,6 +13,7 @@ import {
   useGalleryPageQuery,
   useGallerySettingsQuery,
   useDeleteGalleryItemsMutation,
+  useGalleryImageReferenceMutation,
   useSaveGalleryImageMutation,
   useSetGallerySafetyOverrideMutation,
 } from "./data/useGalleryPageQuery";
@@ -156,10 +160,12 @@ export function GalleryPage() {
           onOverrideChange={setOverrideValue}
           onApplyOverride={commands.applyOverride}
           onExport={commands.exportSelected}
+          onSendToDirector={commands.sendToDirector}
           onDelete={commands.openDeleteConfirmation}
           applyingOverride={commands.applyingOverride}
           exporting={commands.exporting}
           deleting={commands.deleting}
+          handoffPending={commands.handoffPending}
           commandError={commands.commandError}
         />
       </div>
@@ -191,16 +197,24 @@ function useGalleryItemCommands({
   const setSafetyOverrideMutation = useSetGallerySafetyOverrideMutation();
   const deleteGalleryItemsMutation = useDeleteGalleryItemsMutation();
   const saveImageMutation = useSaveGalleryImageMutation();
+  const imageReferenceMutation = useGalleryImageReferenceMutation();
   const deleteTarget =
     visibleItems.find((item) => item.item_id === deleteTargetId) ??
     (deleteTargetId === selectedItem?.item_id ? selectedItem : null);
-  const commandMutationError = setSafetyOverrideMutation.error ?? saveImageMutation.error;
+  const commandMutationError =
+    setSafetyOverrideMutation.error ?? saveImageMutation.error ?? imageReferenceMutation.error;
 
   const resetCommandErrors = useCallback(() => {
     setSafetyOverrideMutation.reset();
     saveImageMutation.reset();
     deleteGalleryItemsMutation.reset();
-  }, [deleteGalleryItemsMutation, saveImageMutation, setSafetyOverrideMutation]);
+    imageReferenceMutation.reset();
+  }, [
+    deleteGalleryItemsMutation,
+    imageReferenceMutation,
+    saveImageMutation,
+    setSafetyOverrideMutation,
+  ]);
 
   const applyOverride = useCallback(() => {
     if (selectedItem) {
@@ -222,6 +236,21 @@ function useGalleryItemCommands({
       });
     }
   }, [resetCommandErrors, saveImageMutation, selectedItem]);
+
+  const sendToDirector = useCallback(() => {
+    if (selectedItem) {
+      resetCommandErrors();
+      imageReferenceMutation.mutate(
+        { item_id: selectedItem.item_id, target: "director" },
+        {
+          onSuccess: (reference) => {
+            setDirectorHandoffInput(reference.resource);
+            navigateToDirector();
+          },
+        },
+      );
+    }
+  }, [imageReferenceMutation, resetCommandErrors, selectedItem]);
 
   const openDeleteConfirmation = useCallback(() => {
     if (selectedItem) {
@@ -266,8 +295,10 @@ function useGalleryItemCommands({
     deleting: deleteGalleryItemsMutation.isPending,
     exportSelected,
     exporting: saveImageMutation.isPending,
+    handoffPending: imageReferenceMutation.isPending,
     openDeleteConfirmation,
     applyOverride,
+    sendToDirector,
   };
 }
 

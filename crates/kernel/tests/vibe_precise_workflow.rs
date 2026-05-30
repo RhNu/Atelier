@@ -16,6 +16,9 @@ use support::MemoryKernelPorts;
 const ENCODING_PAYLOAD: &str = "AQID";
 const ENCODING_PAYLOAD_SHA256: &str =
     "b70035bb783a47bf61ac3ff70b005308e167ee984365690e638c1481b8ca2936";
+const IMAGE_PAYLOAD: &str = "data:image/png;base64,AQID";
+const IMAGE_PAYLOAD_SHA256: &str =
+    "8a37c75fc31bfff9652678f50164cf27b31c787b8a946f87f1cd3cbf61365db1";
 
 #[test]
 fn ensure_vibe_encoding_reuses_cached_bucket_without_calling_novelai() {
@@ -123,6 +126,34 @@ fn imports_embedded_png_vibe_document_through_extractor_and_resources() {
 }
 
 #[test]
+fn imports_image_vibe_source_and_preview_as_decoded_image_bytes() {
+    let ports = MemoryKernelPorts::default();
+    let runtime = KernelRuntime::new(ports.clone());
+
+    let imported = block_on(runtime.import_vibe_document(ImportVibeDocument {
+        file_name: "style.naiv4vibe".to_owned(),
+        content: official_image_vibe("Image Style"),
+    }))
+    .expect("official image vibe should import");
+
+    let entry = &imported.entries[0];
+    let source_image = entry
+        .resources
+        .source_image
+        .as_ref()
+        .expect("image vibe should register source image");
+    let preview = entry
+        .resources
+        .preview
+        .as_ref()
+        .expect("image vibe should register preview image");
+    let resources = ports.registered_resources();
+
+    assert_eq!(resources[source_image.id.as_str()].bytes, vec![1, 2, 3]);
+    assert_eq!(resources[preview.id.as_str()].bytes, vec![1, 2, 3]);
+}
+
+#[test]
 fn exports_managed_vibe_from_document_resource() {
     let ports = MemoryKernelPorts::default();
     let runtime = KernelRuntime::new(ports);
@@ -182,6 +213,28 @@ fn official_vibe(name: &str) -> String {
   "type": "encoding",
   "id": "{ENCODING_PAYLOAD_SHA256}",
   "name": "{name}",
+  "encodings": {{
+    "v4-5full": {{
+      "default": {{
+        "encoding": "{ENCODING_PAYLOAD}",
+        "params": {{ "information_extracted": 0.7 }}
+      }}
+    }}
+  }}
+}}"#
+    )
+}
+
+fn official_image_vibe(name: &str) -> String {
+    format!(
+        r#"{{
+  "identifier": "novelai-vibe-transfer",
+  "version": 1,
+  "type": "image",
+  "id": "{IMAGE_PAYLOAD_SHA256}",
+  "name": "{name}",
+  "image": "{IMAGE_PAYLOAD}",
+  "thumbnail": "{IMAGE_PAYLOAD}",
   "encodings": {{
     "v4-5full": {{
       "default": {{

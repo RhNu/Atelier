@@ -1,5 +1,6 @@
 import type {
   GalleryQueryDto,
+  ListPromptPresetsRequestDto,
   ListVibeDocumentsRequestDto,
   ResourceRefDto,
   RunHistoryQueryDto,
@@ -49,6 +50,7 @@ export const queryKeys = {
       query === undefined
         ? (["prompt", "chunks"] as const)
         : (["prompt", "chunks", query] as const),
+    presets: (query: ListPromptPresetsRequestDto) => ["prompt", "presets", query] as const,
     lexiconCatalog: () => ["prompt", "lexicon", "catalog"] as const,
     lexiconList: (query: unknown) => ["prompt", "lexicon", "list", query] as const,
     lexiconSearch: (query: unknown) => ["prompt", "lexicon", "search", query] as const,

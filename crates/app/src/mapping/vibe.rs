@@ -30,6 +30,7 @@ pub fn vibe_entry_to_dto(value: VibeDocumentEntry) -> VibeDocumentEntryDto {
         vibe_id: value.summary.document_id.as_str().to_owned(),
         display_name: value.summary.display_name,
         has_image: value.summary.has_image,
+        hidden: value.summary.hidden,
         available_model_keys: value.summary.available_model_keys,
         available_encoding_configs: value
             .summary
@@ -40,6 +41,8 @@ pub fn vibe_entry_to_dto(value: VibeDocumentEntry) -> VibeDocumentEntryDto {
                 information_extracted: config.settings.normalized_information_extracted(),
             })
             .collect(),
+        created_at_ms: value.summary.created_at_ms,
+        updated_at_ms: value.summary.updated_at_ms,
         document: resource_ref_to_dto(&value.resources.document),
         source_image: value
             .resources

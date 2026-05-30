@@ -1,13 +1,26 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    DeletePromptChunkResult, PromptChunk, PromptChunkId, PromptResourceError,
-    PromptResourceRepository, PromptResourceResult, UpsertPromptChunkRequest,
+    DeletePromptChunkResult, DeletePromptPresetResult, PromptChunk, PromptChunkId, PromptPreset,
+    PromptPresetId, PromptPresetKind, PromptResourceError, PromptResourceRepository,
+    PromptResourceResult, UpsertPromptChunkRequest, UpsertPromptPresetRequest,
 };
 
 #[derive(Clone, Debug)]
 pub struct PromptChunkService<R> {
     repository: R,
+}
+
+#[derive(Clone, Debug)]
+pub struct PromptPresetService<R> {
+    repository: R,
+}
+
+impl<R> PromptPresetService<R> {
+    #[must_use]
+    pub const fn new(repository: R) -> Self {
+        Self { repository }
+    }
 }
 
 impl<R> PromptChunkService<R> {
@@ -133,6 +146,143 @@ where
             .await?
             .ok_or_else(|| PromptResourceError::not_found("chunk does not exist"))
     }
+}
+
+impl<R> PromptPresetService<R>
+where
+    R: PromptResourceRepository,
+{
+    /// Creates or updates a prompt preset.
+    ///
+    /// # Errors
+    /// Returns an error when the request is invalid, target preset is missing,
+    /// or repository operations fail.
+    pub async fn upsert_preset(
+        &self,
+        request: UpsertPromptPresetRequest,
+    ) -> PromptResourceResult<PromptPreset> {
+        validate_preset_request(&request)?;
+
+        let now = unix_ms();
+        let existing = match &request.preset_id {
+            Some(id) => Some(self.require_preset(id).await?),
+            None => None,
+        };
+        let id = match (&request.preset_id, &existing) {
+            (Some(id), _) => id.clone(),
+            (None, _) => self.repository.allocate_preset_id().await?,
+        };
+        let created_at_ms = existing.as_ref().map_or(now, |preset| preset.created_at_ms);
+        let preset = PromptPreset {
+            id,
+            kind: request.kind,
+            name: normalize_required_name(&request.name)?,
+            category: normalize_optional_text(request.category),
+            description: normalize_optional_text(request.description),
+            order: request.order,
+            enabled: request.enabled,
+            before: request.before,
+            after: request.after,
+            replace: request.replace,
+            uc_before: request.uc_before,
+            uc_after: request.uc_after,
+            uc_replace: request.uc_replace,
+            quality_override: normalize_optional_text(request.quality_override),
+            uc_preset_override: normalize_optional_text(request.uc_preset_override),
+            preview_thumb: request.preview_thumb,
+            created_at_ms,
+            updated_at_ms: now,
+        };
+        self.repository.save_preset(preset.clone()).await?;
+        Ok(preset)
+    }
+
+    /// Returns a preset by id.
+    ///
+    /// # Errors
+    /// Returns an error when the repository cannot be queried.
+    pub async fn get_preset_by_id(
+        &self,
+        id: &PromptPresetId,
+    ) -> PromptResourceResult<Option<PromptPreset>> {
+        self.repository.get_preset_by_id(id).await
+    }
+
+    /// Lists presets sorted by order, name, then id.
+    ///
+    /// # Errors
+    /// Returns an error when the repository cannot be queried.
+    pub async fn list_presets(
+        &self,
+        kind: Option<PromptPresetKind>,
+        include_disabled: bool,
+    ) -> PromptResourceResult<Vec<PromptPreset>> {
+        let mut presets = self.repository.list_presets(kind, include_disabled).await?;
+        presets.sort_by(|left, right| {
+            left.order
+                .cmp(&right.order)
+                .then_with(|| left.name.cmp(&right.name))
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        Ok(presets)
+    }
+
+    /// Deletes a prompt preset.
+    ///
+    /// # Errors
+    /// Returns an error when repository operations fail.
+    pub async fn delete_preset(
+        &self,
+        id: &PromptPresetId,
+    ) -> PromptResourceResult<DeletePromptPresetResult> {
+        if self.repository.get_preset_by_id(id).await?.is_none() {
+            return Ok(DeletePromptPresetResult { deleted: false });
+        }
+        self.repository.delete_preset(id).await?;
+        Ok(DeletePromptPresetResult { deleted: true })
+    }
+
+    async fn require_preset(&self, id: &PromptPresetId) -> PromptResourceResult<PromptPreset> {
+        self.repository
+            .get_preset_by_id(id)
+            .await?
+            .ok_or_else(|| PromptResourceError::not_found("preset does not exist"))
+    }
+}
+
+fn validate_preset_request(request: &UpsertPromptPresetRequest) -> PromptResourceResult<()> {
+    normalize_required_name(&request.name)?;
+    if request.kind == PromptPresetKind::Character
+        && (request
+            .quality_override
+            .as_ref()
+            .is_some_and(|value| !value.trim().is_empty())
+            || request
+                .uc_preset_override
+                .as_ref()
+                .is_some_and(|value| !value.trim().is_empty()))
+    {
+        return Err(PromptResourceError::invalid_request(
+            "character presets cannot define generation overrides",
+        ));
+    }
+    Ok(())
+}
+
+fn normalize_required_name(value: &str) -> PromptResourceResult<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(PromptResourceError::invalid_request(
+            "preset name cannot be empty",
+        ));
+    }
+    Ok(trimmed.to_owned())
+}
+
+fn normalize_optional_text(value: Option<String>) -> Option<String> {
+    value
+        .map(|text| text.trim().to_owned())
+        .filter(|text| !text.is_empty())
 }
 
 fn unix_ms() -> u64 {

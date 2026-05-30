@@ -65,6 +65,7 @@ pub struct VibeEncodingConfigDto {
 pub struct ListVibeDocumentsRequestDto {
     pub offset: usize,
     pub limit: usize,
+    pub include_hidden: bool,
 }
 
 impl Default for ListVibeDocumentsRequestDto {
@@ -72,8 +73,21 @@ impl Default for ListVibeDocumentsRequestDto {
         Self {
             offset: 0,
             limit: 50,
+            include_hidden: false,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct RenameVibeDocumentRequestDto {
+    pub vibe_id: String,
+    pub display_name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct SetVibeDocumentHiddenRequestDto {
+    pub vibe_id: String,
+    pub hidden: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -86,8 +100,11 @@ pub struct VibeDocumentEntryDto {
     pub vibe_id: String,
     pub display_name: String,
     pub has_image: bool,
+    pub hidden: bool,
     pub available_model_keys: Vec<String>,
     pub available_encoding_configs: Vec<VibeEncodingConfigDto>,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
     pub document: ResourceRefDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_image: Option<ResourceRefDto>,

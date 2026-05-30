@@ -26,11 +26,13 @@ import type {
   ImageResourceKindDto,
   ImportedVibeDocumentsDto,
   ListVibeDocumentsRequestDto,
+  ListPromptPresetsRequestDto,
   ListPromptChunksRequestDto,
   QueueDirectiveDto,
   PromptChunkPageDto,
   PromptLexiconPageDto,
   PromptLexiconSearchQueryDto,
+  PromptPresetPageDto,
   ResourceImageDto,
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryItemResponseDto,
@@ -72,6 +74,7 @@ const mocks = vi.hoisted(() => ({
     compileGenerationPreview:
       vi.fn<(request: CompileGenerationPromptRequestDto) => Promise<CompiledGenerationPromptDto>>(),
     listChunks: vi.fn<(request: ListPromptChunksRequestDto) => Promise<PromptChunkPageDto>>(),
+    listPresets: vi.fn<(request: ListPromptPresetsRequestDto) => Promise<PromptPresetPageDto>>(),
     lexiconSearch: vi.fn<(request: PromptLexiconSearchQueryDto) => Promise<PromptLexiconPageDto>>(),
   },
   resourceApi: {
@@ -135,6 +138,7 @@ vi.mock("../platform/atelier", () => ({
       root: () => ["prompt"],
       chunks: (query?: unknown) =>
         query === undefined ? ["prompt", "chunks"] : ["prompt", "chunks", query],
+      presets: (query: ListPromptPresetsRequestDto) => ["prompt", "presets", query],
       lexiconSearch: (query: unknown) => ["prompt", "lexicon", "search", query],
     },
     resource: {
@@ -196,6 +200,8 @@ function setup(options?: {
   history?: RunHistoryPageDto;
   vibeDocuments?: VibeDocumentPageDto;
   settingsError?: Error;
+  mainPresets?: PromptPresetPageDto;
+  characterPresets?: PromptPresetPageDto;
 }) {
   if (options?.settingsError) {
     mocks.settingsApi.get.mockRejectedValue(options.settingsError);
@@ -268,6 +274,8 @@ function setup(options?: {
       },
     },
     characters: [],
+    quality_override: null,
+    uc_preset_override: null,
   });
   mocks.promptApi.listChunks.mockResolvedValue({
     items: [
@@ -295,6 +303,15 @@ function setup(options?: {
     total: 2,
     offset: 0,
     limit: 200,
+  });
+  mocks.promptApi.listPresets.mockImplementation(async (request) => {
+    if (request.kind === "main") {
+      return options?.mainPresets ?? emptyPresetPage();
+    }
+    if (request.kind === "character") {
+      return options?.characterPresets ?? emptyPresetPage();
+    }
+    return emptyPresetPage();
   });
   mocks.promptApi.lexiconSearch.mockImplementation(async (request) => ({
     items:
@@ -359,6 +376,15 @@ function setup(options?: {
         <GeneratePage />
       </QueryClientProvider>,
     ),
+  };
+}
+
+function emptyPresetPage(): PromptPresetPageDto {
+  return {
+    items: [],
+    total: 0,
+    offset: 0,
+    limit: 200,
   };
 }
 
@@ -475,6 +501,52 @@ describe("GeneratePage", () => {
     expect(screen.getByLabelText("Positive prompt")).toHaveValue("1girl");
   });
 
+  it("allows main preset only generation without rewriting draft prompt", async () => {
+    const { user } = setup({
+      mainPresets: {
+        items: [
+          {
+            preset_id: "preset-main",
+            kind: "main",
+            name: "Main stack",
+            category: null,
+            description: null,
+            order: 0,
+            enabled: true,
+            before: "1girl",
+            after: "sharp focus",
+            replace: "",
+            uc_before: "",
+            uc_after: "",
+            uc_replace: "",
+            quality_override: null,
+            uc_preset_override: null,
+            preview: null,
+            created_at_ms: 1,
+            updated_at_ms: 1,
+          },
+        ],
+        total: 1,
+        offset: 0,
+        limit: 200,
+      },
+    });
+
+    await user.selectOptions(await screen.findByLabelText("Main preset"), "preset-main");
+    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+
+    await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
+    expect(mocks.generationApi.submitBatch.mock.calls[0]?.[0].jobs[0]?.work).toMatchObject({
+      request: {
+        base: {
+          main_preset_id: "preset-main",
+          prompt: "",
+        },
+      },
+    });
+    expect(screen.getByLabelText("Positive prompt")).toHaveValue("");
+  });
+
   it("imports an image resource into i2i before submit", async () => {
     const { user } = setup();
     mocks.desktopApi.pickAndImportImageResources.mockResolvedValueOnce([
@@ -512,6 +584,7 @@ describe("GeneratePage", () => {
             vibe_id: "vibe-1",
             display_name: "Style A",
             has_image: true,
+            hidden: false,
             available_model_keys: ["v4-5full"],
             available_encoding_configs: [
               { model: "nai-diffusion-4-5-full", information_extracted: 0.7 },
@@ -520,6 +593,8 @@ describe("GeneratePage", () => {
             source_image: { id: "vibe-source:vibe-1", variant_id: null },
             preview: { id: "vibe-preview:vibe-1", variant_id: null },
             encodings: [{ id: "vibe-encoding:vibe-1:v4-5full:0", variant_id: null }],
+            created_at_ms: 1,
+            updated_at_ms: 1,
           },
         ],
         total: 1,
@@ -800,6 +875,7 @@ describe("GeneratePage queue and preview behavior", () => {
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
     expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith({
       prompt: "@chunk(hero)",
+      main_preset_id: null,
       negative_prompt: "bad anatomy",
       characters: [],
       max_depth: 8,
@@ -861,6 +937,7 @@ describe("GeneratePage queue and preview behavior", () => {
       expect.objectContaining({
         characters: [
           {
+            preset_id: null,
             prompt: "cinematic_lighting,",
             negative_prompt: "@chunk(lighting), ",
             enabled: true,

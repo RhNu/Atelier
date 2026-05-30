@@ -337,6 +337,31 @@ fn prompt_lexicon_and_vibe_commands_are_available_through_facade() {
         assert_eq!(imported.entries.len(), 1);
         let vibe_id = imported.entries[0].vibe_id.clone();
 
+        let renamed = host
+            .rename_vibe_document(RenameVibeDocumentRequestDto {
+                vibe_id: vibe_id.clone(),
+                display_name: "Style Renamed".to_owned(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(renamed.display_name, "Style Renamed");
+
+        let hidden = host
+            .set_vibe_document_hidden(SetVibeDocumentHiddenRequestDto {
+                vibe_id: vibe_id.clone(),
+                hidden: true,
+            })
+            .await
+            .unwrap();
+        assert!(hidden.hidden);
+        assert_eq!(
+            host.list_vibe_documents(ListVibeDocumentsRequestDto::default())
+                .await
+                .unwrap()
+                .total,
+            0
+        );
+
         let exported = host
             .export_vibe_document(ExportVibeDocumentRequestDto {
                 vibe_ids: vec![vibe_id.clone()],

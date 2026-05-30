@@ -1,8 +1,12 @@
 import { Eye, WandSparkles } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useMemo, type ChangeEvent } from "react";
 
-import { AppButton, AppPanel } from "../../../components/ui";
-import type { CompiledGenerationPromptDto, CompiledPromptDto } from "../../../types";
+import { AppButton, AppPanel, AppSelect } from "../../../components/ui";
+import type {
+  CompiledGenerationPromptDto,
+  CompiledPromptDto,
+  PromptPresetDto,
+} from "../../../types";
 import type { GenerationDraft } from "../model/generation-draft";
 import { PromptCompletionTextarea } from "./prompt-completion";
 
@@ -14,6 +18,8 @@ type GenerationPromptPanelProps = {
   compilePending: boolean;
   submitPending: boolean;
   compiledPreview: CompiledGenerationPromptDto | null;
+  mainPresets: ReadonlyArray<PromptPresetDto>;
+  mainPresetsPending: boolean;
   onPatch: (patch: Partial<GenerationDraft>) => void;
   onSubmit: () => void;
   onCompile: () => void;
@@ -27,10 +33,27 @@ export function GenerationPromptPanel({
   compilePending,
   submitPending,
   compiledPreview,
+  mainPresets,
+  mainPresetsPending,
   onPatch,
   onSubmit,
   onCompile,
 }: GenerationPromptPanelProps) {
+  const mainPresetOptions = useMemo(
+    () => [
+      {
+        value: "",
+        label: mainPresetsPending ? "Loading presets" : "No main preset",
+      },
+      ...mainPresets
+        .filter((preset) => preset.enabled)
+        .map((preset) => ({
+          value: preset.preset_id,
+          label: preset.name,
+        })),
+    ],
+    [mainPresets, mainPresetsPending],
+  );
   const handlePromptChange = useCallback(
     (prompt: string) => {
       onPatch({ prompt });
@@ -40,6 +63,12 @@ export function GenerationPromptPanel({
   const handleNegativePromptChange = useCallback(
     (negativePrompt: string) => {
       onPatch({ negativePrompt });
+    },
+    [onPatch],
+  );
+  const handleMainPresetChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      onPatch({ mainPresetId: event.target.value || null });
     },
     [onPatch],
   );
@@ -54,6 +83,19 @@ export function GenerationPromptPanel({
         </AppButton>
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3">
+        <label
+          htmlFor="generation-main-preset"
+          className="grid gap-2 text-xs font-semibold text-app-muted uppercase"
+        >
+          Main preset
+          <AppSelect
+            id="generation-main-preset"
+            aria-label="Main preset"
+            value={draft.mainPresetId ?? ""}
+            options={mainPresetOptions}
+            onChange={handleMainPresetChange}
+          />
+        </label>
         <label
           htmlFor="generation-positive-prompt"
           className="grid gap-2 text-xs font-semibold text-app-muted uppercase"

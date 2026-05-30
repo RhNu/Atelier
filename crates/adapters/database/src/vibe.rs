@@ -21,6 +21,53 @@ impl DatabaseVibeRepository {
     pub const fn new(connection: DatabaseConnection) -> Self {
         Self { connection }
     }
+
+    fn update_document(
+        &self,
+        id: &VibeId,
+        updated_at_ms: u64,
+        update: impl FnOnce(&mut VibeDocumentEntry),
+    ) -> VibeDomainResult<Option<VibeDocumentEntry>> {
+        let connection = self.connection.lock().map_err(vibe_error)?;
+        let Some(json) = connection
+            .query_row(
+                "SELECT document_json FROM vibe_documents WHERE vibe_id = ?1",
+                params![id.as_str()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(sql_error)?
+        else {
+            return Ok(None);
+        };
+        let mut entry = VibeDocumentEntryDto::decode_domain(&json).map_err(vibe_error)?;
+        update(&mut entry);
+        if entry.summary.display_name.trim().is_empty() {
+            return Err(VibeError::invalid_settings(
+                "vibe display name cannot be empty",
+            ));
+        }
+        entry.summary.updated_at_ms = updated_at_ms;
+        let json = VibeDocumentEntryDto::encode_domain(&entry).map_err(vibe_error)?;
+        connection
+            .execute(
+                r"
+                UPDATE vibe_documents
+                SET display_name = ?2,
+                    has_image = ?3,
+                    document_json = ?4
+                WHERE vibe_id = ?1
+                ",
+                params![
+                    id.as_str(),
+                    entry.summary.display_name.as_str(),
+                    i64::from(entry.summary.has_image),
+                    json,
+                ],
+            )
+            .map_err(sql_error)?;
+        Ok(Some(entry))
+    }
 }
 
 #[async_trait]
@@ -67,6 +114,7 @@ impl VibeRepository for DatabaseVibeRepository {
         &self,
         offset: usize,
         limit: usize,
+        include_hidden: bool,
     ) -> VibeDomainResult<Vec<VibeDocumentEntry>> {
         let connection = self.connection.lock().map_err(vibe_error)?;
         let mut statement = connection
@@ -75,35 +123,68 @@ impl VibeRepository for DatabaseVibeRepository {
                 SELECT document_json
                 FROM vibe_documents
                 ORDER BY display_name ASC, vibe_id ASC
-                LIMIT ?1 OFFSET ?2
                 ",
             )
             .map_err(sql_error)?;
         let rows = statement
-            .query_map(
-                params![
-                    i64::try_from(limit).unwrap_or(i64::MAX),
-                    i64::try_from(offset).unwrap_or(i64::MAX),
-                ],
-                |row| row.get::<_, String>(0),
-            )
+            .query_map([], |row| row.get::<_, String>(0))
             .map_err(sql_error)?;
-        rows.map(|row| {
-            row.map_err(sql_error)
-                .and_then(|text| VibeDocumentEntryDto::decode_domain(&text).map_err(vibe_error))
-        })
-        .collect()
+        let entries = rows
+            .map(|row| {
+                row.map_err(sql_error)
+                    .and_then(|text| VibeDocumentEntryDto::decode_domain(&text).map_err(vibe_error))
+            })
+            .collect::<VibeDomainResult<Vec<_>>>()?;
+        Ok(entries
+            .into_iter()
+            .filter(|entry| include_hidden || !entry.summary.hidden)
+            .skip(offset)
+            .take(limit)
+            .collect())
     }
 
-    async fn count_documents(&self) -> VibeDomainResult<usize> {
+    async fn count_documents(&self, include_hidden: bool) -> VibeDomainResult<usize> {
         let connection = self.connection.lock().map_err(vibe_error)?;
-        let count = connection
-            .query_row("SELECT COUNT(*) FROM vibe_documents", [], |row| {
-                row.get::<_, i64>(0)
-            })
+        let mut statement = connection
+            .prepare("SELECT document_json FROM vibe_documents")
             .map_err(sql_error)?;
-        usize::try_from(count)
-            .map_err(|error| VibeError::new(VibeErrorKind::Repository, error.to_string()))
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(sql_error)?;
+        let entries = rows
+            .map(|row| {
+                row.map_err(sql_error)
+                    .and_then(|text| VibeDocumentEntryDto::decode_domain(&text).map_err(vibe_error))
+            })
+            .collect::<VibeDomainResult<Vec<_>>>()?;
+        Ok(entries
+            .into_iter()
+            .filter(|entry| include_hidden || !entry.summary.hidden)
+            .count())
+    }
+
+    async fn rename_document(
+        &self,
+        id: &VibeId,
+        display_name: String,
+        updated_at_ms: u64,
+    ) -> VibeDomainResult<Option<VibeDocumentEntry>> {
+        self.update_document(id, updated_at_ms, |entry| {
+            display_name
+                .trim()
+                .clone_into(&mut entry.summary.display_name);
+        })
+    }
+
+    async fn set_document_hidden(
+        &self,
+        id: &VibeId,
+        hidden: bool,
+        updated_at_ms: u64,
+    ) -> VibeDomainResult<Option<VibeDocumentEntry>> {
+        self.update_document(id, updated_at_ms, |entry| {
+            entry.summary.hidden = hidden;
+        })
     }
 
     async fn find_cached_encoding(

@@ -18,7 +18,9 @@ import type {
   ImageModelDto,
   ImageResourceKindDto,
   GenerationEstimateRequestDto,
+  ListPromptPresetsRequestDto,
   ListVibeDocumentsRequestDto,
+  PromptPresetPageDto,
   ResourceRefDto,
   RerunGenerationHistoryItemRequestDto,
   SaveResourceImageRequestDto,
@@ -223,6 +225,13 @@ export function useVibeDocumentsQuery(query: ListVibeDocumentsRequestDto) {
   return useQuery({
     queryKey: queryKeys.vibe.list(query),
     queryFn: () => vibeApi.listDocuments(query),
+  });
+}
+
+export function usePromptPresetsQuery(query: ListPromptPresetsRequestDto) {
+  return useQuery({
+    queryKey: queryKeys.prompt.presets(query),
+    queryFn: () => promptApi.listPresets(query) satisfies Promise<PromptPresetPageDto>,
   });
 }
 

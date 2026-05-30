@@ -529,12 +529,37 @@ where
         &self,
         offset: usize,
         limit: usize,
+        include_hidden: bool,
     ) -> VibeDomainResult<Vec<VibeDocumentEntry>> {
-        self.vibes.list_documents(offset, limit).await
+        self.vibes
+            .list_documents(offset, limit, include_hidden)
+            .await
     }
 
-    async fn count_documents(&self) -> VibeDomainResult<usize> {
-        self.vibes.count_documents().await
+    async fn count_documents(&self, include_hidden: bool) -> VibeDomainResult<usize> {
+        self.vibes.count_documents(include_hidden).await
+    }
+
+    async fn rename_document(
+        &self,
+        id: &VibeId,
+        display_name: String,
+        updated_at_ms: u64,
+    ) -> VibeDomainResult<Option<VibeDocumentEntry>> {
+        self.vibes
+            .rename_document(id, display_name, updated_at_ms)
+            .await
+    }
+
+    async fn set_document_hidden(
+        &self,
+        id: &VibeId,
+        hidden: bool,
+        updated_at_ms: u64,
+    ) -> VibeDomainResult<Option<VibeDocumentEntry>> {
+        self.vibes
+            .set_document_hidden(id, hidden, updated_at_ms)
+            .await
     }
 
     async fn find_cached_encoding(

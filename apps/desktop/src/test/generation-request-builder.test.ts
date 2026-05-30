@@ -39,6 +39,7 @@ describe("generation request builder", () => {
 
     expect(draft).toMatchObject({
       prompt: "",
+      mainPresetId: null,
       negativePrompt: "",
       model: "nai-diffusion-4-5-full",
       size: { width: 832, height: 1216 },
@@ -92,6 +93,7 @@ describe("generation request builder", () => {
           stream: "sse",
           base: {
             prompt: "1girl, atelier lighting",
+            main_preset_id: null,
             negative_prompt: "low quality",
             model: "nai-diffusion-4-5-full",
             size: { width: 832, height: 1216 },
@@ -157,6 +159,7 @@ describe("generation request builder", () => {
       characters: [
         {
           id: "char-a",
+          presetId: null,
           prompt: "hero",
           negativePrompt: "flat",
           enabled: true,
@@ -192,6 +195,7 @@ describe("generation request builder", () => {
       character_references: null,
       characters: [
         {
+          preset_id: null,
           prompt: "hero",
           negative_prompt: "flat",
           enabled: true,
@@ -209,6 +213,7 @@ describe("generation request builder", () => {
       characters: [
         {
           id: "char-empty",
+          presetId: null,
           prompt: "",
           negativePrompt: "",
           enabled: true,
@@ -216,6 +221,7 @@ describe("generation request builder", () => {
         },
         {
           id: "char-disabled",
+          presetId: null,
           prompt: "disabled character",
           negativePrompt: "",
           enabled: false,
@@ -233,6 +239,43 @@ describe("generation request builder", () => {
     const base = request.jobs[0]?.work.kind === "stream" ? request.jobs[0].work.request.base : null;
     expect(base?.characters).toBeNull();
     expect(base?.use_coords).toBeNull();
+  });
+
+  it("carries prompt preset bindings without rewriting draft text", () => {
+    const draft = {
+      ...createGenerationDraft(settings),
+      mainPresetId: "main-preset",
+      prompt: "@chunk(hero), 1girl",
+      characters: [
+        {
+          id: "char-preset",
+          presetId: "character-preset",
+          prompt: "hero",
+          negativePrompt: "",
+          enabled: true,
+          position: { x: 0.5, y: 0.5 },
+        },
+      ],
+    };
+
+    const request = buildSubmitGenerationBatchRequest(draft, {
+      batchId: "batch-test",
+      jobIds: ["job-test"],
+    });
+
+    const base = request.jobs[0]?.work.kind === "stream" ? request.jobs[0].work.request.base : null;
+    expect(base).toMatchObject({
+      main_preset_id: "main-preset",
+      prompt: "@chunk(hero), 1girl",
+      characters: [
+        {
+          preset_id: "character-preset",
+          prompt: "hero",
+        },
+      ],
+    });
+    expect(draft.prompt).toBe("@chunk(hero), 1girl");
+    expect(draft.characters[0]?.prompt).toBe("hero");
   });
 
   it("prefers precise references over vibe controlnet because NovelAI forbids both together", () => {

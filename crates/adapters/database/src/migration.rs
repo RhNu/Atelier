@@ -2,7 +2,7 @@ use rusqlite::{Connection, params};
 
 use crate::error::DatabaseResult;
 
-const CURRENT_SCHEMA_VERSION: i64 = 4;
+const CURRENT_SCHEMA_VERSION: i64 = 5;
 const API_KEY_REGISTRY_SQL: &str = r"
 CREATE TABLE IF NOT EXISTS api_key_records (
     id TEXT PRIMARY KEY,
@@ -134,6 +134,31 @@ CREATE TABLE IF NOT EXISTS prompt_chunks (
 
 CREATE INDEX IF NOT EXISTS idx_prompt_chunks_key
     ON prompt_chunks(chunk_key);
+
+CREATE TABLE IF NOT EXISTS prompt_presets (
+    preset_id TEXT PRIMARY KEY,
+    preset_kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    category TEXT,
+    description TEXT,
+    sort_order INTEGER NOT NULL,
+    enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+    before_text TEXT NOT NULL,
+    after_text TEXT NOT NULL,
+    replace_text TEXT NOT NULL,
+    uc_before_text TEXT NOT NULL,
+    uc_after_text TEXT NOT NULL,
+    uc_replace_text TEXT NOT NULL,
+    quality_override TEXT,
+    uc_preset_override TEXT,
+    preview_resource_id TEXT,
+    preview_variant_id TEXT,
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_presets_kind_order
+    ON prompt_presets(preset_kind, sort_order, name, preset_id);
 ";
 
 const SETTINGS_SQL: &str = r"
@@ -237,6 +262,11 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
         [],
         |row| row.get::<_, bool>(0),
     )?;
+    let v4_applied = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 4)",
+        [],
+        |row| row.get::<_, bool>(0),
+    )?;
 
     let tx = connection.transaction()?;
     if !v1_applied {
@@ -262,6 +292,12 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
         )?;
     }
     tx.execute_batch(JOB_HISTORY_SQL)?;
+    if !v4_applied {
+        tx.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version) VALUES (4)",
+            [],
+        )?;
+    }
     tx.execute(
         "INSERT OR IGNORE INTO schema_migrations(version) VALUES (?1)",
         params![CURRENT_SCHEMA_VERSION],
