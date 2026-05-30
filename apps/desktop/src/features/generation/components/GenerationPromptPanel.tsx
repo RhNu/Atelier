@@ -1,9 +1,10 @@
 import { Eye, WandSparkles } from "lucide-react";
-import { useCallback, type ChangeEvent } from "react";
+import { useCallback } from "react";
 
 import { AppButton, AppPanel } from "../../../components/ui";
 import type { CompiledGenerationPromptDto, CompiledPromptDto } from "../../../types";
 import type { GenerationDraft } from "../model/generation-draft";
+import { PromptCompletionTextarea } from "./prompt-completion";
 
 type GenerationPromptPanelProps = {
   draft: GenerationDraft;
@@ -31,14 +32,14 @@ export function GenerationPromptPanel({
   onCompile,
 }: GenerationPromptPanelProps) {
   const handlePromptChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
-      onPatch({ prompt: event.target.value });
+    (prompt: string) => {
+      onPatch({ prompt });
     },
     [onPatch],
   );
   const handleNegativePromptChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
-      onPatch({ negativePrompt: event.target.value });
+    (negativePrompt: string) => {
+      onPatch({ negativePrompt });
     },
     [onPatch],
   );
@@ -53,18 +54,26 @@ export function GenerationPromptPanel({
         </AppButton>
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3">
-        <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
+        <label
+          htmlFor="generation-positive-prompt"
+          className="grid gap-2 text-xs font-semibold text-app-muted uppercase"
+        >
           Positive prompt
-          <textarea
+          <PromptCompletionTextarea
+            id="generation-positive-prompt"
             aria-label="Positive prompt"
             value={draft.prompt}
             onChange={handlePromptChange}
             className="min-h-44 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
           />
         </label>
-        <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
+        <label
+          htmlFor="generation-negative-prompt"
+          className="grid gap-2 text-xs font-semibold text-app-muted uppercase"
+        >
           Undesired content
-          <textarea
+          <PromptCompletionTextarea
+            id="generation-negative-prompt"
             aria-label="Undesired content"
             value={draft.negativePrompt}
             onChange={handleNegativePromptChange}

@@ -11,6 +11,7 @@ import type {
 import type { EnsuredVibeEncodingFromResource } from "../data/useGenerationActions";
 import type { GenerationDraft } from "../model/generation-draft";
 import { BooleanField, NumberField, SelectField } from "./GenerationFormFields";
+import { PromptCompletionTextarea } from "./prompt-completion";
 
 type AdvancedGenerationInputsProps = {
   draft: GenerationDraft;
@@ -415,6 +416,7 @@ export function AdvancedGenerationInputs({
             <h3 className="text-xs font-semibold text-app-muted uppercase">Characters</h3>
             <AppButton
               variant="ghost"
+              aria-label="Add character prompt"
               onClick={() =>
                 onPatch({
                   characters: [
@@ -469,21 +471,17 @@ export function AdvancedGenerationInputs({
                 checked={character.enabled}
                 onChange={(enabled) => patchCharacter(draft, onPatch, character.id, { enabled })}
               />
-              <textarea
+              <PromptCompletionTextarea
                 aria-label={`Character ${index + 1} prompt`}
                 value={character.prompt}
-                onChange={(event) =>
-                  patchCharacter(draft, onPatch, character.id, { prompt: event.target.value })
-                }
+                onChange={(prompt) => patchCharacter(draft, onPatch, character.id, { prompt })}
                 className="min-h-20 resize-none border border-app-border bg-black/20 p-2 text-sm text-app-text outline-none focus:border-brand-400"
               />
-              <textarea
+              <PromptCompletionTextarea
                 aria-label={`Character ${index + 1} negative prompt`}
                 value={character.negativePrompt}
-                onChange={(event) =>
-                  patchCharacter(draft, onPatch, character.id, {
-                    negativePrompt: event.target.value,
-                  })
+                onChange={(negativePrompt) =>
+                  patchCharacter(draft, onPatch, character.id, { negativePrompt })
                 }
                 className="min-h-16 resize-none border border-app-border bg-black/20 p-2 text-sm text-app-text outline-none focus:border-brand-400"
               />

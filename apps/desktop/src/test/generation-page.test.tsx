@@ -1,6 +1,6 @@
 /* eslint-disable max-lines, max-lines-per-function */
 import { QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createAtelierQueryClient } from "../app/query-client";
@@ -26,7 +26,11 @@ import type {
   ImageResourceKindDto,
   ImportedVibeDocumentsDto,
   ListVibeDocumentsRequestDto,
+  ListPromptChunksRequestDto,
   QueueDirectiveDto,
+  PromptChunkPageDto,
+  PromptLexiconPageDto,
+  PromptLexiconSearchQueryDto,
   ResourceImageDto,
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryItemResponseDto,
@@ -67,6 +71,8 @@ const mocks = vi.hoisted(() => ({
   promptApi: {
     compileGenerationPreview:
       vi.fn<(request: CompileGenerationPromptRequestDto) => Promise<CompiledGenerationPromptDto>>(),
+    listChunks: vi.fn<(request: ListPromptChunksRequestDto) => Promise<PromptChunkPageDto>>(),
+    lexiconSearch: vi.fn<(request: PromptLexiconSearchQueryDto) => Promise<PromptLexiconPageDto>>(),
   },
   resourceApi: {
     image: vi.fn<(request: GetResourceImageRequestDto) => Promise<ResourceImageDto>>(),
@@ -127,6 +133,9 @@ vi.mock("../platform/atelier", () => ({
     },
     prompt: {
       root: () => ["prompt"],
+      chunks: (query?: unknown) =>
+        query === undefined ? ["prompt", "chunks"] : ["prompt", "chunks", query],
+      lexiconSearch: (query: unknown) => ["prompt", "lexicon", "search", query],
     },
     resource: {
       root: () => ["resource"],
@@ -260,6 +269,53 @@ function setup(options?: {
     },
     characters: [],
   });
+  mocks.promptApi.listChunks.mockResolvedValue({
+    items: [
+      {
+        chunk_id: "chunk-lighting",
+        key: "lighting",
+        content: "cinematic lighting, rim light",
+        category: "Lighting",
+        description: "Reusable lighting stack",
+        preview: null,
+        created_at_ms: 1,
+        updated_at_ms: 1,
+      },
+      {
+        chunk_id: "chunk-hero",
+        key: "hero",
+        content: "solo, looking at viewer",
+        category: "Subject",
+        description: "Main character setup",
+        preview: null,
+        created_at_ms: 2,
+        updated_at_ms: 2,
+      },
+    ],
+    total: 2,
+    offset: 0,
+    limit: 200,
+  });
+  mocks.promptApi.lexiconSearch.mockImplementation(async (request) => ({
+    items:
+      request.query.trim().length > 0
+        ? [
+            {
+              tag: "cinematic_lighting",
+              weight: 1200,
+              category: "copyright",
+              subcategory: "lighting",
+              primary_translation: "cinematic lighting",
+              matched_translation: "cinematic lighting",
+              match_field: "tag",
+              match_rank: "prefix",
+            },
+          ]
+        : [],
+    total: request.query.trim().length > 0 ? 1 : 0,
+    offset: 0,
+    limit: request.limit,
+  }));
   mocks.resourceApi.image.mockResolvedValue({
     image_base64: "final-image",
     mime_type: "image/png",
@@ -387,7 +443,7 @@ describe("GeneratePage", () => {
     expect(screen.getByRole("button", { name: "Add source" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Add Vibe slot" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Add reference" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Character" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Add character prompt" })).toBeEnabled();
   });
 
   it("prevents duplicate submit requests while queueing", async () => {
@@ -750,5 +806,89 @@ describe("GeneratePage queue and preview behavior", () => {
     });
     expect(await screen.findByText("expanded prompt")).toBeInTheDocument();
     expect(await screen.findByText("expanded negative")).toBeInTheDocument();
+  });
+
+  it("inserts a tag completion into the positive prompt before submit", async () => {
+    const { user } = setup();
+
+    await user.type(await screen.findByLabelText("Positive prompt"), "cine");
+    await user.click(await screen.findByRole("option", { name: /cinematic_lighting/u }));
+    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+
+    await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
+    expect(mocks.generationApi.submitBatch.mock.calls[0]?.[0].jobs[0]?.work).toMatchObject({
+      request: {
+        base: {
+          prompt: "cinematic_lighting, ",
+        },
+      },
+    });
+  });
+
+  it("uses Ctrl+Space to insert a prompt chunk into undesired content before compile", async () => {
+    const { user } = setup();
+
+    await user.click(await screen.findByLabelText("Undesired content"));
+    await user.keyboard("{Control>} {/Control}");
+    await user.click(await screen.findByRole("option", { name: /lighting/u }));
+    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    await user.click(screen.getByRole("button", { name: "Compile prompt preview" }));
+
+    await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
+    expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "1girl",
+        negative_prompt: "@chunk(lighting), ",
+      }),
+    );
+  });
+
+  it("supports tag and chunk completion in character prompts", async () => {
+    const { user } = setup();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Add character prompt" }));
+    await user.type(await screen.findByLabelText("Character 1 prompt"), "cine");
+    await screen.findByRole("option", { name: /cinematic_lighting/u });
+    await user.keyboard("{Enter}");
+    await user.type(screen.getByLabelText("Character 1 negative prompt"), "@chunk(li");
+    await screen.findByRole("option", { name: /lighting/u });
+    await user.keyboard("{Tab}");
+    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    await user.click(screen.getByRole("button", { name: "Compile prompt preview" }));
+
+    await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
+    expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characters: [
+          {
+            prompt: "cinematic_lighting,",
+            negative_prompt: "@chunk(lighting), ",
+            enabled: true,
+          },
+        ],
+      }),
+    );
+  });
+
+  it("closes completion with Escape and accepts the active option with Enter", async () => {
+    const { user } = setup();
+    const prompt = await screen.findByLabelText("Positive prompt");
+
+    await user.type(prompt, "cine");
+    expect(await screen.findByRole("listbox", { name: "Prompt completions" })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("listbox", { name: "Prompt completions" })).not.toBeInTheDocument(),
+    );
+
+    await user.clear(prompt);
+    await user.keyboard("{Control>} {/Control}");
+    expect(await screen.findByRole("option", { name: /lighting/u })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /cinematic_lighting/u })).not.toBeInTheDocument();
+    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{Enter}");
+
+    expect(prompt).toHaveValue("@chunk(hero), ");
   });
 });

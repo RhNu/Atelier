@@ -45,7 +45,10 @@ export const queryKeys = {
   },
   prompt: {
     root: () => ["prompt"] as const,
-    chunks: () => ["prompt", "chunks"] as const,
+    chunks: (query?: unknown) =>
+      query === undefined
+        ? (["prompt", "chunks"] as const)
+        : (["prompt", "chunks", query] as const),
     lexiconCatalog: () => ["prompt", "lexicon", "catalog"] as const,
     lexiconList: (query: unknown) => ["prompt", "lexicon", "list", query] as const,
     lexiconSearch: (query: unknown) => ["prompt", "lexicon", "search", query] as const,
