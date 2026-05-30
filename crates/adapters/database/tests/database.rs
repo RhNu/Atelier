@@ -38,7 +38,7 @@ use atelier_resource_catalog::{
     ResourceOwner, ResourceOwnerKind, ResourceRef, ResourceRelation, ResourceResult, ResourceState,
     ResourceVariantBuilder, ResourceVariantKind, StagedBlob, StagedBlobToken, VariantId,
 };
-use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyResult};
+use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyLabel, SafetyResult};
 use atelier_secrets::{
     ApiKeyId, ApiKeyRecord, ApiKeyRegistryStore, SecretRecordId, SecretsErrorKind,
 };

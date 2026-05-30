@@ -19,6 +19,7 @@ pub fn gallery_query_to_domain(value: &GalleryQueryDto) -> AppResult<GalleryQuer
             .transpose()?,
         source_kind: value.source_kind.map(source_kind_to_domain),
         manual_safety_override: value.manual_safety_override.map(safety_override_to_domain),
+        safety_label: value.safety_label.map(safety_label_to_domain),
     })
 }
 
@@ -103,6 +104,14 @@ const fn safety_label_to_dto(value: SafetyLabel) -> GallerySafetyLabelDto {
         SafetyLabel::Safe => GallerySafetyLabelDto::Safe,
         SafetyLabel::Sensitive => GallerySafetyLabelDto::Sensitive,
         SafetyLabel::Hidden => GallerySafetyLabelDto::Hidden,
+    }
+}
+
+const fn safety_label_to_domain(value: GallerySafetyLabelDto) -> SafetyLabel {
+    match value {
+        GallerySafetyLabelDto::Safe => SafetyLabel::Safe,
+        GallerySafetyLabelDto::Sensitive => SafetyLabel::Sensitive,
+        GallerySafetyLabelDto::Hidden => SafetyLabel::Hidden,
     }
 }
 

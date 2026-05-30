@@ -12,7 +12,7 @@ use atelier_gallery::{
     ImageReferenceTarget,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
-use atelier_safety::{ImageSafetyScore, SafetyAssessment};
+use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyLabel};
 use futures_executor::block_on;
 
 #[test]
@@ -187,7 +187,7 @@ fn query_filters_by_kind_source_and_manual_safety_override() {
             .await
             .unwrap();
 
-        assert_eq!(item_ids(&generated_items), vec![generated.id]);
+        assert!(item_ids(&generated_items).is_empty());
         assert_eq!(item_ids(&director_items), vec![director.id]);
         assert_eq!(
             item_ids(&hidden_items),
@@ -195,6 +195,42 @@ fn query_filters_by_kind_source_and_manual_safety_override() {
                 "generated-1"
             ))]
         );
+    });
+}
+
+#[test]
+fn query_filters_by_effective_safety_label_before_pagination() {
+    block_on(async {
+        let index = FakeGalleryIndex::default();
+        let service = GalleryService::new(index);
+        service
+            .index_artifact(
+                generated_artifact("sensitive-newer", 30),
+                30,
+                Some(safety_assessment("sensitive-newer", 0.91)),
+            )
+            .await
+            .unwrap();
+        let safe = service
+            .index_artifact(
+                generated_artifact("safe-older", 10),
+                10,
+                Some(safety_assessment("safe-older", 0.04)),
+            )
+            .await
+            .unwrap();
+
+        let page = service
+            .query(GalleryQuery {
+                offset: 0,
+                limit: 1,
+                safety_label: Some(SafetyLabel::Safe),
+                ..GalleryQuery::default()
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(item_ids(&page), vec![safe.id]);
     });
 }
 
@@ -413,6 +449,13 @@ fn assert_reference(
 
 fn item_ids(items: &[GalleryItem]) -> Vec<GalleryItemId> {
     items.iter().map(|item| item.id.clone()).collect()
+}
+
+fn safety_assessment(id: &str, score: f32) -> SafetyAssessment {
+    SafetyAssessment::new(
+        ResourceRef::base(ResourceId::new(format!("res-{id}"))),
+        ImageSafetyScore::new(score).unwrap(),
+    )
 }
 
 fn generated_artifact(id: &str, indexed_at_ms: u64) -> ArtifactRecord {

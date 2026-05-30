@@ -40,6 +40,11 @@ fn settings_repository_defaults_saves_reopens_and_resets() {
                 thumbnail_long_edge: 240,
                 preview_long_edge: 900,
             },
+            frontend: atelier_settings::FrontendSettings {
+                gallery: atelier_settings::FrontendGallerySettings {
+                    blur_sensitive_images: true,
+                },
+            },
         };
 
         repository
@@ -56,6 +61,52 @@ fn settings_repository_defaults_saves_reopens_and_resets() {
             reopened.get_workspace_settings().await.unwrap(),
             WorkspaceSettings::default()
         );
+    });
+}
+
+#[test]
+fn settings_repository_reads_old_payloads_with_frontend_defaults() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("atelier.sqlite3");
+        {
+            drop(DatabaseConnection::open(&path).unwrap());
+            let connection = Connection::open(&path).unwrap();
+            connection
+                .execute(
+                    "INSERT INTO workspace_settings(setting_key, value_json) VALUES ('workspace', ?1)",
+                    [r#"{
+                        "schema_version": 1,
+                        "generation": {
+                            "model": "nai-diffusion-4-5-full",
+                            "width": 832,
+                            "height": 1216,
+                            "quality": true,
+                            "uc_preset": "light",
+                            "steps": 23,
+                            "scale": 5.0,
+                            "sampler": "k_euler_ancestral",
+                            "noise_schedule": "karras",
+                            "seed": 0,
+                            "n_samples": 1,
+                            "cfg_rescale": 0.0,
+                            "variety_boost": false,
+                            "image_format": null,
+                            "strict_mode": false
+                        },
+                        "image_variants": {
+                            "thumbnail_long_edge": 320,
+                            "preview_long_edge": 1024
+                        }
+                    }"#],
+                )
+                .unwrap();
+        }
+
+        let repository = DatabaseSettingsRepository::new(DatabaseConnection::open(&path).unwrap());
+        let settings = repository.get_workspace_settings().await.unwrap();
+
+        assert!(!settings.frontend.gallery.blur_sensitive_images);
     });
 }
 

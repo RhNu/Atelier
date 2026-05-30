@@ -89,6 +89,34 @@ export function SettingsPage() {
     [settingsQuery.data, updateSettingsMutation],
   );
 
+  const saveFrontendSettings = useCallback(
+    (settings: WorkspaceSettingsDto) => {
+      if (!settingsQuery.data) {
+        setCommandError("Workspace settings are not loaded.");
+        return;
+      }
+
+      const nextSettings = cloneSettings(settingsQuery.data);
+      nextSettings.frontend = {
+        gallery: { ...settings.frontend.gallery },
+      };
+
+      setCommandError(null);
+      updateSettingsMutation.mutate(
+        { settings: nextSettings },
+        {
+          onSuccess: (updatedSettings) => {
+            setDraft(cloneSettings(updatedSettings));
+          },
+          onError: (error) => {
+            setCommandError(formatError(error));
+          },
+        },
+      );
+    },
+    [settingsQuery.data, updateSettingsMutation],
+  );
+
   const resetSettings = useCallback(() => {
     setCommandError(null);
     resetSettingsMutation.mutate(undefined, {
@@ -127,6 +155,7 @@ export function SettingsPage() {
           updateDraft={updateDraft}
           saveGenerationSettings={saveGenerationSettings}
           saveImageSettings={saveImageSettings}
+          saveFrontendSettings={saveFrontendSettings}
           resetSettings={resetSettings}
         />
       </div>
@@ -145,6 +174,7 @@ function SettingsContent({
   updateDraft,
   saveGenerationSettings,
   saveImageSettings,
+  saveFrontendSettings,
   resetSettings,
 }: {
   activeSection: SettingsSection;
@@ -157,14 +187,11 @@ function SettingsContent({
   updateDraft: (draft: WorkspaceSettingsDto) => void;
   saveGenerationSettings: (settings: WorkspaceSettingsDto) => void;
   saveImageSettings: (settings: WorkspaceSettingsDto) => void;
+  saveFrontendSettings: (settings: WorkspaceSettingsDto) => void;
   resetSettings: () => void;
 }) {
   if (activeSection === "account") {
     return <AccountSettingsSection />;
-  }
-
-  if (activeSection === "frontend") {
-    return <FrontendSettingsSection />;
   }
 
   if (error) {
@@ -180,6 +207,18 @@ function SettingsContent({
       <AppPanel className="min-h-0 overflow-hidden">
         <LoadingPanel label="Loading workspace settings" />
       </AppPanel>
+    );
+  }
+
+  if (activeSection === "frontend") {
+    return (
+      <FrontendSettingsSection
+        draft={draft}
+        updateDraft={updateDraft}
+        saveSettings={saveFrontendSettings}
+        saving={saving}
+        commandError={commandError}
+      />
     );
   }
 

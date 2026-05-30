@@ -35,8 +35,9 @@ use atelier_app_api::resource::{
     ImportImageResourceResponseDto, ResourceImageDto, ResourceRefDto, SaveResourceImageRequestDto,
 };
 use atelier_app_api::settings::{
-    GenerationDefaultsDto, ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto,
-    UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+    FrontendGallerySettingsDto, FrontendSettingsDto, GenerationDefaultsDto,
+    ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto,
+    WorkspaceSettingsDto,
 };
 use atelier_app_api::vibe::{
     GetVibeDocumentRequestDto, ListVibeDocumentsRequestDto, VibeDocumentEntryDto,
@@ -213,6 +214,11 @@ fn workspace_settings_dtos_have_stable_json_field_names() {
             thumbnail_long_edge: 320,
             preview_long_edge: 1024,
         },
+        frontend: FrontendSettingsDto {
+            gallery: FrontendGallerySettingsDto {
+                blur_sensitive_images: true,
+            },
+        },
     };
 
     assert_eq!(
@@ -240,6 +246,11 @@ fn workspace_settings_dtos_have_stable_json_field_names() {
                 "image_variants": {
                     "thumbnail_long_edge": 320,
                     "preview_long_edge": 1024
+                },
+                "frontend": {
+                    "gallery": {
+                        "blur_sensitive_images": true
+                    }
                 }
             }
         })
@@ -266,6 +277,11 @@ fn workspace_settings_dtos_have_stable_json_field_names() {
                 "image_variants": {
                     "thumbnail_long_edge": 320,
                     "preview_long_edge": 1024
+                },
+                "frontend": {
+                    "gallery": {
+                        "blur_sensitive_images": true
+                    }
                 }
             }
         })

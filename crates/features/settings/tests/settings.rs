@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
 use atelier_settings::{
-    GenerationDefaults, ImageVariantSettings, SettingsRepository, SettingsResult, SettingsService,
-    WorkspaceSettings,
+    FrontendGallerySettings, FrontendSettings, GenerationDefaults, ImageVariantSettings,
+    SettingsRepository, SettingsResult, SettingsService, WorkspaceSettings,
 };
 use futures_executor::block_on;
 
@@ -23,6 +23,7 @@ fn workspace_settings_defaults_are_novelai_oriented() {
     assert_eq!(settings.generation.image_format, None);
     assert_eq!(settings.image_variants.thumbnail_long_edge, 320);
     assert_eq!(settings.image_variants.preview_long_edge, 1024);
+    assert!(!settings.frontend.gallery.blur_sensitive_images);
 }
 
 #[test]
@@ -75,6 +76,11 @@ fn settings_service_defaults_saves_and_resets_workspace_settings() {
             image_variants: ImageVariantSettings {
                 thumbnail_long_edge: 256,
                 preview_long_edge: 768,
+            },
+            frontend: FrontendSettings {
+                gallery: FrontendGallerySettings {
+                    blur_sensitive_images: true,
+                },
             },
         };
 

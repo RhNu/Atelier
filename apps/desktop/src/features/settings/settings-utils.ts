@@ -32,5 +32,8 @@ export function cloneSettings(settings: WorkspaceSettingsDto): WorkspaceSettings
       size: { ...settings.generation.size },
     },
     image_variants: { ...settings.image_variants },
+    frontend: {
+      gallery: { ...settings.frontend.gallery },
+    },
   };
 }

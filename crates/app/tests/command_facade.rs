@@ -27,8 +27,8 @@ use atelier_app_api::resource::{
     ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
 };
 use atelier_app_api::settings::{
-    GenerationDefaultsDto, ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto,
-    WorkspaceSettingsDto,
+    FrontendGallerySettingsDto, FrontendSettingsDto, GenerationDefaultsDto,
+    ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
 use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, ExportVibeDocumentRequestDto, ImportVibeDocumentRequestDto,

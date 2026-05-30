@@ -3,7 +3,7 @@ use atelier_artifacts::{
     VisualAssetRole,
 };
 use atelier_resource_catalog::{ResourceRef, ResourceVariantKind};
-use atelier_safety::SafetyAssessment;
+use atelier_safety::{SafetyAssessment, SafetyLabel};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GalleryItemId(String);
@@ -91,6 +91,19 @@ impl GalleryItem {
     }
 
     #[must_use]
+    pub fn effective_safety_label(&self) -> Option<SafetyLabel> {
+        let manual = self.manual_safety_override.map(|value| match value {
+            GallerySafetyOverride::Safe => SafetyLabel::Safe,
+            GallerySafetyOverride::Sensitive => SafetyLabel::Sensitive,
+            GallerySafetyOverride::Hidden => SafetyLabel::Hidden,
+        });
+        self.safety_assessment
+            .as_ref()
+            .map(|assessment| assessment.effective_label(manual))
+            .or(manual)
+    }
+
+    #[must_use]
     pub fn image_reference(&self, target: ImageReferenceTarget) -> GalleryImageReference {
         let asset = self.preferred_transfer_asset();
         GalleryImageReference {
@@ -127,6 +140,7 @@ pub struct GalleryQuery {
     pub artifact_kind: Option<ArtifactKind>,
     pub source_kind: Option<GallerySourceKind>,
     pub manual_safety_override: Option<GallerySafetyOverride>,
+    pub safety_label: Option<SafetyLabel>,
 }
 
 impl Default for GalleryQuery {
@@ -137,6 +151,7 @@ impl Default for GalleryQuery {
             artifact_kind: None,
             source_kind: None,
             manual_safety_override: None,
+            safety_label: None,
         }
     }
 }
@@ -165,10 +180,21 @@ impl GalleryQuery {
             && self
                 .source_kind
                 .is_none_or(|source_kind| item.source_kind() == source_kind)
-            && self.manual_safety_override.is_none_or(|manual| {
-                item.manual_safety_override
-                    .is_some_and(|value| value == manual)
-            })
+            && self.matches_manual_safety_override(item)
+            && self
+                .safety_label
+                .is_none_or(|label| item.effective_safety_label() == Some(label))
+    }
+
+    fn matches_manual_safety_override(&self, item: &GalleryItem) -> bool {
+        if let Some(manual) = self.manual_safety_override {
+            return item
+                .manual_safety_override
+                .is_some_and(|value| value == manual);
+        }
+
+        self.safety_label == Some(SafetyLabel::Hidden)
+            || item.manual_safety_override != Some(GallerySafetyOverride::Hidden)
     }
 }
 

@@ -5,6 +5,7 @@ use atelier_gallery::{
     GalleryError, GalleryIndex, GalleryItem, GalleryItemId, GalleryQuery, GalleryResult,
     GallerySafetyOverride,
 };
+use atelier_safety::SafetyLabel;
 use rusqlite::{OptionalExtension, params};
 
 use crate::codec::{
@@ -79,6 +80,20 @@ impl GalleryIndex for DatabaseGalleryIndex {
         let artifact_kind = query.artifact_kind.map(artifact_kind_as_str);
         let source_kind = query.source_kind.map(source_kind_as_str);
         let safety_override = query.manual_safety_override.map(safety_override_as_str);
+        let apply_safety_label_filter = query.safety_label.is_some();
+        let exclude_hidden = query.safety_label != Some(SafetyLabel::Hidden);
+        let limit = if apply_safety_label_filter {
+            i64::MAX
+        } else {
+            i64::try_from(query.limit)
+                .map_err(|error| GalleryError::repository(error.to_string()))?
+        };
+        let offset = if apply_safety_label_filter {
+            0
+        } else {
+            i64::try_from(query.offset)
+                .map_err(|error| GalleryError::repository(error.to_string()))?
+        };
         let mut statement = connection
             .prepare(
                 r"
@@ -86,9 +101,16 @@ impl GalleryIndex for DatabaseGalleryIndex {
                 FROM gallery_items
                 WHERE (?1 IS NULL OR artifact_kind = ?1)
                   AND (?2 IS NULL OR source_kind = ?2)
-                  AND (?3 IS NULL OR manual_safety_override = ?3)
+                  AND (
+                      (?3 IS NULL AND (
+                          ?4 = 0
+                          OR manual_safety_override IS NULL
+                          OR manual_safety_override <> 'hidden'
+                      ))
+                      OR (?3 IS NOT NULL AND manual_safety_override = ?3)
+                  )
                 ORDER BY indexed_at_ms DESC, item_id ASC
-                LIMIT ?4 OFFSET ?5
+                LIMIT ?5 OFFSET ?6
                 ",
             )
             .map_err(sql_error)?;
@@ -98,15 +120,19 @@ impl GalleryIndex for DatabaseGalleryIndex {
                     artifact_kind,
                     source_kind,
                     safety_override,
-                    i64::try_from(query.limit)
-                        .map_err(|error| GalleryError::repository(error.to_string()))?,
-                    i64::try_from(query.offset)
-                        .map_err(|error| GalleryError::repository(error.to_string()))?,
+                    i64::from(exclude_hidden),
+                    limit,
+                    offset,
                 ],
                 gallery_item_from_row,
             )
             .map_err(sql_error)?;
-        rows.collect::<Result<Vec<_>, _>>().map_err(sql_error)
+        let items = rows.collect::<Result<Vec<_>, _>>().map_err(sql_error)?;
+        if apply_safety_label_filter {
+            Ok(query.apply(items))
+        } else {
+            Ok(items)
+        }
     }
 
     async fn set_safety_override(

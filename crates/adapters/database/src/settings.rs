@@ -3,8 +3,8 @@
 use async_trait::async_trait;
 use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
 use atelier_settings::{
-    GenerationDefaults, ImageVariantSettings, SettingsError, SettingsRepository, SettingsResult,
-    WorkspaceSettings,
+    FrontendGallerySettings, FrontendSettings, GenerationDefaults, ImageVariantSettings,
+    SettingsError, SettingsRepository, SettingsResult, WorkspaceSettings,
 };
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -88,6 +88,8 @@ struct WorkspaceSettingsDto {
     schema_version: u32,
     generation: GenerationDefaultsDto,
     image_variants: ImageVariantSettingsDto,
+    #[serde(default)]
+    frontend: FrontendSettingsDto,
 }
 
 impl WorkspaceSettingsDto {
@@ -96,6 +98,7 @@ impl WorkspaceSettingsDto {
             schema_version: JSON_SCHEMA_VERSION,
             generation: GenerationDefaultsDto::from_domain(&value.generation),
             image_variants: ImageVariantSettingsDto::from_domain(value.image_variants),
+            frontend: FrontendSettingsDto::from_domain(value.frontend),
         }
     }
 
@@ -104,6 +107,7 @@ impl WorkspaceSettingsDto {
         Ok(WorkspaceSettings {
             generation: self.generation.into_domain()?,
             image_variants: self.image_variants.into_domain(),
+            frontend: self.frontend.into_domain(),
         })
     }
 
@@ -206,6 +210,44 @@ impl ImageVariantSettingsDto {
         ImageVariantSettings {
             thumbnail_long_edge: self.thumbnail_long_edge,
             preview_long_edge: self.preview_long_edge,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
+struct FrontendSettingsDto {
+    gallery: FrontendGallerySettingsDto,
+}
+
+impl FrontendSettingsDto {
+    const fn from_domain(value: FrontendSettings) -> Self {
+        Self {
+            gallery: FrontendGallerySettingsDto::from_domain(value.gallery),
+        }
+    }
+
+    const fn into_domain(self) -> FrontendSettings {
+        FrontendSettings {
+            gallery: self.gallery.into_domain(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
+struct FrontendGallerySettingsDto {
+    blur_sensitive_images: bool,
+}
+
+impl FrontendGallerySettingsDto {
+    const fn from_domain(value: FrontendGallerySettings) -> Self {
+        Self {
+            blur_sensitive_images: value.blur_sensitive_images,
+        }
+    }
+
+    const fn into_domain(self) -> FrontendGallerySettings {
+        FrontendGallerySettings {
+            blur_sensitive_images: self.blur_sensitive_images,
         }
     }
 }

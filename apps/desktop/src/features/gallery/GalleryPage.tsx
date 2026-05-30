@@ -1,76 +1,185 @@
-import { Grid3X3, ListFilter } from "lucide-react";
+import { ImageIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { AppButton, AppPanel, AppToolbar } from "../../components/ui";
+import type { GalleryQueryDto } from "../../types";
+import { GalleryFilters } from "./components/GalleryFilters";
+import { GalleryGrid } from "./components/GalleryGrid";
+import { GalleryInspector } from "./components/GalleryInspector";
 import {
-  AppButton,
-  AppPanel,
-  AppToolbar,
-  EmptyState,
-  ResourceImage,
-  SafetyBadge,
-} from "../../components/ui";
-import { useGalleryPageQuery } from "./data/useGalleryPageQuery";
-
-function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : "Command failed";
-}
+  useGalleryPageQuery,
+  useGallerySettingsQuery,
+  useSaveGalleryImageMutation,
+  useSetGallerySafetyOverrideMutation,
+} from "./data/useGalleryPageQuery";
+import {
+  PAGE_LIMIT,
+  type SafetyFilter,
+  type SourceFilter,
+  formatError,
+  matchesSafetyFilter,
+  parseSafetyOverride,
+  preferredExportAsset,
+  suggestedGalleryExportFileName,
+} from "./gallery-utils";
 
 export function GalleryPage() {
-  const galleryQuery = useGalleryPageQuery();
-  const items = galleryQuery.data?.items ?? [];
+  const [offset, setOffset] = useState(0);
+  const [artifactKind, setArtifactKind] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [safetyFilter, setSafetyFilter] = useState<SafetyFilter>("all");
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [overrideValue, setOverrideValue] = useState("");
+
+  const query = useMemo<GalleryQueryDto>(
+    () => ({
+      offset,
+      limit: PAGE_LIMIT,
+      artifact_kind: artifactKind === "all" ? null : artifactKind,
+      source_kind: sourceFilter === "all" ? null : sourceFilter,
+      manual_safety_override: null,
+      safety_label: safetyFilter === "all" ? null : safetyFilter,
+    }),
+    [artifactKind, offset, safetyFilter, sourceFilter],
+  );
+
+  const galleryQuery = useGalleryPageQuery(query);
+  const settingsQuery = useGallerySettingsQuery();
+  const setSafetyOverrideMutation = useSetGallerySafetyOverrideMutation();
+  const saveImageMutation = useSaveGalleryImageMutation();
+  const visibleItems = useMemo(
+    () =>
+      (galleryQuery.data?.items ?? []).filter((item) => matchesSafetyFilter(item, safetyFilter)),
+    [galleryQuery.data?.items, safetyFilter],
+  );
+
+  const selectedItem = visibleItems.find((item) => item.item_id === selectedItemId) ?? null;
+  const blurSensitive =
+    settingsQuery.data?.frontend.gallery.blur_sensitive_images === true && !settingsQuery.isError;
+  const total = galleryQuery.data?.total ?? 0;
+  const mutationError = setSafetyOverrideMutation.error ?? saveImageMutation.error;
+  const commandError = mutationError ? formatError(mutationError) : null;
+  const canGoPrevious = offset > 0;
+  const canGoNext = offset + PAGE_LIMIT < total;
+
+  useEffect(() => {
+    setSelectedItemId((current) =>
+      current && visibleItems.some((item) => item.item_id === current)
+        ? current
+        : (visibleItems[0]?.item_id ?? null),
+    );
+  }, [visibleItems]);
+
+  useEffect(() => {
+    setOverrideValue(selectedItem?.manual_safety_override ?? "");
+  }, [selectedItem?.item_id, selectedItem?.manual_safety_override]);
+
+  const resetPage = useCallback(() => setOffset(0), []);
+  const changeArtifact = useCallback((value: string) => {
+    setArtifactKind(value);
+    setOffset(0);
+  }, []);
+  const changeSource = useCallback((value: SourceFilter) => {
+    setSourceFilter(value);
+    setOffset(0);
+  }, []);
+  const changeSafety = useCallback((value: SafetyFilter) => {
+    setSafetyFilter(value);
+    setOffset(0);
+  }, []);
+  const previousPage = useCallback(
+    () => setOffset((current) => Math.max(0, current - PAGE_LIMIT)),
+    [],
+  );
+  const nextPage = useCallback(() => setOffset((current) => current + PAGE_LIMIT), []);
+
+  const applyOverride = useCallback(() => {
+    if (selectedItem) {
+      setSafetyOverrideMutation.reset();
+      saveImageMutation.reset();
+      setSafetyOverrideMutation.mutate({
+        item_id: selectedItem.item_id,
+        manual_safety_override: parseSafetyOverride(overrideValue),
+      });
+    }
+  }, [overrideValue, saveImageMutation, selectedItem, setSafetyOverrideMutation]);
+
+  const exportSelected = useCallback(() => {
+    if (selectedItem) {
+      setSafetyOverrideMutation.reset();
+      saveImageMutation.reset();
+      const asset = preferredExportAsset(selectedItem);
+      saveImageMutation.mutate({
+        resource: asset.resource,
+        suggested_file_name: suggestedGalleryExportFileName(selectedItem.item_id, asset.role),
+      });
+    }
+  }, [saveImageMutation, selectedItem, setSafetyOverrideMutation]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <AppToolbar>
         <div>
           <p className="text-xs font-semibold text-brand-200 uppercase">Gallery</p>
-          <h1 className="text-lg font-semibold text-white">Workspace Gallery</h1>
+          <h1 className="text-lg font-semibold text-white">NovelAI Image Gallery</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <AppButton variant="ghost">
-            <ListFilter aria-hidden="true" className="size-4" />
-            Filter
-          </AppButton>
-          <AppButton variant="secondary">
-            <Grid3X3 aria-hidden="true" className="size-4" />
-            Grid
-          </AppButton>
+        <div className="flex items-center gap-2 text-sm text-app-muted">
+          <ImageIcon aria-hidden="true" className="size-4" />
+          <span>{total} indexed</span>
         </div>
       </AppToolbar>
 
-      <AppPanel className="m-3 min-h-0 flex-1 overflow-hidden">
-        <div className="h-full overflow-auto p-3">
-          {galleryQuery.isPending ? (
-            <p className="text-sm text-app-muted">Loading gallery</p>
-          ) : galleryQuery.isError ? (
-            <EmptyState title="Gallery unavailable" description={formatError(galleryQuery.error)} />
-          ) : items.length === 0 ? (
-            <EmptyState title="No gallery items" />
-          ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-              {items.map((item) => (
-                <article key={item.item_id} className="border border-app-border bg-app-surface">
-                  <ResourceImage
-                    src={null}
-                    fallbackLabel={item.artifact_kind}
-                    className="aspect-square w-full"
-                  />
-                  <div className="grid gap-2 p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="truncate text-sm font-semibold text-app-text">
-                        {item.model_name ?? item.artifact_id}
-                      </p>
-                      <SafetyBadge label={item.safety?.effective_label ?? "unknown"} />
-                    </div>
-                    <p className="text-xs text-app-muted">
-                      {item.source_kind} / seed {item.seed ?? "auto"}
-                    </p>
-                  </div>
-                </article>
-              ))}
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] gap-3 p-3">
+        <AppPanel className="flex min-h-0 flex-col overflow-hidden">
+          <GalleryFilters
+            artifactKind={artifactKind}
+            sourceFilter={sourceFilter}
+            safetyFilter={safetyFilter}
+            offset={offset}
+            onArtifactChange={changeArtifact}
+            onSourceChange={changeSource}
+            onSafetyChange={changeSafety}
+            onResetPage={resetPage}
+          />
+          <div className="min-h-0 flex-1 overflow-auto p-3">
+            <GalleryGrid
+              isPending={galleryQuery.isPending}
+              isError={galleryQuery.isError}
+              error={galleryQuery.error}
+              items={visibleItems}
+              selectedItemId={selectedItemId}
+              blurSensitive={blurSensitive}
+              onSelect={setSelectedItemId}
+            />
+          </div>
+          <footer className="flex items-center justify-between border-t border-app-border px-3 py-2 text-sm text-app-muted">
+            <span>
+              Page {Math.floor(offset / PAGE_LIMIT) + 1} of{" "}
+              {Math.max(1, Math.ceil(total / PAGE_LIMIT))}
+            </span>
+            <div className="flex gap-2">
+              <AppButton variant="secondary" onClick={previousPage} disabled={!canGoPrevious}>
+                Previous
+              </AppButton>
+              <AppButton variant="secondary" onClick={nextPage} disabled={!canGoNext}>
+                Next
+              </AppButton>
             </div>
-          )}
-        </div>
-      </AppPanel>
+          </footer>
+        </AppPanel>
+
+        <GalleryInspector
+          item={selectedItem}
+          blurSensitive={blurSensitive}
+          overrideValue={overrideValue}
+          onOverrideChange={setOverrideValue}
+          onApplyOverride={applyOverride}
+          onExport={exportSelected}
+          applyingOverride={setSafetyOverrideMutation.isPending}
+          exporting={saveImageMutation.isPending}
+          commandError={commandError}
+        />
+      </div>
     </div>
   );
 }

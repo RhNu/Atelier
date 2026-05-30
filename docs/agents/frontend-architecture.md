@@ -79,7 +79,7 @@ The current Settings frontend implements existing backend capabilities only:
 - Account: API key registry, active key, and explicit subscription probe.
 - Generation: workspace-local NovelAI image defaults.
 - Images: resource thumbnail and preview long-edge sizes.
-- Frontend: read-only placeholder until app-api owns UI preferences.
+- Frontend: workspace-local Gallery SFW blur preference; other UI preferences remain out of scope.
 
 Do not add UI preference persistence, runtime/network settings, or artifacts root settings without a separate app-api/backend design note.
 

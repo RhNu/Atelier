@@ -73,6 +73,11 @@ const defaultSettings: WorkspaceSettingsDto = {
     thumbnail_long_edge: 320,
     preview_long_edge: 1024,
   },
+  frontend: {
+    gallery: {
+      blur_sensitive_images: false,
+    },
+  },
 };
 
 const activeSubscription: SubscriptionSummaryDto = {
@@ -148,10 +153,7 @@ describe("SettingsPage", () => {
     await user.click(within(sectionNav).getByRole("button", { name: "Frontend" }));
 
     expect(screen.getByRole("heading", { name: "Frontend Preferences" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Theme")).toBeDisabled();
-    expect(
-      screen.queryByRole("button", { name: "Save frontend preferences" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Blur NSFW images")).toBeInTheDocument();
   });
 
   it("creates API keys with generated ids and never displays the secret", async () => {
@@ -317,5 +319,18 @@ describe("SettingsPage", () => {
     await user.click(screen.getByRole("button", { name: "Reset workspace settings" }));
 
     expect(mocks.settingsApi.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves frontend gallery preferences through workspace settings", async () => {
+    const { user } = setup();
+
+    await user.click(await screen.findByRole("button", { name: "Frontend" }));
+    await user.click(screen.getByLabelText("Blur NSFW images"));
+    await user.click(screen.getByRole("button", { name: "Save frontend preferences" }));
+
+    const request = lastWorkspaceSettingsUpdate();
+    expect(request.settings.frontend.gallery.blur_sensitive_images).toBe(true);
+    expect(request.settings.generation.model).toBe("nai-diffusion-4-5-full");
+    expect(request.settings.image_variants.thumbnail_long_edge).toBe(320);
   });
 });

@@ -21,7 +21,8 @@ use atelier_app_api::prompt::{
 };
 use atelier_app_api::resource::ResourceRefDto;
 use atelier_app_api::settings::{
-    GenerationDefaultsDto, ImageVariantSettingsDto, WorkspaceSettingsDto,
+    FrontendGallerySettingsDto, FrontendSettingsDto, GenerationDefaultsDto,
+    ImageVariantSettingsDto, WorkspaceSettingsDto,
 };
 use atelier_app_api::vibe::{
     EnsuredVibeEncodingDto, ExportedVibeDocumentDto, ImportedVibeDocumentsDto,
@@ -52,7 +53,10 @@ use atelier_prompt_resources::{
 use atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
 use atelier_safety::{SafetyAssessment, SafetyLabel, SafetyRiskBand};
 use atelier_secrets::{ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretValue};
-use atelier_settings::{GenerationDefaults, ImageVariantSettings, WorkspaceSettings};
+use atelier_settings::{
+    FrontendGallerySettings, FrontendSettings, GenerationDefaults, ImageVariantSettings,
+    WorkspaceSettings,
+};
 use atelier_vibe::{VibeDocumentEntry, VibeExportFormat, VibeModel};
 
 use crate::{AppError, AppResult};

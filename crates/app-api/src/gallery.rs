@@ -29,6 +29,8 @@ pub struct GalleryQueryDto {
     pub source_kind: Option<GallerySourceKindDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manual_safety_override: Option<GallerySafetyOverrideDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub safety_label: Option<GallerySafetyLabelDto>,
 }
 
 impl Default for GalleryQueryDto {
@@ -39,6 +41,7 @@ impl Default for GalleryQueryDto {
             artifact_kind: None,
             source_kind: None,
             manual_safety_override: None,
+            safety_label: None,
         }
     }
 }

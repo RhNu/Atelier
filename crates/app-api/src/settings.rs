@@ -9,6 +9,7 @@ use crate::generation::{
 pub struct WorkspaceSettingsDto {
     pub generation: GenerationDefaultsDto,
     pub image_variants: ImageVariantSettingsDto,
+    pub frontend: FrontendSettingsDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -64,6 +65,16 @@ impl Default for ImageVariantSettingsDto {
             preview_long_edge: 1024,
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct FrontendSettingsDto {
+    pub gallery: FrontendGallerySettingsDto,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct FrontendGallerySettingsDto {
+    pub blur_sensitive_images: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

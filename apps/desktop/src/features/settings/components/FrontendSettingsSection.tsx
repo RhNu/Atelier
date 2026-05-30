@@ -1,32 +1,66 @@
-import { AppPanel } from "../../../components/ui";
-import { SectionHeader, TextField } from "./SettingsControls";
+import { useCallback } from "react";
 
-function ignoreReadonlyPreference() {
-  return undefined;
-}
+import { AppButton, AppPanel } from "../../../components/ui";
+import type { WorkspaceSettingsDto } from "../../../types";
+import { CheckboxField, SectionHeader } from "./SettingsControls";
 
-export function FrontendSettingsSection() {
+type FrontendSettingsSectionProps = {
+  draft: WorkspaceSettingsDto;
+  updateDraft: (draft: WorkspaceSettingsDto) => void;
+  saveSettings: (settings: WorkspaceSettingsDto) => void;
+  saving: boolean;
+  commandError: string | null;
+};
+
+export function FrontendSettingsSection({
+  draft,
+  updateDraft,
+  saveSettings,
+  saving,
+  commandError,
+}: FrontendSettingsSectionProps) {
+  const updateBlurSensitiveImages = useCallback(
+    (blurSensitiveImages: boolean) => {
+      updateDraft({
+        ...draft,
+        frontend: {
+          gallery: {
+            ...draft.frontend.gallery,
+            blur_sensitive_images: blurSensitiveImages,
+          },
+        },
+      });
+    },
+    [draft, updateDraft],
+  );
+
+  const handleSave = useCallback(() => {
+    saveSettings(draft);
+  }, [draft, saveSettings]);
+
   return (
     <AppPanel className="h-full min-h-0 overflow-hidden">
       <SectionHeader
         kicker="Frontend"
         title="Frontend Preferences"
-        description="Reserved for future app-api backed UI preferences."
-      />
-      <div className="grid gap-3 p-3 md:grid-cols-3">
-        <TextField label="Theme" value="System" onChange={ignoreReadonlyPreference} disabled />
-        <TextField
-          label="Density"
-          value="Comfortable"
-          onChange={ignoreReadonlyPreference}
-          disabled
+        description="Workspace-local interface behavior for NovelAI creative review."
+      >
+        <AppButton onClick={handleSave} disabled={saving}>
+          {saving ? "Saving frontend preferences" : "Save frontend preferences"}
+        </AppButton>
+      </SectionHeader>
+      {commandError ? (
+        <p className="border-b border-app-border bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+          {commandError}
+        </p>
+      ) : null}
+      <div className="grid gap-3 p-3 md:grid-cols-2">
+        <CheckboxField
+          label="Blur NSFW images"
+          checked={draft.frontend.gallery.blur_sensitive_images}
+          onChange={updateBlurSensitiveImages}
         />
-        <TextField label="Language" value="System" onChange={ignoreReadonlyPreference} disabled />
       </div>
-      <p className="border-t border-app-border px-3 py-3 text-sm text-app-muted">
-        Frontend preferences are intentionally read-only until a workspace settings contract owns
-        them.
-      </p>
     </AppPanel>
   );
 }

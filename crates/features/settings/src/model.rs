@@ -8,6 +8,7 @@ const VARIANT_LONG_EDGE_MAX: u32 = 4096;
 pub struct WorkspaceSettings {
     pub generation: GenerationDefaults,
     pub image_variants: ImageVariantSettings,
+    pub frontend: FrontendSettings,
 }
 
 impl WorkspaceSettings {
@@ -102,6 +103,16 @@ impl ImageVariantSettings {
             VARIANT_LONG_EDGE_MAX,
         )
     }
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct FrontendSettings {
+    pub gallery: FrontendGallerySettings,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct FrontendGallerySettings {
+    pub blur_sensitive_images: bool,
 }
 
 fn ensure_u32_range(field: &str, value: u32, min: u32, max: u32) -> SettingsResult<()> {

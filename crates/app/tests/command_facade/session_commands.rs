@@ -174,6 +174,7 @@ fn settings_commands_persist_across_workspace_reopen() {
         let defaults = host.get_workspace_settings().await.unwrap();
         assert_eq!(defaults.image_variants.thumbnail_long_edge, 320);
         assert_eq!(defaults.image_variants.preview_long_edge, 1024);
+        assert!(!defaults.frontend.gallery.blur_sensitive_images);
 
         let updated = WorkspaceSettingsDto {
             generation: GenerationDefaultsDto {
@@ -184,6 +185,11 @@ fn settings_commands_persist_across_workspace_reopen() {
             image_variants: ImageVariantSettingsDto {
                 thumbnail_long_edge: 256,
                 preview_long_edge: 768,
+            },
+            frontend: FrontendSettingsDto {
+                gallery: FrontendGallerySettingsDto {
+                    blur_sensitive_images: true,
+                },
             },
         };
         assert_eq!(
