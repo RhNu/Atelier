@@ -379,12 +379,10 @@ impl DesktopFileDialog for TauriDialog {
             let extension_refs: Vec<&str> = options.extensions.iter().map(String::as_str).collect();
             builder = builder.add_filter("Files", &extension_refs);
         }
-        builder
-            .blocking_pick_files()
-            .unwrap_or_default()
-            .into_iter()
-            .map(file_path_to_path)
-            .collect()
+        let Some(files) = builder.blocking_pick_files() else {
+            return Ok(Vec::new());
+        };
+        files.into_iter().map(file_path_to_path).collect()
     }
 }
 

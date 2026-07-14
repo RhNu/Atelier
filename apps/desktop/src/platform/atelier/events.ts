@@ -2,12 +2,35 @@ import type { QueryClient } from "@tanstack/react-query";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { AppEventDto } from "../../types";
+import { eventsApi } from "./client";
 import { queryKeys } from "./query-keys";
 
 export function listenToAtelierEvents(handler: (event: AppEventDto) => void): Promise<UnlistenFn> {
   return listen<AppEventDto>("atelier-event", (event) => {
     handler(event.payload);
   });
+}
+
+const EVENT_RECOVERY_PAGE_SIZE = 256;
+
+export async function recoverAtelierEvents(
+  sequence: number,
+  handler: (event: AppEventDto) => void,
+): Promise<number> {
+  let cursor = sequence;
+  for (;;) {
+    const page = await eventsApi.since({ sequence: cursor, limit: EVENT_RECOVERY_PAGE_SIZE });
+    for (const event of page.items) {
+      if (event.sequence > cursor) {
+        handler(event);
+        cursor = event.sequence;
+      }
+    }
+    if (page.items.length < EVENT_RECOVERY_PAGE_SIZE || page.next_sequence <= sequence) {
+      return cursor;
+    }
+    sequence = page.next_sequence;
+  }
 }
 
 export function applyAtelierEventInvalidations(queryClient: QueryClient, event: AppEventDto): void {

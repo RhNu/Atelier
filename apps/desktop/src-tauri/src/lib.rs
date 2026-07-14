@@ -17,6 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             commands::desktop_paths,
+            commands::read_clipboard_image,
             commands::pick_workspace_directory,
             commands::pick_export_directory,
             commands::pick_and_import_image_resources,

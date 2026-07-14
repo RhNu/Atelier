@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use super::{
     DesktopFileDialog, DesktopNotifier, DesktopPathOpener, DesktopPaths, DesktopSystem,
-    DesktopSystemResult, PickFilesOptions,
+    DesktopSystemError, DesktopSystemResult, PickFilesOptions,
 };
 
 #[test]
@@ -146,6 +146,18 @@ fn dialog_cancel_returns_empty_selection_without_allowlist_changes() {
 }
 
 #[test]
+fn file_picker_backend_errors_are_returned_to_the_caller() {
+    let temp = tempfile::tempdir().unwrap();
+    let system = DesktopSystem::new(paths_with_resource_dir(temp.path().join("resources")));
+
+    let error = system
+        .pick_image_files(&FailingDialog, PickFilesOptions::default())
+        .unwrap_err();
+
+    assert_eq!(error.to_string(), "native picker failed");
+}
+
+#[test]
 fn default_picker_filters_match_import_kind() {
     let temp = tempfile::tempdir().unwrap();
     let selected = touch(temp.path().join("selected.png"));
@@ -277,6 +289,18 @@ impl DesktopPathOpener for RecordingOpener {
 struct RecordingDialog {
     directory: Option<PathBuf>,
     files: Vec<PathBuf>,
+}
+
+struct FailingDialog;
+
+impl DesktopFileDialog for FailingDialog {
+    fn pick_directory(&self) -> DesktopSystemResult<Option<PathBuf>> {
+        Err(DesktopSystemError::new("native picker failed"))
+    }
+
+    fn pick_files(&self, _options: PickFilesOptions) -> DesktopSystemResult<Vec<PathBuf>> {
+        Err(DesktopSystemError::new("native picker failed"))
+    }
 }
 
 impl DesktopFileDialog for RecordingDialog {

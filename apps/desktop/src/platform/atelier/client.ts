@@ -91,8 +91,15 @@ export type PickFilesOptionsDto = {
   extensions: string[];
 };
 
+export type ClipboardImageDto = {
+  imageBase64: string;
+  mimeType: string;
+};
+
 export const desktopApi = {
   paths: () => invokeAtelierCommand<DesktopPathsDto>(atelierCommands.desktopPaths),
+  readClipboardImage: () =>
+    invokeAtelierCommand<ClipboardImageDto>(atelierCommands.readClipboardImage),
   pickWorkspaceDirectory: () =>
     invokeAtelierCommand<string | null>(atelierCommands.pickWorkspaceDirectory),
   pickExportDirectory: () =>

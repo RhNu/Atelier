@@ -15,7 +15,11 @@ export {
   workspaceApi,
 } from "./client";
 export type { DesktopPathsDto, PickFilesOptionsDto } from "./client";
-export { listenToAtelierEvents, applyAtelierEventInvalidations } from "./events";
+export {
+  listenToAtelierEvents,
+  recoverAtelierEvents,
+  applyAtelierEventInvalidations,
+} from "./events";
 export { clearWorkspaceScopedQueryCache, isWorkspaceScopedQueryKey } from "./query-cache";
 export { queryKeys } from "./query-keys";
 export {

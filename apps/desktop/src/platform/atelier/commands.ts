@@ -1,5 +1,6 @@
 export const atelierCommands = {
   desktopPaths: "desktop_paths",
+  readClipboardImage: "read_clipboard_image",
   pickWorkspaceDirectory: "pick_workspace_directory",
   pickExportDirectory: "pick_export_directory",
   pickAndImportImageResources: "pick_and_import_image_resources",

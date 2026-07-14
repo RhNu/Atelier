@@ -6,6 +6,7 @@ use std::{
 };
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use serde::Serialize;
 use tauri::State;
 
@@ -32,6 +33,34 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 pub struct SavedDesktopFileDto {
     pub path: PathBuf,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClipboardImageDto {
+    pub image_base64: String,
+    pub mime_type: &'static str,
+}
+
+#[tauri::command]
+pub fn read_clipboard_image() -> CommandResult<ClipboardImageDto> {
+    let mut clipboard = arboard::Clipboard::new()
+        .map_err(|error| ErrorEnvelopeDto::new("clipboard_unavailable", error.to_string()))?;
+    let image = clipboard
+        .get_image()
+        .map_err(|error| ErrorEnvelopeDto::new("clipboard_image_unavailable", error.to_string()))?;
+    let width = u32::try_from(image.width)
+        .map_err(|error| ErrorEnvelopeDto::new("clipboard_image_invalid", error.to_string()))?;
+    let height = u32::try_from(image.height)
+        .map_err(|error| ErrorEnvelopeDto::new("clipboard_image_invalid", error.to_string()))?;
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(&image.bytes, width, height, ExtendedColorType::Rgba8)
+        .map_err(|error| ErrorEnvelopeDto::new("clipboard_image_encode", error.to_string()))?;
+    Ok(ClipboardImageDto {
+        image_base64: STANDARD.encode(png),
+        mime_type: "image/png",
+    })
 }
 
 #[tauri::command]

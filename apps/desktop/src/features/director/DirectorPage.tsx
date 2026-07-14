@@ -3,6 +3,7 @@ import { Clapperboard } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 import { AppToolbar } from "../../components/ui";
+import { desktopApi } from "../../platform/atelier";
 import type { DirectorToolDto, DirectorToolResultDto } from "../../types";
 import { formatError } from "../gallery/gallery-utils";
 import {
@@ -24,7 +25,6 @@ import {
   DIRECTOR_TOOLS,
   parseDirectorTool,
   parseSafetyOverride,
-  readClipboardImage,
   type DirectorInput,
 } from "./director-model";
 import { useDirectorHandoffStore } from "./state/director-handoff-store";
@@ -93,12 +93,13 @@ export function DirectorPage() {
 
   const handlePasteInput = useCallback(() => {
     setActionError(null);
-    void readClipboardImage()
+    void desktopApi
+      .readClipboardImage()
       .then((pasted) => {
         setInput({
           kind: "inline",
           imageBase64: pasted.imageBase64,
-          src: pasted.src,
+          src: `data:${pasted.mimeType};base64,${pasted.imageBase64}`,
           label: "Clipboard image",
         });
         setResult(null);

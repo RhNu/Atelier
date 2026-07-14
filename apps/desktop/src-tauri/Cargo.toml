@@ -18,6 +18,8 @@ tauri-build = { version = "2.5.6", features = [] }
 
 [dependencies]
 base64 = { workspace = true }
+image = { workspace = true, features = ["png"] }
+arboard = "3.6"
 log = "0.4"
 atelier-adapter-keyring = { workspace = true }
 atelier-adapter-novelai = { workspace = true }
