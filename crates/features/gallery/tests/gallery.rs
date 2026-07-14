@@ -16,7 +16,7 @@ use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyLabel};
 use futures_executor::block_on;
 
 #[test]
-fn indexes_generated_director_and_imported_artifacts() {
+fn indexes_generated_and_director_artifacts() {
     block_on(async {
         let index = FakeGalleryIndex::default();
         let service = GalleryService::new(index.clone());
@@ -29,18 +29,11 @@ fn indexes_generated_director_and_imported_artifacts() {
             .index_artifact(director_artifact("director-1", 20), 20, None)
             .await
             .unwrap();
-        let imported = service
-            .index_artifact(imported_artifact("imported-1", 10), 10, None)
-            .await
-            .unwrap();
-
         assert_eq!(generated.artifact_kind, ArtifactKind::GeneratedImage);
         assert_eq!(generated.source_kind(), GallerySourceKind::Generation);
         assert_eq!(director.artifact_kind, ArtifactKind::DirectorResult);
         assert_eq!(director.source_kind(), GallerySourceKind::Director);
-        assert_eq!(imported.artifact_kind, ArtifactKind::ImportedImage);
-        assert_eq!(imported.source_kind(), GallerySourceKind::Import);
-        assert_eq!(index.items().len(), 3);
+        assert_eq!(index.items().len(), 2);
     });
 }
 
@@ -151,11 +144,6 @@ fn query_filters_by_kind_source_and_manual_safety_override() {
             .index_artifact(director_artifact("director-1", 20), 20, None)
             .await
             .unwrap();
-        service
-            .index_artifact(imported_artifact("imported-1", 10), 10, None)
-            .await
-            .unwrap();
-
         service
             .set_safety_override(&generated.id, Some(GallerySafetyOverride::Hidden))
             .await
@@ -494,10 +482,6 @@ async fn populated_service() -> GalleryService<FakeGalleryIndex> {
         .await
         .unwrap();
     service
-        .index_artifact(imported_artifact("imported-1", 10), 10, None)
-        .await
-        .unwrap();
-    service
 }
 
 fn assert_reference(
@@ -543,17 +527,6 @@ fn director_artifact(id: &str, indexed_at_ms: u64) -> ArtifactRecord {
         ArtifactKind::DirectorResult,
         ArtifactSource::DirectorRun {
             run_id: format!("run-{id}"),
-        },
-        indexed_at_ms,
-    )
-}
-
-fn imported_artifact(id: &str, indexed_at_ms: u64) -> ArtifactRecord {
-    artifact(
-        id,
-        ArtifactKind::ImportedImage,
-        ArtifactSource::Import {
-            import_id: format!("import-{id}"),
         },
         indexed_at_ms,
     )

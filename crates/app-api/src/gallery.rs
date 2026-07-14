@@ -16,7 +16,6 @@ pub enum GallerySafetyOverrideDto {
 pub enum GallerySourceKindDto {
     Generation,
     Director,
-    Import,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

@@ -150,7 +150,6 @@ pub const fn artifact_kind_as_str(value: ArtifactKind) -> &'static str {
     match value {
         ArtifactKind::GeneratedImage => "generated_image",
         ArtifactKind::DirectorResult => "director_result",
-        ArtifactKind::ImportedImage => "imported_image",
     }
 }
 
@@ -158,7 +157,6 @@ pub fn artifact_kind_from_str(value: &str) -> DatabaseResult<ArtifactKind> {
     match value {
         "generated_image" => Ok(ArtifactKind::GeneratedImage),
         "director_result" => Ok(ArtifactKind::DirectorResult),
-        "imported_image" => Ok(ArtifactKind::ImportedImage),
         _ => Err(decode_error("artifact kind", value)),
     }
 }
@@ -167,7 +165,6 @@ pub const fn source_kind_as_str(value: GallerySourceKind) -> &'static str {
     match value {
         GallerySourceKind::Generation => "generation",
         GallerySourceKind::Director => "director",
-        GallerySourceKind::Import => "import",
     }
 }
 

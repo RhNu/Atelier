@@ -16,7 +16,6 @@ export const sourceOptions = [
   { value: "all", label: "All sources" },
   { value: "generation", label: "Generation" },
   { value: "director", label: "Director" },
-  { value: "import", label: "Import" },
 ] as const;
 
 export const artifactOptions = [
@@ -114,7 +113,6 @@ export function parseSourceFilter(value: string): SourceFilter {
   switch (value) {
     case "generation":
     case "director":
-    case "import":
       return value;
     default:
       return "all";

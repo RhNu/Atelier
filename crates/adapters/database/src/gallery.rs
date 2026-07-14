@@ -25,7 +25,7 @@ pub struct GalleryHardDeletePlan {
     pub item_id: String,
     pub artifact_id: String,
     pub resource_ids: Vec<String>,
-    pub transient_owner: Option<GalleryTransientOwner>,
+    pub transient_owner: GalleryTransientOwner,
     pub force_delete_pending: bool,
 }
 
@@ -65,14 +65,16 @@ impl DatabaseGalleryIndex {
                         params![resource_id, plan.item_id],
                     )
                     .map_err(sql_error)?;
-                if let Some(owner) = &plan.transient_owner {
-                    transaction
-                        .execute(
-                            "DELETE FROM resource_links WHERE resource_id = ?1 AND owner_kind = ?2 AND owner_local_id = ?3 AND relation = 'primary'",
-                            params![resource_id, owner.kind, owner.local_id],
-                        )
-                        .map_err(sql_error)?;
-                }
+                transaction
+                    .execute(
+                        "DELETE FROM resource_links WHERE resource_id = ?1 AND owner_kind = ?2 AND owner_local_id = ?3 AND relation = 'primary'",
+                        params![
+                            resource_id,
+                            plan.transient_owner.kind,
+                            plan.transient_owner.local_id
+                        ],
+                    )
+                    .map_err(sql_error)?;
                 transaction
                     .execute(
                         r"

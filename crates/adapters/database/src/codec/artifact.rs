@@ -106,7 +106,6 @@ pub(super) struct ArtifactSourceDto {
     job_id: Option<String>,
     batch_id: Option<String>,
     run_id: Option<String>,
-    import_id: Option<String>,
 }
 
 impl From<&ArtifactSource> for ArtifactSourceDto {
@@ -116,19 +115,11 @@ impl From<&ArtifactSource> for ArtifactSourceDto {
                 job_id: Some(job_id.clone()),
                 batch_id: batch_id.clone(),
                 run_id: None,
-                import_id: None,
             },
             ArtifactSource::DirectorRun { run_id } => Self {
                 job_id: None,
                 batch_id: None,
                 run_id: Some(run_id.clone()),
-                import_id: None,
-            },
-            ArtifactSource::Import { import_id } => Self {
-                job_id: None,
-                batch_id: None,
-                run_id: None,
-                import_id: Some(import_id.clone()),
             },
         }
     }
@@ -144,9 +135,6 @@ impl ArtifactSourceDto {
         }
         if let Some(run_id) = self.run_id {
             return Ok(ArtifactSource::DirectorRun { run_id });
-        }
-        if let Some(import_id) = self.import_id {
-            return Ok(ArtifactSource::Import { import_id });
         }
         Err(DatabaseError::new("artifact source is missing a source id"))
     }

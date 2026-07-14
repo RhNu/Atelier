@@ -339,16 +339,14 @@ where
                 )
                 .await
                 .map_err(gallery_repository_error)?;
-            if let Some(owner) = &transient_owner {
-                let result = self
-                    .resources
-                    .detach_owner(&resource_id, owner, ResourceRelation::Primary)
-                    .await;
-                if let Err(error) = result
-                    && error.kind != atelier_resource_catalog::ResourceCatalogErrorKind::NotFound
-                {
-                    return Err(gallery_repository_error(error));
-                }
+            let result = self
+                .resources
+                .detach_owner(&resource_id, &transient_owner, ResourceRelation::Primary)
+                .await;
+            if let Err(error) = result
+                && error.kind != atelier_resource_catalog::ResourceCatalogErrorKind::NotFound
+            {
+                return Err(gallery_repository_error(error));
             }
         }
         Ok(())
@@ -442,16 +440,14 @@ where
     }
 }
 
-fn transient_resource_owner(item: &GalleryItem) -> Option<ResourceOwner> {
+fn transient_resource_owner(item: &GalleryItem) -> ResourceOwner {
     match &item.source {
         ArtifactSource::GenerationJob { job_id, .. } => {
-            Some(ResourceOwner::new(ResourceOwnerKind::Job, job_id.clone()))
+            ResourceOwner::new(ResourceOwnerKind::Job, job_id.clone())
         }
-        ArtifactSource::DirectorRun { run_id } => Some(ResourceOwner::new(
-            ResourceOwnerKind::DirectorRun,
-            run_id.clone(),
-        )),
-        ArtifactSource::Import { .. } => None,
+        ArtifactSource::DirectorRun { run_id } => {
+            ResourceOwner::new(ResourceOwnerKind::DirectorRun, run_id.clone())
+        }
     }
 }
 

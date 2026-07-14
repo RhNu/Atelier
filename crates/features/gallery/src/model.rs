@@ -29,7 +29,6 @@ impl GalleryItemId {
 pub enum GallerySourceKind {
     Generation,
     Director,
-    Import,
 }
 
 impl GallerySourceKind {
@@ -38,7 +37,6 @@ impl GallerySourceKind {
         match source {
             ArtifactSource::GenerationJob { .. } => Self::Generation,
             ArtifactSource::DirectorRun { .. } => Self::Director,
-            ArtifactSource::Import { .. } => Self::Import,
         }
     }
 }

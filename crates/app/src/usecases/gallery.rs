@@ -129,17 +129,16 @@ where
     }
 }
 
-fn transient_resource_owner(item: &GalleryItem) -> Option<GalleryTransientOwner> {
+fn transient_resource_owner(item: &GalleryItem) -> GalleryTransientOwner {
     match &item.source {
-        ArtifactSource::GenerationJob { job_id, .. } => Some(GalleryTransientOwner {
+        ArtifactSource::GenerationJob { job_id, .. } => GalleryTransientOwner {
             kind: "job",
             local_id: job_id.clone(),
-        }),
-        ArtifactSource::DirectorRun { run_id } => Some(GalleryTransientOwner {
+        },
+        ArtifactSource::DirectorRun { run_id } => GalleryTransientOwner {
             kind: "director_run",
             local_id: run_id.clone(),
-        }),
-        ArtifactSource::Import { .. } => None,
+        },
     }
 }
 

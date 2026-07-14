@@ -21,7 +21,6 @@ impl ArtifactId {
 pub enum ArtifactKind {
     GeneratedImage,
     DirectorResult,
-    ImportedImage,
 }
 
 impl ArtifactKind {
@@ -33,12 +32,6 @@ impl ArtifactKind {
                 ResourceKind::GeneratedImage | ResourceKind::StreamFinalImage
             ),
             Self::DirectorResult => matches!(resource_kind, ResourceKind::DirectorResult),
-            Self::ImportedImage => matches!(
-                resource_kind,
-                ResourceKind::SourceImage
-                    | ResourceKind::ReferenceImage
-                    | ResourceKind::ControlNetImage
-            ),
         }
     }
 }
@@ -51,9 +44,6 @@ pub enum ArtifactSource {
     },
     DirectorRun {
         run_id: String,
-    },
-    Import {
-        import_id: String,
     },
 }
 

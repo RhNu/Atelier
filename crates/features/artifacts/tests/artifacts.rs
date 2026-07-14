@@ -80,55 +80,6 @@ fn director_artifact_requires_director_resource_kind() {
 }
 
 #[test]
-fn imported_artifact_accepts_source_reference_and_controlnet_resources() {
-    for resource_kind in [
-        ResourceKind::SourceImage,
-        ResourceKind::ReferenceImage,
-        ResourceKind::ControlNetImage,
-    ] {
-        block_on(async {
-            let resources = FakeArtifactResourceReader::with_record(
-                ResourceId::new("resource-1"),
-                resource_kind,
-            );
-            let service = ArtifactService::new(FakeArtifactRepository::default(), resources);
-            let mut request = generated_request("artifact-1");
-            request.kind = ArtifactKind::ImportedImage;
-            request.source = ArtifactSource::Import {
-                import_id: "import-1".to_owned(),
-            };
-
-            let record = service.register_artifact(request).await.unwrap();
-
-            assert_eq!(record.kind, ArtifactKind::ImportedImage);
-        });
-    }
-}
-
-#[test]
-fn imported_artifact_rejects_generated_resource_kind() {
-    block_on(async {
-        let resources = FakeArtifactResourceReader::with_record(
-            ResourceId::new("resource-1"),
-            ResourceKind::GeneratedImage,
-        );
-        let service = ArtifactService::new(FakeArtifactRepository::default(), resources);
-        let mut request = generated_request("artifact-1");
-        request.kind = ArtifactKind::ImportedImage;
-        request.source = ArtifactSource::Import {
-            import_id: "import-1".to_owned(),
-        };
-
-        let error = service.register_artifact(request).await.unwrap_err();
-
-        assert_eq!(
-            error.to_string(),
-            "invalid_resource_kind: GeneratedImage cannot back ImportedImage"
-        );
-    });
-}
-
-#[test]
 fn preserves_replay_manifest_and_extension_metadata() {
     block_on(async {
         let repository = FakeArtifactRepository::default();

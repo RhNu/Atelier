@@ -270,10 +270,10 @@ fn gallery_hard_delete_commits_related_database_changes_together() {
                 item_id: item.id.as_str().to_owned(),
                 artifact_id: item.artifact_id.as_str().to_owned(),
                 resource_ids: vec![item.primary_resource.id.as_str().to_owned()],
-                transient_owner: Some(GalleryTransientOwner {
+                transient_owner: GalleryTransientOwner {
                     kind: "job",
                     local_id: "job-delete-atomic".to_owned(),
-                }),
+                },
                 force_delete_pending: false,
             }])
             .await

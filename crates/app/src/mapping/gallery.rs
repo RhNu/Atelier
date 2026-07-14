@@ -129,7 +129,6 @@ const fn artifact_kind_as_str(value: ArtifactKind) -> &'static str {
     match value {
         ArtifactKind::GeneratedImage => "generated_image",
         ArtifactKind::DirectorResult => "director_result",
-        ArtifactKind::ImportedImage => "imported_image",
     }
 }
 
@@ -137,7 +136,6 @@ fn artifact_kind_from_str(value: &str) -> AppResult<ArtifactKind> {
     match value {
         "generated_image" => Ok(ArtifactKind::GeneratedImage),
         "director_result" => Ok(ArtifactKind::DirectorResult),
-        "imported_image" => Ok(ArtifactKind::ImportedImage),
         _ => Err(AppError::new(
             "invalid_request",
             format!("unknown gallery artifact kind `{value}`"),
@@ -211,7 +209,6 @@ pub const fn source_kind_to_domain(value: GallerySourceKindDto) -> GallerySource
     match value {
         GallerySourceKindDto::Generation => GallerySourceKind::Generation,
         GallerySourceKindDto::Director => GallerySourceKind::Director,
-        GallerySourceKindDto::Import => GallerySourceKind::Import,
     }
 }
 
@@ -219,7 +216,6 @@ const fn source_kind_to_dto(value: GallerySourceKind) -> GallerySourceKindDto {
     match value {
         GallerySourceKind::Generation => GallerySourceKindDto::Generation,
         GallerySourceKind::Director => GallerySourceKindDto::Director,
-        GallerySourceKind::Import => GallerySourceKindDto::Import,
     }
 }
 
