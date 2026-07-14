@@ -88,7 +88,7 @@ const mocks = vi.hoisted(() => ({
       vi.fn<(request: GalleryImageReferenceRequestDto) => Promise<GalleryImageReferenceDto>>(),
   },
   accountApi: {
-    probeActive: vi.fn<() => Promise<SubscriptionSummaryDto>>(),
+    cachedActiveSubscription: vi.fn<() => Promise<SubscriptionSummaryDto | null>>(),
   },
   desktopApi: {
     pickAndImportImageResources:
@@ -361,7 +361,7 @@ function setup(options?: {
     created: true,
   });
   mocks.vibeApi.saveDocument.mockResolvedValue({ path: "C:\\exports\\style.naiv4vibe" });
-  mocks.accountApi.probeActive.mockResolvedValue({
+  mocks.accountApi.cachedActiveSubscription.mockResolvedValue({
     anlas_balance: 100,
     is_opus: false,
     tier: 1,

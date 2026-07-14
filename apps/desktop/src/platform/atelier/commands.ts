@@ -19,6 +19,7 @@ export const atelierCommands = {
   setActiveApiKey: "set_active_api_key",
   probeApiKey: "probe_api_key",
   probeActiveApiKey: "probe_active_api_key",
+  cachedActiveSubscription: "cached_active_subscription",
   upsertPromptChunk: "upsert_prompt_chunk",
   getPromptChunk: "get_prompt_chunk",
   listPromptChunks: "list_prompt_chunks",

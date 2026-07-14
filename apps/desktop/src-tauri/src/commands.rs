@@ -102,6 +102,14 @@ pub async fn probe_active_api_key(
 }
 
 #[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
+pub fn cached_active_subscription(
+    state: State<'_, DesktopState>,
+) -> CommandResult<Option<SubscriptionSummaryDto>> {
+    state.host.cached_active_subscription()
+}
+
+#[tauri::command]
 pub async fn upsert_prompt_chunk(
     state: State<'_, DesktopState>,
     request: UpsertPromptChunkRequestDto,

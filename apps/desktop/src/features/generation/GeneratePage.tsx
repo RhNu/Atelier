@@ -22,7 +22,7 @@ import { GenerationPreviewStage } from "./components/GenerationPreviewStage";
 import { GenerationPromptPanel } from "./components/GenerationPromptPanel";
 import {
   useCompilePromptMutation,
-  useActiveAccountProbeQuery,
+  useCachedActiveSubscriptionQuery,
   useGenerationEstimateQuery,
   useGenerationSettingsQuery,
   usePauseGenerationMutation,
@@ -52,7 +52,7 @@ const HISTORY_PAGE_LIMIT = 8;
 export function GeneratePage() {
   const settingsQuery = useGenerationSettingsQuery();
   const statusQuery = useGenerationStatusQuery();
-  const accountQuery = useActiveAccountProbeQuery();
+  const accountQuery = useCachedActiveSubscriptionQuery();
   const submitMutation = useSubmitGenerationMutation();
   const pauseMutation = usePauseGenerationMutation();
   const resumeMutation = useResumeGenerationMutation();

@@ -138,6 +138,8 @@ export const accountApi = {
     invokeAtelierCommand<SubscriptionSummaryDto>(atelierCommands.probeApiKey, { request }),
   probeActive: () =>
     invokeAtelierCommand<SubscriptionSummaryDto>(atelierCommands.probeActiveApiKey),
+  cachedActiveSubscription: () =>
+    invokeAtelierCommand<SubscriptionSummaryDto | null>(atelierCommands.cachedActiveSubscription),
 };
 
 export const promptApi = {

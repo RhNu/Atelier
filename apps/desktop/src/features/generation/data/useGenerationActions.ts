@@ -57,10 +57,10 @@ export function useGenerationSettingsQuery() {
   });
 }
 
-export function useActiveAccountProbeQuery() {
+export function useCachedActiveSubscriptionQuery() {
   return useQuery({
     queryKey: queryKeys.account.activeProbe(),
-    queryFn: () => accountApi.probeActive(),
+    queryFn: () => accountApi.cachedActiveSubscription(),
     retry: false,
     refetchOnWindowFocus: false,
   });

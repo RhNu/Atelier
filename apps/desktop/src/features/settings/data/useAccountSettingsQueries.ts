@@ -78,6 +78,7 @@ export function useProbeApiKeyMutation() {
     mutationFn: (request: ProbeApiKeyRequestDto) => accountApi.probe(request),
     onSuccess: (subscription, request) => {
       queryClient.setQueryData(queryKeys.account.keyProbe(request.id), subscription);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.account.activeProbe() });
     },
   });
 }
