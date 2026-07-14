@@ -585,14 +585,18 @@ describe("GeneratePage", () => {
             display_name: "Style A",
             has_image: true,
             hidden: false,
-            available_model_keys: ["v4-5full"],
+            available_model_keys: ["v4curated", "v4-5full"],
             available_encoding_configs: [
+              { model: "nai-diffusion-4-curated", information_extracted: 0.4 },
               { model: "nai-diffusion-4-5-full", information_extracted: 0.7 },
             ],
             document: { id: "vibe-document:vibe-1", variant_id: null },
             source_image: { id: "vibe-source:vibe-1", variant_id: null },
             preview: { id: "vibe-preview:vibe-1", variant_id: null },
-            encodings: [{ id: "vibe-encoding:vibe-1:v4-5full:0", variant_id: null }],
+            encodings: [
+              { id: "vibe-encoding:vibe-1:v4curated:0", variant_id: null },
+              { id: "vibe-encoding:vibe-1:v4-5full:1", variant_id: null },
+            ],
             created_at_ms: 1,
             updated_at_ms: 1,
           },
@@ -614,7 +618,7 @@ describe("GeneratePage", () => {
           controlnet: {
             images: [
               {
-                encoding: { id: "vibe-encoding:vibe-1:v4-5full:0", variant_id: null },
+                encoding: { id: "vibe-encoding:vibe-1:v4-5full:1", variant_id: null },
                 info_extracted: 0.7,
               },
             ],

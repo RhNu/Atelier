@@ -79,8 +79,12 @@ where
         } else {
             None
         };
-        let mut encodings = Vec::with_capacity(entry.encoding_payloads.len());
-        for (index, encoding) in entry.encoding_payloads.iter().enumerate() {
+        let supported_encodings = entry
+            .encoding_payloads
+            .iter()
+            .filter(|encoding| encoding.config.is_some());
+        let mut encodings = Vec::with_capacity(entry.summary.available_encoding_configs.len());
+        for (index, encoding) in supported_encodings.enumerate() {
             encodings.push(
                 register_vibe_resource(
                     runtime,

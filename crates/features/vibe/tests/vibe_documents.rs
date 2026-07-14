@@ -50,6 +50,43 @@ fn imports_official_single_vibe_document() {
 }
 
 #[test]
+fn supported_encoding_configs_keep_the_same_order_as_supported_payloads() {
+    let content = official_vibe("Style A").replace(
+        r#""v4-5full": {"#,
+        r#""zz-future-model": { "default": "BAUG" },
+    "v4curated": { "default": {
+      "encoding": "BwgJ",
+      "params": { "information_extracted": 0.4 }
+    } },
+    "v4-5full": {"#,
+    );
+    let entry = &VibeDocumentCodec::import_text("mixed.naiv4vibe", &content)
+        .unwrap()
+        .entries[0];
+    let supported_payloads = entry
+        .encoding_payloads
+        .iter()
+        .filter_map(|encoding| {
+            encoding
+                .config
+                .as_ref()
+                .map(|config| (&encoding.payload, config))
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(entry.summary.available_encoding_configs.len(), 2);
+    assert_eq!(supported_payloads.len(), 2);
+    assert!(
+        entry
+            .summary
+            .available_encoding_configs
+            .iter()
+            .zip(supported_payloads)
+            .all(|(summary, (_, payload))| summary == payload)
+    );
+}
+
+#[test]
 fn imports_official_vibe_bundle_as_multiple_entries() {
     let bundle = format!(
         r#"{{

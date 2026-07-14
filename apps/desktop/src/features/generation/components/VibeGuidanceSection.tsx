@@ -7,6 +7,7 @@ import type { GenerationDraft } from "../model/generation-draft";
 import { createLocalId } from "./advanced-generation-model";
 import { BooleanField, NumberField, SelectField } from "./GenerationFormFields";
 import { GuidancePanelTitle } from "./GuidancePanelTitle";
+import { findVibeEncodingForModel } from "./vibe-guidance-model";
 
 export function VibeGuidanceSection({
   draft,
@@ -79,7 +80,7 @@ export function VibeGuidanceSection({
             label: vibePending ? "Loading Vibes" : "Choose imported Vibe",
           },
           ...vibeDocuments
-            .filter((entry) => entry.encodings.length > 0)
+            .filter((entry) => findVibeEncodingForModel(entry, draft.model) !== null)
             .map((entry) => ({
               value: entry.vibe_id,
               label: entry.display_name,
@@ -87,8 +88,8 @@ export function VibeGuidanceSection({
         ]}
         onChange={(vibeId) => {
           const entry = vibeDocuments.find((item) => item.vibe_id === vibeId);
-          const encoding = entry?.encodings[0];
-          if (!entry || !encoding) {
+          const selected = entry ? findVibeEncodingForModel(entry, draft.model) : null;
+          if (!entry || !selected) {
             return;
           }
           onPatch({
@@ -99,10 +100,9 @@ export function VibeGuidanceSection({
                 ...draft.vibe.slots,
                 {
                   id: createLocalId("vibe"),
-                  encoding,
+                  encoding: selected.encoding,
                   vibeId: entry.vibe_id,
-                  informationExtracted:
-                    entry.available_encoding_configs[0]?.information_extracted ?? 1,
+                  informationExtracted: selected.config.information_extracted,
                   strength: 1,
                   displayName: entry.display_name,
                   sourceImage: entry.source_image,

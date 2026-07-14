@@ -147,8 +147,11 @@ fn validate_official_vibe_object(
         .filter(|value| !value.is_empty())
         .map_or_else(|| fallback_display_name(fallback_name), ToOwned::to_owned);
     let available_model_keys = encodings.keys().cloned().collect::<Vec<_>>();
-    let available_encoding_configs = encoding_configs(encodings);
     let encoding_payloads = collect_encoding_payloads(encodings)?;
+    let available_encoding_configs = encoding_payloads
+        .iter()
+        .filter_map(|encoding| encoding.config.clone())
+        .collect();
     let official_document = value.clone();
     let document_payload = serde_json::to_string(&official_document)
         .map_err(|error| VibeError::invalid_document(error.to_string()))?;
@@ -274,31 +277,6 @@ fn validate_thumbnail(root: &Map<String, Value>) -> VibeDomainResult<Option<Stri
         return Ok(Some(thumbnail.to_owned()));
     }
     Ok(None)
-}
-
-fn encoding_configs(encodings: &Map<String, Value>) -> Vec<VibeEncodingConfig> {
-    let mut configs = Vec::new();
-    for (model_key, bucket) in encodings {
-        let Some(model) = VibeModel::from_vibe_model_key(model_key) else {
-            continue;
-        };
-        let Some(entries) = bucket.as_object() else {
-            continue;
-        };
-        for entry in entries.values() {
-            let information_extracted = entry
-                .as_object()
-                .and_then(|object| object.get("params"))
-                .and_then(Value::as_object)
-                .and_then(|params| params.get("information_extracted"))
-                .and_then(json_number_as_f32)
-                .unwrap_or(0.7);
-            if let Ok(settings) = VibeEncodeSettings::new(model, information_extracted) {
-                configs.push(VibeEncodingConfig { model, settings });
-            }
-        }
-    }
-    configs
 }
 
 fn first_encoding_payload(encodings: &Map<String, Value>) -> Option<&str> {
