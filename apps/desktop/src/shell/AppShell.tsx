@@ -1,9 +1,8 @@
-import { Minus, PanelLeftClose, Square, X } from "lucide-react";
+import { Minus, Square, X } from "lucide-react";
 import { useCallback, type MouseEvent, type ReactNode } from "react";
 
-import { AppButton, AppIconButton, AppPanel, AppToastHost } from "../components/ui";
+import { AppButton, AppPanel, AppToastHost } from "../components/ui";
 import { routeNavItems, type RouteNavItem } from "../routes/nav";
-import { useRouteRestoreStore } from "../stores/shell-store";
 import type { WorkspaceStatusDto } from "../types";
 
 export type AppShellProps = {
@@ -66,7 +65,6 @@ export function AppShell({
   onCloseWorkspace,
   onNavigate,
 }: AppShellProps) {
-  const setLastRoute = useRouteRestoreStore((state) => state.setLastRoute);
   const showWorkspaceGate = workspaceStatus === null;
   const fatalBootError =
     workspaceErrorCode !== undefined && workspaceErrorCode !== "workspace_not_open";
@@ -137,17 +135,10 @@ export function AppShell({
             aria-label="Workspace sections"
             className="flex min-h-0 flex-col items-center gap-2 border-r border-app-border bg-app-panel px-2 py-3"
           >
-            <AppIconButton icon={PanelLeftClose} label="Collapse panels" className="mb-2" />
             {routeNavItems.map((item) => {
               const active = activePath === item.to;
               return (
-                <RouteNavLink
-                  key={item.to}
-                  active={active}
-                  item={item}
-                  onNavigate={onNavigate}
-                  setLastRoute={setLastRoute}
-                />
+                <RouteNavLink key={item.to} active={active} item={item} onNavigate={onNavigate} />
               );
             })}
           </nav>
@@ -177,18 +168,16 @@ function RouteNavLink({
   active,
   item,
   onNavigate,
-  setLastRoute,
 }: {
   active: boolean;
   item: RouteNavItem;
   onNavigate?: (to: RouteNavItem["to"]) => void;
-  setLastRoute: (route: string) => void;
 }) {
   const handleClick = useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {
-      handleNavClick(event, item, setLastRoute, onNavigate);
+      handleNavClick(event, item, onNavigate);
     },
-    [item, onNavigate, setLastRoute],
+    [item, onNavigate],
   );
 
   return (
@@ -214,11 +203,8 @@ function RouteNavLink({
 function handleNavClick(
   event: MouseEvent<HTMLAnchorElement>,
   item: RouteNavItem,
-  setLastRoute: (route: string) => void,
   onNavigate?: (to: RouteNavItem["to"]) => void,
 ) {
-  setLastRoute(item.to);
-
   if (
     !onNavigate ||
     event.defaultPrevented ||

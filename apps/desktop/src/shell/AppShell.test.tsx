@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { AppShell } from "./AppShell";
 
@@ -24,5 +25,22 @@ describe("AppShell", () => {
     expect(screen.getByRole("navigation", { name: "Workspace sections" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Generate" })).toBeInTheDocument();
     expect(screen.getByText("D:/atelier")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Collapse panels" })).not.toBeInTheDocument();
+  });
+
+  it("routes navigation clicks through the shell callback", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn<(to: string) => void>();
+    render(
+      <AppShell
+        workspaceStatus={openWorkspaceStatus}
+        workspacePending={false}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    await user.click(screen.getByRole("link", { name: "Gallery" }));
+
+    expect(onNavigate).toHaveBeenCalledWith("/gallery");
   });
 });
