@@ -19,7 +19,7 @@ pub use api_keys::DatabaseApiKeyRegistryStore;
 pub use artifacts::DatabaseArtifactRepository;
 pub use connection::DatabaseConnection;
 pub use error::{DatabaseError, DatabaseResult};
-pub use gallery::DatabaseGalleryIndex;
+pub use gallery::{DatabaseGalleryIndex, GalleryHardDeletePlan, GalleryTransientOwner};
 pub use generation_payload::DatabaseGenerationPayloadStore;
 pub use job_history::{DatabaseJobQueueRepository, DatabaseRunHistoryRepository};
 pub use prompt_resources::DatabasePromptResourceRepository;

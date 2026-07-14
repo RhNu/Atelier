@@ -2,7 +2,7 @@ use rusqlite::{Connection, params};
 
 use crate::error::DatabaseResult;
 
-const CURRENT_SCHEMA_VERSION: i64 = 5;
+const CURRENT_SCHEMA_VERSION: i64 = 6;
 const API_KEY_REGISTRY_SQL: &str = r"
 CREATE TABLE IF NOT EXISTS api_key_records (
     id TEXT PRIMARY KEY,
@@ -220,6 +220,21 @@ CREATE INDEX IF NOT EXISTS idx_run_outputs_run
     ON run_outputs(run_id);
 ";
 
+const GALLERY_EFFECTIVE_SAFETY_SQL: &str = r"
+ALTER TABLE gallery_items ADD COLUMN effective_safety_label TEXT;
+
+UPDATE gallery_items
+SET effective_safety_label = CASE
+    WHEN manual_safety_override IS NOT NULL THEN manual_safety_override
+    WHEN json_extract(item_json, '$.safety_assessment.score') >= 0.8 THEN 'sensitive'
+    WHEN json_extract(item_json, '$.safety_assessment.score') IS NOT NULL THEN 'safe'
+    ELSE NULL
+END;
+
+CREATE INDEX idx_gallery_items_effective_safety_label
+    ON gallery_items(effective_safety_label);
+";
+
 pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
     connection.execute_batch(
         r"
@@ -267,10 +282,17 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
         [],
         |row| row.get::<_, bool>(0),
     )?;
+    let v5_applied = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 5)",
+        [],
+        |row| row.get::<_, bool>(0),
+    )?;
 
     let tx = connection.transaction()?;
+    // Recreate any missing idempotent v1 objects as well as trusting the marker. This also
+    // repairs partially initialized early-development databases.
+    tx.execute_batch(SCHEMA_SQL)?;
     if !v1_applied {
-        tx.execute_batch(SCHEMA_SQL)?;
         tx.execute(
             "INSERT OR IGNORE INTO schema_migrations(version) VALUES (1)",
             [],
@@ -298,6 +320,13 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
             [],
         )?;
     }
+    if !v5_applied {
+        tx.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version) VALUES (5)",
+            [],
+        )?;
+    }
+    tx.execute_batch(GALLERY_EFFECTIVE_SAFETY_SQL)?;
     tx.execute(
         "INSERT OR IGNORE INTO schema_migrations(version) VALUES (?1)",
         params![CURRENT_SCHEMA_VERSION],

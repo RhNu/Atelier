@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use atelier_adapter_database::{
     DatabaseApiKeyRegistryStore, DatabaseArtifactRepository, DatabaseConnection,
     DatabaseGalleryIndex, DatabaseGenerationPayloadStore, DatabaseResourceCatalogRepository,
-    DatabaseVibeRepository,
+    DatabaseVibeRepository, GalleryHardDeletePlan, GalleryTransientOwner,
 };
 use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactReplayManifest,

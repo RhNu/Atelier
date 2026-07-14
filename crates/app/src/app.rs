@@ -67,6 +67,7 @@ pub struct AppInner<S, F, E> {
     pub prompt_compiler: PromptCompiler<DatabasePromptResourceRepository>,
     pub lexicon: Arc<PromptLexicon>,
     pub gallery: AppGalleryService,
+    pub gallery_index: DatabaseGalleryIndex,
     pub queue_repository: DatabaseJobQueueRepository,
     pub run_history: DatabaseRunHistoryRepository,
     pub kernel: Mutex<KernelRuntime<AppKernelPorts<S, F, E>>>,
@@ -208,7 +209,8 @@ where
             DatabaseArtifactRepository::new(connection.clone()),
             resource_repository,
         );
-        let gallery = GalleryService::new(DatabaseGalleryIndex::new(connection.clone()));
+        let gallery_index = DatabaseGalleryIndex::new(connection.clone());
+        let gallery = GalleryService::new(gallery_index.clone());
         let events = AppEventHub::default();
         let prompt_compiler = PromptCompiler::new(prompt_repository.clone());
         let ports = AppKernelPorts {
@@ -256,6 +258,7 @@ where
                 prompt_compiler,
                 lexicon: PromptLexicon::load_embedded_shared().map_err(AppError::from)?,
                 gallery,
+                gallery_index,
                 queue_repository,
                 run_history,
                 kernel: Mutex::new(kernel),

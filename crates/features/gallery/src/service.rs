@@ -52,6 +52,14 @@ where
         self.index.query_items(query).await
     }
 
+    /// Counts gallery items matching a query without materializing the page.
+    ///
+    /// # Errors
+    /// Returns an error when the gallery index cannot be queried.
+    pub async fn count(&self, query: GalleryQuery) -> GalleryResult<usize> {
+        self.index.count_items(query).await
+    }
+
     /// Returns existing gallery items for the given IDs, ignoring missing IDs.
     ///
     /// # Errors

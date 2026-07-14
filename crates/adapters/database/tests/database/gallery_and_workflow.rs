@@ -191,8 +191,16 @@ fn gallery_query_filters_safety_label_before_sql_pagination() {
             })
             .await
             .unwrap();
+        let total = gallery
+            .count_items(GalleryQuery {
+                safety_label: Some(SafetyLabel::Safe),
+                ..GalleryQuery::default()
+            })
+            .await
+            .unwrap();
 
         assert_eq!(gallery_item_ids(&page), vec![older_safe_id]);
+        assert_eq!(total, 1);
     });
 }
 
@@ -225,6 +233,80 @@ fn gallery_delete_items_returns_deleted_records_and_ignores_missing_ids() {
                 .await
                 .unwrap()
                 .is_empty()
+        );
+    });
+}
+
+#[test]
+fn gallery_hard_delete_commits_related_database_changes_together() {
+    block_on(async {
+        let connection = DatabaseConnection::open_memory().unwrap();
+        let gallery = DatabaseGalleryIndex::new(connection.clone());
+        let artifacts = DatabaseArtifactRepository::new(connection.clone());
+        let resources = DatabaseResourceCatalogRepository::new(connection);
+        let catalog = ResourceCatalog::new(
+            resources.clone(),
+            MemoryBlobStore::default(),
+            NullVariantBuilder,
+        );
+        let item = gallery_item("delete-atomic", 30, 0.04);
+        let gallery_owner = ResourceOwner::new(ResourceOwnerKind::GalleryItem, item.id.as_str());
+        catalog
+            .register_resource(RegisterResourceRequest {
+                resource_id: item.primary_resource.id.clone(),
+                owner: gallery_owner.clone(),
+                ..generated_resource("unused", vec![9])
+            })
+            .await
+            .unwrap();
+        artifacts
+            .insert_artifact(artifact_record("delete-atomic", 30, item.source.clone()))
+            .await
+            .unwrap();
+        gallery.upsert_item(item.clone()).await.unwrap();
+
+        let deleted = gallery
+            .hard_delete(&[GalleryHardDeletePlan {
+                item_id: item.id.as_str().to_owned(),
+                artifact_id: item.artifact_id.as_str().to_owned(),
+                resource_ids: vec![item.primary_resource.id.as_str().to_owned()],
+                transient_owner: Some(GalleryTransientOwner {
+                    kind: "job",
+                    local_id: "job-delete-atomic".to_owned(),
+                }),
+                force_delete_pending: false,
+            }])
+            .await
+            .unwrap();
+
+        assert_eq!(deleted, 1);
+        assert!(
+            gallery
+                .query_items(GalleryQuery::default())
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            catalog
+                .list_by_owner(&gallery_owner)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            resources
+                .get_ready_record(&item.primary_resource.id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            artifacts
+                .delete_artifacts(&[item.artifact_id])
+                .await
+                .unwrap(),
+            0
         );
     });
 }
