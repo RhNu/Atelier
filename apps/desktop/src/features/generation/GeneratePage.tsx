@@ -2,13 +2,7 @@
 import { useCallback, useState } from "react";
 
 import { AppToolbar } from "../../components/ui";
-import type {
-  CompiledGenerationPromptDto,
-  PromptPresetDto,
-  RunHistoryItemDto,
-  RunHistoryStatusDto,
-  VibeDocumentEntryDto,
-} from "../../types";
+import type { CompiledGenerationPromptDto, RunHistoryStatusDto } from "../../types";
 import { AdvancedGenerationInputs } from "./components/AdvancedGenerationInputs";
 import {
   GenerationEconomyStatus,
@@ -44,9 +38,7 @@ import { useGenerationDraft } from "./state/useGenerationDraft";
 import { useGenerationPageActions } from "./state/useGenerationPageActions";
 import { useQueueActionHandlers } from "./state/useQueueActionHandlers";
 
-const EMPTY_HISTORY_ITEMS: ReadonlyArray<RunHistoryItemDto> = [];
-const EMPTY_VIBE_DOCUMENTS: ReadonlyArray<VibeDocumentEntryDto> = [];
-const EMPTY_PROMPT_PRESETS: ReadonlyArray<PromptPresetDto> = [];
+const EMPTY_ITEMS: [] = [];
 const HISTORY_PAGE_LIMIT = 8;
 
 export function GeneratePage() {
@@ -99,7 +91,7 @@ export function GeneratePage() {
   const [compiledPreview, setCompiledPreview] = useState<CompiledGenerationPromptDto | null>(null);
 
   const status = statusQuery.data;
-  const historyItems = historyQuery.data?.items ?? EMPTY_HISTORY_ITEMS;
+  const historyItems = historyQuery.data?.items ?? EMPTY_ITEMS;
   const selectedHistoryItem =
     historyItems.find((item) => item.run_id === selectedHistoryItemId) ?? null;
   const generationActions = useGenerationPageActions({
@@ -251,7 +243,7 @@ export function GeneratePage() {
             compilePending={compileMutation.isPending}
             submitPending={submitMutation.isPending}
             compiledPreview={compiledPreview}
-            mainPresets={mainPresetsQuery.data?.items ?? EMPTY_PROMPT_PRESETS}
+            mainPresets={mainPresetsQuery.data?.items ?? EMPTY_ITEMS}
             mainPresetsPending={mainPresetsQuery.isPending}
             onPatch={patchDraft}
             onSubmit={handleSubmit}
@@ -261,8 +253,8 @@ export function GeneratePage() {
           <AdvancedGenerationInputs
             draft={draft}
             onPatch={patchDraft}
-            characterPresets={characterPresetsQuery.data?.items ?? EMPTY_PROMPT_PRESETS}
-            vibeDocuments={vibeDocumentsQuery.data?.items ?? EMPTY_VIBE_DOCUMENTS}
+            characterPresets={characterPresetsQuery.data?.items ?? EMPTY_ITEMS}
+            vibeDocuments={vibeDocumentsQuery.data?.items ?? EMPTY_ITEMS}
             vibePending={vibeDocumentsQuery.isPending}
             vibeError={vibeDocumentsQuery.isError ? formatError(vibeDocumentsQuery.error) : null}
             vibeImportPending={generationActions.vibeImportPending}
@@ -271,6 +263,7 @@ export function GeneratePage() {
             vibeEnsurePending={generationActions.vibeEnsurePending}
             onPickImageResources={generationActions.handlePickImageResources}
             onPickVibeEncoding={generationActions.handlePickVibeEncoding}
+            onReleaseImageResources={generationActions.handleReleaseImageResources}
             onImportVibeDocuments={generationActions.handleImportVibeDocuments}
             onExportVibeDocument={generationActions.handleExportVibeDocument}
           />

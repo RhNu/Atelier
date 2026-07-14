@@ -15,7 +15,8 @@ use atelier_app_api::{
     error::ErrorEnvelopeDto,
     resource::{
         GetResourceImageRequestDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-        ImportImageResourceResponseDto, SaveResourceImageRequestDto,
+        ImportImageResourceResponseDto, ReleaseImportedImageResourcesRequestDto,
+        SaveResourceImageRequestDto,
     },
     vibe::{
         ExportVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
@@ -97,7 +98,19 @@ pub async fn pick_and_import_image_resources(
     let mut imported = Vec::with_capacity(requests.len());
 
     for request in requests {
-        imported.push(state.host.import_image_resource(request).await?);
+        match state.host.import_image_resource(request).await {
+            Ok(resource) => imported.push(resource),
+            Err(error) => {
+                let resources = imported.iter().map(|item| item.resource.clone()).collect();
+                let _cleanup_result = state
+                    .host
+                    .release_imported_image_resources(ReleaseImportedImageResourcesRequestDto {
+                        resources,
+                    })
+                    .await;
+                return Err(error);
+            }
+        }
     }
 
     Ok(imported)

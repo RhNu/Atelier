@@ -1,11 +1,12 @@
 use atelier_adapter_image_codec::ImageCodec;
 use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-    ImportImageResourceResponseDto, ResourceImageDto,
+    ImportImageResourceResponseDto, ReleaseImportedImageResourcesRequestDto,
+    ReleaseImportedImageResourcesResponseDto, ResourceImageDto,
 };
 use atelier_resource_catalog::{
-    BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
-    ResourceOwner, ResourceOwnerKind, ResourceRelation,
+    BlobWriteIntent, RegisterResourceRequest, ResourceCleanupReport, ResourceId, ResourceKind,
+    ResourceLifecycle, ResourceOwner, ResourceOwnerKind, ResourceRelation,
 };
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -43,8 +44,8 @@ where
             .register_resource(RegisterResourceRequest {
                 resource_id,
                 kind,
-                lifecycle: ResourceLifecycle::WorkspaceScoped,
-                owner: ResourceOwner::new(ResourceOwnerKind::Workspace, "workspace"),
+                lifecycle: ResourceLifecycle::Cache,
+                owner: import_staging_owner(),
                 relation: image_resource_relation(request.kind),
                 blob: BlobWriteIntent::Bytes(bytes),
             })
@@ -52,6 +53,68 @@ where
         drop(kernel);
         Ok(ImportImageResourceResponseDto {
             resource: resource_ref_to_dto(&resource),
+        })
+    }
+
+    pub async fn release_imported_images(
+        &self,
+        request: ReleaseImportedImageResourcesRequestDto,
+    ) -> AppResult<ReleaseImportedImageResourcesResponseDto> {
+        let mut released = 0;
+        let mut resource_ids = std::collections::BTreeSet::new();
+        for resource in request.resources {
+            if resource.variant_id.is_none() && resource.id.starts_with("resource:import:") {
+                resource_ids.insert(resource.id);
+            }
+        }
+        let kernel = self.app.inner.kernel.lock().await;
+        let catalog = &kernel.ports().resources;
+        let owner = import_staging_owner();
+        let links = catalog.list_links_by_owner(&owner).await?;
+        for link in links
+            .iter()
+            .filter(|link| resource_ids.contains(link.resource_id.as_str()))
+        {
+            catalog
+                .detach_owner(&link.resource_id, &owner, link.relation)
+                .await?;
+            released += 1;
+        }
+        let cleanup = if released == 0 {
+            ResourceCleanupReport::default()
+        } else {
+            catalog.cleanup_delete_pending().await?
+        };
+        drop(kernel);
+        Ok(ReleaseImportedImageResourcesResponseDto {
+            released,
+            resources_deleted: cleanup.resources_deleted,
+            blobs_deleted: cleanup.blobs_deleted,
+        })
+    }
+
+    pub async fn release_all_imported_images(
+        &self,
+    ) -> AppResult<ReleaseImportedImageResourcesResponseDto> {
+        let kernel = self.app.inner.kernel.lock().await;
+        let catalog = &kernel.ports().resources;
+        let owner = import_staging_owner();
+        let links = catalog.list_links_by_owner(&owner).await?;
+        for link in &links {
+            catalog
+                .detach_owner(&link.resource_id, &owner, link.relation)
+                .await?;
+        }
+        let cleanup = if links.is_empty() {
+            ResourceCleanupReport::default()
+        } else {
+            catalog.cleanup_delete_pending().await?
+        };
+        drop(kernel);
+        Ok(ReleaseImportedImageResourcesResponseDto {
+            released: links.len(),
+            resources_deleted: cleanup.resources_deleted,
+            blobs_deleted: cleanup.blobs_deleted,
         })
     }
 
@@ -109,4 +172,10 @@ fn unix_timestamp_nanos() -> u128 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos()
+}
+
+const IMPORT_STAGING_OWNER_ID: &str = "user-image-inputs";
+
+fn import_staging_owner() -> ResourceOwner {
+    ResourceOwner::new(ResourceOwnerKind::ImportStaging, IMPORT_STAGING_OWNER_ID)
 }

@@ -27,4 +27,5 @@ export {
   resourceImageToObjectUrl,
   revokeResourceImageObjectUrl,
 } from "./resource-image";
+export { isImportedImageResource, uniqueImportedImageResources } from "./imported-images";
 export { AtelierCommandError, invokeAtelierCommand, normalizeCommandError } from "./tauri-client";

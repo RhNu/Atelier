@@ -198,6 +198,60 @@ fn resource_import_command_is_available_through_facade() {
 
         assert!(imported.resource.id.starts_with("resource:import:source:"));
         assert_eq!(imported.resource.variant_id, None);
+
+        let release_request = ReleaseImportedImageResourcesRequestDto {
+            resources: vec![imported.resource.clone()],
+        };
+        let released = host
+            .release_imported_image_resources(ReleaseImportedImageResourcesRequestDto {
+                resources: vec![imported.resource.clone()],
+            })
+            .await
+            .unwrap();
+        assert_eq!(released.released, 1);
+        assert_eq!(released.resources_deleted, 1);
+        assert_eq!(released.blobs_deleted, 1);
+        assert!(
+            host.get_resource_image(GetResourceImageRequestDto {
+                resource: imported.resource,
+            })
+            .await
+            .is_err()
+        );
+        assert_eq!(
+            host.release_imported_image_resources(release_request)
+                .await
+                .unwrap()
+                .released,
+            0
+        );
+    });
+}
+
+#[test]
+fn reopening_workspace_cleans_stale_imported_images() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host();
+        open_workspace(&host, &temp).await;
+        let imported = host
+            .import_image_resource(ImportImageResourceRequestDto {
+                kind: ImageResourceKindDto::ReferenceImage,
+                image_base64: "AQID".to_owned(),
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap();
+
+        open_workspace(&host, &temp).await;
+
+        assert!(
+            host.get_resource_image(GetResourceImageRequestDto {
+                resource: imported.resource,
+            })
+            .await
+            .is_err()
+        );
     });
 }
 

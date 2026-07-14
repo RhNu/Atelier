@@ -163,6 +163,10 @@ where
             .await
             .map_err(|error| error.envelope())?,
         );
+        app.resources()
+            .release_all_imported_images()
+            .await
+            .map_err(|error| error.envelope())?;
         let listeners = self
             .event_listeners
             .lock()

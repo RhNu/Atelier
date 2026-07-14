@@ -53,6 +53,8 @@ import type {
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryItemResponseDto,
   ResourceImageDto,
+  ReleaseImportedImageResourcesRequestDto,
+  ReleaseImportedImageResourcesResponseDto,
   SaveResourceImageRequestDto,
   ResetWorkspaceSettingsResponseDto,
   RunDirectorToolRequestDto,
@@ -186,6 +188,11 @@ export const promptApi = {
 export const resourceApi = {
   image: (request: GetResourceImageRequestDto) =>
     invokeAtelierCommand<ResourceImageDto>(atelierCommands.getResourceImage, { request }),
+  releaseImportedImages: (request: ReleaseImportedImageResourcesRequestDto) =>
+    invokeAtelierCommand<ReleaseImportedImageResourcesResponseDto>(
+      atelierCommands.releaseImportedImageResources,
+      { request },
+    ),
 };
 
 export const settingsApi = {

@@ -28,6 +28,7 @@ type AdvancedGenerationInputsProps = {
   vibeEnsurePending: boolean;
   onPickImageResources: (kind: "source_image" | "reference_image") => Promise<ResourceRefDto[]>;
   onPickVibeEncoding: () => Promise<EnsuredVibeEncodingFromResource | null>;
+  onReleaseImageResources: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
   onImportVibeDocuments: () => void;
   onExportVibeDocument: (vibeId: string) => void;
 };
@@ -47,6 +48,7 @@ export function AdvancedGenerationInputs({
   vibeEnsurePending,
   onPickImageResources,
   onPickVibeEncoding,
+  onReleaseImageResources,
   onImportVibeDocuments,
   onExportVibeDocument,
 }: AdvancedGenerationInputsProps) {
@@ -76,11 +78,21 @@ export function AdvancedGenerationInputs({
     [draft.vibe, onPatch],
   );
 
+  async function releaseImages(resources: ReadonlyArray<ResourceRefDto | null>) {
+    try {
+      await onReleaseImageResources(resources);
+    } catch (err) {
+      setError(formatError(err));
+    }
+  }
+
   async function pickSourceImage() {
     setError(null);
     try {
-      const [resource] = await onPickImageResources("source_image");
+      const [resource, ...unused] = await onPickImageResources("source_image");
+      await releaseImages(unused);
       if (resource) {
+        const replaced = draft.i2i?.image ?? null;
         onPatch({
           i2i: {
             image: resource,
@@ -89,6 +101,7 @@ export function AdvancedGenerationInputs({
             noise: draft.i2i?.noise ?? 0,
           },
         });
+        await releaseImages([replaced]);
       }
     } catch (err) {
       setError(formatError(err));
@@ -98,9 +111,12 @@ export function AdvancedGenerationInputs({
   async function pickMaskImage() {
     setError(null);
     try {
-      const [resource] = await onPickImageResources("source_image");
+      const [resource, ...unused] = await onPickImageResources("source_image");
+      await releaseImages(unused);
       if (resource && draft.i2i) {
+        const replaced = draft.i2i.mask;
         updateI2i({ mask: resource });
+        await releaseImages([replaced]);
       }
     } catch (err) {
       setError(formatError(err));
@@ -149,14 +165,15 @@ export function AdvancedGenerationInputs({
                 vibeId: null,
                 informationExtracted: 1,
                 strength: 1,
-                displayName: ensured.sourceImage.id,
-                sourceImage: ensured.sourceImage,
+                displayName: ensured.displayName,
+                sourceImage: null,
                 sourceSha256: ensured.sourceSha256,
               },
             ],
           },
           preciseReferences: [],
         });
+        await releaseImages(draft.preciseReferences.map((reference) => reference.image));
       }
     } catch (err) {
       setError(formatError(err));
@@ -177,6 +194,7 @@ export function AdvancedGenerationInputs({
           pickSourceImage={pickSourceImage}
           pickMaskImage={pickMaskImage}
           imageImportPending={imageImportPending}
+          releaseImages={releaseImages}
         />
         <VibeGuidanceSection
           draft={draft}
@@ -191,12 +209,14 @@ export function AdvancedGenerationInputs({
           pickVibeEncoding={pickVibeEncoding}
           onImportVibeDocuments={onImportVibeDocuments}
           onExportVibeDocument={onExportVibeDocument}
+          releaseImages={releaseImages}
         />
         <PreciseReferenceSection
           draft={draft}
           onPatch={onPatch}
           pickPreciseReference={pickPreciseReference}
           imageImportPending={imageImportPending}
+          releaseImages={releaseImages}
         />
         <CharacterGuidanceSection
           draft={draft}

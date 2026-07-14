@@ -6,6 +6,7 @@ import {
   galleryApi,
   queryKeys,
   resourceApi,
+  uniqueImportedImageResources,
   resourceImageToDataUrl,
 } from "../../../platform/atelier";
 import type {
@@ -32,8 +33,28 @@ export function useDirectorImageQuery(resource: ResourceRefDto | null) {
 export function usePickDirectorImageMutation(kind: ImageResourceKindDto = "source_image") {
   return useMutation({
     mutationFn: async () => {
-      const [imported] = await desktopApi.pickAndImportImageResources(kind, { extensions: [] });
+      const [imported, ...unused] = await desktopApi.pickAndImportImageResources(kind, {
+        extensions: [],
+      });
+      const unusedResources = unused.map((item) => item.resource);
+      if (unusedResources.length > 0) {
+        await resourceApi.releaseImportedImages({ resources: unusedResources });
+      }
       return imported?.resource ?? null;
+    },
+  });
+}
+
+export function useReleaseDirectorImagesMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (resources: ReadonlyArray<ResourceRefDto | null>) => {
+      const imported = uniqueImportedImageResources(resources);
+      if (imported.length === 0) return null;
+      return resourceApi.releaseImportedImages({ resources: imported });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() });
     },
   });
 }

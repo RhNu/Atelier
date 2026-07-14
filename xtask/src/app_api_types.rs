@@ -50,8 +50,9 @@ use atelier_app_api::{
     },
     resource::{
         GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto,
-        ImportImageResourceRequestDto, ImportImageResourceResponseDto, ResourceImageDto,
-        ResourceRefDto, SaveResourceImageRequestDto,
+        ImportImageResourceRequestDto, ImportImageResourceResponseDto,
+        ReleaseImportedImageResourcesRequestDto, ReleaseImportedImageResourcesResponseDto,
+        ResourceImageDto, ResourceRefDto, SaveResourceImageRequestDto,
     },
     settings::{
         GenerationDefaultsDto, ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto,
@@ -277,6 +278,8 @@ fn export_resource_types(config: &Config) -> Result<(), String> {
         ImageResourceKindDto,
         ImportImageResourceRequestDto,
         ImportImageResourceResponseDto,
+        ReleaseImportedImageResourcesRequestDto,
+        ReleaseImportedImageResourcesResponseDto,
         GetResourceImageRequestDto,
         SaveResourceImageRequestDto,
         ResourceImageDto,

@@ -2,7 +2,7 @@
 import { Plus, Trash2 } from "lucide-react";
 
 import { AppButton } from "../../../components/ui";
-import type { VibeDocumentEntryDto } from "../../../types";
+import type { ResourceRefDto, VibeDocumentEntryDto } from "../../../types";
 import type { GenerationDraft } from "../model/generation-draft";
 import { createLocalId } from "./advanced-generation-model";
 import { BooleanField, NumberField, SelectField } from "./GenerationFormFields";
@@ -22,6 +22,7 @@ export function VibeGuidanceSection({
   pickVibeEncoding,
   onImportVibeDocuments,
   onExportVibeDocument,
+  releaseImages,
 }: {
   draft: GenerationDraft;
   onPatch: (patch: Partial<GenerationDraft>) => void;
@@ -35,6 +36,7 @@ export function VibeGuidanceSection({
   pickVibeEncoding: () => Promise<void>;
   onImportVibeDocuments: () => void;
   onExportVibeDocument: (vibeId: string) => void;
+  releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
 }) {
   return (
     <section className="grid gap-2">
@@ -50,7 +52,11 @@ export function VibeGuidanceSection({
         </AppButton>
         <AppButton
           variant="ghost"
-          onClick={() => updateVibe({ slots: [], enabled: false })}
+          onClick={() => {
+            const resources = draft.vibe.slots.map((slot) => slot.sourceImage);
+            updateVibe({ slots: [], enabled: false });
+            void releaseImages(resources);
+          }}
           disabled={draft.vibe.slots.length === 0}
         >
           <Trash2 aria-hidden="true" className="size-4" />
@@ -112,6 +118,7 @@ export function VibeGuidanceSection({
             },
             preciseReferences: [],
           });
+          void releaseImages(draft.preciseReferences.map((reference) => reference.image));
         }}
       />
       {draft.vibe.slots.map((slot) => (
@@ -122,6 +129,7 @@ export function VibeGuidanceSection({
           updateVibe={updateVibe}
           vibeExportPending={vibeExportPending}
           onExportVibeDocument={onExportVibeDocument}
+          releaseImages={releaseImages}
         />
       ))}
     </section>
@@ -134,12 +142,14 @@ function VibeSlot({
   updateVibe,
   vibeExportPending,
   onExportVibeDocument,
+  releaseImages,
 }: {
   draft: GenerationDraft;
   slot: GenerationDraft["vibe"]["slots"][number];
   updateVibe: (patch: Partial<GenerationDraft["vibe"]>) => void;
   vibeExportPending: boolean;
   onExportVibeDocument: (vibeId: string) => void;
+  releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
 }) {
   return (
     <div className="grid gap-2 border border-app-border bg-black/20 p-2">
@@ -149,9 +159,10 @@ function VibeSlot({
           type="button"
           aria-label={`Remove ${slot.displayName}`}
           className="text-app-muted hover:text-rose-100"
-          onClick={() =>
-            updateVibe({ slots: draft.vibe.slots.filter((item) => item.id !== slot.id) })
-          }
+          onClick={() => {
+            updateVibe({ slots: draft.vibe.slots.filter((item) => item.id !== slot.id) });
+            void releaseImages([slot.sourceImage]);
+          }}
         >
           <Trash2 aria-hidden="true" className="size-4" />
         </button>

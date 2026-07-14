@@ -34,6 +34,7 @@ export const atelierCommands = {
   promptLexiconList: "prompt_lexicon_list",
   promptLexiconSearch: "prompt_lexicon_search",
   getResourceImage: "get_resource_image",
+  releaseImportedImageResources: "release_imported_image_resources",
   getWorkspaceSettings: "get_workspace_settings",
   updateWorkspaceSettings: "update_workspace_settings",
   resetWorkspaceSettings: "reset_workspace_settings",

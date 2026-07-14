@@ -34,6 +34,9 @@ import type {
   PromptLexiconSearchQueryDto,
   PromptPresetPageDto,
   ResourceImageDto,
+  ReleaseImportedImageResourcesRequestDto,
+  ReleaseImportedImageResourcesResponseDto,
+  ResourceRefDto,
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryItemResponseDto,
   RunHistoryPageDto,
@@ -79,6 +82,12 @@ const mocks = vi.hoisted(() => ({
   },
   resourceApi: {
     image: vi.fn<(request: GetResourceImageRequestDto) => Promise<ResourceImageDto>>(),
+    releaseImportedImages:
+      vi.fn<
+        (
+          request: ReleaseImportedImageResourcesRequestDto,
+        ) => Promise<ReleaseImportedImageResourcesResponseDto>
+      >(),
   },
   settingsApi: {
     get: vi.fn<() => Promise<WorkspaceSettingsDto>>(),
@@ -160,6 +169,11 @@ vi.mock("../platform/atelier", () => ({
       list: (query: ListVibeDocumentsRequestDto) => ["vibe", "list", query],
     },
   },
+  uniqueImportedImageResources: (resources: ReadonlyArray<ResourceRefDto | null>) =>
+    resources.filter(
+      (resource): resource is ResourceRefDto =>
+        resource?.variant_id === null && resource.id.startsWith("resource:import:"),
+    ),
 }));
 
 const defaultSettings: WorkspaceSettingsDto = {
@@ -336,6 +350,11 @@ function setup(options?: {
   mocks.resourceApi.image.mockResolvedValue({
     image_base64: "final-image",
     mime_type: "image/png",
+  });
+  mocks.resourceApi.releaseImportedImages.mockResolvedValue({
+    released: 1,
+    resources_deleted: 1,
+    blobs_deleted: 1,
   });
   mocks.galleryApi.imageReference.mockResolvedValue({
     item_id: "gallery-1",
@@ -574,6 +593,30 @@ describe("GeneratePage", () => {
         },
       },
     });
+  });
+
+  it("releases unused and cleared imported input images", async () => {
+    const { user } = setup();
+    const source = { id: "resource:import:source:1", variant_id: null };
+    const unused = { id: "resource:import:source:2", variant_id: null };
+    mocks.desktopApi.pickAndImportImageResources.mockResolvedValueOnce([
+      { resource: source },
+      { resource: unused },
+    ]);
+
+    await user.click(await screen.findByRole("button", { name: "Add source" }));
+    await waitFor(() =>
+      expect(mocks.resourceApi.releaseImportedImages).toHaveBeenCalledWith({
+        resources: [unused],
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await waitFor(() =>
+      expect(mocks.resourceApi.releaseImportedImages).toHaveBeenCalledWith({
+        resources: [source],
+      }),
+    );
   });
 
   it("adds an imported Vibe encoding from the Vibe library", async () => {

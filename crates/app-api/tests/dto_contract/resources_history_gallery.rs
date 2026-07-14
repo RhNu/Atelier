@@ -26,6 +26,25 @@ fn image_resource_import_dtos_are_resource_catalog_oriented() {
         json!({ "resource": { "id": "resource:image:1" } })
     );
     assert_eq!(
+        serde_json::to_value(ReleaseImportedImageResourcesRequestDto {
+            resources: vec![ResourceRefDto {
+                id: "resource:import:source:1".to_owned(),
+                variant_id: None,
+            }],
+        })
+        .unwrap(),
+        json!({ "resources": [{ "id": "resource:import:source:1" }] })
+    );
+    assert_eq!(
+        serde_json::to_value(ReleaseImportedImageResourcesResponseDto {
+            released: 1,
+            resources_deleted: 1,
+            blobs_deleted: 1,
+        })
+        .unwrap(),
+        json!({ "released": 1, "resources_deleted": 1, "blobs_deleted": 1 })
+    );
+    assert_eq!(
         serde_json::to_value(GetResourceImageRequestDto {
             resource: ResourceRefDto {
                 id: "resource:image:1".to_owned(),

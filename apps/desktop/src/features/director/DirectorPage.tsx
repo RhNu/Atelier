@@ -1,9 +1,9 @@
 /* eslint-disable max-lines-per-function */
 import { Clapperboard } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 
 import { AppToolbar } from "../../components/ui";
-import { desktopApi } from "../../platform/atelier";
+import { desktopApi, resourceApi, uniqueImportedImageResources } from "../../platform/atelier";
 import type { DirectorToolDto, DirectorToolResultDto } from "../../types";
 import { formatError } from "../gallery/gallery-utils";
 import {
@@ -14,6 +14,7 @@ import {
 import {
   useDirectorImageQuery,
   usePickDirectorImageMutation,
+  useReleaseDirectorImagesMutation,
   useRunDirectorToolMutation,
   useSaveDirectorImageMutation,
   useSetDirectorSafetyOverrideMutation,
@@ -33,6 +34,7 @@ export function DirectorPage() {
   const readinessQuery = useDirectorReadinessQuery();
   const pickInputMutation = usePickDirectorImageMutation();
   const runToolMutation = useRunDirectorToolMutation();
+  const releaseImagesMutation = useReleaseDirectorImagesMutation();
   const saveImageMutation = useSaveDirectorImageMutation();
   const safetyMutation = useSetDirectorSafetyOverrideMutation();
   const consumeHandoff = useDirectorHandoffStore((state) => state.consumePendingInput);
@@ -44,6 +46,20 @@ export function DirectorPage() {
   const [result, setResult] = useState<DirectorToolResultDto | null>(null);
   const [safetyOverride, setSafetyOverride] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const latestInput = useRef(input);
+  latestInput.current = input;
+
+  useEffect(
+    () => () => {
+      const resource =
+        latestInput.current?.kind === "resource" ? latestInput.current.resource : null;
+      const resources = uniqueImportedImageResources([resource]);
+      if (resources.length > 0) {
+        void resourceApi.releaseImportedImages({ resources }).catch(() => undefined);
+      }
+    },
+    [],
+  );
 
   const sourceResource = input?.kind === "resource" ? input.resource : null;
   const sourceImageQuery = useDirectorImageQuery(sourceResource);
@@ -59,11 +75,14 @@ export function DirectorPage() {
   useEffect(() => {
     const resource = consumeHandoff();
     if (resource) {
+      const replaced =
+        latestInput.current?.kind === "resource" ? latestInput.current.resource : null;
       setInput({ kind: "resource", resource, label: resource.id });
       setResult(null);
       setActionError(null);
+      void releaseImagesMutation.mutateAsync([replaced]).catch(() => undefined);
     }
-  }, [consumeHandoff]);
+  }, [consumeHandoff, releaseImagesMutation]);
 
   useEffect(() => {
     setSafetyOverride(result?.item.manual_safety_override ?? "");
@@ -84,18 +103,23 @@ export function DirectorPage() {
       .mutateAsync()
       .then((resource) => {
         if (resource) {
+          const replaced = input?.kind === "resource" ? input.resource : null;
           setInput({ kind: "resource", resource, label: resource.id });
           setResult(null);
+          void releaseImagesMutation
+            .mutateAsync([replaced])
+            .catch((error: unknown) => setActionError(formatError(error)));
         }
       })
       .catch((error: unknown) => setActionError(formatError(error)));
-  }, [pickInputMutation]);
+  }, [input, pickInputMutation, releaseImagesMutation]);
 
   const handlePasteInput = useCallback(() => {
     setActionError(null);
     void desktopApi
       .readClipboardImage()
       .then((pasted) => {
+        const replaced = input?.kind === "resource" ? input.resource : null;
         setInput({
           kind: "inline",
           imageBase64: pasted.imageBase64,
@@ -103,15 +127,22 @@ export function DirectorPage() {
           label: "Clipboard image",
         });
         setResult(null);
+        void releaseImagesMutation
+          .mutateAsync([replaced])
+          .catch((error: unknown) => setActionError(formatError(error)));
       })
       .catch((error: unknown) => setActionError(formatError(error)));
-  }, []);
+  }, [input, releaseImagesMutation]);
 
   const handleClearInput = useCallback(() => {
+    const replaced = input?.kind === "resource" ? input.resource : null;
     setInput(null);
     setResult(null);
     setActionError(null);
-  }, []);
+    void releaseImagesMutation
+      .mutateAsync([replaced])
+      .catch((error: unknown) => setActionError(formatError(error)));
+  }, [input, releaseImagesMutation]);
 
   const handleToolChange = useCallback((value: string) => {
     setTool(parseDirectorTool(value));

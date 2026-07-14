@@ -98,6 +98,8 @@ export type { PromptPresetPageDto } from "./PromptPresetPageDto";
 export type { PromptTraceDto } from "./PromptTraceDto";
 export type { QueueDelayDto } from "./QueueDelayDto";
 export type { QueueDirectiveDto } from "./QueueDirectiveDto";
+export type { ReleaseImportedImageResourcesRequestDto } from "./ReleaseImportedImageResourcesRequestDto";
+export type { ReleaseImportedImageResourcesResponseDto } from "./ReleaseImportedImageResourcesResponseDto";
 export type { RenameVibeDocumentRequestDto } from "./RenameVibeDocumentRequestDto";
 export type { RerunGenerationHistoryItemRequestDto } from "./RerunGenerationHistoryItemRequestDto";
 export type { RerunGenerationHistoryItemResponseDto } from "./RerunGenerationHistoryItemResponseDto";

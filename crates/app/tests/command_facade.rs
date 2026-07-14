@@ -27,7 +27,8 @@ use atelier_app_api::prompt::{
     PromptPresetKindDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
 };
 use atelier_app_api::resource::{
-    ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
+    GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
+    ReleaseImportedImageResourcesRequestDto,
 };
 use atelier_app_api::settings::{
     FrontendGallerySettingsDto, FrontendSettingsDto, GenerationDefaultsDto,

@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { RunHistoryItemDto, RunHistoryOutputDto } from "../../../types";
+import { resourceApi, uniqueImportedImageResources } from "../../../platform/atelier";
+import type { ResourceRefDto, RunHistoryItemDto, RunHistoryOutputDto } from "../../../types";
 import { setDirectorHandoffInput } from "../../director/state/director-handoff-store";
 import { navigateToDirector } from "../../director/state/navigate-to-director";
 import {
@@ -11,6 +12,7 @@ import {
   useImportVibeDocumentsMutation,
   usePickImageResourcesMutation,
   useRerunGenerationMutation,
+  useReleaseImportedImagesMutation,
   useSaveResourceImageMutation,
 } from "../data/useGenerationActions";
 import { formatGenerationError } from "../generation-page-utils";
@@ -137,8 +139,23 @@ function useGenerationInputActions({
 }) {
   const imageMutation = usePickImageResourcesMutation();
   const ensureVibeMutation = useEnsureVibeEncodingFromResourceMutation();
+  const releaseImagesMutation = useReleaseImportedImagesMutation();
   const importVibeMutation = useImportVibeDocumentsMutation();
   const exportVibeMutation = useExportVibeDocumentMutation();
+  const latestDraft = useRef(draft);
+  latestDraft.current = draft;
+  useEffect(
+    () => () => {
+      if (!latestDraft.current) return;
+      const resources = uniqueImportedImageResources(
+        generationDraftInputResources(latestDraft.current),
+      );
+      if (resources.length > 0) {
+        void resourceApi.releaseImportedImages({ resources }).catch(() => undefined);
+      }
+    },
+    [],
+  );
   const handleImportVibeDocuments = useCallback(() => {
     setError(null);
     void importVibeMutation
@@ -152,20 +169,32 @@ function useGenerationInputActions({
     },
     [imageMutation],
   );
+  const handleReleaseImageResources = useCallback(
+    async (resources: ReadonlyArray<ResourceRefDto | null>) => {
+      const imported = uniqueImportedImageResources(resources);
+      if (imported.length === 0) return;
+      await releaseImagesMutation.mutateAsync(imported);
+    },
+    [releaseImagesMutation],
+  );
   const handlePickVibeEncoding = useCallback(async () => {
     if (!draft) return null;
-    const [imported] = await imageMutation.mutateAsync({
+    const [imported, ...unused] = await imageMutation.mutateAsync({
       kind: "control_net_image",
       extensions: [],
     });
-    return imported
-      ? ensureVibeMutation.mutateAsync({
-          resource: imported.resource,
-          model: draft.model,
-          informationExtracted: 1,
-        })
-      : null;
-  }, [draft, ensureVibeMutation, imageMutation]);
+    await handleReleaseImageResources(unused.map((item) => item.resource));
+    if (!imported) return null;
+    try {
+      return await ensureVibeMutation.mutateAsync({
+        resource: imported.resource,
+        model: draft.model,
+        informationExtracted: 1,
+      });
+    } finally {
+      await handleReleaseImageResources([imported.resource]);
+    }
+  }, [draft, ensureVibeMutation, handleReleaseImageResources, imageMutation]);
   const handleExportVibeDocument = useCallback(
     (vibeId: string) => {
       setError(null);
@@ -180,6 +209,7 @@ function useGenerationInputActions({
     handleImportVibeDocuments,
     handlePickImageResources,
     handlePickVibeEncoding,
+    handleReleaseImageResources,
     imageImportPending: imageMutation.isPending,
     vibeEnsurePending: ensureVibeMutation.isPending,
     vibeExportPending: exportVibeMutation.isPending,
@@ -195,6 +225,14 @@ function preferredHistoryOutput(item: RunHistoryItemDto | null): RunHistoryOutpu
     item.outputs[0] ??
     null
   );
+}
+
+function generationDraftInputResources(draft: GenerationDraft): ResourceRefDto[] {
+  return [
+    ...(draft.i2i ? [draft.i2i.image, draft.i2i.mask] : []),
+    ...draft.preciseReferences.map((reference) => reference.image),
+    ...draft.vibe.slots.map((slot) => slot.sourceImage),
+  ].filter((resource): resource is ResourceRefDto => resource !== null);
 }
 
 function handoffToDirector(resource: Parameters<typeof setDirectorHandoffInput>[0]): void {

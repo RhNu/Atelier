@@ -49,6 +49,18 @@ pub struct ImportImageResourceResponseDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ReleaseImportedImageResourcesRequestDto {
+    pub resources: Vec<ResourceRefDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ReleaseImportedImageResourcesResponseDto {
+    pub released: usize,
+    pub resources_deleted: usize,
+    pub blobs_deleted: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GetResourceImageRequestDto {
     pub resource: ResourceRefDto,
 }

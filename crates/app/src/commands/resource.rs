@@ -1,5 +1,6 @@
 use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImportImageResourceRequestDto, ImportImageResourceResponseDto,
+    ReleaseImportedImageResourcesRequestDto, ReleaseImportedImageResourcesResponseDto,
     ResourceImageDto,
 };
 
@@ -31,5 +32,21 @@ where
         request: GetResourceImageRequestDto,
     ) -> CommandResult<ResourceImageDto> {
         Self::command_result(self.current_app()?.resources().get_image(request).await)
+    }
+
+    /// Releases temporary user-selected image resources and their backing blobs.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or resource cleanup fails.
+    pub async fn release_imported_image_resources(
+        &self,
+        request: ReleaseImportedImageResourcesRequestDto,
+    ) -> CommandResult<ReleaseImportedImageResourcesResponseDto> {
+        Self::command_result(
+            self.current_app()?
+                .resources()
+                .release_imported_images(request)
+                .await,
+        )
     }
 }

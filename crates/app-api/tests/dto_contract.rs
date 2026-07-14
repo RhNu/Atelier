@@ -33,7 +33,9 @@ use atelier_app_api::prompt::{
 };
 use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-    ImportImageResourceResponseDto, ResourceImageDto, ResourceRefDto, SaveResourceImageRequestDto,
+    ImportImageResourceResponseDto, ReleaseImportedImageResourcesRequestDto,
+    ReleaseImportedImageResourcesResponseDto, ResourceImageDto, ResourceRefDto,
+    SaveResourceImageRequestDto,
 };
 use atelier_app_api::settings::{
     FrontendGallerySettingsDto, FrontendSettingsDto, GenerationDefaultsDto,

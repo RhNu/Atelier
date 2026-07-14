@@ -46,7 +46,7 @@ type EnsureVibeEncodingFromResourceRequest = {
 
 export type EnsuredVibeEncodingFromResource = {
   encoding: ResourceRefDto;
-  sourceImage: ResourceRefDto;
+  displayName: string;
   sourceSha256: string;
 };
 
@@ -112,7 +112,7 @@ export function useEnsureVibeEncodingFromResourceMutation() {
       });
       return {
         encoding: ensured.resource,
-        sourceImage: resource,
+        displayName: resource.id,
         sourceSha256,
       };
     },
@@ -218,6 +218,16 @@ export function useResourceImageQuery(resource: ResourceRefDto | null) {
       return resourceApi.image({ resource });
     },
     enabled: Boolean(resource),
+  });
+}
+
+export function useReleaseImportedImagesMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (resources: ResourceRefDto[]) => resourceApi.releaseImportedImages({ resources }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() });
+    },
   });
 }
 

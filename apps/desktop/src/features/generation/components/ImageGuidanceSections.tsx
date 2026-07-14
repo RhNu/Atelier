@@ -2,6 +2,7 @@
 import { ImagePlus, Trash2 } from "lucide-react";
 
 import { AppButton } from "../../../components/ui";
+import type { ResourceRefDto } from "../../../types";
 import type { GenerationDraft } from "../model/generation-draft";
 import {
   REFERENCE_TYPE_OPTIONS,
@@ -18,6 +19,7 @@ export function ImageToImageSection({
   pickSourceImage,
   pickMaskImage,
   imageImportPending,
+  releaseImages,
 }: {
   draft: GenerationDraft;
   onPatch: (patch: Partial<GenerationDraft>) => void;
@@ -25,6 +27,7 @@ export function ImageToImageSection({
   pickSourceImage: () => Promise<void>;
   pickMaskImage: () => Promise<void>;
   imageImportPending: boolean;
+  releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
 }) {
   return (
     <section className="grid gap-2">
@@ -42,7 +45,15 @@ export function ImageToImageSection({
           <ImagePlus aria-hidden="true" className="size-4" />
           Mask
         </AppButton>
-        <AppButton variant="ghost" onClick={() => onPatch({ i2i: null })} disabled={!draft.i2i}>
+        <AppButton
+          variant="ghost"
+          onClick={() => {
+            const resources = draft.i2i ? [draft.i2i.image, draft.i2i.mask] : [];
+            onPatch({ i2i: null });
+            void releaseImages(resources);
+          }}
+          disabled={!draft.i2i}
+        >
           <Trash2 aria-hidden="true" className="size-4" />
           Clear
         </AppButton>
@@ -76,11 +87,13 @@ export function PreciseReferenceSection({
   onPatch,
   pickPreciseReference,
   imageImportPending,
+  releaseImages,
 }: {
   draft: GenerationDraft;
   onPatch: (patch: Partial<GenerationDraft>) => void;
   pickPreciseReference: () => Promise<void>;
   imageImportPending: boolean;
+  releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
 }) {
   return (
     <section className="grid gap-2">
@@ -100,13 +113,14 @@ export function PreciseReferenceSection({
               type="button"
               aria-label={`Remove ${reference.displayName}`}
               className="text-app-muted hover:text-rose-100"
-              onClick={() =>
+              onClick={() => {
                 onPatch({
                   preciseReferences: draft.preciseReferences.filter(
                     (item) => item.id !== reference.id,
                   ),
-                })
-              }
+                });
+                void releaseImages([reference.image]);
+              }}
             >
               <Trash2 aria-hidden="true" className="size-4" />
             </button>

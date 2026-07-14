@@ -51,6 +51,7 @@ pub fn run() {
             commands::prompt_lexicon_list,
             commands::prompt_lexicon_search,
             commands::get_resource_image,
+            commands::release_imported_image_resources,
             commands::get_workspace_settings,
             commands::update_workspace_settings,
             commands::reset_workspace_settings,

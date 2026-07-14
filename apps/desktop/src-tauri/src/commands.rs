@@ -35,7 +35,10 @@ use atelier_app_api::{
         PromptLexiconPageDto, PromptLexiconSearchQueryDto, PromptPresetDto, PromptPresetPageDto,
         UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
     },
-    resource::{GetResourceImageRequestDto, ResourceImageDto},
+    resource::{
+        GetResourceImageRequestDto, ReleaseImportedImageResourcesRequestDto,
+        ReleaseImportedImageResourcesResponseDto, ResourceImageDto,
+    },
     settings::{
         ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
     },
@@ -222,6 +225,14 @@ pub async fn get_resource_image(
     request: GetResourceImageRequestDto,
 ) -> CommandResult<ResourceImageDto> {
     state.host.get_resource_image(request).await
+}
+
+#[tauri::command]
+pub async fn release_imported_image_resources(
+    state: State<'_, DesktopState>,
+    request: ReleaseImportedImageResourcesRequestDto,
+) -> CommandResult<ReleaseImportedImageResourcesResponseDto> {
+    state.host.release_imported_image_resources(request).await
 }
 
 #[tauri::command]
