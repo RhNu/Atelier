@@ -1,34 +1,72 @@
-import { Search } from "lucide-react";
-import { useCallback, type ChangeEvent } from "react";
+import { useCallback, useDeferredValue, useState, type ChangeEvent } from "react";
 
-import { AppPanel, AppTabs, AppToolbar, EmptyState } from "../../components/ui";
-import { useTemporaryEditorStore } from "../../stores/workspace-ui-store";
-import { usePromptLexiconCatalogQuery } from "./data/usePromptLexiconCatalogQuery";
+import { AppTabs, AppToolbar } from "../../components/ui";
+import type { PromptLexiconListQueryDto } from "../../types";
+import { LexiconResults } from "./components/LexiconResults";
+import { LexiconSidebar, type LexiconCategorySelection } from "./components/LexiconSidebar";
+import {
+  LEXICON_BROWSE_LIMIT,
+  usePromptLexiconBrowseQuery,
+  usePromptLexiconCatalogQuery,
+  usePromptLexiconSearchQuery,
+} from "./data/usePromptLexiconQueries";
 
-function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : "Command failed";
-}
+type LexiconView = "catalog" | "search";
 
 const lexiconViewTabs = [
   { value: "catalog", label: "Catalog" },
   { value: "search", label: "Search" },
 ] as const;
-
-function ignoreLexiconViewChange() {
-  return undefined;
-}
+const EMPTY_SELECTION: LexiconCategorySelection = { category: null, subcategory: null };
 
 export function LexiconPage() {
+  const [view, setView] = useState<LexiconView>("catalog");
+  const [search, setSearch] = useState("");
+  const [selection, setSelection] = useState(EMPTY_SELECTION);
+  const [offset, setOffset] = useState(0);
+  const deferredSearch = useDeferredValue(search.trim());
+  const browseRequest: PromptLexiconListQueryDto = {
+    query: "",
+    category: selection.category,
+    subcategory: selection.subcategory,
+    offset,
+    limit: LEXICON_BROWSE_LIMIT,
+  };
   const catalogQuery = usePromptLexiconCatalogQuery();
-  const lexiconSearch = useTemporaryEditorStore((state) => state.lexiconSearch);
-  const setLexiconSearch = useTemporaryEditorStore((state) => state.setLexiconSearch);
-  const categories = catalogQuery.data?.categories ?? [];
-  const handleSearchChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      setLexiconSearch(event.target.value);
-    },
-    [setLexiconSearch],
-  );
+  const browseQuery = usePromptLexiconBrowseQuery(browseRequest, view === "catalog");
+  const searchQuery = usePromptLexiconSearchQuery(deferredSearch, view === "search");
+
+  const handleViewChange = useCallback((value: string) => {
+    if (value === "catalog" || value === "search") setView(value);
+  }, []);
+  const handleSearchChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setSearch(value);
+    if (value.trim()) setView("search");
+  }, []);
+  const handleSelectionChange = useCallback((next: LexiconCategorySelection) => {
+    setSelection(next);
+    setOffset(0);
+    setView("catalog");
+  }, []);
+  const handlePrevious = useCallback(() => {
+    setOffset((current) => Math.max(0, current - LEXICON_BROWSE_LIMIT));
+  }, []);
+  const handleNext = useCallback(() => {
+    setOffset((current) => current + LEXICON_BROWSE_LIMIT);
+  }, []);
+
+  const showingSearch = view === "search";
+  const activePage = showingSearch ? searchQuery.data : browseQuery.data;
+  const activePending = showingSearch
+    ? deferredSearch.length > 0 && searchQuery.isPending
+    : browseQuery.isPending;
+  const activeError = showingSearch ? searchQuery.error : browseQuery.error;
+  const title = showingSearch
+    ? deferredSearch
+      ? `Search: ${deferredSearch}`
+      : "Search results"
+    : (selection.subcategory ?? selection.category ?? "All tags");
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -38,83 +76,38 @@ export function LexiconPage() {
           <h1 className="text-lg font-semibold text-white">NovelAI Prompt Lexicon</h1>
         </div>
         <AppTabs
-          value="catalog"
+          value={view}
           label="Lexicon views"
           tabs={lexiconViewTabs}
-          onChange={ignoreLexiconViewChange}
+          onChange={handleViewChange}
         />
       </AppToolbar>
 
       <div className="grid min-h-0 flex-1 grid-cols-[320px_minmax(0,1fr)] gap-3 p-3">
-        <AppPanel className="min-h-0 overflow-hidden">
-          <header className="border-b border-app-border px-4 py-3">
-            <h2 className="text-sm font-semibold text-white">Search</h2>
-          </header>
-          <div className="p-3">
-            <label className="relative block">
-              <Search
-                aria-hidden="true"
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-app-muted"
-              />
-              <input
-                aria-label="Search tags"
-                value={lexiconSearch}
-                onChange={handleSearchChange}
-                className="h-9 w-full border border-app-border bg-black/20 pr-3 pl-9 text-sm text-app-text outline-none focus:border-brand-400"
-                placeholder="Search tags"
-              />
-            </label>
-            {catalogQuery.data ? (
-              <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                <div className="border border-app-border bg-app-surface p-3">
-                  <dt className="text-xs text-app-muted uppercase">Tags</dt>
-                  <dd className="mt-1 font-semibold text-app-text">
-                    {catalogQuery.data.stats.total_tags}
-                  </dd>
-                </div>
-                <div className="border border-app-border bg-app-surface p-3">
-                  <dt className="text-xs text-app-muted uppercase">Sources</dt>
-                  <dd className="mt-1 font-semibold text-app-text">
-                    {catalogQuery.data.stats.source_count}
-                  </dd>
-                </div>
-              </dl>
-            ) : null}
-          </div>
-        </AppPanel>
-
-        <AppPanel className="min-h-0 overflow-hidden">
-          <header className="border-b border-app-border px-4 py-3">
-            <h2 className="text-sm font-semibold text-white">Categories</h2>
-          </header>
-          <div className="h-full overflow-auto p-3">
-            {catalogQuery.isPending ? (
-              <p className="text-sm text-app-muted">Loading lexicon</p>
-            ) : catalogQuery.isError ? (
-              <EmptyState
-                title="Lexicon unavailable"
-                description={formatError(catalogQuery.error)}
-              />
-            ) : categories.length === 0 ? (
-              <EmptyState title="No lexicon categories" />
-            ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-                {categories.map((category) => (
-                  <article
-                    key={category.name}
-                    className="border border-app-border bg-app-surface p-3"
-                  >
-                    <p className="text-sm font-semibold text-app-text">{category.name}</p>
-                    <p className="mt-2 text-xs text-app-muted">
-                      {category.tag_count} tags / {category.subcategory_count} subcategories
-                    </p>
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-        </AppPanel>
+        <LexiconSidebar
+          catalog={catalogQuery.data}
+          catalogPending={catalogQuery.isPending}
+          catalogError={catalogQuery.isError ? formatError(catalogQuery.error) : null}
+          search={search}
+          selection={selection}
+          onSearchChange={handleSearchChange}
+          onSelect={handleSelectionChange}
+        />
+        <LexiconResults
+          title={title}
+          page={activePage}
+          pending={activePending}
+          error={activeError ? formatError(activeError) : null}
+          emptyTitle={showingSearch ? "Enter a search or try another term" : "No matching tags"}
+          pagination={!showingSearch}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+        />
       </div>
     </div>
   );
+}
+
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : "Command failed";
 }
