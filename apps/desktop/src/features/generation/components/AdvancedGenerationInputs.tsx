@@ -196,21 +196,23 @@ export function AdvancedGenerationInputs({
           imageImportPending={imageImportPending}
           releaseImages={releaseImages}
         />
-        <VibeGuidanceSection
-          draft={draft}
-          onPatch={onPatch}
-          updateVibe={updateVibe}
-          vibeDocuments={vibeDocuments}
-          vibePending={vibePending}
-          vibeError={vibeError}
-          vibeImportPending={vibeImportPending}
-          vibeExportPending={vibeExportPending}
-          vibeEnsurePending={vibeEnsurePending}
-          pickVibeEncoding={pickVibeEncoding}
-          onImportVibeDocuments={onImportVibeDocuments}
-          onExportVibeDocument={onExportVibeDocument}
-          releaseImages={releaseImages}
-        />
+        {draft.preciseReferences.length === 0 ? (
+          <VibeGuidanceSection
+            draft={draft}
+            onPatch={onPatch}
+            updateVibe={updateVibe}
+            vibeDocuments={vibeDocuments}
+            vibePending={vibePending}
+            vibeError={vibeError}
+            vibeImportPending={vibeImportPending}
+            vibeExportPending={vibeExportPending}
+            vibeEnsurePending={vibeEnsurePending}
+            pickVibeEncoding={pickVibeEncoding}
+            onImportVibeDocuments={onImportVibeDocuments}
+            onExportVibeDocument={onExportVibeDocument}
+            releaseImages={releaseImages}
+          />
+        ) : null}
         <PreciseReferenceSection
           draft={draft}
           onPatch={onPatch}

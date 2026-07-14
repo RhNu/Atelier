@@ -619,6 +619,43 @@ describe("GeneratePage", () => {
     );
   });
 
+  it("wires Precise Reference into generation and hides Vibe Transfer while it is active", async () => {
+    const { user } = setup();
+    const reference = { id: "resource:import:reference:1", variant_id: null };
+    mocks.desktopApi.pickAndImportImageResources.mockResolvedValueOnce([{ resource: reference }]);
+
+    await user.click(await screen.findByRole("button", { name: "Add reference" }));
+
+    await waitFor(() =>
+      expect(mocks.desktopApi.pickAndImportImageResources).toHaveBeenCalledWith("reference_image", {
+        extensions: [],
+      }),
+    );
+    expect(screen.queryByRole("button", { name: "Add Vibe slot" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Precise Reference takes priority/)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+
+    await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
+    expect(mocks.generationApi.submitBatch.mock.calls[0]?.[0].jobs[0]?.work).toMatchObject({
+      kind: "stream",
+      request: {
+        base: {
+          controlnet: null,
+          character_references: [
+            {
+              image: { kind: "resource_ref", resource: reference },
+              reference_type: "character",
+              fidelity: 0.5,
+              strength: 0.6,
+            },
+          ],
+        },
+      },
+    });
+  });
+
   it("adds an imported Vibe encoding from the Vibe library", async () => {
     const { user } = setup({
       vibeDocuments: {

@@ -105,6 +105,11 @@ export function PreciseReferenceSection({
         <ImagePlus aria-hidden="true" className="size-4" />
         Add reference
       </AppButton>
+      {draft.preciseReferences.length > 0 ? (
+        <p className="text-xs text-app-muted">
+          Precise Reference takes priority, so Vibe Transfer is hidden and omitted from the request.
+        </p>
+      ) : null}
       {draft.preciseReferences.map((reference) => (
         <div key={reference.id} className="grid gap-2 border border-app-border bg-black/20 p-2">
           <div className="flex items-center justify-between gap-2">
