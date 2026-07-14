@@ -1,16 +1,7 @@
-#![allow(clippy::needless_pass_by_value)]
+mod desktop_io;
 
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+pub use desktop_io::*;
 
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use serde::Serialize;
-
-use crate::desktop_system::{
-    DesktopPaths, DesktopSystemError, DesktopSystemResult, PickFilesOptions,
-};
 use atelier_app::CommandResult;
 use atelier_app_api::{
     account::{
@@ -19,7 +10,6 @@ use atelier_app_api::{
         UpdateApiKeyRequestDto,
     },
     director::{DirectorToolResultDto, RunDirectorToolRequestDto},
-    error::ErrorEnvelopeDto,
     event::{AppEventPageDto, EventsSinceRequestDto},
     gallery::{
         DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceDto,
@@ -45,201 +35,19 @@ use atelier_app_api::{
         PromptLexiconPageDto, PromptLexiconSearchQueryDto, PromptPresetDto, PromptPresetPageDto,
         UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
     },
-    resource::{
-        GetResourceImageRequestDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-        ImportImageResourceResponseDto, ResourceImageDto, SaveResourceImageRequestDto,
-    },
+    resource::{GetResourceImageRequestDto, ResourceImageDto},
     settings::{
         ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
     },
     vibe::{
-        EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
-        GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
-        ImportVibeDocumentRequestDto, ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto,
-        RenameVibeDocumentRequestDto, SetVibeDocumentHiddenRequestDto, VibeDocumentEntryDto,
-        VibeDocumentPageDto,
+        EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, GetVibeDocumentRequestDto,
+        ListVibeDocumentsRequestDto, RenameVibeDocumentRequestDto, SetVibeDocumentHiddenRequestDto,
+        VibeDocumentEntryDto, VibeDocumentPageDto,
     },
-    workspace::{CloseWorkspaceResponseDto, OpenWorkspaceRequestDto, WorkspaceStatusDto},
 };
 use tauri::State;
 
-use crate::desktop::{DesktopState, TauriDialog, TauriPathOpener};
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SavedDesktopFileDto {
-    pub path: PathBuf,
-}
-
-#[tauri::command]
-pub fn desktop_paths(state: State<'_, DesktopState>) -> DesktopPaths {
-    state.system.paths().clone()
-}
-
-#[tauri::command]
-pub fn pick_workspace_directory(state: State<'_, DesktopState>) -> CommandResult<Option<PathBuf>> {
-    let dialog = TauriDialog::new(state.app_handle.clone());
-    desktop_result(state.system.pick_workspace_directory(&dialog))
-}
-
-#[tauri::command]
-pub fn pick_export_directory(state: State<'_, DesktopState>) -> CommandResult<Option<PathBuf>> {
-    let dialog = TauriDialog::new(state.app_handle.clone());
-    desktop_result(state.system.pick_export_directory(&dialog))
-}
-
-#[tauri::command]
-pub async fn pick_and_import_image_resources(
-    state: State<'_, DesktopState>,
-    kind: ImageResourceKindDto,
-    options: PickFilesOptions,
-) -> CommandResult<Vec<ImportImageResourceResponseDto>> {
-    let dialog = TauriDialog::new(state.app_handle.clone());
-    let files = desktop_result(state.system.pick_image_files(&dialog, options))?;
-    let requests = desktop_result(
-        files
-            .iter()
-            .map(|path| image_resource_request_from_file(path, kind))
-            .collect::<DesktopSystemResult<Vec<_>>>(),
-    )?;
-    let mut imported = Vec::with_capacity(requests.len());
-
-    for request in requests {
-        imported.push(state.host.import_image_resource(request).await?);
-    }
-
-    Ok(imported)
-}
-
-#[tauri::command]
-pub async fn pick_and_import_vibe_documents(
-    state: State<'_, DesktopState>,
-    options: PickFilesOptions,
-) -> CommandResult<ImportedVibeDocumentsDto> {
-    let dialog = TauriDialog::new(state.app_handle.clone());
-    let files = desktop_result(state.system.pick_vibe_documents(&dialog, options))?;
-    let requests = desktop_result(
-        files
-            .iter()
-            .map(|path| vibe_document_request_from_file(path))
-            .collect::<DesktopSystemResult<Vec<_>>>(),
-    )?;
-    let mut entries = Vec::new();
-
-    for request in requests {
-        let imported = state.host.import_vibe_document(request).await?;
-        entries.extend(imported.entries);
-    }
-
-    Ok(ImportedVibeDocumentsDto { entries })
-}
-
-#[tauri::command]
-pub async fn pick_and_import_embedded_png_vibe_documents(
-    state: State<'_, DesktopState>,
-    options: PickFilesOptions,
-) -> CommandResult<ImportedVibeDocumentsDto> {
-    let dialog = TauriDialog::new(state.app_handle.clone());
-    let files = desktop_result(state.system.pick_png_files(&dialog, options))?;
-    let requests = desktop_result(
-        files
-            .iter()
-            .map(|path| embedded_png_vibe_document_request_from_file(path))
-            .collect::<DesktopSystemResult<Vec<_>>>(),
-    )?;
-    let mut entries = Vec::new();
-
-    for request in requests {
-        let imported = state
-            .host
-            .import_embedded_png_vibe_document(request)
-            .await?;
-        entries.extend(imported.entries);
-    }
-
-    Ok(ImportedVibeDocumentsDto { entries })
-}
-
-#[tauri::command]
-pub async fn save_vibe_document(
-    state: State<'_, DesktopState>,
-    request: ExportVibeDocumentRequestDto,
-) -> CommandResult<Option<SavedDesktopFileDto>> {
-    let exported = state.host.export_vibe_document(request).await?;
-    let dialog = TauriDialog::new(state.app_handle.clone());
-    let default_file_name = format!("vibes.{}", exported.file_extension);
-    let Some(path) =
-        desktop_result(dialog.save_file(Some(&default_file_name), Some(&exported.file_extension)))?
-    else {
-        return Ok(None);
-    };
-
-    desktop_result(write_file_text(&path, &exported.content))?;
-    desktop_result(state.system.allow_user_path(&path))?;
-    Ok(Some(SavedDesktopFileDto { path }))
-}
-
-#[tauri::command]
-pub async fn save_resource_image(
-    state: State<'_, DesktopState>,
-    request: SaveResourceImageRequestDto,
-) -> CommandResult<Option<SavedDesktopFileDto>> {
-    let image = state
-        .host
-        .get_resource_image(GetResourceImageRequestDto {
-            resource: request.resource,
-        })
-        .await?;
-    let extension = image_extension(image.mime_type.as_deref());
-    let default_file_name = resource_file_name(request.suggested_file_name, extension);
-    let dialog = TauriDialog::new(state.app_handle.clone());
-    let Some(path) = desktop_result(dialog.save_file(Some(&default_file_name), Some(extension)))?
-    else {
-        return Ok(None);
-    };
-    let bytes = STANDARD
-        .decode(image.image_base64.trim())
-        .map_err(|error| ErrorEnvelopeDto::new("resource_decode_error", error.to_string()))?;
-
-    desktop_result(write_file_bytes(&path, &bytes))?;
-    desktop_result(state.system.allow_user_path(&path))?;
-    Ok(Some(SavedDesktopFileDto { path }))
-}
-
-#[tauri::command]
-pub fn open_path(state: State<'_, DesktopState>, path: PathBuf) -> CommandResult<()> {
-    let opener = TauriPathOpener::new(state.app_handle.clone());
-    desktop_result(state.system.open_path(path, &opener))
-}
-
-#[tauri::command]
-pub fn reveal_path(state: State<'_, DesktopState>, path: PathBuf) -> CommandResult<()> {
-    let opener = TauriPathOpener::new(state.app_handle.clone());
-    desktop_result(state.system.reveal_path(path, &opener))
-}
-
-#[tauri::command]
-pub async fn open_workspace(
-    state: State<'_, DesktopState>,
-    request: OpenWorkspaceRequestDto,
-) -> CommandResult<WorkspaceStatusDto> {
-    let root = request.root.clone();
-    state.cancel_generation_worker_and_clear_pending();
-    let status = state.host.open_workspace(request).await?;
-    desktop_result(state.system.allow_user_path(root))?;
-    Ok(status)
-}
-
-#[tauri::command]
-pub fn workspace_status(state: State<'_, DesktopState>) -> CommandResult<WorkspaceStatusDto> {
-    state.host.workspace_status()
-}
-
-#[tauri::command]
-pub fn close_workspace(state: State<'_, DesktopState>) -> CommandResult<CloseWorkspaceResponseDto> {
-    state.cancel_generation_worker_and_clear_pending();
-    state.host.close_workspace()
-}
+use crate::desktop::DesktopState;
 
 #[tauri::command]
 pub async fn create_api_key(
@@ -366,6 +174,10 @@ pub async fn compile_generation_prompt_preview(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri commands inject State by value"
+)]
 pub fn prompt_lexicon_catalog(
     state: State<'_, DesktopState>,
 ) -> CommandResult<PromptLexiconCatalogDto> {
@@ -373,6 +185,10 @@ pub fn prompt_lexicon_catalog(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri commands inject State by value"
+)]
 pub fn prompt_lexicon_list(
     state: State<'_, DesktopState>,
     request: PromptLexiconListQueryDto,
@@ -381,6 +197,10 @@ pub fn prompt_lexicon_list(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri commands inject State by value"
+)]
 pub fn prompt_lexicon_search(
     state: State<'_, DesktopState>,
     request: PromptLexiconSearchQueryDto,
@@ -605,166 +425,13 @@ pub async fn gallery_image_reference(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri commands inject State by value"
+)]
 pub fn events_since(
     state: State<'_, DesktopState>,
     request: EventsSinceRequestDto,
 ) -> CommandResult<AppEventPageDto> {
     state.host.events_since(request)
-}
-
-fn image_resource_request_from_file(
-    path: &Path,
-    kind: ImageResourceKindDto,
-) -> DesktopSystemResult<ImportImageResourceRequestDto> {
-    Ok(ImportImageResourceRequestDto {
-        kind,
-        image_base64: STANDARD.encode(read_file_bytes(path)?),
-        mime_type: None,
-    })
-}
-
-fn vibe_document_request_from_file(
-    path: &Path,
-) -> DesktopSystemResult<ImportVibeDocumentRequestDto> {
-    Ok(ImportVibeDocumentRequestDto {
-        file_name: file_name(path),
-        content: read_file_text(path)?,
-    })
-}
-
-fn embedded_png_vibe_document_request_from_file(
-    path: &Path,
-) -> DesktopSystemResult<ImportEmbeddedPngVibeDocumentRequestDto> {
-    Ok(ImportEmbeddedPngVibeDocumentRequestDto {
-        file_name: file_name(path),
-        png_bytes_base64: STANDARD.encode(read_file_bytes(path)?),
-    })
-}
-
-fn read_file_bytes(path: &Path) -> DesktopSystemResult<Vec<u8>> {
-    fs::read(path).map_err(|error| {
-        DesktopSystemError::new(format!("failed to read file {}: {error}", path.display()))
-    })
-}
-
-fn read_file_text(path: &Path) -> DesktopSystemResult<String> {
-    fs::read_to_string(path).map_err(|error| {
-        DesktopSystemError::new(format!(
-            "failed to read text file {}: {error}",
-            path.display()
-        ))
-    })
-}
-
-fn write_file_text(path: &Path, content: &str) -> DesktopSystemResult<()> {
-    fs::write(path, content).map_err(|error| {
-        DesktopSystemError::new(format!("failed to write file {}: {error}", path.display()))
-    })
-}
-
-fn write_file_bytes(path: &Path, content: &[u8]) -> DesktopSystemResult<()> {
-    fs::write(path, content).map_err(|error| {
-        DesktopSystemError::new(format!("failed to write file {}: {error}", path.display()))
-    })
-}
-
-fn image_extension(mime_type: Option<&str>) -> &'static str {
-    match mime_type {
-        Some("image/jpeg" | "image/jpg") => "jpg",
-        Some("image/webp") => "webp",
-        Some("image/gif") => "gif",
-        _ => "png",
-    }
-}
-
-fn resource_file_name(suggested_file_name: Option<String>, extension: &str) -> String {
-    let Some(name) = suggested_file_name
-        .map(|value| value.trim().to_owned())
-        .filter(|value| !value.is_empty())
-    else {
-        return format!("generation.{extension}");
-    };
-    if Path::new(&name).extension().is_some() {
-        name
-    } else {
-        format!("{name}.{extension}")
-    }
-}
-
-fn file_name(path: &Path) -> String {
-    path.file_name()
-        .and_then(|file_name| file_name.to_str())
-        .unwrap_or("document")
-        .to_owned()
-}
-
-fn desktop_result<T>(result: DesktopSystemResult<T>) -> CommandResult<T> {
-    result.map_err(|error| ErrorEnvelopeDto::new("desktop_system_error", error.to_string()))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn image_resource_request_reads_selected_file_bytes() {
-        let temp = tempfile::tempdir().unwrap();
-        let path = temp.path().join("source.png");
-        fs::write(&path, [0x89, b'P', b'N', b'G']).unwrap();
-
-        let request =
-            image_resource_request_from_file(&path, ImageResourceKindDto::SourceImage).unwrap();
-
-        assert_eq!(request.kind, ImageResourceKindDto::SourceImage);
-        assert_eq!(request.image_base64, "iVBORw==");
-        assert_eq!(request.mime_type, None);
-    }
-
-    #[test]
-    fn vibe_document_request_reads_selected_json_text() {
-        let temp = tempfile::tempdir().unwrap();
-        let path = temp.path().join("example.naiv4vibe");
-        fs::write(&path, r#"{"name":"example"}"#).unwrap();
-
-        let request = vibe_document_request_from_file(&path).unwrap();
-
-        assert_eq!(request.file_name, "example.naiv4vibe");
-        assert_eq!(request.content, r#"{"name":"example"}"#);
-    }
-
-    #[test]
-    fn embedded_png_vibe_document_request_reads_selected_png_bytes() {
-        let temp = tempfile::tempdir().unwrap();
-        let path = temp.path().join("embedded.png");
-        fs::write(&path, [1, 2, 3, 4]).unwrap();
-
-        let request = embedded_png_vibe_document_request_from_file(&path).unwrap();
-
-        assert_eq!(request.file_name, "embedded.png");
-        assert_eq!(request.png_bytes_base64, "AQIDBA==");
-    }
-
-    #[test]
-    fn resource_file_name_adds_detected_extension_when_missing() {
-        assert_eq!(
-            resource_file_name(Some("sample".to_owned()), "webp"),
-            "sample.webp"
-        );
-        assert_eq!(
-            resource_file_name(Some("sample.png".to_owned()), "webp"),
-            "sample.png"
-        );
-        assert_eq!(image_extension(Some("image/jpeg")), "jpg");
-    }
-
-    #[test]
-    fn file_read_errors_map_to_stable_desktop_error_code() {
-        let temp = tempfile::tempdir().unwrap();
-        let path = temp.path().join("missing.png");
-
-        let error = desktop_result::<Vec<u8>>(read_file_bytes(&path)).unwrap_err();
-
-        assert_eq!(error.code, "desktop_system_error");
-        assert!(error.message.contains("failed to read file"));
-    }
 }

@@ -42,6 +42,10 @@ impl DesktopState {
     pub fn cancel_generation_worker_and_clear_pending(&self) {
         self.worker.cancel_and_clear_pending();
     }
+
+    pub async fn abort_generation_worker_and_wait(&self) {
+        self.worker.abort_and_wait().await;
+    }
 }
 
 #[derive(Clone, Default)]
@@ -101,6 +105,13 @@ impl WorkerState {
     fn cancel_current_and_clear_pending(&mut self) {
         self.cancel_current();
         self.pending = None;
+    }
+
+    fn take_current_for_abort(&mut self) -> Option<tauri::async_runtime::JoinHandle<()>> {
+        self.pending = None;
+        let mut run = self.current.take()?;
+        run.cancel.cancel();
+        run.handle.take()
     }
 
     fn finish(&mut self, run_id: u64) -> Option<QueueDirectiveDto> {
@@ -189,6 +200,20 @@ impl DesktopGenerationWorker {
         state.cancel_current_and_clear_pending();
     }
 
+    async fn abort_and_wait(&self) {
+        let handle = {
+            let Ok(mut state) = self.inner.lock() else {
+                log::warn!("generation worker state is unavailable");
+                return;
+            };
+            state.take_current_for_abort()
+        };
+        if let Some(handle) = handle {
+            handle.abort();
+            let _ = handle.await;
+        }
+    }
+
     fn finish(&self, run_id: u64) -> Option<QueueDirectiveDto> {
         let Ok(mut state) = self.inner.lock() else {
             log::warn!("generation worker state is unavailable");
@@ -209,6 +234,11 @@ impl DesktopGenerationWorker {
 pub fn build_desktop_state(
     app_handle: AppHandle,
 ) -> Result<DesktopState, Box<dyn std::error::Error>> {
+    tauri::async_runtime::spawn_blocking(|| {
+        if let Err(error) = atelier_app::preload_static_resources() {
+            log::warn!("static workspace resources could not be preloaded: {error}");
+        }
+    });
     let system = Arc::new(DesktopSystem::new(resolve_desktop_paths(&app_handle)?));
     let safety_scanner = match system.resolve_safety_assets() {
         Ok(assets) => match atelier_adapter_safety_onnx::build_safety_scanner(assets) {
@@ -506,5 +536,29 @@ mod tests {
         state.cancel_current_and_clear_pending();
 
         assert_eq!(state.finish(first.id), None);
+    }
+
+    #[test]
+    fn worker_state_abort_releases_current_run_and_clears_pending() {
+        let mut state = WorkerState::default();
+        let first = state
+            .start_or_defer(QueueDirectiveDto::Wait {
+                delay: QueueDelayDto {
+                    min_ms: 10,
+                    max_ms: 10,
+                },
+            })
+            .unwrap();
+        state.cancel_current();
+        assert!(state
+            .start_or_defer(QueueDirectiveDto::StartJob {
+                job_id: "job-2".to_owned(),
+            })
+            .is_none());
+
+        assert!(state.take_current_for_abort().is_none());
+        assert!(state.current.is_none());
+        assert!(state.pending.is_none());
+        assert!(first.cancel.is_cancelled());
     }
 }
