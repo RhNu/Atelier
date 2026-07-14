@@ -59,6 +59,17 @@ function hasStringPermissions(value: unknown): value is { permissions: string[] 
   );
 }
 
+function hasCspDirectives(value: unknown): value is Record<string, string | string[]> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasProperty<Key extends PropertyKey>(
+  value: unknown,
+  key: Key,
+): value is Record<Key, unknown> {
+  return typeof value === "object" && value !== null && key in value;
+}
+
 function collectSourceFiles(): string[] {
   return walkFiles(srcRoot).filter((filePath) => {
     const projectPath = toProjectPath(filePath);
@@ -157,5 +168,26 @@ describe("frontend architecture guards", () => {
         "core:window:allow-toggle-maximize",
       ]),
     );
+  });
+
+  it("keeps production and development CSPs explicit", () => {
+    const config: unknown = JSON.parse(
+      readProjectFile(path.join(projectRoot, "src-tauri/tauri.conf.json")),
+    );
+    const app = hasProperty(config, "app") ? config.app : undefined;
+    const security = hasProperty(app, "security") ? app.security : undefined;
+    const csp = hasProperty(security, "csp") ? security.csp : undefined;
+    const devCsp = hasProperty(security, "devCsp") ? security.devCsp : undefined;
+
+    expect(hasCspDirectives(csp)).toBe(true);
+    expect(hasCspDirectives(devCsp)).toBe(true);
+    if (!hasCspDirectives(csp) || !hasCspDirectives(devCsp)) {
+      throw new Error("Tauri CSP directives must be explicit objects.");
+    }
+
+    expect(csp["connect-src"]).toContain("ipc:");
+    expect(csp["img-src"]).toContain("data:");
+    expect(csp["object-src"]).toBe("'none'");
+    expect(devCsp["connect-src"]).toContain("ws://localhost:5173");
   });
 });
