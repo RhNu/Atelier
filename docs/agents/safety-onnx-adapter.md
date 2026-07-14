@@ -3,7 +3,7 @@
 ## Status
 
 - Date: 2026-05-21
-- Status: Implemented direction
+- Status: Implemented and bundled for Windows x64
 
 ## Decision
 
@@ -13,7 +13,10 @@
 
 ## Boundaries
 
-- No model file or ONNX Runtime binary is committed by this backend crate.
+- The host-neutral backend crate does not own model or runtime files.
+- The Windows x64 desktop bundle includes the model and ONNX Runtime under
+  `apps/desktop/src-tauri/resources/safety`; other desktop targets remain optional until their
+  platform runtime is added.
 - The adapter returns `None` when no runtime assets are configured.
 - Safety scanning receives resource bytes from app/kernel ports, not direct filesystem paths.
 - Scan output preserves raw `safe` and `nsfw` model scores when present, with `nsfw` used as the canonical risk score.
@@ -22,4 +25,4 @@
 
 - Expected model family: `yahoo/open_nsfw` (`open_nsfw`), BSD-2-Clause.
 - Common ONNX conversion source: `opennsfw-standalone`, MIT wrapper / BSD-2-Clause model lineage.
-- If a desktop bundle ships an ONNX model or runtime library, that bundle must carry the matching upstream license and source notes with the artifact.
+- Bundled source, version, checksum, and license records live beside the desktop assets.
