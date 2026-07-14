@@ -2,6 +2,7 @@ use atelier_prompt_lexicon::{
     PromptLexicon, PromptLexiconError, PromptLexiconListQuery, PromptLexiconMatchField,
     PromptLexiconMatchRank,
 };
+use std::sync::Arc;
 
 #[test]
 fn catalog_exposes_category_tree_and_stats() {
@@ -208,13 +209,16 @@ fn rejects_out_of_range_payload_without_stats_without_panicking() {
 
 #[test]
 fn embedded_generated_asset_loads() {
-    let lexicon = PromptLexicon::load_embedded().unwrap();
+    let lexicon = PromptLexicon::load_embedded_shared().unwrap();
 
     let catalog = lexicon.catalog();
 
     assert_eq!(catalog.stats.total_tags, 228_304);
     assert_eq!(catalog.stats.source_count, 6);
     assert_eq!(catalog.categories.len(), 16);
+
+    let reused = PromptLexicon::load_embedded_shared().unwrap();
+    assert!(Arc::ptr_eq(&lexicon, &reused));
 }
 
 fn sample_lexicon() -> PromptLexicon {

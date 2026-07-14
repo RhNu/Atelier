@@ -92,6 +92,14 @@ impl SearchEntry {
             match_rank: PromptLexiconMatchRank::Substring,
         }
     }
+
+    pub(super) fn normalized_values(&self) -> impl Iterator<Item = &str> {
+        std::iter::once(self.normalized_tag.as_str())
+            .chain(std::iter::once(
+                self.normalized_primary_translation.as_str(),
+            ))
+            .chain(self.normalized_aliases.iter().map(String::as_str))
+    }
 }
 
 pub struct SearchMatch<'a> {

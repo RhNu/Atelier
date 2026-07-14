@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::Deserialize;
 use thiserror::Error;
@@ -9,8 +10,12 @@ use thiserror::Error;
 const EXPECTED_SCHEMA: &str = "atelier-prompt-lexicon";
 const EXPECTED_VERSION: u32 = 1;
 const SORTED_INSERTION_LIMIT: usize = 512;
+const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
 const EMBEDDED_PROMPT_LEXICON: &str =
     include_str!("../../../../assets/prompt-lexicon/generated/lexicon.json");
+static SHARED_EMBEDDED_PROMPT_LEXICON: OnceLock<Arc<PromptLexicon>> = OnceLock::new();
+static SHARED_EMBEDDED_PROMPT_LEXICON_LOAD: Mutex<()> = Mutex::new(());
 
 mod error;
 mod model;
@@ -34,6 +39,7 @@ pub struct PromptLexicon {
     catalog: PromptLexiconCatalog,
     entries: Vec<SearchEntry>,
     browse_buckets: HashMap<(String, String), Vec<usize>>,
+    search_trigrams: OnceLock<HashMap<u64, Vec<u32>>>,
 }
 
 impl PromptLexicon {
@@ -43,6 +49,28 @@ impl PromptLexicon {
     /// Returns an error when the embedded payload is invalid.
     pub fn load_embedded() -> Result<Self, PromptLexiconError> {
         Self::from_json_str(EMBEDDED_PROMPT_LEXICON)
+    }
+
+    /// Loads the generated prompt lexicon once and shares it across workspace sessions.
+    ///
+    /// # Errors
+    /// Returns an error when the embedded payload is invalid.
+    pub fn load_embedded_shared() -> Result<Arc<Self>, PromptLexiconError> {
+        if let Some(lexicon) = SHARED_EMBEDDED_PROMPT_LEXICON.get() {
+            return Ok(Arc::clone(lexicon));
+        }
+        let _load_guard = SHARED_EMBEDDED_PROMPT_LEXICON_LOAD.lock().map_err(|_| {
+            PromptLexiconError::InvalidPayload(
+                "shared prompt lexicon load state is unavailable".to_owned(),
+            )
+        })?;
+        if let Some(lexicon) = SHARED_EMBEDDED_PROMPT_LEXICON.get() {
+            return Ok(Arc::clone(lexicon));
+        }
+        let lexicon = Arc::new(Self::load_embedded()?);
+        Ok(Arc::clone(
+            SHARED_EMBEDDED_PROMPT_LEXICON.get_or_init(|| lexicon),
+        ))
     }
 
     /// Loads a prompt lexicon from a generated JSON payload.
@@ -135,6 +163,12 @@ impl PromptLexicon {
         }
     }
 
+    /// Builds the substring search index ahead of the first interactive query.
+    pub fn warm_search_index(&self) {
+        self.search_trigrams
+            .get_or_init(|| build_search_trigram_index(&self.entries));
+    }
+
     fn from_payload(payload: LexiconFile) -> Result<Self, PromptLexiconError> {
         if payload.schema != EXPECTED_SCHEMA || payload.version != EXPECTED_VERSION {
             return Err(PromptLexiconError::UnsupportedSchema {
@@ -220,18 +254,39 @@ impl PromptLexicon {
             });
         }
 
+        let max_searchable_entries = usize::try_from(u32::MAX).unwrap_or(usize::MAX);
+        if entries.len() > max_searchable_entries {
+            return Err(PromptLexiconError::InvalidPayload(
+                "prompt lexicon contains too many searchable entries".to_owned(),
+            ));
+        }
         Ok(Self {
             catalog: PromptLexiconCatalog { stats, categories },
             entries,
             browse_buckets,
+            search_trigrams: OnceLock::new(),
         })
     }
 
     fn sorted_matches(&self, query: &str, max_items: usize) -> (usize, Vec<SearchMatch<'_>>) {
+        let candidates: Box<dyn Iterator<Item = &SearchEntry> + '_> =
+            match first_trigram_hash(query) {
+                Some(hash) => Box::new(
+                    self.search_trigrams
+                        .get_or_init(|| build_search_trigram_index(&self.entries))
+                        .get(&hash)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|index| {
+                            usize::try_from(*index)
+                                .ok()
+                                .and_then(|index| self.entries.get(index))
+                        }),
+                ),
+                None => Box::new(self.entries.iter()),
+            };
         if max_items > SORTED_INSERTION_LIMIT {
-            let mut matches = self
-                .entries
-                .iter()
+            let mut matches = candidates
                 .filter_map(|entry| entry.match_query(query))
                 .collect::<Vec<_>>();
             matches.sort_by(compare_search_match);
@@ -240,7 +295,7 @@ impl PromptLexicon {
 
         let mut total = 0usize;
         let mut matches = Vec::with_capacity(max_items.min(self.entries.len()));
-        for entry in &self.entries {
+        for entry in candidates {
             let Some(candidate) = entry.match_query(query) else {
                 continue;
             };
@@ -249,4 +304,57 @@ impl PromptLexicon {
         }
         (total, matches)
     }
+}
+
+fn build_search_trigram_index(entries: &[SearchEntry]) -> HashMap<u64, Vec<u32>> {
+    let mut index = HashMap::<u64, Vec<u32>>::new();
+    let mut hashes = Vec::new();
+    for (entry_index, entry) in entries.iter().enumerate() {
+        hashes.clear();
+        for value in entry.normalized_values() {
+            record_trigram_hashes(value, &mut hashes);
+        }
+        hashes.sort_unstable();
+        hashes.dedup();
+        let Ok(entry_index) = u32::try_from(entry_index) else {
+            break;
+        };
+        for hash in &hashes {
+            index.entry(*hash).or_default().push(entry_index);
+        }
+    }
+    index
+}
+
+fn record_trigram_hashes(value: &str, hashes: &mut Vec<u64>) {
+    let mut chars = value.chars();
+    let (Some(mut first), Some(mut second), Some(mut third)) =
+        (chars.next(), chars.next(), chars.next())
+    else {
+        return;
+    };
+    hashes.push(hash_chars([first, second, third]));
+    for next in chars {
+        first = second;
+        second = third;
+        third = next;
+        hashes.push(hash_chars([first, second, third]));
+    }
+}
+
+fn first_trigram_hash(value: &str) -> Option<u64> {
+    let mut chars = value.chars();
+    Some(hash_chars([chars.next()?, chars.next()?, chars.next()?]))
+}
+
+fn hash_chars(chars: [char; 3]) -> u64 {
+    let mut hash = FNV_OFFSET_BASIS;
+    for character in chars {
+        let mut encoded = [0_u8; 4];
+        for byte in character.encode_utf8(&mut encoded).as_bytes() {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(FNV_PRIME);
+        }
+    }
+    hash
 }
