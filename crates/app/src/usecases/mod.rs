@@ -92,6 +92,7 @@ mod director;
 mod events;
 mod gallery;
 mod generation;
+mod generation_support;
 mod prompt;
 mod settings;
 mod vibe;
