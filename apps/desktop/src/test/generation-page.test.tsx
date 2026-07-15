@@ -531,6 +531,11 @@ describe("GeneratePage", () => {
     const { user } = setup();
 
     expect(await screen.findByRole("button", { name: "Add I2I source" })).toBeEnabled();
+    for (const title of ["Image to image", "Vibe transfer", "Precise reference", "Characters"]) {
+      const heading = screen.getByRole("heading", { name: title });
+      expect(heading.closest("section")).not.toHaveClass("border", "bg-app-surface/30");
+      expect(heading.closest("header")).not.toHaveClass("border-b");
+    }
     expect(screen.queryByRole("button", { name: "Remove I2I source" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /I2I mask/u })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Vibe strength")).not.toBeInTheDocument();

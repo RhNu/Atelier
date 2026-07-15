@@ -16,8 +16,8 @@ export function GuidanceSection({
   children?: ReactNode;
 }) {
   return (
-    <section className="grid gap-2 border border-app-border/70 bg-app-surface/30 p-3">
-      <header className="flex min-h-8 items-center justify-between gap-3 border-b border-app-border/70 pb-2">
+    <section className="grid gap-2 py-1">
+      <header className="flex min-h-8 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-1">
           <h3 className="truncate text-[11px] font-bold tracking-wider text-app-muted uppercase">
             {title}

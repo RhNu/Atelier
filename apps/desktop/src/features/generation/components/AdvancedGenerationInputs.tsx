@@ -178,7 +178,7 @@ export function AdvancedGenerationInputs({
       <header>
         <h2 className="text-xs font-bold text-app-muted uppercase">Image guidance</h2>
       </header>
-      <div className="grid gap-3 text-sm text-app-text">
+      <div className="grid gap-1 text-sm text-app-text">
         {error ? <p className="text-rose-100">{error}</p> : null}
         <ImageToImageSection
           draft={draft}
