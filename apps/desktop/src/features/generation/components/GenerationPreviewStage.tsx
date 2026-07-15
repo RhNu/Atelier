@@ -1,8 +1,11 @@
 /* eslint-disable max-lines */
 import {
+  Activity,
   Download,
   Grid2X2,
+  History,
   ImageIcon,
+  ListOrdered,
   RadioTower,
   RotateCcw,
   Save,
@@ -10,7 +13,14 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import {
   AppButton,
@@ -54,6 +64,8 @@ type GenerationPreviewStageProps = {
   onDeleteRequest: () => void;
   onCompilePrompt: () => void;
 };
+
+const CROPPED_PREVIEW_STYLE: CSSProperties = { objectFit: "cover" };
 
 export function GenerationPreviewStage({
   batch,
@@ -159,17 +171,32 @@ function PreviewHeader({
   | "onResumeLive"
   | "onCompilePrompt"
 > & { showResume: boolean }) {
+  const PreviewModeIcon = isViewingLive ? Activity : History;
+  const previewModeLabel = isViewingLive ? "Live preview" : "History preview";
+  const requestCount = batch?.requests.length ?? 0;
+  const requestCountLabel = `${requestCount} request${requestCount === 1 ? "" : "s"}`;
   return (
-    <header className="flex items-center justify-between gap-3 border-b border-app-border px-3 py-2">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-brand-200 uppercase">
-          {isViewingLive ? "Live preview" : "History preview"}
-        </p>
-        <h2 className="truncate text-base font-semibold text-white">
-          {batch
-            ? `Batch · ${batch.requests.length} request${batch.requests.length === 1 ? "" : "s"}`
-            : "Generation canvas"}
+    <header className="flex min-h-10 items-center justify-between gap-2 border-b border-app-border px-2 py-1">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span
+          title={previewModeLabel}
+          className="flex size-7 shrink-0 items-center justify-center text-brand-200"
+        >
+          <PreviewModeIcon aria-label={previewModeLabel} className="size-4" />
+        </span>
+        <h2 className="truncate text-sm font-semibold text-white">
+          {batch ? "Batch" : "Generation canvas"}
         </h2>
+        {batch ? (
+          <span
+            aria-label={requestCountLabel}
+            title={requestCountLabel}
+            className="inline-flex shrink-0 items-center gap-1 text-xs text-app-muted"
+          >
+            <ListOrdered aria-hidden="true" className="size-3.5" />
+            <span>{requestCount}</span>
+          </span>
+        ) : null}
       </div>
       <div className="flex items-center gap-1">
         {lastError ? (
@@ -181,10 +208,16 @@ function PreviewHeader({
           <AppIconButton
             icon={RadioTower}
             label={isViewingLive ? "Follow latest request" : "Return to live batch"}
+            size="sm"
             onClick={onResumeLive}
           />
         ) : null}
-        <AppButton variant="ghost" onClick={onCompilePrompt} disabled={compilePending}>
+        <AppButton
+          variant="ghost"
+          className="h-8 gap-1 px-2 text-xs"
+          onClick={onCompilePrompt}
+          disabled={compilePending}
+        >
           <Sparkles aria-hidden="true" className="size-4" />
           Compile
         </AppButton>
@@ -213,7 +246,7 @@ function RequestCursorStrip({
     <div
       ref={cursorRef}
       aria-label="Generation requests"
-      className="flex min-h-24 gap-2 overflow-x-auto border-b border-app-border bg-app-panel/80 p-2"
+      className="flex min-h-20 gap-1.5 overflow-x-auto border-b border-app-border bg-app-panel/80 p-1.5"
     >
       {batch?.requests.map((request) => (
         <RequestCursorUnit
@@ -378,19 +411,22 @@ function RequestCursorUnit({
       type="button"
       onClick={handleSelect}
       className={[
-        "grid w-28 shrink-0 grid-rows-[minmax(0,1fr)_auto] gap-1 border p-1 text-left",
+        "grid w-24 shrink-0 grid-rows-[minmax(0,1fr)_auto] gap-0.5 border p-1 text-left",
         selected
           ? "border-brand-400 bg-brand-500/10"
           : "border-app-border bg-app-surface/70 hover:border-brand-400/60",
       ].join(" ")}
     >
-      <span className="grid min-h-14 grid-cols-2 grid-rows-2 gap-px overflow-hidden bg-black/40">
-        {request.samples.slice(0, 4).map((sample) => (
+      <span
+        className={`grid h-12 min-h-0 gap-px overflow-hidden bg-black/40 ${requestCursorGridClass(request.samples.length)}`}
+      >
+        {request.samples.slice(0, 4).map((sample, index) => (
           <SampleVisual
             key={sample.sampleIndex}
             sample={sample}
             alt={`Request ${request.requestIndex + 1} sample ${sample.sampleIndex + 1}`}
-            className="h-full min-h-0 w-full bg-app-panel text-[9px]"
+            className={requestCursorSampleClass(request.samples.length, index)}
+            crop
           />
         ))}
       </span>
@@ -488,23 +524,27 @@ function SampleVisual({
   sample,
   alt,
   className,
+  crop = false,
 }: {
   sample: GenerationSampleSlot;
   alt: string;
   className: string;
+  crop?: boolean;
 }) {
+  const style = crop ? CROPPED_PREVIEW_STYLE : undefined;
   if (sample.resource) {
     return (
       <GenerationResourceImage
         resource={sample.resource}
         alt={alt}
         className={className}
+        style={style}
         fallbackLabel="Final image unavailable"
       />
     );
   }
   if (sample.streamSrc) {
-    return <ResourceImage src={sample.streamSrc} alt={alt} className={className} />;
+    return <ResourceImage src={sample.streamSrc} alt={alt} className={className} style={style} />;
   }
   return <ResourceImage src={null} alt="" className={className} fallbackLabel={sample.state} />;
 }
@@ -522,6 +562,17 @@ function sampleGridClass(count: number): string {
   const columns = count === 1 ? "grid-cols-1" : "grid-cols-2";
   const rows = count <= 2 ? "grid-rows-1" : "grid-rows-2";
   return `grid h-full min-h-0 gap-2 ${columns} ${rows}`;
+}
+
+function requestCursorGridClass(count: number): string {
+  if (count <= 1) return "grid-cols-1 grid-rows-1";
+  if (count === 2) return "grid-cols-2 grid-rows-1";
+  return "grid-cols-2 grid-rows-2";
+}
+
+function requestCursorSampleClass(count: number, index: number): string {
+  const spanClass = count === 3 && index === 0 ? "row-span-2" : "";
+  return `h-full min-h-0 w-full bg-app-panel text-[9px] ${spanClass}`;
 }
 
 function shortStatus(status: string): string {

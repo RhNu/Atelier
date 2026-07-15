@@ -80,22 +80,25 @@ export function QueueControls({
   onStop,
 }: QueueControlsProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1">
       <AppIconButton
         icon={Pause}
         label="Pause queue"
+        size="sm"
         disabled={!canPause || pausePending}
         onClick={onPause}
       />
       <AppIconButton
         icon={Play}
         label="Resume queue"
+        size="sm"
         disabled={!canResume || resumePending}
         onClick={onResume}
       />
       <AppIconButton
         icon={Square}
         label="Stop queue"
+        size="sm"
         disabled={!canStop || stopPending}
         onClick={onStop}
       />

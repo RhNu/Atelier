@@ -1089,6 +1089,13 @@ describe("GeneratePage queue and preview behavior", () => {
     expect(await screen.findByRole("button", { name: "Pause queue" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Resume queue" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Stop queue" })).toBeEnabled();
+    expect(screen.queryByText("Live preview")).not.toBeInTheDocument();
+    expect(screen.queryByText("History · batches")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Live preview")).toBeInTheDocument();
+    expect(screen.getByLabelText("1 request")).toBeInTheDocument();
+
+    const requestCursorUnit = screen.getByText("R1").closest("button");
+    expect(requestCursorUnit?.firstElementChild).toHaveClass("grid-cols-1", "grid-rows-1");
 
     await user.click(screen.getByRole("button", { name: "Pause queue" }));
     await user.click(screen.getByRole("button", { name: "Stop queue" }));
@@ -1118,6 +1125,7 @@ describe("GeneratePage queue and preview behavior", () => {
           .some((image) => image.getAttribute("src") === "data:image/png;base64,stream-frame"),
       ).toBe(true),
     );
+    expect(screen.getByAltText("Request 1 sample 1")).toHaveStyle({ objectFit: "cover" });
 
     act(() => {
       recordGenerationEvent(

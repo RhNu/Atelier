@@ -77,31 +77,7 @@ export function GenerationHistoryRail({
       aria-label="Generation history"
       className="flex h-full min-h-0 flex-col overflow-hidden"
     >
-      <header className="grid gap-2 border-b border-app-border px-3 py-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">History · batches</h2>
-          <div className="flex items-center gap-1">
-            <AppIconButton
-              icon={RotateCcw}
-              label="Rerun selected batch"
-              disabled={!selectedBatch || rerunPending}
-              onClick={onRerunSelected}
-            />
-            <AppIconButton
-              icon={Download}
-              label="Export selected batch as ZIP"
-              disabled={!selectedBatch?.outputs.length || exportPending}
-              onClick={onExportSelected}
-            />
-            <AppIconButton
-              icon={Trash2}
-              label="Delete selected batch history"
-              variant="danger"
-              disabled={!selectedBatch || deletePending}
-              onClick={onDeleteSelected}
-            />
-          </div>
-        </div>
+      <header className="flex min-h-10 items-center justify-between gap-2 border-b border-app-border px-2 py-1">
         <label className="sr-only" htmlFor="generation-history-filter">
           Filter history batches
         </label>
@@ -110,7 +86,7 @@ export function GenerationHistoryRail({
           aria-label="Filter history batches"
           value={statusFilter}
           onChange={handleStatusChange}
-          className="h-8 w-28 border border-app-border bg-app-surface px-2 text-sm text-app-text outline-none focus:border-brand-400"
+          className="h-7 w-24 border border-app-border bg-app-surface px-2 text-xs text-app-text outline-none focus:border-brand-400"
         >
           {HISTORY_STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -118,6 +94,30 @@ export function GenerationHistoryRail({
             </option>
           ))}
         </select>
+        <div className="flex items-center gap-1">
+          <AppIconButton
+            icon={RotateCcw}
+            label="Rerun selected batch"
+            size="sm"
+            disabled={!selectedBatch || rerunPending}
+            onClick={onRerunSelected}
+          />
+          <AppIconButton
+            icon={Download}
+            label="Export selected batch as ZIP"
+            size="sm"
+            disabled={!selectedBatch?.outputs.length || exportPending}
+            onClick={onExportSelected}
+          />
+          <AppIconButton
+            icon={Trash2}
+            label="Delete selected batch history"
+            size="sm"
+            variant="danger"
+            disabled={!selectedBatch || deletePending}
+            onClick={onDeleteSelected}
+          />
+        </div>
       </header>
       <div className="min-h-0 flex-1 overflow-auto p-1">
         {pending ? <p className="p-2 text-sm text-app-muted">Loading history</p> : null}
@@ -142,12 +142,14 @@ export function GenerationHistoryRail({
           <AppIconButton
             icon={ChevronLeft}
             label="Previous history page"
+            size="sm"
             disabled={!canPrevious || pending}
             onClick={onPreviousPage}
           />
           <AppIconButton
             icon={ChevronRight}
             label="Next history page"
+            size="sm"
             disabled={!canNext || pending}
             onClick={onNextPage}
           />
