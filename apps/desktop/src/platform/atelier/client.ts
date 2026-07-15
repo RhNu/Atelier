@@ -1,5 +1,6 @@
 import type {
   ApiKeyRecordDto,
+  AppBootstrapDto,
   CloseWorkspaceResponseDto,
   CompilePromptRequestDto,
   CompileGenerationPromptRequestDto,
@@ -26,6 +27,7 @@ import type {
   GalleryItemDto,
   GalleryPageDto,
   GalleryQueryDto,
+  GlobalSettingsDto,
   GenerationStatusDto,
   GenerationAnlasEstimateDto,
   GenerationEstimateRequestDto,
@@ -70,6 +72,7 @@ import type {
   SubmitGenerationBatchRequestDto,
   SubscriptionSummaryDto,
   UpdateApiKeyRequestDto,
+  UpdateGlobalSettingsRequestDto,
   UpdateWorkspaceSettingsRequestDto,
   UpsertPromptChunkRequestDto,
   UpsertPromptPresetRequestDto,
@@ -127,10 +130,17 @@ export const desktopApi = {
 };
 
 export const workspaceApi = {
+  bootstrap: () => invokeAtelierCommand<AppBootstrapDto>(atelierCommands.bootstrapApp),
   open: (request: OpenWorkspaceRequestDto) =>
     invokeAtelierCommand<WorkspaceStatusDto>(atelierCommands.openWorkspace, { request }),
-  status: () => invokeAtelierCommand<WorkspaceStatusDto>(atelierCommands.workspaceStatus),
+  status: () => invokeAtelierCommand<WorkspaceStatusDto | null>(atelierCommands.workspaceStatus),
   close: () => invokeAtelierCommand<CloseWorkspaceResponseDto>(atelierCommands.closeWorkspace),
+};
+
+export const globalSettingsApi = {
+  get: () => invokeAtelierCommand<GlobalSettingsDto>(atelierCommands.getGlobalSettings),
+  update: (request: UpdateGlobalSettingsRequestDto) =>
+    invokeAtelierCommand<GlobalSettingsDto>(atelierCommands.updateGlobalSettings, { request }),
 };
 
 export const accountApi = {

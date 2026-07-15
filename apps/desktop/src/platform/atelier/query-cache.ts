@@ -1,10 +1,8 @@
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
-const workspaceIndependentRoots = new Set(["workspace"]);
-
 export function isWorkspaceScopedQueryKey(queryKey: QueryKey): boolean {
   const [root] = queryKey;
-  return typeof root === "string" && !workspaceIndependentRoots.has(root);
+  return root === "workspace";
 }
 
 export async function clearWorkspaceScopedQueryCache(queryClient: QueryClient): Promise<void> {

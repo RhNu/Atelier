@@ -9,6 +9,7 @@ members = [
     "crates/adapters/database",
     "crates/adapters/storage-fs",
     "crates/adapters/safety-onnx",
+    "crates/adapters/settings-fs",
     "crates/foundation",
     "crates/kernel",
     "crates/features/director",
@@ -47,12 +48,14 @@ futures-util = "0.3"
 image = { version = "0.25.10", default-features = false }
 keyring = "4.0.1"
 keyring-core = "1.0.0"
+log = "0.4"
 logos = "0.16"
 atelier-adapter-database = { path = "crates/adapters/database" }
 atelier-adapter-image-codec = { path = "crates/adapters/image-codec" }
 atelier-adapter-keyring = { path = "crates/adapters/keyring" }
 atelier-adapter-novelai = { path = "crates/adapters/novelai" }
 atelier-adapter-safety-onnx = { path = "crates/adapters/safety-onnx" }
+atelier-adapter-settings-fs = { path = "crates/adapters/settings-fs" }
 atelier-adapter-storage-fs = { path = "crates/adapters/storage-fs" }
 atelier-app = { path = "crates/app" }
 atelier-app-api = { path = "crates/app-api" }

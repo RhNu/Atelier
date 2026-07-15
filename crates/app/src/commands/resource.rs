@@ -4,9 +4,9 @@ use atelier_app_api::resource::{
     ResourceImageDto,
 };
 
-use crate::commands::{AppCommandHost, CommandResult};
+use crate::commands::{AtelierRuntime, CommandResult};
 
-impl<S, F, E> AppCommandHost<S, F, E>
+impl<S, F, E> AtelierRuntime<S, F, E>
 where
     S: Send + Sync,
     F: Send + Sync,
@@ -20,7 +20,12 @@ where
         &self,
         request: ImportImageResourceRequestDto,
     ) -> CommandResult<ImportImageResourceResponseDto> {
-        Self::command_result(self.current_app()?.resources().import_image(request).await)
+        Self::command_result(
+            self.current_session()?
+                .resources()
+                .import_image(request)
+                .await,
+        )
     }
 
     /// Reads a catalog image resource or variant as base64 for UI display.
@@ -31,7 +36,7 @@ where
         &self,
         request: GetResourceImageRequestDto,
     ) -> CommandResult<ResourceImageDto> {
-        Self::command_result(self.current_app()?.resources().get_image(request).await)
+        Self::command_result(self.current_session()?.resources().get_image(request).await)
     }
 
     /// Releases temporary user-selected image resources and their backing blobs.
@@ -43,7 +48,7 @@ where
         request: ReleaseImportedImageResourcesRequestDto,
     ) -> CommandResult<ReleaseImportedImageResourcesResponseDto> {
         Self::command_result(
-            self.current_app()?
+            self.current_session()?
                 .resources()
                 .release_imported_images(request)
                 .await,

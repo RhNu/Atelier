@@ -7,6 +7,7 @@ export {
   eventsApi,
   galleryApi,
   generationApi,
+  globalSettingsApi,
   historyApi,
   promptApi,
   resourceApi,

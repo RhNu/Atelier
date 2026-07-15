@@ -26,11 +26,6 @@ const settings: WorkspaceSettingsDto = {
     thumbnail_long_edge: 320,
     preview_long_edge: 1024,
   },
-  frontend: {
-    gallery: {
-      blur_sensitive_images: false,
-    },
-  },
 };
 
 describe("generation request builder", () => {

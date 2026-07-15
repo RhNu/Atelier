@@ -5,7 +5,9 @@ import type { ReactNode } from "react";
 
 import { createAtelierQueryClient } from "../../app/query-client";
 import type {
+  AppBootstrapDto,
   CloseWorkspaceResponseDto,
+  GlobalSettingsDto,
   OpenWorkspaceRequestDto,
   WorkspaceStatusDto,
 } from "../../types";
@@ -36,9 +38,12 @@ const mocks = vi.hoisted(() => {
       pickWorkspaceDirectory: vi.fn<() => Promise<string | null>>(),
     },
     workspaceApi: {
-      status: vi.fn<() => Promise<WorkspaceStatusDto>>(),
+      bootstrap: vi.fn<() => Promise<AppBootstrapDto>>(),
       open: vi.fn<(request: OpenWorkspaceRequestDto) => Promise<WorkspaceStatusDto>>(),
       close: vi.fn<() => Promise<CloseWorkspaceResponseDto>>(),
+    },
+    globalSettingsApi: {
+      get: vi.fn<() => Promise<GlobalSettingsDto>>(),
     },
   };
 });
@@ -48,10 +53,11 @@ vi.mock("../../platform/atelier", () => ({
   clearWorkspaceScopedQueryCache: mocks.clearWorkspaceScopedQueryCache,
   desktopApi: mocks.desktopApi,
   workspaceApi: mocks.workspaceApi,
+  globalSettingsApi: mocks.globalSettingsApi,
   queryKeys: {
-    workspace: {
-      root: () => ["workspace"],
-      status: () => ["workspace", "status"],
+    app: {
+      bootstrap: () => ["app", "bootstrap"],
+      globalSettings: () => ["app", "settings"],
     },
   },
 }));
@@ -61,35 +67,29 @@ beforeEach(() => {
   resetGenerationEventState();
   mocks.clearWorkspaceScopedQueryCache.mockResolvedValue(undefined);
   mocks.desktopApi.pickWorkspaceDirectory.mockResolvedValue("D:/atelier-next");
-  mocks.workspaceApi.status.mockRejectedValue(
-    new mocks.AtelierCommandError({
-      code: "workspace_not_open",
-      message: "workspace is not open",
-    }),
-  );
+  mocks.workspaceApi.bootstrap.mockResolvedValue({
+    global_settings: {
+      last_workspace: null,
+      frontend: { gallery: { blur_sensitive_images: false } },
+    },
+    workspace: null,
+    restore_failure: null,
+  });
   mocks.workspaceApi.open.mockResolvedValue({
     root: "D:/atelier-next",
     schema_version: 4,
     locked: false,
   });
   mocks.workspaceApi.close.mockResolvedValue({ was_open: true });
+  mocks.globalSettingsApi.get.mockResolvedValue({
+    last_workspace: "D:/atelier-next",
+    frontend: { gallery: { blur_sensitive_images: false } },
+  });
 });
 
 describe("useWorkspaceStatus", () => {
   it("clears generation event state before publishing an opened workspace", async () => {
     const user = userEvent.setup();
-    mocks.workspaceApi.status
-      .mockRejectedValueOnce(
-        new mocks.AtelierCommandError({
-          code: "workspace_not_open",
-          message: "workspace is not open",
-        }),
-      )
-      .mockResolvedValue({
-        root: "D:/atelier-next",
-        schema_version: 4,
-        locked: false,
-      });
     recordGenerationEvent({
       sequence: 1,
       kind: {

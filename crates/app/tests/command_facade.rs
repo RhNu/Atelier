@@ -2,8 +2,10 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
-use atelier_app::AppCommandHost;
+use atelier_adapter_novelai::{
+    NovelAiBridgeError, NovelAiClientFactory, NovelAiEmbeddedVibeExtractor,
+};
+use atelier_app::AtelierRuntime;
 use atelier_app::GenerationWorkerCancel;
 use atelier_app_api::account::{
     CreateApiKeyRequestDto, ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto,
@@ -31,8 +33,9 @@ use atelier_app_api::resource::{
     ReleaseImportedImageResourcesRequestDto,
 };
 use atelier_app_api::settings::{
-    FrontendGallerySettingsDto, FrontendSettingsDto, GenerationDefaultsDto,
-    ImageVariantSettingsDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+    GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto,
+    ImageVariantSettingsDto, UpdateGlobalSettingsRequestDto, UpdateWorkspaceSettingsRequestDto,
+    WorkspaceSettingsDto,
 };
 use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, ExportVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
@@ -51,6 +54,9 @@ use atelier_secrets::{
     SecretRecordId, SecretStore, SecretValue, SecretsResult, SubscriptionClient,
     SubscriptionResult, SubscriptionSummary,
 };
+use atelier_settings::{
+    GlobalSettings, GlobalSettingsRepository, GlobalSettingsService, SettingsResult,
+};
 use atelier_vibe::{EncodeVibeRequest, EncodedVibe, NovelAiVibeClient, VibeResult};
 use futures_executor::block_on;
 
@@ -59,18 +65,32 @@ mod session_commands;
 #[path = "command_facade/worker_events.rs"]
 mod worker_events;
 
-fn test_host() -> AppCommandHost<MemorySecretStore, RecordingFactory> {
+fn test_host() -> AtelierRuntime<MemorySecretStore, RecordingFactory> {
     test_host_with_factory(RecordingFactory::default())
 }
 
 fn test_host_with_factory(
     factory: RecordingFactory,
-) -> AppCommandHost<MemorySecretStore, RecordingFactory> {
-    AppCommandHost::with_dependencies(MemorySecretStore::default(), factory)
+) -> AtelierRuntime<MemorySecretStore, RecordingFactory> {
+    AtelierRuntime::with_dependencies(MemorySecretStore::default(), factory)
+}
+
+fn test_host_with_global_settings(
+    settings: GlobalSettings,
+) -> AtelierRuntime<MemorySecretStore, RecordingFactory> {
+    AtelierRuntime::with_global_settings_dependencies_extractor_and_safety_scanner(
+        GlobalSettingsService::new(Arc::new(MemoryGlobalSettingsRepository {
+            settings: Mutex::new(settings),
+        })),
+        MemorySecretStore::default(),
+        RecordingFactory::default(),
+        NovelAiEmbeddedVibeExtractor,
+        None,
+    )
 }
 
 async fn open_workspace(
-    host: &AppCommandHost<MemorySecretStore, RecordingFactory>,
+    host: &AtelierRuntime<MemorySecretStore, RecordingFactory>,
     temp: &tempfile::TempDir,
 ) {
     host.open_workspace(OpenWorkspaceRequestDto {
@@ -80,7 +100,7 @@ async fn open_workspace(
     .unwrap();
 }
 
-async fn create_active_key(host: &AppCommandHost<MemorySecretStore, RecordingFactory>) {
+async fn create_active_key(host: &AtelierRuntime<MemorySecretStore, RecordingFactory>) {
     host.create_api_key(CreateApiKeyRequestDto {
         id: "main".to_owned(),
         display_name: "Main".to_owned(),
@@ -95,8 +115,24 @@ async fn create_active_key(host: &AppCommandHost<MemorySecretStore, RecordingFac
     .unwrap();
 }
 
+struct MemoryGlobalSettingsRepository {
+    settings: Mutex<GlobalSettings>,
+}
+
+#[async_trait]
+impl GlobalSettingsRepository for MemoryGlobalSettingsRepository {
+    async fn get_global_settings(&self) -> SettingsResult<GlobalSettings> {
+        Ok(self.settings.lock().unwrap().clone())
+    }
+
+    async fn save_global_settings(&self, settings: GlobalSettings) -> SettingsResult<()> {
+        *self.settings.lock().unwrap() = settings;
+        Ok(())
+    }
+}
+
 async fn upsert_hero_chunk(
-    host: &AppCommandHost<MemorySecretStore, RecordingFactory>,
+    host: &AtelierRuntime<MemorySecretStore, RecordingFactory>,
 ) -> atelier_app_api::prompt::PromptChunkDto {
     let hero = host
         .upsert_prompt_chunk(UpsertPromptChunkRequestDto {
@@ -114,7 +150,7 @@ async fn upsert_hero_chunk(
 }
 
 async fn upsert_scene_chunk(
-    host: &AppCommandHost<MemorySecretStore, RecordingFactory>,
+    host: &AtelierRuntime<MemorySecretStore, RecordingFactory>,
 ) -> atelier_app_api::prompt::PromptChunkDto {
     host.upsert_prompt_chunk(UpsertPromptChunkRequestDto {
         chunk_id: None,
@@ -129,7 +165,7 @@ async fn upsert_scene_chunk(
 }
 
 async fn submit_and_run_generation(
-    host: &AppCommandHost<MemorySecretStore, RecordingFactory>,
+    host: &AtelierRuntime<MemorySecretStore, RecordingFactory>,
     batch_id: &str,
     job_id: &str,
 ) {

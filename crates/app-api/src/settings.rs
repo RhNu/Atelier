@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -9,7 +11,6 @@ use crate::generation::{
 pub struct WorkspaceSettingsDto {
     pub generation: GenerationDefaultsDto,
     pub image_variants: ImageVariantSettingsDto,
-    pub frontend: FrontendSettingsDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -67,14 +68,26 @@ impl Default for ImageVariantSettingsDto {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct FrontendSettingsDto {
-    pub gallery: FrontendGallerySettingsDto,
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct GlobalSettingsDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_workspace: Option<PathBuf>,
+    pub frontend: GlobalFrontendSettingsDto,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct FrontendGallerySettingsDto {
+pub struct GlobalFrontendSettingsDto {
+    pub gallery: GlobalGallerySettingsDto,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct GlobalGallerySettingsDto {
     pub blur_sensitive_images: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UpdateGlobalSettingsRequestDto {
+    pub frontend: GlobalFrontendSettingsDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

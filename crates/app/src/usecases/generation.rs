@@ -3,17 +3,17 @@ use super::generation_support::{
     quality_override_to_bool,
 };
 use super::{
-    AppError, AppResult, ArtifactSource, AtelierApp, BatchId, CharacterReference,
-    CharacterReferenceDto, CompileCharacterPromptRequest, CompileGenerationPromptRequest,
-    ControlNetConfig, ControlNetConfigDto, ControlNetInput, GalleryQuery, GallerySourceKind,
-    GenerateImageRequest, GenerateImageRequestDto, GenerateImageStreamRequest,
-    GenerateImageStreamRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
-    GenerationStatusDto, GenerationWorkRequest, GenerationWorkRequestDto, ImageInputDto, ImageSize,
-    Img2ImgRequest, Img2ImgRequestDto, JobId, JobQueueRepository, NovelAiClientFactory,
-    PromptPresetId, QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus,
-    RunOutputRecord, SecretStore, SecretsErrorKind, SubmitGenerationBatch,
-    SubmitGenerationBatchJob, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
-    SubmitGenerationRequestDto, character_reference_type_to_domain, characters_to_domain,
+    AppError, AppResult, ArtifactSource, BatchId, CharacterReference, CharacterReferenceDto,
+    CompileCharacterPromptRequest, CompileGenerationPromptRequest, ControlNetConfig,
+    ControlNetConfigDto, ControlNetInput, GalleryQuery, GallerySourceKind, GenerateImageRequest,
+    GenerateImageRequestDto, GenerateImageStreamRequest, GenerateImageStreamRequestDto,
+    GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationStatusDto,
+    GenerationWorkRequest, GenerationWorkRequestDto, ImageInputDto, ImageSize, Img2ImgRequest,
+    Img2ImgRequestDto, JobId, JobQueueRepository, NovelAiClientFactory, PromptPresetId,
+    QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
+    SecretStore, SecretsErrorKind, SubmitGenerationBatch, SubmitGenerationBatchJob,
+    SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
+    WorkspaceSession, character_reference_type_to_domain, characters_to_domain,
     generation_status_to_dto, generation_work_title, image_format_to_domain, image_model_to_domain,
     noise_schedule_to_domain, plan_context_to_domain, queue_directive_to_dto,
     resource_ref_from_dto, resource_variant_kind_as_str, run_history_status_from_job_status,
@@ -22,7 +22,7 @@ use super::{
 };
 
 pub struct GenerationUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> GenerationUseCases<'_, S, F, E>

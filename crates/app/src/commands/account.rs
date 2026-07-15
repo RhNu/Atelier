@@ -6,9 +6,9 @@ use atelier_app_api::account::{
 };
 use atelier_secrets::SecretStore;
 
-use crate::commands::{AppCommandHost, CommandResult};
+use crate::commands::{AtelierRuntime, CommandResult};
 
-impl<S, F, E> AppCommandHost<S, F, E>
+impl<S, F, E> AtelierRuntime<S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
@@ -22,7 +22,12 @@ where
         &self,
         request: CreateApiKeyRequestDto,
     ) -> CommandResult<ApiKeyRecordDto> {
-        Self::command_result(self.current_app()?.account().create_api_key(request).await)
+        Self::command_result(
+            self.current_session()?
+                .account()
+                .create_api_key(request)
+                .await,
+        )
     }
 
     /// Updates API key metadata and optionally replaces its secret.
@@ -33,7 +38,12 @@ where
         &self,
         request: UpdateApiKeyRequestDto,
     ) -> CommandResult<ApiKeyRecordDto> {
-        Self::command_result(self.current_app()?.account().update_api_key(request).await)
+        Self::command_result(
+            self.current_session()?
+                .account()
+                .update_api_key(request)
+                .await,
+        )
     }
 
     /// Deletes an API key record and its stored secret.
@@ -45,7 +55,7 @@ where
         request: DeleteApiKeyRequestDto,
     ) -> CommandResult<DeleteApiKeyResponseDto> {
         Self::command_result(
-            self.current_app()?
+            self.current_session()?
                 .account()
                 .delete_api_key(&request.id)
                 .await
@@ -58,7 +68,7 @@ where
     /// # Errors
     /// Returns an error envelope when no workspace is open or account storage fails.
     pub async fn list_api_keys(&self) -> CommandResult<Vec<ApiKeyRecordDto>> {
-        Self::command_result(self.current_app()?.account().list_api_keys().await)
+        Self::command_result(self.current_session()?.account().list_api_keys().await)
     }
 
     /// Marks one API key as the active `NovelAI` key.
@@ -70,7 +80,7 @@ where
         request: SetActiveApiKeyRequestDto,
     ) -> CommandResult<()> {
         Self::command_result(
-            self.current_app()?
+            self.current_session()?
                 .account()
                 .set_active_api_key(&request.id)
                 .await,
@@ -85,7 +95,12 @@ where
         &self,
         request: ProbeApiKeyRequestDto,
     ) -> CommandResult<SubscriptionSummaryDto> {
-        Self::command_result(self.current_app()?.account().probe_key(&request.id).await)
+        Self::command_result(
+            self.current_session()?
+                .account()
+                .probe_key(&request.id)
+                .await,
+        )
     }
 
     /// Probes the active `NovelAI` API key.
@@ -93,7 +108,7 @@ where
     /// # Errors
     /// Returns an error envelope when no workspace is open, no key is active, or `NovelAI` probe fails.
     pub async fn probe_active_api_key(&self) -> CommandResult<SubscriptionSummaryDto> {
-        Self::command_result(self.current_app()?.account().probe_active().await)
+        Self::command_result(self.current_session()?.account().probe_active().await)
     }
 
     /// Returns the last successful active-key subscription probe without network access.
@@ -101,6 +116,9 @@ where
     /// # Errors
     /// Returns an error envelope when no workspace is open.
     pub fn cached_active_subscription(&self) -> CommandResult<Option<SubscriptionSummaryDto>> {
-        Ok(self.current_app()?.account().cached_active_subscription())
+        Ok(self
+            .current_session()?
+            .account()
+            .cached_active_subscription())
     }
 }

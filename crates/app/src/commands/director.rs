@@ -2,9 +2,9 @@ use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::director::{DirectorToolResultDto, RunDirectorToolRequestDto};
 use atelier_secrets::SecretStore;
 
-use crate::commands::{AppCommandHost, CommandResult};
+use crate::commands::{AtelierRuntime, CommandResult};
 
-impl<S, F, E> AppCommandHost<S, F, E>
+impl<S, F, E> AtelierRuntime<S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
@@ -18,6 +18,6 @@ where
         &self,
         request: RunDirectorToolRequestDto,
     ) -> CommandResult<DirectorToolResultDto> {
-        Self::command_result(self.current_app()?.director().run_tool(request).await)
+        Self::command_result(self.current_session()?.director().run_tool(request).await)
     }
 }

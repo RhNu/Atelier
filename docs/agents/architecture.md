@@ -68,6 +68,7 @@ crates/
     keyring/
     novelai/
     safety-onnx/
+    settings-fs/
     storage-fs/
 
 apps/
@@ -97,7 +98,7 @@ Feature crates are the default owner for domain concepts:
 - `safety`: safety scores, assessments, scanner port.
 - `secrets`: API key registry, active key semantics, secret resolver, subscription probe.
 - `precise-reference`: precise reference input processing and image reader port.
-- `settings`: workspace-local UI defaults for NovelAI generation prefill and image variant sizing.
+- `settings`: user-level application preferences and workspace-local NovelAI generation/image defaults, with separate repository ports for each persistence scope.
 
 ### `kernel`
 
@@ -113,6 +114,7 @@ Adapters are the boundary for real I/O:
 - `keyring`: system credential storage for secret values.
 - `novelai`: `novelai-bridge` integration and resolver-backed NovelAI clients.
 - `safety-onnx`: optional OpenNSFW-style ONNX safety scanner built from host-provided model/runtime paths.
+- `settings-fs`: user-level global settings stored below the desktop host-provided application configuration directory.
 
 Desktop host glue lives inside `apps/desktop/src-tauri`, not a reusable adapter crate. The frontend should invoke Tauri commands that perform picker, read, write, and host actions together; it should not directly read arbitrary user files through frontend filesystem capabilities.
 
@@ -123,6 +125,8 @@ External library types should not leak upward into feature crates, `kernel`, or 
 `app-api` should hold frontend-visible contracts only: request/response DTOs, event DTOs, error envelopes, pagination, and query DTOs.
 
 `app` should be host-neutral. It should map `app-api` DTOs to feature/kernel inputs, hold runtime state, inject adapters, apply runtime guards, and expose use case groups. It must not depend on Tauri.
+
+The process-level `AtelierRuntime` owns global settings, event listeners, injected external dependencies, and an optional `WorkspaceSession`. A `WorkspaceSession` owns only services and runtime state tied to one opened workspace. Opening a replacement workspace builds the candidate session and persists its recent-workspace state before publishing it.
 
 ## Resource Rule
 

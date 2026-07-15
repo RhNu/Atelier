@@ -11,10 +11,10 @@ import type {
   DeleteGalleryItemsRequestDto,
   DeleteGalleryItemsResponseDto,
   GetResourceImageRequestDto,
+  GlobalSettingsDto,
   ResourceImageDto,
   SaveResourceImageRequestDto,
   SetGallerySafetyOverrideRequestDto,
-  WorkspaceSettingsDto,
 } from "../types";
 
 const mocks = vi.hoisted(() => ({
@@ -32,8 +32,8 @@ const mocks = vi.hoisted(() => ({
     saveResourceImage:
       vi.fn<(request: SaveResourceImageRequestDto) => Promise<{ path: string } | null>>(),
   },
-  settingsApi: {
-    get: vi.fn<() => Promise<WorkspaceSettingsDto>>(),
+  globalSettingsApi: {
+    get: vi.fn<() => Promise<GlobalSettingsDto>>(),
   },
 }));
 
@@ -41,7 +41,7 @@ vi.mock("../platform/atelier", () => ({
   galleryApi: mocks.galleryApi,
   resourceApi: mocks.resourceApi,
   desktopApi: mocks.desktopApi,
-  settingsApi: mocks.settingsApi,
+  globalSettingsApi: mocks.globalSettingsApi,
   resourceImageToDataUrl: (image: ResourceImageDto) =>
     `data:${image.mime_type ?? "image/png"};base64,${image.image_base64}`,
   queryKeys: {
@@ -60,33 +60,14 @@ vi.mock("../platform/atelier", () => ({
     history: {
       root: () => ["history"],
     },
-    settings: {
-      workspace: () => ["settings", "workspace"],
+    app: {
+      globalSettings: () => ["app", "settings"],
     },
   },
 }));
 
-const defaultSettings: WorkspaceSettingsDto = {
-  generation: {
-    model: "nai-diffusion-4-5-full",
-    size: { width: 832, height: 1216 },
-    quality: true,
-    uc_preset: "light",
-    steps: 23,
-    scale: 5,
-    sampler: "k_euler_ancestral",
-    noise_schedule: "karras",
-    seed: 0,
-    n_samples: 1,
-    cfg_rescale: 0,
-    variety_boost: false,
-    image_format: null,
-    strict_mode: false,
-  },
-  image_variants: {
-    thumbnail_long_edge: 320,
-    preview_long_edge: 1024,
-  },
+const defaultSettings: GlobalSettingsDto = {
+  last_workspace: "D:/atelier",
   frontend: {
     gallery: {
       blur_sensitive_images: false,
@@ -153,9 +134,9 @@ function galleryItem(
 }
 
 function setup(options?: { blurSensitive?: boolean; items?: GalleryItemDto[] }) {
-  const settings = structuredClone(defaultSettings) as WorkspaceSettingsDto;
+  const settings = structuredClone(defaultSettings) as GlobalSettingsDto;
   settings.frontend.gallery.blur_sensitive_images = options?.blurSensitive ?? false;
-  mocks.settingsApi.get.mockResolvedValue(settings);
+  mocks.globalSettingsApi.get.mockResolvedValue(settings);
   mocks.galleryApi.list.mockResolvedValue({
     items: options?.items ?? [
       galleryItem("safe-item", { source: "generation", label: "safe" }),

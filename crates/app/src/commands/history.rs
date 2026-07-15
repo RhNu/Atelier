@@ -7,9 +7,9 @@ use atelier_app_api::history::{
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
-use crate::commands::{AppCommandHost, CommandResult};
+use crate::commands::{AtelierRuntime, CommandResult};
 
-impl<S, F, E> AppCommandHost<S, F, E>
+impl<S, F, E> AtelierRuntime<S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
@@ -23,7 +23,7 @@ where
         &self,
         request: RunHistoryQueryDto,
     ) -> CommandResult<RunHistoryPageDto> {
-        Self::command_result(self.current_app()?.history().query(request).await)
+        Self::command_result(self.current_session()?.history().query(request).await)
     }
 
     /// Deletes run history rows and their history output index rows.
@@ -34,7 +34,12 @@ where
         &self,
         request: DeleteRunHistoryItemsRequestDto,
     ) -> CommandResult<DeleteRunHistoryItemsResponseDto> {
-        Self::command_result(self.current_app()?.history().delete_items(request).await)
+        Self::command_result(
+            self.current_session()?
+                .history()
+                .delete_items(request)
+                .await,
+        )
     }
 
     /// Creates a new generation job from a previous generation history item.
@@ -47,7 +52,7 @@ where
         request: RerunGenerationHistoryItemRequestDto,
     ) -> CommandResult<RerunGenerationHistoryItemResponseDto> {
         Self::command_result(
-            self.current_app()?
+            self.current_session()?
                 .history()
                 .rerun_generation(request)
                 .await,

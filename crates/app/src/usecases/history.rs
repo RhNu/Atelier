@@ -14,7 +14,7 @@ use atelier_kernel::{GenerationPayloadStore, SubmitGenerationWork};
 use atelier_secrets::{SecretStore, SecretsErrorKind};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::app::AtelierApp;
+use crate::app::WorkspaceSession;
 use crate::mapping::{
     queue_directive_to_dto, run_history_item_to_dto, run_history_page_to_dto,
     run_history_query_to_domain,
@@ -22,7 +22,7 @@ use crate::mapping::{
 use crate::{AppError, AppResult};
 
 pub struct HistoryUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> HistoryUseCases<'_, S, F, E>

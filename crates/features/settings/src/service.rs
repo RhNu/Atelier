@@ -1,20 +1,25 @@
-use crate::{SettingsRepository, SettingsResult, WorkspaceSettings};
+use std::{path::PathBuf, sync::Arc};
+
+use crate::{
+    GlobalFrontendSettings, GlobalSettings, GlobalSettingsRepository, SettingsResult,
+    WorkspaceSettings, WorkspaceSettingsRepository,
+};
 
 #[derive(Clone, Debug)]
-pub struct SettingsService<R> {
+pub struct WorkspaceSettingsService<R> {
     repository: R,
 }
 
-impl<R> SettingsService<R> {
+impl<R> WorkspaceSettingsService<R> {
     #[must_use]
     pub const fn new(repository: R) -> Self {
         Self { repository }
     }
 }
 
-impl<R> SettingsService<R>
+impl<R> WorkspaceSettingsService<R>
 where
-    R: SettingsRepository,
+    R: WorkspaceSettingsRepository,
 {
     /// Returns stored workspace settings or v1 defaults when no settings exist.
     ///
@@ -46,5 +51,56 @@ where
     pub async fn reset_workspace_settings(&self) -> SettingsResult<WorkspaceSettings> {
         self.repository.reset_workspace_settings().await?;
         Ok(WorkspaceSettings::default())
+    }
+}
+
+#[derive(Clone)]
+pub struct GlobalSettingsService {
+    repository: Arc<dyn GlobalSettingsRepository>,
+}
+
+impl GlobalSettingsService {
+    #[must_use]
+    pub fn new(repository: Arc<dyn GlobalSettingsRepository>) -> Self {
+        Self { repository }
+    }
+    /// Returns user-level application settings.
+    ///
+    /// # Errors
+    /// Returns an error when the repository cannot be read.
+    pub async fn get_global_settings(&self) -> SettingsResult<GlobalSettings> {
+        self.repository.get_global_settings().await
+    }
+
+    /// Replaces editable global frontend preferences without changing lifecycle state.
+    ///
+    /// # Errors
+    /// Returns an error when the repository cannot be read or written.
+    pub async fn update_frontend_settings(
+        &self,
+        frontend: GlobalFrontendSettings,
+    ) -> SettingsResult<GlobalSettings> {
+        let mut settings = self.repository.get_global_settings().await?;
+        settings.frontend = frontend;
+        self.repository
+            .save_global_settings(settings.clone())
+            .await?;
+        Ok(settings)
+    }
+
+    /// Records the workspace that should be restored on the next application start.
+    ///
+    /// # Errors
+    /// Returns an error when the repository cannot be read or written.
+    pub async fn record_last_workspace(
+        &self,
+        root: impl Into<PathBuf>,
+    ) -> SettingsResult<GlobalSettings> {
+        let mut settings = self.repository.get_global_settings().await?;
+        settings.last_workspace = Some(root.into());
+        self.repository
+            .save_global_settings(settings.clone())
+            .await?;
+        Ok(settings)
     }
 }

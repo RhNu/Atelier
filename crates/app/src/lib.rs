@@ -9,8 +9,8 @@ mod ports;
 mod usecases;
 mod worker;
 
-pub use app::AtelierApp;
-pub use commands::{AppCommandHost, CommandResult};
+pub use app::WorkspaceSession;
+pub use commands::{AtelierRuntime, CommandResult};
 pub use error::{AppError, AppResult};
 pub use events::{AppEventHub, AppEventListener};
 pub use worker::GenerationWorkerCancel;

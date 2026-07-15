@@ -1,18 +1,18 @@
 use super::{
-    AppError, AppResult, AtelierApp, Engine, EnsureVibeEncoding, EnsureVibeEncodingRequestDto,
+    AppError, AppResult, Engine, EnsureVibeEncoding, EnsureVibeEncodingRequestDto,
     EnsuredVibeEncodingDto, ExportVibeDocument, ExportVibeDocumentRequestDto,
     ExportedVibeDocumentDto, GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocument,
     ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocument, ImportVibeDocumentRequestDto,
     ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto, NovelAiClientFactory,
     RenameVibeDocumentRequestDto, STANDARD, SecretStore, SetVibeDocumentHiddenRequestDto,
     VibeDocumentEntryDto, VibeDocumentPageDto, VibeEncodeSettings, VibeId, VibeSourceIdentity,
-    ensured_vibe_to_dto, exported_vibe_to_dto, imported_vibes_to_dto, unix_timestamp_ms,
-    vibe_entry_to_dto, vibe_format_to_domain, vibe_model_to_domain,
+    WorkspaceSession, ensured_vibe_to_dto, exported_vibe_to_dto, imported_vibes_to_dto,
+    unix_timestamp_ms, vibe_entry_to_dto, vibe_format_to_domain, vibe_model_to_domain,
 };
 use atelier_vibe::VibeRepository;
 
 pub struct VibeUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> VibeUseCases<'_, S, F, E>

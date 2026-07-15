@@ -3,17 +3,18 @@ import { useCallback, type MouseEvent, type ReactNode } from "react";
 
 import { AppButton, AppPanel, AppToastHost } from "../components/ui";
 import { routeNavItems, type RouteNavItem } from "../routes/nav";
-import type { WorkspaceStatusDto } from "../types";
+import type { WorkspaceRestoreFailureDto, WorkspaceStatusDto } from "../types";
 
 export type AppShellProps = {
   workspaceStatus: WorkspaceStatusDto | null;
   workspacePending: boolean;
   workspaceErrorCode?: string;
   workspaceErrorMessage?: string;
+  restoreFailure?: WorkspaceRestoreFailureDto | null;
   activePath?: string;
   children?: ReactNode;
   onOpenWorkspace?: () => void;
-  onCloseWorkspace?: () => void;
+  onRetryWorkspaceRestore?: () => void;
   onNavigate?: (to: RouteNavItem["to"]) => void;
 };
 
@@ -59,15 +60,15 @@ export function AppShell({
   workspacePending,
   workspaceErrorCode,
   workspaceErrorMessage,
+  restoreFailure,
   activePath = getFallbackPath(),
   children,
   onOpenWorkspace,
-  onCloseWorkspace,
+  onRetryWorkspaceRestore,
   onNavigate,
 }: AppShellProps) {
   const showWorkspaceGate = workspaceStatus === null;
-  const fatalBootError =
-    workspaceErrorCode !== undefined && workspaceErrorCode !== "workspace_not_open";
+  const fatalBootError = workspaceErrorCode !== undefined;
 
   return (
     <div className="flex h-svh min-h-0 flex-col overflow-hidden bg-app-bg text-app-text">
@@ -116,15 +117,33 @@ export function AppShell({
         <main className="flex min-h-0 flex-1 items-center justify-center p-6">
           <AppPanel className="w-full max-w-xl p-6">
             <p className="text-xs font-semibold text-brand-200 uppercase">Workspace</p>
-            <h1 className="mt-2 text-xl font-semibold text-white">Open an Atelier workspace</h1>
+            <h1 className="mt-2 text-xl font-semibold text-white">
+              {restoreFailure ? "Couldn’t reopen your last workspace" : "Open an Atelier workspace"}
+            </h1>
             <p className="mt-3 text-sm text-app-muted">
-              {fatalBootError
-                ? (workspaceErrorMessage ?? "Workspace status could not be loaded.")
-                : "Select a workspace folder before running NovelAI generation workflows."}
+              {restoreFailure
+                ? restoreFailure.error.message
+                : fatalBootError
+                  ? (workspaceErrorMessage ?? "Workspace status could not be loaded.")
+                  : "Select a workspace folder before running NovelAI generation workflows."}
             </p>
+            {restoreFailure ? (
+              <p className="mt-3 border border-app-border bg-app-surface px-3 py-2 text-xs break-all text-app-muted">
+                {restoreFailure.root}
+              </p>
+            ) : null}
             <div className="mt-5 flex gap-2">
+              {restoreFailure ? (
+                <AppButton onClick={onRetryWorkspaceRestore} disabled={workspacePending}>
+                  {workspacePending ? "Retrying workspace" : "Retry"}
+                </AppButton>
+              ) : null}
               <AppButton onClick={onOpenWorkspace} disabled={workspacePending}>
-                {workspacePending ? "Opening workspace" : "Open workspace"}
+                {workspacePending
+                  ? "Opening workspace"
+                  : restoreFailure
+                    ? "Choose another workspace"
+                    : "Open workspace"}
               </AppButton>
             </div>
           </AppPanel>
@@ -144,15 +163,8 @@ export function AppShell({
           </nav>
 
           <div className="grid min-h-0 grid-rows-[36px_minmax(0,1fr)]">
-            <div className="flex min-w-0 items-center justify-between border-b border-app-border bg-app-panel/80 px-3 text-xs text-app-muted">
+            <div className="flex min-w-0 items-center border-b border-app-border bg-app-panel/80 px-3 text-xs text-app-muted">
               <p className="truncate">{workspaceStatus.root}</p>
-              <button
-                type="button"
-                className="text-app-muted hover:text-app-text"
-                onClick={onCloseWorkspace}
-              >
-                Close workspace
-              </button>
             </div>
             <main className="min-h-0 overflow-hidden">{children}</main>
           </div>

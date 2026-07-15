@@ -1,7 +1,7 @@
-use super::{AtelierApp, WorkspaceStatusDto};
+use super::{WorkspaceSession, WorkspaceStatusDto};
 
 pub struct WorkspaceUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> WorkspaceUseCases<'_, S, F, E> {

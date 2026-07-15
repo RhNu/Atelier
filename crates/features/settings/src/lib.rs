@@ -1,4 +1,4 @@
-//! Workspace-local settings domain.
+//! User-level and workspace-local settings domains.
 
 mod error;
 mod model;
@@ -7,8 +7,8 @@ mod service;
 
 pub use error::{SettingsError, SettingsErrorKind, SettingsResult};
 pub use model::{
-    FrontendGallerySettings, FrontendSettings, GenerationDefaults, ImageVariantSettings,
-    WorkspaceSettings,
+    GenerationDefaults, GlobalFrontendSettings, GlobalGallerySettings, GlobalSettings,
+    ImageVariantSettings, WorkspaceSettings,
 };
-pub use ports::SettingsRepository;
-pub use service::SettingsService;
+pub use ports::{GlobalSettingsRepository, WorkspaceSettingsRepository};
+pub use service::{GlobalSettingsService, WorkspaceSettingsService};

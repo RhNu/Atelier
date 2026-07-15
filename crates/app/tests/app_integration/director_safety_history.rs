@@ -5,7 +5,7 @@ fn director_tool_uses_resource_inputs_and_indexes_gallery_result() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
         let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
-        let app = AtelierApp::open_workspace_with_dependencies(
+        let app = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             MemorySecretStore::default(),
             factory.clone(),
@@ -72,7 +72,7 @@ fn injected_safety_scanner_scores_generated_gallery_items() {
         let temp = tempfile::tempdir().unwrap();
         let image_bytes = valid_png_bytes(2, 1);
         let scanner = Arc::new(RecordingSafetyScanner::default());
-        let app = AtelierApp::open_workspace_with_dependencies_and_safety_scanner(
+        let app = WorkspaceSession::open_workspace_with_dependencies_and_safety_scanner(
             temp.path().to_path_buf(),
             MemorySecretStore::default(),
             RecordingFactory::with_image_bytes(image_bytes.clone()),
@@ -223,7 +223,7 @@ fn run_history_records_director_outputs_without_queueing() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
         let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
-        let app = AtelierApp::open_workspace_with_dependencies(
+        let app = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             MemorySecretStore::default(),
             factory,
@@ -288,7 +288,7 @@ fn run_history_records_failed_director_runs() {
         let temp = tempfile::tempdir().unwrap();
         let factory =
             RecordingFactory::with_director_error(DirectorClientError::transport("director down"));
-        let app = AtelierApp::open_workspace_with_dependencies(
+        let app = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             MemorySecretStore::default(),
             factory,

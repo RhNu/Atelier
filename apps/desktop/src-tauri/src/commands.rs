@@ -40,7 +40,8 @@ use atelier_app_api::{
         ReleaseImportedImageResourcesResponseDto, ResourceImageDto,
     },
     settings::{
-        ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+        GlobalSettingsDto, ResetWorkspaceSettingsResponseDto, UpdateGlobalSettingsRequestDto,
+        UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
     },
     vibe::{
         EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, GetVibeDocumentRequestDto,
@@ -51,6 +52,21 @@ use atelier_app_api::{
 use tauri::State;
 
 use crate::desktop::DesktopState;
+
+#[tauri::command]
+pub async fn get_global_settings(
+    state: State<'_, DesktopState>,
+) -> CommandResult<GlobalSettingsDto> {
+    state.host.get_global_settings().await
+}
+
+#[tauri::command]
+pub async fn update_global_settings(
+    state: State<'_, DesktopState>,
+    request: UpdateGlobalSettingsRequestDto,
+) -> CommandResult<GlobalSettingsDto> {
+    state.host.update_global_settings(request).await
+}
 
 #[tauri::command]
 pub async fn create_api_key(

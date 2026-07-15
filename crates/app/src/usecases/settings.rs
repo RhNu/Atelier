@@ -1,11 +1,11 @@
 use super::{
-    AppError, AppResult, AtelierApp, ResetWorkspaceSettingsResponseDto,
-    UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto, workspace_settings_to_domain,
+    AppError, AppResult, ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto,
+    WorkspaceSession, WorkspaceSettingsDto, workspace_settings_to_domain,
     workspace_settings_to_dto,
 };
 
 pub struct SettingsUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> SettingsUseCases<'_, S, F, E>

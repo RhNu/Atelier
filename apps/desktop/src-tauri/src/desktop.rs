@@ -7,20 +7,22 @@ use crate::desktop_system::{
 };
 use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
-use atelier_app::{AppCommandHost, GenerationWorkerCancel};
+use atelier_adapter_settings_fs::FileSystemGlobalSettingsRepository;
+use atelier_app::{AtelierRuntime, GenerationWorkerCancel};
 use atelier_app_api::event::{AppEventDto, AppEventKindDto};
 use atelier_app_api::generation::QueueDirectiveDto;
+use atelier_settings::GlobalSettingsService;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 
-pub type NativeAppCommandHost =
-    AppCommandHost<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbeddedVibeExtractor>;
+pub type NativeAtelierRuntime =
+    AtelierRuntime<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbeddedVibeExtractor>;
 
 pub struct DesktopState {
     pub app_handle: AppHandle,
-    pub host: Arc<NativeAppCommandHost>,
+    pub host: Arc<NativeAtelierRuntime>,
     pub system: Arc<DesktopSystem>,
     pub worker: DesktopGenerationWorker,
 }
@@ -135,7 +137,7 @@ impl DesktopGenerationWorker {
     fn kick(
         &self,
         app_handle: AppHandle,
-        host: Arc<NativeAppCommandHost>,
+        host: Arc<NativeAtelierRuntime>,
         system: Arc<DesktopSystem>,
         directive: QueueDirectiveDto,
     ) {
@@ -162,7 +164,7 @@ impl DesktopGenerationWorker {
     fn spawn_run(
         &self,
         app_handle: AppHandle,
-        host: Arc<NativeAppCommandHost>,
+        host: Arc<NativeAtelierRuntime>,
         system: Arc<DesktopSystem>,
         start: WorkerStart,
     ) {
@@ -254,7 +256,10 @@ pub fn build_desktop_state(
         }
     };
     let host = Arc::new(
-        AppCommandHost::with_dependencies_extractor_and_safety_scanner(
+        AtelierRuntime::with_global_settings_dependencies_extractor_and_safety_scanner(
+            GlobalSettingsService::new(Arc::new(FileSystemGlobalSettingsRepository::new(
+                system.paths().app_config_dir.join("global-settings.json"),
+            ))),
             KeyringSecretStore::native()?,
             ReqwestNovelAiClientFactory::default(),
             NovelAiEmbeddedVibeExtractor,
@@ -292,7 +297,7 @@ fn resolve_desktop_paths(app_handle: &AppHandle) -> Result<DesktopPaths, tauri::
 }
 
 fn subscribe_window_events(
-    host: &NativeAppCommandHost,
+    host: &NativeAtelierRuntime,
     app_handle: AppHandle,
     system: Arc<DesktopSystem>,
 ) -> Result<(), Box<dyn std::error::Error>> {

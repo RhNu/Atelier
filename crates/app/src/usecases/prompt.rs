@@ -1,5 +1,5 @@
 use super::{
-    AppError, AppResult, AtelierApp, CompileCharacterPromptRequest, CompileGenerationPromptRequest,
+    AppError, AppResult, CompileCharacterPromptRequest, CompileGenerationPromptRequest,
     CompileGenerationPromptRequestDto, CompilePromptRequest, CompilePromptRequestDto,
     CompiledGenerationCharacterPromptDto, CompiledGenerationPromptDto, CompiledPromptDto,
     DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, DeletePromptPresetRequestDto,
@@ -7,14 +7,14 @@ use super::{
     ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkId, PromptChunkKey, PromptChunkPageDto,
     PromptLexiconCatalogDto, PromptLexiconListQueryDto, PromptLexiconPageDto, PromptPresetDto,
     PromptPresetId, PromptPresetPageDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
-    compiled_prompt_to_dto, lexicon_catalog_to_dto, lexicon_page_to_dto, lexicon_query_to_domain,
-    lexicon_search_to_page, prompt_chunk_to_dto, prompt_preset_kind_to_domain,
-    prompt_preset_to_dto, prompt_trace_to_dto, upsert_prompt_chunk_to_domain,
-    upsert_prompt_preset_to_domain,
+    WorkspaceSession, compiled_prompt_to_dto, lexicon_catalog_to_dto, lexicon_page_to_dto,
+    lexicon_query_to_domain, lexicon_search_to_page, prompt_chunk_to_dto,
+    prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
+    upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain,
 };
 
 pub struct PromptUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> PromptUseCases<'_, S, F, E>

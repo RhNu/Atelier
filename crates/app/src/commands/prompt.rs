@@ -8,9 +8,9 @@ use atelier_app_api::prompt::{
     UpsertPromptPresetRequestDto,
 };
 
-use crate::commands::{AppCommandHost, CommandResult};
+use crate::commands::{AtelierRuntime, CommandResult};
 
-impl<S, F, E> AppCommandHost<S, F, E>
+impl<S, F, E> AtelierRuntime<S, F, E>
 where
     S: Send + Sync,
     F: Send + Sync,
@@ -24,7 +24,7 @@ where
         &self,
         request: UpsertPromptChunkRequestDto,
     ) -> CommandResult<PromptChunkDto> {
-        Self::command_result(self.current_app()?.prompt().upsert_chunk(request).await)
+        Self::command_result(self.current_session()?.prompt().upsert_chunk(request).await)
     }
 
     /// Returns one prompt chunk by id or key.
@@ -35,7 +35,7 @@ where
         &self,
         request: GetPromptChunkRequestDto,
     ) -> CommandResult<PromptChunkDto> {
-        Self::command_result(self.current_app()?.prompt().get_chunk(request).await)
+        Self::command_result(self.current_session()?.prompt().get_chunk(request).await)
     }
 
     /// Lists prompt chunks with offset and limit.
@@ -46,7 +46,7 @@ where
         &self,
         request: ListPromptChunksRequestDto,
     ) -> CommandResult<PromptChunkPageDto> {
-        Self::command_result(self.current_app()?.prompt().list_chunks(request).await)
+        Self::command_result(self.current_session()?.prompt().list_chunks(request).await)
     }
 
     /// Deletes an unreferenced prompt chunk.
@@ -57,7 +57,7 @@ where
         &self,
         request: DeletePromptChunkRequestDto,
     ) -> CommandResult<DeletePromptChunkResponseDto> {
-        Self::command_result(self.current_app()?.prompt().delete_chunk(request).await)
+        Self::command_result(self.current_session()?.prompt().delete_chunk(request).await)
     }
 
     /// Creates or updates a prompt preset.
@@ -68,7 +68,12 @@ where
         &self,
         request: UpsertPromptPresetRequestDto,
     ) -> CommandResult<PromptPresetDto> {
-        Self::command_result(self.current_app()?.prompt().upsert_preset(request).await)
+        Self::command_result(
+            self.current_session()?
+                .prompt()
+                .upsert_preset(request)
+                .await,
+        )
     }
 
     /// Lists prompt presets with offset and limit.
@@ -79,7 +84,7 @@ where
         &self,
         request: ListPromptPresetsRequestDto,
     ) -> CommandResult<PromptPresetPageDto> {
-        Self::command_result(self.current_app()?.prompt().list_presets(request).await)
+        Self::command_result(self.current_session()?.prompt().list_presets(request).await)
     }
 
     /// Deletes a prompt preset.
@@ -90,7 +95,12 @@ where
         &self,
         request: DeletePromptPresetRequestDto,
     ) -> CommandResult<DeletePromptPresetResponseDto> {
-        Self::command_result(self.current_app()?.prompt().delete_preset(request).await)
+        Self::command_result(
+            self.current_session()?
+                .prompt()
+                .delete_preset(request)
+                .await,
+        )
     }
 
     /// Compiles a prompt preview using persisted prompt resources.
@@ -101,7 +111,12 @@ where
         &self,
         request: CompilePromptRequestDto,
     ) -> CommandResult<CompiledPromptDto> {
-        Self::command_result(self.current_app()?.prompt().compile_preview(request).await)
+        Self::command_result(
+            self.current_session()?
+                .prompt()
+                .compile_preview(request)
+                .await,
+        )
     }
 
     /// Compiles all Generation prompt scopes using persisted prompt resources.
@@ -113,7 +128,7 @@ where
         request: CompileGenerationPromptRequestDto,
     ) -> CommandResult<CompiledGenerationPromptDto> {
         Self::command_result(
-            self.current_app()?
+            self.current_session()?
                 .prompt()
                 .compile_generation_preview(request)
                 .await,
@@ -125,7 +140,7 @@ where
     /// # Errors
     /// Returns an error envelope when no workspace is open.
     pub fn prompt_lexicon_catalog(&self) -> CommandResult<PromptLexiconCatalogDto> {
-        Ok(self.current_app()?.prompt().lexicon_catalog())
+        Ok(self.current_session()?.prompt().lexicon_catalog())
     }
 
     /// Lists prompt lexicon entries.
@@ -136,7 +151,7 @@ where
         &self,
         request: PromptLexiconListQueryDto,
     ) -> CommandResult<PromptLexiconPageDto> {
-        Self::command_result(self.current_app()?.prompt().lexicon_list(request))
+        Self::command_result(self.current_session()?.prompt().lexicon_list(request))
     }
 
     /// Searches prompt lexicon entries.
@@ -148,6 +163,10 @@ where
         request: PromptLexiconSearchQueryDto,
     ) -> CommandResult<PromptLexiconPageDto> {
         let PromptLexiconSearchQueryDto { query, limit } = request;
-        Self::command_result(self.current_app()?.prompt().lexicon_search(&query, limit))
+        Self::command_result(
+            self.current_session()?
+                .prompt()
+                .lexicon_search(&query, limit),
+        )
     }
 }

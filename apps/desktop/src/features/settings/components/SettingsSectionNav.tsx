@@ -1,16 +1,40 @@
-import { Image, KeyRound, MonitorCog, WandSparkles, type LucideIcon } from "lucide-react";
+import {
+  FolderCog,
+  Image,
+  KeyRound,
+  MonitorCog,
+  WandSparkles,
+  type LucideIcon,
+} from "lucide-react";
 import { useCallback } from "react";
 
 import { AppPanel } from "../../../components/ui";
 
-export type SettingsSection = "account" | "generation" | "images" | "frontend";
+export type SettingsSection = "workspace" | "account" | "generation" | "images" | "frontend";
 
-const settingSections: ReadonlyArray<{
+type SettingSection = {
   id: SettingsSection;
   label: string;
   description: string;
   icon: LucideIcon;
-}> = [
+};
+
+const applicationSections: ReadonlyArray<SettingSection> = [
+  {
+    id: "frontend",
+    label: "Interface",
+    description: "Preferences shared across workspaces",
+    icon: MonitorCog,
+  },
+];
+
+const workspaceSections: ReadonlyArray<SettingSection> = [
+  {
+    id: "workspace",
+    label: "Workspace",
+    description: "Current workspace and lifecycle",
+    icon: FolderCog,
+  },
   {
     id: "account",
     label: "Account",
@@ -29,13 +53,7 @@ const settingSections: ReadonlyArray<{
     description: "Stored thumbnail and preview variants",
     icon: Image,
   },
-  {
-    id: "frontend",
-    label: "Frontend",
-    description: "Future app-facing preferences",
-    icon: MonitorCog,
-  },
-] as const;
+];
 
 export function SettingsSectionNav({
   activeSection,
@@ -47,16 +65,48 @@ export function SettingsSectionNav({
   return (
     <AppPanel as="nav" aria-label="Settings sections" className="min-h-0 overflow-hidden">
       <div className="grid gap-1 p-2">
-        {settingSections.map((section) => (
-          <SettingsSectionButton
-            key={section.id}
-            section={section}
-            active={section.id === activeSection}
-            onSelect={onSelect}
-          />
-        ))}
+        <SettingsSectionGroup
+          label="Application"
+          sections={applicationSections}
+          activeSection={activeSection}
+          onSelect={onSelect}
+        />
+        <SettingsSectionGroup
+          label="Workspace"
+          sections={workspaceSections}
+          activeSection={activeSection}
+          onSelect={onSelect}
+        />
       </div>
     </AppPanel>
+  );
+}
+
+function SettingsSectionGroup({
+  label,
+  sections,
+  activeSection,
+  onSelect,
+}: {
+  label: string;
+  sections: ReadonlyArray<SettingSection>;
+  activeSection: SettingsSection;
+  onSelect: (section: SettingsSection) => void;
+}) {
+  return (
+    <div className="grid gap-1">
+      <p className="px-3 pt-2 text-[10px] font-semibold tracking-wider text-app-muted uppercase">
+        {label}
+      </p>
+      {sections.map((section) => (
+        <SettingsSectionButton
+          key={section.id}
+          section={section}
+          active={section.id === activeSection}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -65,7 +115,7 @@ function SettingsSectionButton({
   active,
   onSelect,
 }: {
-  section: (typeof settingSections)[number];
+  section: SettingSection;
   active: boolean;
   onSelect: (section: SettingsSection) => void;
 }) {

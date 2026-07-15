@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use atelier_adapter_database::{DatabaseConnection, DatabaseResourceCatalogRepository};
 use atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
 use atelier_adapter_storage_fs::workspace_database_path;
-use atelier_app::AtelierApp;
+use atelier_app::WorkspaceSession;
 use atelier_app_api::account::CreateApiKeyRequestDto;
 use atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
 use atelier_app_api::gallery::{
@@ -84,8 +84,8 @@ fn stream_submit_request(batch_id: &str, job_id: &str, prompt: &str) -> SubmitGe
 async fn test_app_with_image(
     temp: &tempfile::TempDir,
     image_bytes: Vec<u8>,
-) -> AtelierApp<MemorySecretStore, RecordingFactory> {
-    let app = AtelierApp::open_workspace_with_dependencies(
+) -> WorkspaceSession<MemorySecretStore, RecordingFactory> {
+    let app = WorkspaceSession::open_workspace_with_dependencies(
         temp.path().to_path_buf(),
         MemorySecretStore::default(),
         RecordingFactory::with_image_bytes(image_bytes),

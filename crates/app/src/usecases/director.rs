@@ -1,13 +1,14 @@
 use super::{
-    AppError, AppResult, AtelierApp, DirectorToolResultDto, ImageInputDto, NovelAiClientFactory,
+    AppError, AppResult, DirectorToolResultDto, ImageInputDto, NovelAiClientFactory,
     RunDirectorTool, RunDirectorToolRequest, RunDirectorToolRequestDto, RunHistoryKind,
     RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord, SecretStore,
-    SecretsErrorKind, director_tool_to_domain, gallery_item_to_dto, resource_ref_from_dto,
-    resource_ref_to_dto, resource_variant_kind_as_str, unix_timestamp_ms, visual_asset_role_as_str,
+    SecretsErrorKind, WorkspaceSession, director_tool_to_domain, gallery_item_to_dto,
+    resource_ref_from_dto, resource_ref_to_dto, resource_variant_kind_as_str, unix_timestamp_ms,
+    visual_asset_role_as_str,
 };
 
 pub struct DirectorUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> DirectorUseCases<'_, S, F, E>

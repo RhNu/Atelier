@@ -1,11 +1,11 @@
 use super::{
-    ApiKeyId, ApiKeyRecordDto, AppError, AppResult, AtelierApp, CreateApiKeyRequestDto,
-    NovelAiClientFactory, SecretStore, SecretValue, SubscriptionSummaryDto, UpdateApiKeyRequestDto,
+    ApiKeyId, ApiKeyRecordDto, AppError, AppResult, CreateApiKeyRequestDto, NovelAiClientFactory,
+    SecretStore, SecretValue, SubscriptionSummaryDto, UpdateApiKeyRequestDto, WorkspaceSession,
     api_key_record_to_dto, create_api_key_to_domain, subscription_to_dto,
 };
 
 pub struct AccountUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> AccountUseCases<'_, S, F, E>

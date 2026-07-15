@@ -1,4 +1,4 @@
-import type { WorkspaceSettingsDto } from "../../types";
+import type { GlobalSettingsDto, WorkspaceSettingsDto } from "../../types";
 
 export function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Command failed";
@@ -32,6 +32,12 @@ export function cloneSettings(settings: WorkspaceSettingsDto): WorkspaceSettings
       size: { ...settings.generation.size },
     },
     image_variants: { ...settings.image_variants },
+  };
+}
+
+export function cloneGlobalSettings(settings: GlobalSettingsDto): GlobalSettingsDto {
+  return {
+    last_workspace: settings.last_workspace,
     frontend: {
       gallery: { ...settings.frontend.gallery },
     },

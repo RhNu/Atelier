@@ -9,16 +9,19 @@ import type {
   CreateApiKeyRequestDto,
   DeleteApiKeyRequestDto,
   DeleteApiKeyResponseDto,
+  GlobalSettingsDto,
   ProbeApiKeyRequestDto,
   ResetWorkspaceSettingsResponseDto,
   SetActiveApiKeyRequestDto,
   SubscriptionSummaryDto,
   UpdateApiKeyRequestDto,
+  UpdateGlobalSettingsRequestDto,
   UpdateWorkspaceSettingsRequestDto,
   WorkspaceSettingsDto,
 } from "../types";
 
 const mocks = vi.hoisted(() => ({
+  closeWorkspace: vi.fn<() => void>(),
   accountApi: {
     create: vi.fn<(request: CreateApiKeyRequestDto) => Promise<ApiKeyRecordDto>>(),
     update: vi.fn<(request: UpdateApiKeyRequestDto) => Promise<ApiKeyRecordDto>>(),
@@ -33,12 +36,36 @@ const mocks = vi.hoisted(() => ({
     update: vi.fn<(request: UpdateWorkspaceSettingsRequestDto) => Promise<WorkspaceSettingsDto>>(),
     reset: vi.fn<() => Promise<ResetWorkspaceSettingsResponseDto>>(),
   },
+  globalSettingsApi: {
+    get: vi.fn<() => Promise<GlobalSettingsDto>>(),
+    update: vi.fn<(request: UpdateGlobalSettingsRequestDto) => Promise<GlobalSettingsDto>>(),
+  },
+}));
+
+vi.mock("../features/workspace/useWorkspaceStatus", () => ({
+  useWorkspaceStatus: () => ({
+    workspaceStatus: { root: "D:/atelier", schema_version: 1, locked: true },
+    workspacePending: false,
+    workspaceErrorCode: undefined,
+    workspaceErrorMessage: undefined,
+    restoreFailure: null,
+    openWorkspace: vi.fn<() => void>(),
+    retryWorkspaceRestore: vi.fn<() => void>(),
+    closeWorkspace: mocks.closeWorkspace,
+    openingWorkspace: false,
+    closingWorkspace: false,
+  }),
 }));
 
 vi.mock("../platform/atelier", () => ({
   accountApi: mocks.accountApi,
   settingsApi: mocks.settingsApi,
+  globalSettingsApi: mocks.globalSettingsApi,
   queryKeys: {
+    app: {
+      bootstrap: () => ["app", "bootstrap"],
+      globalSettings: () => ["app", "settings"],
+    },
     account: {
       root: () => ["account"],
       apiKeys: () => ["account", "api-keys"],
@@ -73,6 +100,10 @@ const defaultSettings: WorkspaceSettingsDto = {
     thumbnail_long_edge: 320,
     preview_long_edge: 1024,
   },
+};
+
+const defaultGlobalSettings: GlobalSettingsDto = {
+  last_workspace: "D:/atelier",
   frontend: {
     gallery: {
       blur_sensitive_images: false,
@@ -101,10 +132,23 @@ function lastWorkspaceSettingsUpdate(): UpdateWorkspaceSettingsRequestDto {
   return request;
 }
 
+function lastGlobalSettingsUpdate(): UpdateGlobalSettingsRequestDto {
+  const request = mocks.globalSettingsApi.update.mock.calls.at(-1)?.[0];
+  if (!request) {
+    throw new Error("Expected globalSettingsApi.update to be called.");
+  }
+  return request;
+}
+
 function setup(keys: ApiKeyRecordDto[] = []) {
   mocks.settingsApi.get.mockResolvedValue(cloneSettings());
   mocks.settingsApi.update.mockImplementation(async ({ settings }) => settings);
   mocks.settingsApi.reset.mockResolvedValue({ settings: cloneSettings() });
+  mocks.globalSettingsApi.get.mockResolvedValue(structuredClone(defaultGlobalSettings));
+  mocks.globalSettingsApi.update.mockImplementation(async ({ frontend }) => ({
+    last_workspace: "D:/atelier",
+    frontend,
+  }));
   mocks.accountApi.list.mockResolvedValue(keys);
   mocks.accountApi.create.mockImplementation(async (request) => ({
     id: request.id,
@@ -146,11 +190,12 @@ describe("SettingsPage", () => {
       "aria-current",
       "page",
     );
+    expect(within(sectionNav).getByRole("button", { name: "Workspace" })).toBeInTheDocument();
     expect(within(sectionNav).getByRole("button", { name: "Generation" })).toBeInTheDocument();
     expect(within(sectionNav).getByRole("button", { name: "Images" })).toBeInTheDocument();
-    expect(within(sectionNav).getByRole("button", { name: "Frontend" })).toBeInTheDocument();
+    expect(within(sectionNav).getByRole("button", { name: "Interface" })).toBeInTheDocument();
 
-    await user.click(within(sectionNav).getByRole("button", { name: "Frontend" }));
+    await user.click(within(sectionNav).getByRole("button", { name: "Interface" }));
 
     expect(screen.getByRole("heading", { name: "Frontend Preferences" })).toBeInTheDocument();
     expect(screen.getByLabelText("Blur NSFW images")).toBeInTheDocument();
@@ -321,16 +366,24 @@ describe("SettingsPage", () => {
     expect(mocks.settingsApi.reset).toHaveBeenCalledTimes(1);
   });
 
-  it("saves frontend gallery preferences through workspace settings", async () => {
+  it("saves frontend gallery preferences through global settings", async () => {
     const { user } = setup();
 
-    await user.click(await screen.findByRole("button", { name: "Frontend" }));
+    await user.click(await screen.findByRole("button", { name: "Interface" }));
     await user.click(screen.getByLabelText("Blur NSFW images"));
     await user.click(screen.getByRole("button", { name: "Save frontend preferences" }));
 
-    const request = lastWorkspaceSettingsUpdate();
-    expect(request.settings.frontend.gallery.blur_sensitive_images).toBe(true);
-    expect(request.settings.generation.model).toBe("nai-diffusion-4-5-full");
-    expect(request.settings.image_variants.thumbnail_long_edge).toBe(320);
+    const request = lastGlobalSettingsUpdate();
+    expect(request.frontend.gallery.blur_sensitive_images).toBe(true);
+    expect(mocks.settingsApi.update).not.toHaveBeenCalled();
+  });
+
+  it("closes the current workspace from the workspace settings section", async () => {
+    const { user } = setup();
+
+    await user.click(await screen.findByRole("button", { name: "Workspace" }));
+    await user.click(await screen.findByRole("button", { name: "Close workspace" }));
+
+    expect(mocks.closeWorkspace).toHaveBeenCalledTimes(1);
   });
 });

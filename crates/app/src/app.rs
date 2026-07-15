@@ -28,7 +28,7 @@ use atelier_prompt_resources::{PromptChunkService, PromptCompiler, PromptPresetS
 use atelier_resource_catalog::ResourceCatalog;
 use atelier_safety::SafetyScanner;
 use atelier_secrets::{ApiKeyRegistryService, SecretStore};
-use atelier_settings::SettingsService;
+use atelier_settings::WorkspaceSettingsService;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 use atelier_workspace::{
     WorkspaceLayout, WorkspaceLock, WorkspaceLockLease, WorkspaceLockRequest, WorkspaceRoot,
@@ -48,7 +48,7 @@ use crate::usecases::{
 };
 use crate::{AppResult, error::AppError};
 
-pub struct AtelierApp<
+pub struct WorkspaceSession<
     S = KeyringSecretStore,
     F = ReqwestNovelAiClientFactory,
     E = NovelAiEmbeddedVibeExtractor,
@@ -62,7 +62,7 @@ pub struct AppInner<S, F, E> {
     pub _lease: StdMutex<Box<dyn WorkspaceLockLease>>,
     pub api_keys: AppApiKeyService<S, F>,
     pub active_subscription: StdMutex<Option<SubscriptionSummaryDto>>,
-    pub settings: SettingsService<DatabaseSettingsRepository>,
+    pub settings: WorkspaceSettingsService<DatabaseSettingsRepository>,
     pub settings_state: SharedWorkspaceSettings,
     pub prompt_chunks: PromptChunkService<DatabasePromptResourceRepository>,
     pub prompt_presets: PromptPresetService<DatabasePromptResourceRepository>,
@@ -76,7 +76,9 @@ pub struct AppInner<S, F, E> {
     pub events: AppEventHub,
 }
 
-impl AtelierApp<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbeddedVibeExtractor> {
+impl
+    WorkspaceSession<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbeddedVibeExtractor>
+{
     /// Opens a workspace with native keyring and `NovelAI` adapters.
     ///
     /// # Errors
@@ -92,7 +94,7 @@ impl AtelierApp<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbedded
     }
 }
 
-impl<S, F> AtelierApp<S, F, NovelAiEmbeddedVibeExtractor>
+impl<S, F> WorkspaceSession<S, F, NovelAiEmbeddedVibeExtractor>
 where
     S: SecretStore + Clone + Send + Sync + 'static,
     F: NovelAiClientFactory + Clone + Send + Sync + 'static,
@@ -138,7 +140,7 @@ where
     }
 }
 
-impl<S, F, E> AtelierApp<S, F, E>
+impl<S, F, E> WorkspaceSession<S, F, E>
 where
     S: SecretStore + Clone + Send + Sync + 'static,
     F: NovelAiClientFactory + Clone + Send + Sync + 'static,
@@ -193,7 +195,7 @@ where
         let resource_repository = DatabaseResourceCatalogRepository::new(connection.clone());
         let prompt_repository = DatabasePromptResourceRepository::new(connection.clone());
         let settings_repository = DatabaseSettingsRepository::new(connection.clone());
-        let settings = SettingsService::new(settings_repository);
+        let settings = WorkspaceSettingsService::new(settings_repository);
         let settings_state = SharedWorkspaceSettings::new(settings.get_workspace_settings().await?);
         let blob_store = FileSystemResourceBlobStore::new(root.clone(), layout);
         let resource_reader =
@@ -271,7 +273,7 @@ where
     }
 }
 
-impl<S, F, E> AtelierApp<S, F, E> {
+impl<S, F, E> WorkspaceSession<S, F, E> {
     #[must_use]
     pub const fn workspace(&self) -> WorkspaceUseCases<'_, S, F, E> {
         WorkspaceUseCases { app: self }

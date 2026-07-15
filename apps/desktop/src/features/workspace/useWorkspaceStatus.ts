@@ -4,10 +4,11 @@ import {
   AtelierCommandError,
   clearWorkspaceScopedQueryCache,
   desktopApi,
+  globalSettingsApi,
   queryKeys,
   workspaceApi,
 } from "../../platform/atelier";
-import type { WorkspaceStatusDto } from "../../types";
+import type { AppBootstrapDto, WorkspaceRestoreFailureDto, WorkspaceStatusDto } from "../../types";
 import { resetGenerationEventState } from "../generation/state/generation-event-store";
 
 export type WorkspaceStatusView = {
@@ -15,15 +16,13 @@ export type WorkspaceStatusView = {
   workspacePending: boolean;
   workspaceErrorCode: string | undefined;
   workspaceErrorMessage: string | undefined;
+  restoreFailure: WorkspaceRestoreFailureDto | null;
   openWorkspace: () => void;
+  retryWorkspaceRestore: () => void;
   closeWorkspace: () => void;
   openingWorkspace: boolean;
   closingWorkspace: boolean;
 };
-
-function isWorkspaceNotOpen(error: unknown): boolean {
-  return error instanceof AtelierCommandError && error.code === "workspace_not_open";
-}
 
 function getCommandError(error: unknown): AtelierCommandError | null {
   return error instanceof AtelierCommandError ? error : null;
@@ -32,20 +31,10 @@ function getCommandError(error: unknown): AtelierCommandError | null {
 export function useWorkspaceStatus(): WorkspaceStatusView {
   const queryClient = useQueryClient();
 
-  const statusQuery = useQuery({
-    queryKey: queryKeys.workspace.status(),
-    queryFn: async () => {
-      try {
-        return await workspaceApi.status();
-      } catch (error) {
-        if (isWorkspaceNotOpen(error)) {
-          return null;
-        }
-
-        throw error;
-      }
-    },
-    retry: (failureCount, error) => !isWorkspaceNotOpen(error) && failureCount < 1,
+  const bootstrapQuery = useQuery({
+    queryKey: queryKeys.app.bootstrap(),
+    queryFn: () => workspaceApi.bootstrap(),
+    retry: 1,
   });
 
   const openMutation = useMutation({
@@ -56,17 +45,23 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
         return null;
       }
 
-      return workspaceApi.open({ root });
+      const status = await workspaceApi.open({ root });
+      const globalSettings = await globalSettingsApi.get();
+      return { status, globalSettings };
     },
-    onSuccess: async (status) => {
-      if (!status) {
+    onSuccess: async (result) => {
+      if (!result) {
         return;
       }
 
       resetGenerationEventState();
       await clearWorkspaceScopedQueryCache(queryClient);
-      queryClient.setQueryData(queryKeys.workspace.status(), status);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.workspace.root() });
+      queryClient.setQueryData(queryKeys.app.globalSettings(), result.globalSettings);
+      queryClient.setQueryData<AppBootstrapDto>(queryKeys.app.bootstrap(), {
+        global_settings: result.globalSettings,
+        workspace: result.status,
+        restore_failure: null,
+      });
     },
   });
 
@@ -75,19 +70,24 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
     onSuccess: async () => {
       resetGenerationEventState();
       await clearWorkspaceScopedQueryCache(queryClient);
-      queryClient.setQueryData(queryKeys.workspace.status(), null);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.workspace.root() });
+      queryClient.setQueryData<AppBootstrapDto | undefined>(queryKeys.app.bootstrap(), (current) =>
+        current ? { ...current, workspace: null, restore_failure: null } : current,
+      );
     },
   });
 
-  const error = getCommandError(statusQuery.error ?? openMutation.error ?? closeMutation.error);
+  const error = getCommandError(bootstrapQuery.error ?? openMutation.error ?? closeMutation.error);
 
   return {
-    workspaceStatus: statusQuery.data ?? null,
-    workspacePending: statusQuery.isPending || openMutation.isPending || closeMutation.isPending,
+    workspaceStatus: bootstrapQuery.data?.workspace ?? null,
+    workspacePending: bootstrapQuery.isPending || openMutation.isPending || closeMutation.isPending,
     workspaceErrorCode: error?.code,
     workspaceErrorMessage: error?.message,
+    restoreFailure: bootstrapQuery.data?.restore_failure ?? null,
     openWorkspace: () => openMutation.mutate(),
+    retryWorkspaceRestore: () => {
+      void bootstrapQuery.refetch();
+    },
     closeWorkspace: () => closeMutation.mutate(),
     openingWorkspace: openMutation.isPending,
     closingWorkspace: closeMutation.isPending,

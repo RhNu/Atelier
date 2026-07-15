@@ -19,57 +19,64 @@ function normalizeResourceRef(resource: ResourceRefDto): ResourceRefDto {
 }
 
 export const queryKeys = {
+  app: {
+    root: () => ["app"] as const,
+    bootstrap: () => ["app", "bootstrap"] as const,
+    globalSettings: () => ["app", "settings"] as const,
+  },
   workspace: {
     root: () => ["workspace"] as const,
-    status: () => ["workspace", "status"] as const,
+    status: () => ["app", "workspace-status"] as const,
   },
   account: {
-    root: () => ["account"] as const,
-    apiKeys: () => ["account", "api-keys"] as const,
-    activeProbe: () => ["account", "active-probe"] as const,
-    keyProbe: (id: string) => ["account", "key-probe", id] as const,
+    root: () => ["workspace", "account"] as const,
+    apiKeys: () => ["workspace", "account", "api-keys"] as const,
+    activeProbe: () => ["workspace", "account", "active-probe"] as const,
+    keyProbe: (id: string) => ["workspace", "account", "key-probe", id] as const,
   },
   settings: {
-    root: () => ["settings"] as const,
-    workspace: () => ["settings", "workspace"] as const,
+    root: () => ["workspace", "settings"] as const,
+    workspace: () => ["workspace", "settings"] as const,
   },
   generation: {
-    root: () => ["generation"] as const,
-    status: (jobId?: string | null) => ["generation", "status", jobId ?? null] as const,
-    estimate: (request: unknown) => ["generation", "estimate", request] as const,
+    root: () => ["workspace", "generation"] as const,
+    status: (jobId?: string | null) =>
+      ["workspace", "generation", "status", jobId ?? null] as const,
+    estimate: (request: unknown) => ["workspace", "generation", "estimate", request] as const,
   },
   history: {
-    root: () => ["history"] as const,
-    list: (query: RunHistoryQueryDto) => ["history", "list", query] as const,
+    root: () => ["workspace", "history"] as const,
+    list: (query: RunHistoryQueryDto) => ["workspace", "history", "list", query] as const,
   },
   gallery: {
-    root: () => ["gallery"] as const,
-    list: (query: GalleryQueryKeyInput) => ["gallery", "list", query] as const,
+    root: () => ["workspace", "gallery"] as const,
+    list: (query: GalleryQueryKeyInput) => ["workspace", "gallery", "list", query] as const,
   },
   prompt: {
-    root: () => ["prompt"] as const,
+    root: () => ["workspace", "prompt"] as const,
     chunks: (query?: unknown) =>
       query === undefined
-        ? (["prompt", "chunks"] as const)
-        : (["prompt", "chunks", query] as const),
-    presets: (query: ListPromptPresetsRequestDto) => ["prompt", "presets", query] as const,
-    lexiconCatalog: () => ["prompt", "lexicon", "catalog"] as const,
+        ? (["workspace", "prompt", "chunks"] as const)
+        : (["workspace", "prompt", "chunks", query] as const),
+    presets: (query: ListPromptPresetsRequestDto) =>
+      ["workspace", "prompt", "presets", query] as const,
+    lexiconCatalog: () => ["workspace", "prompt", "lexicon", "catalog"] as const,
     lexiconList: (query: PromptLexiconListQueryDto) =>
-      ["prompt", "lexicon", "list", query] as const,
+      ["workspace", "prompt", "lexicon", "list", query] as const,
     lexiconSearch: (query: PromptLexiconSearchQueryDto) =>
-      ["prompt", "lexicon", "search", query] as const,
+      ["workspace", "prompt", "lexicon", "search", query] as const,
   },
   resource: {
-    root: () => ["resource"] as const,
+    root: () => ["workspace", "resource"] as const,
     image: (resource: ResourceRefDto) =>
-      ["resource", "image", normalizeResourceRef(resource)] as const,
+      ["workspace", "resource", "image", normalizeResourceRef(resource)] as const,
   },
   vibe: {
-    root: () => ["vibe"] as const,
-    list: (query: ListVibeDocumentsRequestDto) => ["vibe", "list", query] as const,
-    get: (vibeId: string) => ["vibe", "get", vibeId] as const,
+    root: () => ["workspace", "vibe"] as const,
+    list: (query: ListVibeDocumentsRequestDto) => ["workspace", "vibe", "list", query] as const,
+    get: (vibeId: string) => ["workspace", "vibe", "get", vibeId] as const,
   },
   director: {
-    root: () => ["director"] as const,
+    root: () => ["workspace", "director"] as const,
   },
 } as const;

@@ -55,7 +55,7 @@ Desktop host boundaries:
 Cache guidance:
 
 - Query keys are grouped by product domain in `platform/atelier/query-keys.ts`.
-- Workspace-scoped query cache must be cleared when the active workspace changes or closes.
+- Query keys use explicit `app` and `workspace` prefixes. Workspace-scoped query cache must be cleared when the active workspace changes or closes, while bootstrap and global settings remain cached.
 - Event invalidation should target domain roots such as generation, history, gallery, resource, account, or settings.
 - Mutations should either update the exact query data returned by the command or invalidate the smallest useful domain.
 
@@ -74,14 +74,15 @@ Settings pages should use a second-level section navigator inside the Settings r
 
 ## Settings Scope
 
-The current Settings frontend implements existing backend capabilities only:
+The current Settings frontend separates application and workspace scopes:
 
+- Application / Interface: global Gallery SFW blur preference stored in the user configuration directory.
+- Workspace: current workspace path and lifecycle action.
 - Account: API key registry, active key, and explicit subscription probe.
 - Generation: workspace-local NovelAI image defaults.
 - Images: resource thumbnail and preview long-edge sizes.
-- Frontend: workspace-local Gallery SFW blur preference; other UI preferences remain out of scope.
 
-Do not add UI preference persistence, runtime/network settings, or artifacts root settings without a separate app-api/backend design note.
+Do not add runtime/network settings or artifacts root settings without a separate app-api/backend design note.
 
 ## Testing
 

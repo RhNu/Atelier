@@ -1,17 +1,16 @@
 use super::{
-    AppResult, FrontendGallerySettings, FrontendGallerySettingsDto, FrontendSettings,
-    FrontendSettingsDto, GenerationDefaults, GenerationDefaultsDto, ImageSize, ImageSizeDto,
-    ImageVariantSettings, ImageVariantSettingsDto, WorkspaceSettings, WorkspaceSettingsDto,
-    image_format_to_domain, image_format_to_dto, image_model_to_domain, image_model_to_dto,
-    noise_schedule_to_domain, noise_schedule_to_dto, sampler_to_domain, sampler_to_dto,
-    uc_preset_to_domain, uc_preset_to_dto,
+    AppResult, GenerationDefaults, GenerationDefaultsDto, GlobalFrontendSettings,
+    GlobalFrontendSettingsDto, GlobalGallerySettings, GlobalGallerySettingsDto, GlobalSettings,
+    GlobalSettingsDto, ImageSize, ImageSizeDto, ImageVariantSettings, ImageVariantSettingsDto,
+    WorkspaceSettings, WorkspaceSettingsDto, image_format_to_domain, image_format_to_dto,
+    image_model_to_domain, image_model_to_dto, noise_schedule_to_domain, noise_schedule_to_dto,
+    sampler_to_domain, sampler_to_dto, uc_preset_to_domain, uc_preset_to_dto,
 };
 
 pub fn workspace_settings_to_dto(value: &WorkspaceSettings) -> WorkspaceSettingsDto {
     WorkspaceSettingsDto {
         generation: generation_defaults_to_dto(&value.generation),
         image_variants: image_variant_settings_to_dto(value.image_variants),
-        frontend: frontend_settings_to_dto(value.frontend),
     }
 }
 
@@ -19,23 +18,33 @@ pub fn workspace_settings_to_domain(value: &WorkspaceSettingsDto) -> AppResult<W
     let settings = WorkspaceSettings {
         generation: generation_defaults_to_domain(&value.generation),
         image_variants: image_variant_settings_to_domain(value.image_variants),
-        frontend: frontend_settings_to_domain(value.frontend),
     };
     settings.validate()?;
     Ok(settings)
 }
 
-const fn frontend_settings_to_dto(value: FrontendSettings) -> FrontendSettingsDto {
-    FrontendSettingsDto {
-        gallery: FrontendGallerySettingsDto {
+pub fn global_settings_to_dto(value: &GlobalSettings) -> GlobalSettingsDto {
+    GlobalSettingsDto {
+        last_workspace: value.last_workspace.clone(),
+        frontend: global_frontend_settings_to_dto(value.frontend),
+    }
+}
+
+pub const fn global_frontend_settings_to_domain(
+    value: GlobalFrontendSettingsDto,
+) -> GlobalFrontendSettings {
+    GlobalFrontendSettings {
+        gallery: GlobalGallerySettings {
             blur_sensitive_images: value.gallery.blur_sensitive_images,
         },
     }
 }
 
-const fn frontend_settings_to_domain(value: FrontendSettingsDto) -> FrontendSettings {
-    FrontendSettings {
-        gallery: FrontendGallerySettings {
+const fn global_frontend_settings_to_dto(
+    value: GlobalFrontendSettings,
+) -> GlobalFrontendSettingsDto {
+    GlobalFrontendSettingsDto {
+        gallery: GlobalGallerySettingsDto {
             blur_sensitive_images: value.gallery.blur_sensitive_images,
         },
     }

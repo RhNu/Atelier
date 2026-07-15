@@ -1,13 +1,13 @@
 import { useCallback } from "react";
 
 import { AppButton, AppPanel } from "../../../components/ui";
-import type { WorkspaceSettingsDto } from "../../../types";
+import type { GlobalSettingsDto } from "../../../types";
 import { CheckboxField, SectionHeader } from "./SettingsControls";
 
 type FrontendSettingsSectionProps = {
-  draft: WorkspaceSettingsDto;
-  updateDraft: (draft: WorkspaceSettingsDto) => void;
-  saveSettings: (settings: WorkspaceSettingsDto) => void;
+  draft: GlobalSettingsDto;
+  updateDraft: (draft: GlobalSettingsDto) => void;
+  saveSettings: (settings: GlobalSettingsDto) => void;
   saving: boolean;
   commandError: string | null;
 };
@@ -43,7 +43,7 @@ export function FrontendSettingsSection({
       <SectionHeader
         kicker="Frontend"
         title="Frontend Preferences"
-        description="Workspace-local interface behavior for NovelAI creative review."
+        description="Application-wide interface behavior shared across Atelier workspaces."
       >
         <AppButton onClick={handleSave} disabled={saving}>
           {saving ? "Saving frontend preferences" : "Save frontend preferences"}

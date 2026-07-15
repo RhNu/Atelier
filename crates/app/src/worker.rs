@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use atelier_app_api::generation::{QueueDelayDto, QueueDirectiveDto, RunGenerationJobRequestDto};
 use futures_timer::Delay;
 
-use crate::commands::{AppCommandHost, CommandResult};
+use crate::commands::{AtelierRuntime, CommandResult};
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
@@ -33,7 +33,7 @@ impl GenerationWorkerCancel {
     }
 }
 
-impl<S, F, E> AppCommandHost<S, F, E>
+impl<S, F, E> AtelierRuntime<S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,

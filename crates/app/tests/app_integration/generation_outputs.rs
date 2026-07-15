@@ -6,7 +6,7 @@ fn open_workspace_initializes_lexicon_and_generation_is_explicitly_driven() {
         let temp = tempfile::tempdir().unwrap();
         let secrets = MemorySecretStore::default();
         let factory = RecordingFactory::default();
-        let app = AtelierApp::open_workspace_with_dependencies(
+        let app = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             secrets,
             factory.clone(),
@@ -87,7 +87,7 @@ fn valid_generated_images_get_best_effort_gallery_variants() {
         let temp = tempfile::tempdir().unwrap();
         let secrets = MemorySecretStore::default();
         let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
-        let app = AtelierApp::open_workspace_with_dependencies(
+        let app = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             secrets,
             factory,
@@ -153,7 +153,7 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
         let temp = tempfile::tempdir().unwrap();
         let secrets = MemorySecretStore::default();
         let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
-        let app = AtelierApp::open_workspace_with_dependencies(
+        let app = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             secrets,
             factory.clone(),
@@ -269,7 +269,7 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
 fn generation_estimate_applies_character_prompt_presets() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
-        let app = AtelierApp::open_workspace_with_dependencies(
+        let app = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             MemorySecretStore::default(),
             RecordingFactory::default(),
@@ -440,7 +440,7 @@ fn resource_backed_generation_inputs_are_resolved_before_novelai_submission() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
         let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
-        let app = AtelierApp::open_workspace_with_dependencies(
+        let app = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             MemorySecretStore::default(),
             factory.clone(),

@@ -1,7 +1,7 @@
-use super::{AppEventDto, AtelierApp};
+use super::{AppEventDto, WorkspaceSession};
 
 pub struct EventsUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> EventsUseCases<'_, S, F, E> {

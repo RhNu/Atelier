@@ -55,8 +55,9 @@ use atelier_app_api::{
         ResourceImageDto, ResourceRefDto, SaveResourceImageRequestDto,
     },
     settings::{
-        GenerationDefaultsDto, ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto,
-        UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+        GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto,
+        GlobalSettingsDto, ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto,
+        UpdateGlobalSettingsRequestDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
     },
     vibe::{
         EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
@@ -66,7 +67,10 @@ use atelier_app_api::{
         SetVibeDocumentHiddenRequestDto, VibeDocumentEntryDto, VibeDocumentPageDto,
         VibeEncodingConfigDto, VibeExportFormatDto, VibeModelDto,
     },
-    workspace::{CloseWorkspaceResponseDto, OpenWorkspaceRequestDto, WorkspaceStatusDto},
+    workspace::{
+        AppBootstrapDto, CloseWorkspaceResponseDto, OpenWorkspaceRequestDto,
+        WorkspaceRestoreFailureDto, WorkspaceStatusDto,
+    },
 };
 use ts_rs::{Config, TS};
 
@@ -292,6 +296,10 @@ fn export_settings_types(config: &Config) -> Result<(), String> {
         WorkspaceSettingsDto,
         GenerationDefaultsDto,
         ImageVariantSettingsDto,
+        GlobalSettingsDto,
+        GlobalFrontendSettingsDto,
+        GlobalGallerySettingsDto,
+        UpdateGlobalSettingsRequestDto,
         UpdateWorkspaceSettingsRequestDto,
         ResetWorkspaceSettingsResponseDto,
     )
@@ -324,6 +332,8 @@ fn export_workspace_types(config: &Config) -> Result<(), String> {
         config,
         OpenWorkspaceRequestDto,
         WorkspaceStatusDto,
+        WorkspaceRestoreFailureDto,
+        AppBootstrapDto,
         CloseWorkspaceResponseDto,
     )
 }

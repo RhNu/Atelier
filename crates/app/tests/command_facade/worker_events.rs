@@ -86,7 +86,7 @@ fn generation_events_and_gallery_commands_share_session() {
 }
 
 async fn assert_gallery_delete_removes_indexed_outputs(
-    host: &AppCommandHost<MemorySecretStore, RecordingFactory>,
+    host: &AtelierRuntime<MemorySecretStore, RecordingFactory>,
     item_id: String,
 ) {
     let overridden = host

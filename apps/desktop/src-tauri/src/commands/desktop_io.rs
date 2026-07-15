@@ -22,7 +22,9 @@ use atelier_app_api::{
         ExportVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
         ImportVibeDocumentRequestDto, ImportedVibeDocumentsDto,
     },
-    workspace::{CloseWorkspaceResponseDto, OpenWorkspaceRequestDto, WorkspaceStatusDto},
+    workspace::{
+        AppBootstrapDto, CloseWorkspaceResponseDto, OpenWorkspaceRequestDto, WorkspaceStatusDto,
+    },
 };
 
 use crate::{
@@ -224,6 +226,15 @@ pub fn reveal_path(state: State<'_, DesktopState>, path: PathBuf) -> CommandResu
 }
 
 #[tauri::command]
+pub async fn bootstrap_app(state: State<'_, DesktopState>) -> CommandResult<AppBootstrapDto> {
+    let bootstrap = state.host.bootstrap_app().await?;
+    if let Some(workspace) = &bootstrap.workspace {
+        desktop_result(state.system.allow_user_path(&workspace.root))?;
+    }
+    Ok(bootstrap)
+}
+
+#[tauri::command]
 pub async fn open_workspace(
     state: State<'_, DesktopState>,
     request: OpenWorkspaceRequestDto,
@@ -236,7 +247,9 @@ pub async fn open_workspace(
 }
 
 #[tauri::command]
-pub fn workspace_status(state: State<'_, DesktopState>) -> CommandResult<WorkspaceStatusDto> {
+pub fn workspace_status(
+    state: State<'_, DesktopState>,
+) -> CommandResult<Option<WorkspaceStatusDto>> {
     state.host.workspace_status()
 }
 

@@ -9,9 +9,9 @@ use atelier_app_api::vibe::{
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
-use crate::commands::{AppCommandHost, CommandResult};
+use crate::commands::{AtelierRuntime, CommandResult};
 
-impl<S, F, E> AppCommandHost<S, F, E>
+impl<S, F, E> AtelierRuntime<S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
@@ -25,7 +25,12 @@ where
         &self,
         request: ImportVibeDocumentRequestDto,
     ) -> CommandResult<ImportedVibeDocumentsDto> {
-        Self::command_result(self.current_app()?.vibe().import_document(request).await)
+        Self::command_result(
+            self.current_session()?
+                .vibe()
+                .import_document(request)
+                .await,
+        )
     }
 
     /// Imports a Vibe document embedded in PNG metadata.
@@ -37,7 +42,7 @@ where
         request: ImportEmbeddedPngVibeDocumentRequestDto,
     ) -> CommandResult<ImportedVibeDocumentsDto> {
         Self::command_result(
-            self.current_app()?
+            self.current_session()?
                 .vibe()
                 .import_embedded_png(request)
                 .await,
@@ -52,7 +57,12 @@ where
         &self,
         request: ExportVibeDocumentRequestDto,
     ) -> CommandResult<ExportedVibeDocumentDto> {
-        Self::command_result(self.current_app()?.vibe().export_document(request).await)
+        Self::command_result(
+            self.current_session()?
+                .vibe()
+                .export_document(request)
+                .await,
+        )
     }
 
     /// Lists workspace-scoped Vibe documents available to generation.
@@ -63,7 +73,7 @@ where
         &self,
         request: ListVibeDocumentsRequestDto,
     ) -> CommandResult<VibeDocumentPageDto> {
-        Self::command_result(self.current_app()?.vibe().list_documents(request).await)
+        Self::command_result(self.current_session()?.vibe().list_documents(request).await)
     }
 
     /// Reads one workspace-scoped Vibe document entry.
@@ -74,7 +84,7 @@ where
         &self,
         request: GetVibeDocumentRequestDto,
     ) -> CommandResult<VibeDocumentEntryDto> {
-        Self::command_result(self.current_app()?.vibe().get_document(request).await)
+        Self::command_result(self.current_session()?.vibe().get_document(request).await)
     }
 
     /// Ensures a Vibe encoding exists for the requested model/settings.
@@ -85,7 +95,12 @@ where
         &self,
         request: EnsureVibeEncodingRequestDto,
     ) -> CommandResult<EnsuredVibeEncodingDto> {
-        Self::command_result(self.current_app()?.vibe().ensure_encoding(request).await)
+        Self::command_result(
+            self.current_session()?
+                .vibe()
+                .ensure_encoding(request)
+                .await,
+        )
     }
 
     /// Renames a managed Vibe document.
@@ -96,7 +111,12 @@ where
         &self,
         request: RenameVibeDocumentRequestDto,
     ) -> CommandResult<VibeDocumentEntryDto> {
-        Self::command_result(self.current_app()?.vibe().rename_document(request).await)
+        Self::command_result(
+            self.current_session()?
+                .vibe()
+                .rename_document(request)
+                .await,
+        )
     }
 
     /// Soft-hides or restores a managed Vibe document.
@@ -108,7 +128,7 @@ where
         request: SetVibeDocumentHiddenRequestDto,
     ) -> CommandResult<VibeDocumentEntryDto> {
         Self::command_result(
-            self.current_app()?
+            self.current_session()?
                 .vibe()
                 .set_document_hidden(request)
                 .await,

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
 
 use crate::{SettingsError, SettingsResult};
@@ -8,7 +10,6 @@ const VARIANT_LONG_EDGE_MAX: u32 = 4096;
 pub struct WorkspaceSettings {
     pub generation: GenerationDefaults,
     pub image_variants: ImageVariantSettings,
-    pub frontend: FrontendSettings,
 }
 
 impl WorkspaceSettings {
@@ -105,13 +106,19 @@ impl ImageVariantSettings {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub struct FrontendSettings {
-    pub gallery: FrontendGallerySettings,
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct GlobalSettings {
+    pub last_workspace: Option<PathBuf>,
+    pub frontend: GlobalFrontendSettings,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub struct FrontendGallerySettings {
+pub struct GlobalFrontendSettings {
+    pub gallery: GlobalGallerySettings,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct GlobalGallerySettings {
     pub blur_sensitive_images: bool,
 }
 

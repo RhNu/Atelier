@@ -3,8 +3,9 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
 use atelier_settings::{
-    FrontendGallerySettings, FrontendSettings, GenerationDefaults, ImageVariantSettings,
-    SettingsRepository, SettingsResult, SettingsService, WorkspaceSettings,
+    GenerationDefaults, GlobalFrontendSettings, GlobalGallerySettings, GlobalSettings,
+    GlobalSettingsRepository, GlobalSettingsService, ImageVariantSettings, SettingsResult,
+    WorkspaceSettings, WorkspaceSettingsRepository, WorkspaceSettingsService,
 };
 use futures_executor::block_on;
 
@@ -23,7 +24,6 @@ fn workspace_settings_defaults_are_novelai_oriented() {
     assert_eq!(settings.generation.image_format, None);
     assert_eq!(settings.image_variants.thumbnail_long_edge, 320);
     assert_eq!(settings.image_variants.preview_long_edge, 1024);
-    assert!(!settings.frontend.gallery.blur_sensitive_images);
 }
 
 #[test]
@@ -48,8 +48,8 @@ fn settings_validation_rejects_invalid_variant_and_generation_scalars() {
 #[test]
 fn settings_service_defaults_saves_and_resets_workspace_settings() {
     block_on(async {
-        let repository = MemorySettingsRepository::default();
-        let service = SettingsService::new(repository.clone());
+        let repository = MemoryWorkspaceSettingsRepository::default();
+        let service = WorkspaceSettingsService::new(repository.clone());
 
         assert_eq!(
             service.get_workspace_settings().await.unwrap(),
@@ -77,11 +77,6 @@ fn settings_service_defaults_saves_and_resets_workspace_settings() {
                 thumbnail_long_edge: 256,
                 preview_long_edge: 768,
             },
-            frontend: FrontendSettings {
-                gallery: FrontendGallerySettings {
-                    blur_sensitive_images: true,
-                },
-            },
         };
 
         assert_eq!(
@@ -104,13 +99,38 @@ fn settings_service_defaults_saves_and_resets_workspace_settings() {
     });
 }
 
+#[test]
+fn global_settings_service_preserves_lifecycle_state_when_updating_frontend() {
+    block_on(async {
+        let repository = MemoryGlobalSettingsRepository::default();
+        let service = GlobalSettingsService::new(Arc::new(repository));
+
+        let workspace = std::path::PathBuf::from("D:/atelier");
+        service
+            .record_last_workspace(workspace.clone())
+            .await
+            .unwrap();
+        let settings = service
+            .update_frontend_settings(GlobalFrontendSettings {
+                gallery: GlobalGallerySettings {
+                    blur_sensitive_images: true,
+                },
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(settings.last_workspace, Some(workspace));
+        assert!(settings.frontend.gallery.blur_sensitive_images);
+    });
+}
+
 #[derive(Clone, Default)]
-struct MemorySettingsRepository {
+struct MemoryWorkspaceSettingsRepository {
     state: Arc<Mutex<Option<WorkspaceSettings>>>,
 }
 
 #[async_trait]
-impl SettingsRepository for MemorySettingsRepository {
+impl WorkspaceSettingsRepository for MemoryWorkspaceSettingsRepository {
     async fn get_workspace_settings(&self) -> SettingsResult<WorkspaceSettings> {
         Ok(self.state.lock().unwrap().clone().unwrap_or_default())
     }
@@ -122,6 +142,23 @@ impl SettingsRepository for MemorySettingsRepository {
 
     async fn reset_workspace_settings(&self) -> SettingsResult<()> {
         *self.state.lock().unwrap() = None;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Default)]
+struct MemoryGlobalSettingsRepository {
+    state: Arc<Mutex<GlobalSettings>>,
+}
+
+#[async_trait]
+impl GlobalSettingsRepository for MemoryGlobalSettingsRepository {
+    async fn get_global_settings(&self) -> SettingsResult<GlobalSettings> {
+        Ok(self.state.lock().unwrap().clone())
+    }
+
+    async fn save_global_settings(&self, settings: GlobalSettings) -> SettingsResult<()> {
+        *self.state.lock().unwrap() = settings;
         Ok(())
     }
 }

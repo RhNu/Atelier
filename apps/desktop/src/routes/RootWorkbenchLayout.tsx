@@ -22,9 +22,10 @@ export function RootWorkbenchLayout() {
       workspacePending={workspace.workspacePending}
       workspaceErrorCode={workspace.workspaceErrorCode}
       workspaceErrorMessage={workspace.workspaceErrorMessage}
+      restoreFailure={workspace.restoreFailure}
       activePath={location.pathname}
       onOpenWorkspace={workspace.openWorkspace}
-      onCloseWorkspace={workspace.closeWorkspace}
+      onRetryWorkspaceRestore={workspace.retryWorkspaceRestore}
       onNavigate={handleNavigate}
     >
       <Outlet />

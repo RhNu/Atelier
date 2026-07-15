@@ -1,8 +1,7 @@
 use super::{
-    AppError, AppResult, AtelierApp, GalleryItemId, GalleryPageDto, GalleryQueryDto,
-    GallerySafetyOverrideDto, gallery_image_reference_to_dto, gallery_item_to_dto,
-    gallery_page_to_dto, gallery_query_to_domain, image_reference_target_to_domain,
-    safety_override_to_domain,
+    AppError, AppResult, GalleryItemId, GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto,
+    WorkspaceSession, gallery_image_reference_to_dto, gallery_item_to_dto, gallery_page_to_dto,
+    gallery_query_to_domain, image_reference_target_to_domain, safety_override_to_domain,
 };
 use atelier_adapter_database::{GalleryHardDeletePlan, GalleryTransientOwner};
 use atelier_app_api::gallery::{DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto};
@@ -10,7 +9,7 @@ use atelier_artifacts::ArtifactSource;
 use atelier_gallery::GalleryItem;
 
 pub struct GalleryUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> GalleryUseCases<'_, S, F, E>

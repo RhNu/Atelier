@@ -13,11 +13,11 @@ use base64::engine::general_purpose::STANDARD;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::AppResult;
-use crate::app::AtelierApp;
+use crate::app::WorkspaceSession;
 use crate::mapping::{resource_ref_from_dto, resource_ref_to_dto};
 
 pub struct ResourceUseCases<'a, S, F, E> {
-    pub(crate) app: &'a AtelierApp<S, F, E>,
+    pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
 
 impl<S, F, E> ResourceUseCases<'_, S, F, E>

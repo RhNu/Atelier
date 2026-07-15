@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   desktopApi,
   galleryApi,
+  globalSettingsApi,
   queryKeys,
   resourceApi,
   resourceImageToDataUrl,
-  settingsApi,
 } from "../../../platform/atelier";
 import type {
   DeleteGalleryItemsRequestDto,
@@ -26,14 +26,16 @@ export function useGalleryPageQuery(query: GalleryQueryDto) {
 
 export function useGallerySettingsQuery() {
   return useQuery({
-    queryKey: queryKeys.settings.workspace(),
-    queryFn: () => settingsApi.get(),
+    queryKey: queryKeys.app.globalSettings(),
+    queryFn: () => globalSettingsApi.get(),
   });
 }
 
 export function useGalleryImageQuery(resource: ResourceRefDto | null) {
   return useQuery({
-    queryKey: resource ? queryKeys.resource.image(resource) : ["resource", "image", null],
+    queryKey: resource
+      ? queryKeys.resource.image(resource)
+      : ["workspace", "resource", "image", null],
     queryFn: async () => {
       if (!resource) {
         throw new Error("resource is required");

@@ -4,8 +4,7 @@ use super::*;
 fn commands_require_open_workspace_and_close_session() {
     block_on(async {
         let host = test_host();
-        let error = host.workspace_status().unwrap_err();
-        assert_eq!(error.code, "workspace_not_open");
+        assert!(host.workspace_status().unwrap().is_none());
 
         let temp = tempfile::tempdir().unwrap();
         let status = host
@@ -31,12 +30,34 @@ fn commands_require_open_workspace_and_close_session() {
             .await
             .unwrap_err();
         assert_ne!(error.code, "workspace_not_open");
-        assert_eq!(host.workspace_status().unwrap().root, temp.path());
+        assert_eq!(host.workspace_status().unwrap().unwrap().root, temp.path());
 
         let closed = host.close_workspace().unwrap();
         assert!(closed.was_open);
-        let error = host.workspace_status().unwrap_err();
-        assert_eq!(error.code, "workspace_not_open");
+        assert!(host.workspace_status().unwrap().is_none());
+
+        let bootstrap = host.bootstrap_app().await.unwrap();
+        assert_eq!(bootstrap.workspace.unwrap().root, temp.path());
+    });
+}
+
+#[test]
+fn bootstrap_preserves_failed_recent_workspace_for_retry() {
+    block_on(async {
+        let invalid_root = tempfile::NamedTempFile::new().unwrap();
+        let root = invalid_root.path().to_path_buf();
+        let host = test_host_with_global_settings(GlobalSettings {
+            last_workspace: Some(root.clone()),
+            ..GlobalSettings::default()
+        });
+
+        let bootstrap = host.bootstrap_app().await.unwrap();
+
+        assert!(bootstrap.workspace.is_none());
+        let failure = bootstrap.restore_failure.unwrap();
+        assert_eq!(failure.root, root);
+        assert_eq!(bootstrap.global_settings.last_workspace, Some(failure.root));
+        assert!(host.workspace_status().unwrap().is_none());
     });
 }
 
@@ -229,7 +250,7 @@ fn resource_import_command_is_available_through_facade() {
 }
 
 #[test]
-fn reopening_workspace_cleans_stale_imported_images() {
+fn reopening_closed_workspace_cleans_stale_imported_images() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
         let host = test_host();
@@ -243,6 +264,7 @@ fn reopening_workspace_cleans_stale_imported_images() {
             .await
             .unwrap();
 
+        host.close_workspace().unwrap();
         open_workspace(&host, &temp).await;
 
         assert!(
@@ -300,7 +322,6 @@ fn settings_commands_persist_across_workspace_reopen() {
         let defaults = host.get_workspace_settings().await.unwrap();
         assert_eq!(defaults.image_variants.thumbnail_long_edge, 320);
         assert_eq!(defaults.image_variants.preview_long_edge, 1024);
-        assert!(!defaults.frontend.gallery.blur_sensitive_images);
 
         let updated = WorkspaceSettingsDto {
             generation: GenerationDefaultsDto {
@@ -311,11 +332,6 @@ fn settings_commands_persist_across_workspace_reopen() {
             image_variants: ImageVariantSettingsDto {
                 thumbnail_long_edge: 256,
                 preview_long_edge: 768,
-            },
-            frontend: FrontendSettingsDto {
-                gallery: FrontendGallerySettingsDto {
-                    blur_sensitive_images: true,
-                },
             },
         };
         assert_eq!(
@@ -336,6 +352,43 @@ fn settings_commands_persist_across_workspace_reopen() {
         assert_eq!(
             host.get_workspace_settings().await.unwrap(),
             WorkspaceSettingsDto::default()
+        );
+    });
+}
+
+#[test]
+fn global_settings_preserve_last_workspace_and_update_frontend_independently() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host();
+        open_workspace(&host, &temp).await;
+
+        let settings = host.get_global_settings().await.unwrap();
+        assert_eq!(settings.last_workspace.as_deref(), Some(temp.path()));
+        assert!(!settings.frontend.gallery.blur_sensitive_images);
+
+        let updated = host
+            .update_global_settings(UpdateGlobalSettingsRequestDto {
+                frontend: GlobalFrontendSettingsDto {
+                    gallery: GlobalGallerySettingsDto {
+                        blur_sensitive_images: true,
+                    },
+                },
+            })
+            .await
+            .unwrap();
+        assert_eq!(updated.last_workspace.as_deref(), Some(temp.path()));
+        assert!(updated.frontend.gallery.blur_sensitive_images);
+
+        host.close_workspace().unwrap();
+        let bootstrap = host.bootstrap_app().await.unwrap();
+        assert_eq!(bootstrap.workspace.unwrap().root, temp.path());
+        assert!(
+            bootstrap
+                .global_settings
+                .frontend
+                .gallery
+                .blur_sensitive_images
         );
     });
 }

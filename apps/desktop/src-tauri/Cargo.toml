@@ -24,8 +24,10 @@ log = "0.4"
 atelier-adapter-keyring = { workspace = true }
 atelier-adapter-novelai = { workspace = true }
 atelier-adapter-safety-onnx = { workspace = true }
+atelier-adapter-settings-fs = { workspace = true }
 atelier-app = { workspace = true }
 atelier-app-api = { workspace = true }
+atelier-settings = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tauri = { version = "2.10.3", features = [] }

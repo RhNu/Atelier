@@ -4,9 +4,9 @@ use atelier_app_api::gallery::{
     SetGallerySafetyOverrideRequestDto,
 };
 
-use crate::commands::{AppCommandHost, CommandResult};
+use crate::commands::{AtelierRuntime, CommandResult};
 
-impl<S, F, E> AppCommandHost<S, F, E>
+impl<S, F, E> AtelierRuntime<S, F, E>
 where
     S: Send + Sync,
     F: Send + Sync,
@@ -17,7 +17,7 @@ where
     /// # Errors
     /// Returns an error envelope when no workspace is open or gallery storage fails.
     pub async fn query_gallery(&self, request: GalleryQueryDto) -> CommandResult<GalleryPageDto> {
-        Self::command_result(self.current_app()?.gallery().query(request).await)
+        Self::command_result(self.current_session()?.gallery().query(request).await)
     }
 
     /// Sets or clears a manual gallery safety override.
@@ -29,7 +29,7 @@ where
         request: SetGallerySafetyOverrideRequestDto,
     ) -> CommandResult<GalleryItemDto> {
         Self::command_result(
-            self.current_app()?
+            self.current_session()?
                 .gallery()
                 .set_safety_override(&request.item_id, request.manual_safety_override)
                 .await,
@@ -44,7 +44,12 @@ where
         &self,
         request: DeleteGalleryItemsRequestDto,
     ) -> CommandResult<DeleteGalleryItemsResponseDto> {
-        Self::command_result(self.current_app()?.gallery().delete_items(request).await)
+        Self::command_result(
+            self.current_session()?
+                .gallery()
+                .delete_items(request)
+                .await,
+        )
     }
 
     /// Returns a resource reference suitable for downstream image handoff.
@@ -55,6 +60,11 @@ where
         &self,
         request: GalleryImageReferenceRequestDto,
     ) -> CommandResult<GalleryImageReferenceDto> {
-        Self::command_result(self.current_app()?.gallery().image_reference(request).await)
+        Self::command_result(
+            self.current_session()?
+                .gallery()
+                .image_reference(request)
+                .await,
+        )
     }
 }

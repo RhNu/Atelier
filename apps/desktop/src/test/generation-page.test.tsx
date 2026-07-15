@@ -197,11 +197,6 @@ const defaultSettings: WorkspaceSettingsDto = {
     thumbnail_long_edge: 320,
     preview_long_edge: 1024,
   },
-  frontend: {
-    gallery: {
-      blur_sensitive_images: false,
-    },
-  },
 };
 
 function appEvent(kind: AppEventDto["kind"], sequence = 1): AppEventDto {

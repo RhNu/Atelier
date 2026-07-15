@@ -6,7 +6,7 @@ fn generation_queue_recovers_as_paused_after_workspace_reopen() {
         let temp = tempfile::tempdir().unwrap();
         let secrets = MemorySecretStore::default();
         let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
-        let app = AtelierApp::open_workspace_with_dependencies(
+        let app = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             secrets.clone(),
             factory.clone(),
@@ -28,7 +28,7 @@ fn generation_queue_recovers_as_paused_after_workspace_reopen() {
             .unwrap();
         drop(app);
 
-        let reopened = AtelierApp::open_workspace_with_dependencies(
+        let reopened = WorkspaceSession::open_workspace_with_dependencies(
             temp.path().to_path_buf(),
             secrets,
             factory,

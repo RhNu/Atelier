@@ -1,7 +1,7 @@
 use atelier_adapter_database::{DatabaseConnection, DatabaseSettingsRepository};
 use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
 use atelier_settings::{
-    GenerationDefaults, ImageVariantSettings, SettingsRepository, WorkspaceSettings,
+    GenerationDefaults, ImageVariantSettings, WorkspaceSettings, WorkspaceSettingsRepository,
 };
 use futures_executor::block_on;
 use rusqlite::Connection;
@@ -40,11 +40,6 @@ fn settings_repository_defaults_saves_reopens_and_resets() {
                 thumbnail_long_edge: 240,
                 preview_long_edge: 900,
             },
-            frontend: atelier_settings::FrontendSettings {
-                gallery: atelier_settings::FrontendGallerySettings {
-                    blur_sensitive_images: true,
-                },
-            },
         };
 
         repository
@@ -65,7 +60,7 @@ fn settings_repository_defaults_saves_reopens_and_resets() {
 }
 
 #[test]
-fn settings_repository_reads_old_payloads_with_frontend_defaults() {
+fn settings_repository_reads_workspace_payload_without_global_fields() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("atelier.sqlite3");
@@ -105,8 +100,7 @@ fn settings_repository_reads_old_payloads_with_frontend_defaults() {
 
         let repository = DatabaseSettingsRepository::new(DatabaseConnection::open(&path).unwrap());
         let settings = repository.get_workspace_settings().await.unwrap();
-
-        assert!(!settings.frontend.gallery.blur_sensitive_images);
+        assert_eq!(settings, WorkspaceSettings::default());
     });
 }
 

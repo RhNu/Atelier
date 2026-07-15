@@ -2,111 +2,97 @@ import { Settings } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { AppPanel, AppToolbar, EmptyState } from "../../components/ui";
-import type { WorkspaceSettingsDto } from "../../types";
+import type { GlobalSettingsDto, WorkspaceSettingsDto } from "../../types";
+import { useWorkspaceStatus } from "../workspace/useWorkspaceStatus";
 import { AccountSettingsSection } from "./components/AccountSettingsSection";
 import { FrontendSettingsSection } from "./components/FrontendSettingsSection";
 import { GenerationSettingsSection } from "./components/GenerationSettingsSection";
 import { ImageSettingsSection } from "./components/ImageSettingsSection";
 import { LoadingPanel } from "./components/SettingsControls";
 import { SettingsSectionNav, type SettingsSection } from "./components/SettingsSectionNav";
+import { WorkspaceLifecycleSection } from "./components/WorkspaceLifecycleSection";
+import {
+  useGlobalSettingsQuery,
+  useUpdateGlobalSettingsMutation,
+} from "./data/useGlobalSettingsQuery";
 import {
   useResetWorkspaceSettingsMutation,
   useUpdateWorkspaceSettingsMutation,
   useWorkspaceSettingsQuery,
 } from "./data/useWorkspaceSettingsQuery";
-import { cloneSettings, formatError } from "./settings-utils";
+import { cloneGlobalSettings, cloneSettings, formatError } from "./settings-utils";
 
 export function SettingsPage() {
-  const settingsQuery = useWorkspaceSettingsQuery();
-  const updateSettingsMutation = useUpdateWorkspaceSettingsMutation();
-  const resetSettingsMutation = useResetWorkspaceSettingsMutation();
+  const workspace = useWorkspaceStatus();
+  const workspaceSettingsQuery = useWorkspaceSettingsQuery();
+  const globalSettingsQuery = useGlobalSettingsQuery();
+  const updateWorkspaceMutation = useUpdateWorkspaceSettingsMutation();
+  const resetWorkspaceMutation = useResetWorkspaceSettingsMutation();
+  const updateGlobalMutation = useUpdateGlobalSettingsMutation();
   const [activeSection, setActiveSection] = useState<SettingsSection>("account");
-  const [draft, setDraft] = useState<WorkspaceSettingsDto | null>(null);
+  const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceSettingsDto | null>(null);
+  const [globalDraft, setGlobalDraft] = useState<GlobalSettingsDto | null>(null);
   const [commandError, setCommandError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (settingsQuery.data) {
-      setDraft(cloneSettings(settingsQuery.data));
+    if (workspaceSettingsQuery.data) {
+      setWorkspaceDraft(cloneSettings(workspaceSettingsQuery.data));
     }
-  }, [settingsQuery.data]);
+  }, [workspaceSettingsQuery.data]);
 
-  const updateDraft = useCallback((nextDraft: WorkspaceSettingsDto) => {
-    setDraft(nextDraft);
-  }, []);
+  useEffect(() => {
+    if (globalSettingsQuery.data) {
+      setGlobalDraft(cloneGlobalSettings(globalSettingsQuery.data));
+    }
+  }, [globalSettingsQuery.data]);
 
   const saveGenerationSettings = useCallback(
     (settings: WorkspaceSettingsDto) => {
-      if (!settingsQuery.data) {
+      if (!workspaceSettingsQuery.data) {
         setCommandError("Workspace settings are not loaded.");
         return;
       }
-
-      const nextSettings = cloneSettings(settingsQuery.data);
+      const nextSettings = cloneSettings(workspaceSettingsQuery.data);
       nextSettings.generation = {
         ...settings.generation,
         size: { ...settings.generation.size },
       };
-
-      setCommandError(null);
-      updateSettingsMutation.mutate(
-        { settings: nextSettings },
-        {
-          onSuccess: (updatedSettings) => {
-            setDraft(cloneSettings(updatedSettings));
-          },
-          onError: (error) => {
-            setCommandError(formatError(error));
-          },
-        },
+      saveWorkspaceSettings(
+        nextSettings,
+        updateWorkspaceMutation,
+        setWorkspaceDraft,
+        setCommandError,
       );
     },
-    [settingsQuery.data, updateSettingsMutation],
+    [updateWorkspaceMutation, workspaceSettingsQuery.data],
   );
 
   const saveImageSettings = useCallback(
     (settings: WorkspaceSettingsDto) => {
-      if (!settingsQuery.data) {
+      if (!workspaceSettingsQuery.data) {
         setCommandError("Workspace settings are not loaded.");
         return;
       }
-
-      const nextSettings = cloneSettings(settingsQuery.data);
+      const nextSettings = cloneSettings(workspaceSettingsQuery.data);
       nextSettings.image_variants = { ...settings.image_variants };
-
-      setCommandError(null);
-      updateSettingsMutation.mutate(
-        { settings: nextSettings },
-        {
-          onSuccess: (updatedSettings) => {
-            setDraft(cloneSettings(updatedSettings));
-          },
-          onError: (error) => {
-            setCommandError(formatError(error));
-          },
-        },
+      saveWorkspaceSettings(
+        nextSettings,
+        updateWorkspaceMutation,
+        setWorkspaceDraft,
+        setCommandError,
       );
     },
-    [settingsQuery.data, updateSettingsMutation],
+    [updateWorkspaceMutation, workspaceSettingsQuery.data],
   );
 
   const saveFrontendSettings = useCallback(
-    (settings: WorkspaceSettingsDto) => {
-      if (!settingsQuery.data) {
-        setCommandError("Workspace settings are not loaded.");
-        return;
-      }
-
-      const nextSettings = cloneSettings(settingsQuery.data);
-      nextSettings.frontend = {
-        gallery: { ...settings.frontend.gallery },
-      };
-
+    (settings: GlobalSettingsDto) => {
       setCommandError(null);
-      updateSettingsMutation.mutate(
-        { settings: nextSettings },
+      updateGlobalMutation.mutate(
+        { frontend: settings.frontend },
         {
           onSuccess: (updatedSettings) => {
-            setDraft(cloneSettings(updatedSettings));
+            setGlobalDraft(cloneGlobalSettings(updatedSettings));
           },
           onError: (error) => {
             setCommandError(formatError(error));
@@ -114,31 +100,31 @@ export function SettingsPage() {
         },
       );
     },
-    [settingsQuery.data, updateSettingsMutation],
+    [updateGlobalMutation],
   );
 
   const resetSettings = useCallback(() => {
     setCommandError(null);
-    resetSettingsMutation.mutate(undefined, {
+    resetWorkspaceMutation.mutate(undefined, {
       onSuccess: (response) => {
-        setDraft(cloneSettings(response.settings));
+        setWorkspaceDraft(cloneSettings(response.settings));
       },
       onError: (error) => {
         setCommandError(formatError(error));
       },
     });
-  }, [resetSettingsMutation]);
+  }, [resetWorkspaceMutation]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <AppToolbar>
         <div>
           <p className="text-xs font-semibold text-brand-200 uppercase">Settings</p>
-          <h1 className="text-lg font-semibold text-white">Workspace Settings</h1>
+          <h1 className="text-lg font-semibold text-white">Atelier Settings</h1>
         </div>
         <div className="flex items-center gap-2 text-sm text-app-muted">
           <Settings aria-hidden="true" className="size-4" />
-          NovelAI workspace configuration
+          Application and NovelAI workspace configuration
         </div>
       </AppToolbar>
 
@@ -146,13 +132,24 @@ export function SettingsPage() {
         <SettingsSectionNav activeSection={activeSection} onSelect={setActiveSection} />
         <SettingsContent
           activeSection={activeSection}
-          draft={draft}
-          pending={settingsQuery.isPending}
-          error={settingsQuery.isError ? formatError(settingsQuery.error) : null}
-          saving={updateSettingsMutation.isPending}
-          resetting={resetSettingsMutation.isPending}
+          workspace={workspace.workspaceStatus}
+          closeWorkspace={workspace.closeWorkspace}
+          closingWorkspace={workspace.closingWorkspace}
+          workspaceDraft={workspaceDraft}
+          globalDraft={globalDraft}
+          workspacePending={workspaceSettingsQuery.isPending}
+          globalPending={globalSettingsQuery.isPending}
+          workspaceError={
+            workspaceSettingsQuery.isError ? formatError(workspaceSettingsQuery.error) : null
+          }
+          globalError={globalSettingsQuery.isError ? formatError(globalSettingsQuery.error) : null}
+          savingWorkspace={updateWorkspaceMutation.isPending}
+          savingGlobal={updateGlobalMutation.isPending}
+          resetting={resetWorkspaceMutation.isPending}
           commandError={commandError}
-          updateDraft={updateDraft}
+          workspaceLifecycleError={workspace.workspaceErrorMessage ?? null}
+          updateWorkspaceDraft={setWorkspaceDraft}
+          updateGlobalDraft={setGlobalDraft}
           saveGenerationSettings={saveGenerationSettings}
           saveImageSettings={saveImageSettings}
           saveFrontendSettings={saveFrontendSettings}
@@ -163,86 +160,148 @@ export function SettingsPage() {
   );
 }
 
+type WorkspaceSettingsMutation = ReturnType<typeof useUpdateWorkspaceSettingsMutation>;
+
+function saveWorkspaceSettings(
+  settings: WorkspaceSettingsDto,
+  mutation: WorkspaceSettingsMutation,
+  setDraft: (settings: WorkspaceSettingsDto) => void,
+  setCommandError: (error: string | null) => void,
+) {
+  setCommandError(null);
+  mutation.mutate(
+    { settings },
+    {
+      onSuccess: (updatedSettings) => setDraft(cloneSettings(updatedSettings)),
+      onError: (error) => setCommandError(formatError(error)),
+    },
+  );
+}
+
 function SettingsContent({
   activeSection,
-  draft,
-  pending,
-  error,
-  saving,
+  workspace,
+  closeWorkspace,
+  closingWorkspace,
+  workspaceDraft,
+  globalDraft,
+  workspacePending,
+  globalPending,
+  workspaceError,
+  globalError,
+  savingWorkspace,
+  savingGlobal,
   resetting,
   commandError,
-  updateDraft,
+  workspaceLifecycleError,
+  updateWorkspaceDraft,
+  updateGlobalDraft,
   saveGenerationSettings,
   saveImageSettings,
   saveFrontendSettings,
   resetSettings,
-}: {
-  activeSection: SettingsSection;
-  draft: WorkspaceSettingsDto | null;
-  pending: boolean;
-  error: string | null;
-  saving: boolean;
-  resetting: boolean;
-  commandError: string | null;
-  updateDraft: (draft: WorkspaceSettingsDto) => void;
-  saveGenerationSettings: (settings: WorkspaceSettingsDto) => void;
-  saveImageSettings: (settings: WorkspaceSettingsDto) => void;
-  saveFrontendSettings: (settings: WorkspaceSettingsDto) => void;
-  resetSettings: () => void;
-}) {
+}: SettingsContentProps) {
   if (activeSection === "account") {
     return <AccountSettingsSection />;
   }
 
-  if (error) {
-    return (
-      <AppPanel className="min-h-0 overflow-hidden">
-        <EmptyState title="Workspace settings unavailable" description={error} />
-      </AppPanel>
-    );
-  }
-
-  if (pending || !draft) {
-    return (
-      <AppPanel className="min-h-0 overflow-hidden">
-        <LoadingPanel label="Loading workspace settings" />
-      </AppPanel>
+  if (activeSection === "workspace") {
+    return workspace ? (
+      <WorkspaceLifecycleSection
+        workspace={workspace}
+        closeWorkspace={closeWorkspace}
+        closing={closingWorkspace}
+        commandError={workspaceLifecycleError}
+      />
+    ) : (
+      <SettingsUnavailable description="No workspace is open." />
     );
   }
 
   if (activeSection === "frontend") {
+    if (globalError) {
+      return <SettingsUnavailable description={globalError} />;
+    }
+    if (globalPending || !globalDraft) {
+      return <SettingsLoading label="Loading application settings" />;
+    }
     return (
       <FrontendSettingsSection
-        draft={draft}
-        updateDraft={updateDraft}
+        draft={globalDraft}
+        updateDraft={updateGlobalDraft}
         saveSettings={saveFrontendSettings}
-        saving={saving}
+        saving={savingGlobal}
         commandError={commandError}
       />
     );
   }
 
+  if (workspaceError) {
+    return <SettingsUnavailable description={workspaceError} />;
+  }
+  if (workspacePending || !workspaceDraft) {
+    return <SettingsLoading label="Loading workspace settings" />;
+  }
   if (activeSection === "generation") {
     return (
       <GenerationSettingsSection
-        draft={draft}
-        updateDraft={updateDraft}
+        draft={workspaceDraft}
+        updateDraft={updateWorkspaceDraft}
         saveSettings={saveGenerationSettings}
         resetSettings={resetSettings}
-        saving={saving}
+        saving={savingWorkspace}
         resetting={resetting}
         commandError={commandError}
       />
     );
   }
-
   return (
     <ImageSettingsSection
-      draft={draft}
-      updateDraft={updateDraft}
+      draft={workspaceDraft}
+      updateDraft={updateWorkspaceDraft}
       saveSettings={saveImageSettings}
-      saving={saving}
+      saving={savingWorkspace}
       commandError={commandError}
     />
+  );
+}
+
+type SettingsContentProps = {
+  activeSection: SettingsSection;
+  workspace: ReturnType<typeof useWorkspaceStatus>["workspaceStatus"];
+  closeWorkspace: () => void;
+  closingWorkspace: boolean;
+  workspaceDraft: WorkspaceSettingsDto | null;
+  globalDraft: GlobalSettingsDto | null;
+  workspacePending: boolean;
+  globalPending: boolean;
+  workspaceError: string | null;
+  globalError: string | null;
+  savingWorkspace: boolean;
+  savingGlobal: boolean;
+  resetting: boolean;
+  commandError: string | null;
+  workspaceLifecycleError: string | null;
+  updateWorkspaceDraft: (draft: WorkspaceSettingsDto) => void;
+  updateGlobalDraft: (draft: GlobalSettingsDto) => void;
+  saveGenerationSettings: (settings: WorkspaceSettingsDto) => void;
+  saveImageSettings: (settings: WorkspaceSettingsDto) => void;
+  saveFrontendSettings: (settings: GlobalSettingsDto) => void;
+  resetSettings: () => void;
+};
+
+function SettingsUnavailable({ description }: { description: string }) {
+  return (
+    <AppPanel className="min-h-0 overflow-hidden">
+      <EmptyState title="Settings unavailable" description={description} />
+    </AppPanel>
+  );
+}
+
+function SettingsLoading({ label }: { label: string }) {
+  return (
+    <AppPanel className="min-h-0 overflow-hidden">
+      <LoadingPanel label={label} />
+    </AppPanel>
   );
 }

@@ -38,9 +38,9 @@ use atelier_app_api::resource::{
     SaveResourceImageRequestDto,
 };
 use atelier_app_api::settings::{
-    FrontendGallerySettingsDto, FrontendSettingsDto, GenerationDefaultsDto,
-    ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto,
-    WorkspaceSettingsDto,
+    GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto, GlobalSettingsDto,
+    ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto, UpdateGlobalSettingsRequestDto,
+    UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
 use atelier_app_api::vibe::{
     GetVibeDocumentRequestDto, ListVibeDocumentsRequestDto, VibeDocumentEntryDto,
@@ -217,11 +217,6 @@ fn workspace_settings_dtos_have_stable_json_field_names() {
             thumbnail_long_edge: 320,
             preview_long_edge: 1024,
         },
-        frontend: FrontendSettingsDto {
-            gallery: FrontendGallerySettingsDto {
-                blur_sensitive_images: true,
-            },
-        },
     };
 
     assert_eq!(
@@ -249,11 +244,6 @@ fn workspace_settings_dtos_have_stable_json_field_names() {
                 "image_variants": {
                     "thumbnail_long_edge": 320,
                     "preview_long_edge": 1024
-                },
-                "frontend": {
-                    "gallery": {
-                        "blur_sensitive_images": true
-                    }
                 }
             }
         })
@@ -280,13 +270,35 @@ fn workspace_settings_dtos_have_stable_json_field_names() {
                 "image_variants": {
                     "thumbnail_long_edge": 320,
                     "preview_long_edge": 1024
-                },
-                "frontend": {
-                    "gallery": {
-                        "blur_sensitive_images": true
-                    }
                 }
             }
         })
+    );
+}
+
+#[test]
+fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
+    let settings = GlobalSettingsDto {
+        last_workspace: Some("D:/atelier".into()),
+        frontend: GlobalFrontendSettingsDto {
+            gallery: GlobalGallerySettingsDto {
+                blur_sensitive_images: true,
+            },
+        },
+    };
+
+    assert_eq!(
+        serde_json::to_value(&settings).unwrap(),
+        json!({
+            "last_workspace": "D:/atelier",
+            "frontend": { "gallery": { "blur_sensitive_images": true } }
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(UpdateGlobalSettingsRequestDto {
+            frontend: settings.frontend,
+        })
+        .unwrap(),
+        json!({ "frontend": { "gallery": { "blur_sensitive_images": true } } })
     );
 }

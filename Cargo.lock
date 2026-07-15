@@ -590,6 +590,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "atelier-adapter-settings-fs"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-settings",
+ "futures-executor",
+ "log",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "atelier-adapter-storage-fs"
 version = "0.1.0"
 dependencies = [
@@ -668,8 +681,10 @@ dependencies = [
  "atelier-adapter-keyring",
  "atelier-adapter-novelai",
  "atelier-adapter-safety-onnx",
+ "atelier-adapter-settings-fs",
  "atelier-app",
  "atelier-app-api",
+ "atelier-settings",
  "base64 0.22.1",
  "image",
  "log",

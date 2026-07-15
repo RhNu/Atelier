@@ -27,6 +27,7 @@ For task-specific context, read only the relevant decision records:
 - `prompt-lexicon-workflow.md`: prompt lexicon source assets, Rust `xtask` build/check workflow, v1 generated schema, and `nait` source notes.
 - `safety-onnx-adapter.md`: host-provided OpenNSFW ONNX model/runtime loading, scanner injection, and license/source boundary.
 - `frontend-workbench-foundation.md`: desktop frontend shell, generated app-api TypeScript contracts, Tailwind theme tokens, and `nait` visual reference boundary.
+- `global-settings-workspace-restore.md`: user-level settings persistence, last-workspace restore behavior, and app/workspace runtime scope separation.
 
 ## Current Consensus
 
@@ -67,6 +68,7 @@ Implemented or partially implemented:
 - `crates/adapters/keyring`
 - `crates/adapters/novelai`
 - `crates/adapters/safety-onnx`
+- `crates/adapters/settings-fs`
 
 ## Non-Goals
 

@@ -7,9 +7,9 @@ use atelier_app_api::generation::{
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
-use crate::commands::{AppCommandHost, CommandResult};
+use crate::commands::{AtelierRuntime, CommandResult};
 
-impl<S, F, E> AppCommandHost<S, F, E>
+impl<S, F, E> AtelierRuntime<S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
@@ -23,7 +23,7 @@ where
         &self,
         request: SubmitGenerationRequestDto,
     ) -> CommandResult<QueueDirectiveDto> {
-        Self::command_result(self.current_app()?.generation().submit(request).await)
+        Self::command_result(self.current_session()?.generation().submit(request).await)
     }
 
     /// Submits a multi-job generation batch without running queued jobs inline.
@@ -34,7 +34,12 @@ where
         &self,
         request: SubmitGenerationBatchRequestDto,
     ) -> CommandResult<QueueDirectiveDto> {
-        Self::command_result(self.current_app()?.generation().submit_batch(request).await)
+        Self::command_result(
+            self.current_session()?
+                .generation()
+                .submit_batch(request)
+                .await,
+        )
     }
 
     /// Estimates `NovelAI` Anlas cost for a generation request.
@@ -45,7 +50,7 @@ where
         &self,
         request: GenerationEstimateRequestDto,
     ) -> CommandResult<GenerationAnlasEstimateDto> {
-        Self::command_result(self.current_app()?.generation().estimate(request).await)
+        Self::command_result(self.current_session()?.generation().estimate(request).await)
     }
 
     /// Runs one scheduled generation job.
@@ -57,7 +62,7 @@ where
         request: RunGenerationJobRequestDto,
     ) -> CommandResult<QueueDirectiveDto> {
         Self::command_result(
-            self.current_app()?
+            self.current_session()?
                 .generation()
                 .run_job(&request.job_id)
                 .await,
@@ -69,7 +74,7 @@ where
     /// # Errors
     /// Returns an error envelope when no workspace is open or the queue cannot be paused.
     pub async fn pause_generation_queue(&self) -> CommandResult<QueueDirectiveDto> {
-        Self::command_result(self.current_app()?.generation().pause().await)
+        Self::command_result(self.current_session()?.generation().pause().await)
     }
 
     /// Resumes a paused generation queue.
@@ -77,7 +82,7 @@ where
     /// # Errors
     /// Returns an error envelope when no workspace is open or no paused queue can be resumed.
     pub async fn resume_generation_queue(&self) -> CommandResult<QueueDirectiveDto> {
-        Self::command_result(self.current_app()?.generation().resume().await)
+        Self::command_result(self.current_session()?.generation().resume().await)
     }
 
     /// Requests a graceful stop for the active generation queue.
@@ -85,7 +90,7 @@ where
     /// # Errors
     /// Returns an error envelope when no workspace is open or no queue can be stopped.
     pub async fn stop_generation_queue(&self) -> CommandResult<QueueDirectiveDto> {
-        Self::command_result(self.current_app()?.generation().stop().await)
+        Self::command_result(self.current_session()?.generation().stop().await)
     }
 
     /// Notifies the queue that the active delay elapsed.
@@ -93,7 +98,7 @@ where
     /// # Errors
     /// Returns an error envelope when no workspace is open or the queue is not waiting.
     pub async fn generation_delay_elapsed(&self) -> CommandResult<QueueDirectiveDto> {
-        Self::command_result(self.current_app()?.generation().delay_elapsed().await)
+        Self::command_result(self.current_session()?.generation().delay_elapsed().await)
     }
 
     /// Returns current generation queue and optional job status.
@@ -105,7 +110,7 @@ where
         request: GenerationStatusQueryDto,
     ) -> CommandResult<GenerationStatusDto> {
         Ok(self
-            .current_app()?
+            .current_session()?
             .generation()
             .status(request.job_id.as_deref())
             .await)
