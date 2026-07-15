@@ -48,6 +48,16 @@ impl DesktopState {
     pub async fn abort_generation_worker_and_wait(&self) {
         self.worker.abort_and_wait().await;
     }
+
+    pub async fn shutdown(&self) {
+        self.abort_generation_worker_and_wait().await;
+        if let Err(error) = self.host.close_workspace() {
+            log::warn!(
+                "failed to close workspace during shutdown: {}",
+                error.message
+            );
+        }
+    }
 }
 
 #[derive(Clone, Default)]

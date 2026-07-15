@@ -2,7 +2,10 @@ mod commands;
 mod desktop;
 mod desktop_system;
 
-use tauri::Manager;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+use tauri::{Manager, RunEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 /// Runs the desktop shell.
@@ -11,7 +14,7 @@ use tauri::Manager;
 ///
 /// Panics if the Tauri runtime cannot start.
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
@@ -94,6 +97,39 @@ pub fn run() {
             app.manage(state);
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    let shutdown_started = Arc::new(AtomicBool::new(false));
+    let shutdown_complete = Arc::new(AtomicBool::new(false));
+    app.run(move |app_handle, event| {
+        handle_run_event(app_handle, event, &shutdown_started, &shutdown_complete);
+    });
+}
+
+fn handle_run_event(
+    app_handle: &tauri::AppHandle,
+    event: RunEvent,
+    shutdown_started: &Arc<AtomicBool>,
+    shutdown_complete: &Arc<AtomicBool>,
+) {
+    let RunEvent::ExitRequested { api, .. } = event else {
+        return;
+    };
+    if shutdown_complete.load(Ordering::Acquire) {
+        return;
+    }
+
+    api.prevent_exit();
+    if shutdown_started.swap(true, Ordering::AcqRel) {
+        return;
+    }
+
+    let app_handle = app_handle.clone();
+    let shutdown_complete = shutdown_complete.clone();
+    tauri::async_runtime::spawn(async move {
+        app_handle.state::<desktop::DesktopState>().shutdown().await;
+        shutdown_complete.store(true, Ordering::Release);
+        app_handle.exit(0);
+    });
 }
