@@ -76,7 +76,7 @@ atelier-secrets = { path = "crates/features/secrets" }
 atelier-settings = { path = "crates/features/settings" }
 atelier-vibe = { path = "crates/features/vibe" }
 atelier-workspace = { path = "crates/features/workspace" }
-novelai-bridge = "0.2.1"
+novelai-bridge = "0.2.2"
 ort = { version = "2.0.0-rc.12", default-features = false }
 rowan = "0.16"
 rusqlite = "0.39.0"
