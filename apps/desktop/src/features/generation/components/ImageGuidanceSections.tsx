@@ -1,5 +1,6 @@
 /* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises */
 import { ImagePlus, Pencil, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { AppIconButton, AppRangeField } from "@/components/ui";
 import type { ResourceRefDto } from "@/types";
@@ -40,11 +41,12 @@ export function ImageToImageSection({
   onFlush: () => void;
   developerMode: boolean;
 }) {
+  const { t } = useTranslation("generation");
   const i2i = draft.i2i;
 
   return (
     <GuidanceSection
-      title="Image to image"
+      title={t("imageToImage")}
       actions={
         i2i ? (
           <>
@@ -156,9 +158,10 @@ export function PreciseReferenceSection({
   onFlush: () => void;
   developerMode: boolean;
 }) {
+  const { t } = useTranslation("generation");
   return (
     <GuidanceSection
-      title="Precise reference"
+      title={t("preciseReference")}
       help="Precise Reference takes priority over Vibe Transfer. Existing Vibe slots stay saved and become active again when all precise references are removed."
       actions={
         <AppIconButton

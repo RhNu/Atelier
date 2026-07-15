@@ -1,6 +1,7 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises */
 import { Download, ImagePlus, Library, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppIconButton, AppRangeField } from "@/components/ui";
 import type { ResourceRefDto, VibeDocumentEntryDto } from "@/types";
@@ -42,6 +43,7 @@ export function VibeGuidanceSection({
   releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
   developerMode: boolean;
 }) {
+  const { t } = useTranslation("generation");
   const [libraryOpen, setLibraryOpen] = useState(false);
   const slots = draft.vibe.slots;
 
@@ -82,7 +84,7 @@ export function VibeGuidanceSection({
   return (
     <>
       <GuidanceSection
-        title="Vibe transfer"
+        title={t("vibeTransfer")}
         actions={
           <>
             <AppIconButton

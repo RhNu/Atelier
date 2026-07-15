@@ -19,6 +19,7 @@ The active frontend lives in `apps/desktop/src`.
 - `platform/atelier/`: the only frontend facade over Tauri commands, event listeners, query keys, and resource image conversion.
 - `types/`: generated app-api DTO facade. Feature code imports from `types`, not `types/generated`.
 - `components/ui/`: shared, low-level UI primitives with no feature DTO ownership.
+- `i18n/`: bundled English and Simplified Chinese resources, typed translation keys, and language preference resolution.
 - `features/<feature>/`: feature pages and local feature-owned code.
 
 Feature folders should stay shallow and explicit:
@@ -85,7 +86,14 @@ Settings pages should use a second-level section navigator inside the Settings r
 
 The current Settings frontend separates application and workspace scopes:
 
-- Application / Interface: global Gallery SFW blur preference stored in the user configuration directory.
+- Application / Interface: global language, Gallery SFW blur, and developer-mode preferences stored in the user configuration directory.
+
+## Localization
+
+- Atelier bundles `en` and `zh-CN` resources with `i18next` and `react-i18next`; translations never require network access.
+- English is the fallback resource. The `system` preference maps any Chinese OS locale to `zh-CN` and other locales to `en`.
+- Product names, NovelAI model and sampler identifiers, user content, resource metadata, and backend error details remain untranslated.
+- User-visible frontend labels, placeholders, actions, empty states, accessibility text, and frontend-owned fallback messages use typed translation keys.
 - Workspace: current workspace path and lifecycle action.
 - Account: API key registry, active key, and explicit subscription probe.
 - Generation: workspace-local NovelAI image defaults.

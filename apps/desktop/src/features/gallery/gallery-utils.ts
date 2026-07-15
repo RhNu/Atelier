@@ -1,3 +1,4 @@
+import { i18n } from "@/i18n";
 import type {
   GalleryItemDto,
   GallerySafetyLabelDto,
@@ -13,29 +14,29 @@ export type SafetyFilter = "all" | GallerySafetyLabelDto;
 export type SourceFilter = "all" | GallerySourceKindDto;
 
 export const sourceOptions = [
-  { value: "all", label: "All sources" },
-  { value: "generation", label: "Generation" },
-  { value: "director", label: "Director" },
+  { value: "all", labelKey: "allSources" },
+  { value: "generation", labelKey: "generation" },
+  { value: "director", labelKey: "director" },
 ] as const;
 
 export const artifactOptions = [
-  { value: "all", label: "All artifact kinds" },
-  { value: "generated_image", label: "Generated images" },
-  { value: "director_result", label: "Director results" },
+  { value: "all", labelKey: "allArtifacts" },
+  { value: "generated_image", labelKey: "generatedImages" },
+  { value: "director_result", labelKey: "directorResults" },
 ] as const;
 
 export const safetyFilterOptions = [
-  { value: "all", label: "Safe + sensitive" },
-  { value: "safe", label: "Safe" },
-  { value: "sensitive", label: "Sensitive" },
-  { value: "hidden", label: "Hidden" },
+  { value: "all", labelKey: "safeSensitive" },
+  { value: "safe", labelKey: "safe" },
+  { value: "sensitive", labelKey: "sensitive" },
+  { value: "hidden", labelKey: "hidden" },
 ] as const;
 
 export const overrideOptions = [
-  { value: "", label: "Clear override" },
-  { value: "safe", label: "Safe" },
-  { value: "sensitive", label: "Sensitive" },
-  { value: "hidden", label: "Hidden" },
+  { value: "", labelKey: "clearOverride" },
+  { value: "safe", labelKey: "safe" },
+  { value: "sensitive", labelKey: "sensitive" },
+  { value: "hidden", labelKey: "hidden" },
 ] as const;
 
 const INVALID_FILE_NAME_CHARACTERS = /[<>:"/\\|?*]+/g;
@@ -45,7 +46,7 @@ export function formatError(error: unknown): string {
 }
 
 export function formatTimestamp(value: number): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(i18n.resolvedLanguage, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));

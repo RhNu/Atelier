@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   AppButton,
@@ -53,22 +54,23 @@ export function DirectorInputPanel({
   onPaste: () => void;
   onClear: () => void;
 }) {
+  const { t } = useTranslation("director");
   return (
     <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
       <header className="border-b border-app-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">Input</h2>
+        <h2 className="text-sm font-semibold text-white">{t("input")}</h2>
       </header>
       <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 p-3">
         {loadingImage ? (
-          <EmptyState title="Loading image" />
+          <EmptyState title={t("loadingImage")} />
         ) : imageError ? (
-          <EmptyState title="Input unavailable" description={imageError} />
+          <EmptyState title={t("inputUnavailable")} description={imageError} />
         ) : input ? (
           <div className="min-h-0 overflow-hidden border border-app-border bg-black/20">
             <ResourceImage src={imageSrc} alt="Director source" className="h-full w-full" />
           </div>
         ) : (
-          <EmptyState title="No director input" description="Import or paste an image." />
+          <EmptyState title={t("noInput")} description={t("importImage")} />
         )}
         <div className="grid gap-2">
           {input ? <p className="truncate text-xs text-app-muted">{input.label}</p> : null}
@@ -101,9 +103,15 @@ export function DirectorPreviewPanel({
   resultPending: boolean;
   resultError: string | null;
 }) {
+  const { t } = useTranslation("director");
   return (
     <AppPanel variant="section" className="min-h-0 overflow-hidden bg-black/25">
-      <PreviewFrame title="Output" src={resultSrc} pending={resultPending} error={resultError} />
+      <PreviewFrame
+        title={t("output")}
+        src={resultSrc}
+        pending={resultPending}
+        error={resultError}
+      />
     </AppPanel>
   );
 }
@@ -119,13 +127,14 @@ function PreviewFrame({
   pending: boolean;
   error: string | null;
 }) {
+  const { t } = useTranslation("director");
   return (
     <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 p-3">
       <h2 className="text-xs font-semibold text-app-muted uppercase">{title}</h2>
       {pending ? (
-        <EmptyState title="Loading result" />
+        <EmptyState title={t("loadingResult")} />
       ) : error ? (
-        <EmptyState title="Image unavailable" description={error} />
+        <EmptyState title={t("imageUnavailable")} description={error} />
       ) : (
         <ResourceImage src={src} fallbackLabel="No image" className="h-full w-full bg-app-bg" />
       )}
@@ -182,11 +191,12 @@ export function DirectorRunPanel({
   onSafetyChange: (event: ChangeEvent<HTMLSelectElement>) => void;
   onApplySafety: () => void;
 }) {
+  const { t } = useTranslation("director");
   return (
     <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
       <header className="border-b border-app-border px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-white">Controls</h2>
+          <h2 className="text-sm font-semibold text-white">{t("controls")}</h2>
           <div className="flex items-center gap-2 text-xs text-app-muted">
             <Clapperboard aria-hidden="true" className="size-4" />
             <span>{tier}</span>
@@ -196,9 +206,7 @@ export function DirectorRunPanel({
       </header>
       <div className="min-h-0 flex-1 overflow-auto p-3">
         <div className="grid gap-4 text-sm text-app-text">
-          {readinessPending ? (
-            <p className="text-app-muted">Checking active NovelAI account</p>
-          ) : null}
+          {readinessPending ? <p className="text-app-muted">{t("checkingAccount")}</p> : null}
           {readinessError ? <p className="text-rose-100">{readinessError}</p> : null}
           <AppTabs value={tool} tabs={TOOL_TABS} onChange={onToolChange} label="Director tools" />
           <p className="text-sm text-app-muted">{toolDescription}</p>
@@ -206,7 +214,7 @@ export function DirectorRunPanel({
             <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
               {promptRequired ? "Prompt required" : "Prompt optional"}
               <textarea
-                aria-label="Director prompt"
+                aria-label={t("prompt")}
                 value={prompt}
                 onChange={onPromptChange}
                 className="min-h-24 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
@@ -266,10 +274,11 @@ function ResultActions({
   onSafetyChange: (event: ChangeEvent<HTMLSelectElement>) => void;
   onApplySafety: () => void;
 }) {
+  const { t } = useTranslation("director");
   return (
     <section className="grid gap-3 border border-app-border bg-black/20 p-3">
       <div>
-        <p className="text-xs font-semibold text-app-muted uppercase">Result</p>
+        <p className="text-xs font-semibold text-app-muted uppercase">{t("result")}</p>
         <p className="mt-1 truncate text-sm text-app-text">{result.item_id}</p>
       </div>
       <AppButton variant="secondary" onClick={onSave} disabled={savePending}>
@@ -292,7 +301,7 @@ function ResultActions({
             Safety override
             <AppSelect
               id="director-safety-override"
-              aria-label="Director safety override"
+              aria-label={t("safetyOverride")}
               value={safetyOverride}
               options={SAFETY_OPTIONS}
               onChange={onSafetyChange}

@@ -23,16 +23,17 @@ export function GalleryGrid({
   blurSensitive,
   onSelect,
 }: GalleryGridProps) {
+  const { t } = useTranslation("gallery");
   if (isPending) {
-    return <p className="text-sm text-app-muted">Loading gallery</p>;
+    return <p className="text-sm text-app-muted">{t("loading")}</p>;
   }
 
   if (isError) {
-    return <EmptyState title="Gallery unavailable" description={formatError(error)} />;
+    return <EmptyState title={t("unavailable")} description={formatError(error)} />;
   }
 
   if (items.length === 0) {
-    return <EmptyState title="No matching images" />;
+    return <EmptyState title={t("noMatches")} />;
   }
 
   return (
@@ -49,3 +50,4 @@ export function GalleryGrid({
     </div>
   );
 }
+import { useTranslation } from "react-i18next";

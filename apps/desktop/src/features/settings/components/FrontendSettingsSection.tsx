@@ -1,6 +1,7 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
-import { AppButton, AppPanel } from "@/components/ui";
+import { AppButton, AppPanel, LanguageSelect } from "@/components/ui";
 import type { GlobalSettingsDto } from "@/types";
 
 import { CheckboxField, SectionHeader } from "./SettingsControls";
@@ -20,6 +21,13 @@ export function FrontendSettingsSection({
   saving,
   commandError,
 }: FrontendSettingsSectionProps) {
+  const { t } = useTranslation("settings");
+  const updateLanguage = useCallback(
+    (language: GlobalSettingsDto["frontend"]["language"]) => {
+      updateDraft({ ...draft, frontend: { ...draft.frontend, language } });
+    },
+    [draft, updateDraft],
+  );
   const updateDeveloperMode = useCallback(
     (developerMode: boolean) => {
       updateDraft({
@@ -55,12 +63,12 @@ export function FrontendSettingsSection({
   return (
     <AppPanel variant="section" className="h-full min-h-0 overflow-hidden">
       <SectionHeader
-        kicker="Frontend"
-        title="Frontend Preferences"
-        description="Application-wide interface behavior shared across Atelier workspaces."
+        kicker={t("frontend")}
+        title={t("frontendTitle")}
+        description={t("frontendDescription")}
       >
         <AppButton onClick={handleSave} disabled={saving}>
-          {saving ? "Saving frontend preferences" : "Save frontend preferences"}
+          {saving ? t("savingFrontend") : t("saveFrontend")}
         </AppButton>
       </SectionHeader>
       {commandError ? (
@@ -69,13 +77,14 @@ export function FrontendSettingsSection({
         </p>
       ) : null}
       <div className="grid gap-3 p-3 md:grid-cols-2">
+        <LanguageSelect value={draft.frontend.language} onChange={updateLanguage} />
         <CheckboxField
-          label="Developer mode"
+          label={t("developerMode")}
           checked={draft.frontend.developer_mode}
           onChange={updateDeveloperMode}
         />
         <CheckboxField
-          label="Blur NSFW images"
+          label={t("blurNsfw")}
           checked={draft.frontend.gallery.blur_sensitive_images}
           onChange={updateBlurSensitiveImages}
         />

@@ -1,5 +1,6 @@
 import { RotateCcw, Save } from "lucide-react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel } from "@/components/ui";
 import type { GenerationDefaultsDto, WorkspaceSettingsDto } from "@/types";
@@ -35,6 +36,7 @@ export function GenerationSettingsSection({
   resetting: boolean;
   commandError: string | null;
 }) {
+  const { t } = useTranslation("settings");
   const generation = draft.generation;
   const updateGeneration = useCallback(
     (nextGeneration: GenerationDefaultsDto) => {
@@ -61,17 +63,17 @@ export function GenerationSettingsSection({
   return (
     <AppPanel variant="section" className="flex h-full min-h-0 flex-col overflow-hidden">
       <SectionHeader
-        kicker="Generation"
-        title="Generation Defaults"
-        description="Workspace-local prefill values for NovelAI image requests."
+        kicker={t("generation")}
+        title={t("generationDefaults")}
+        description={t("generationDescriptionLong")}
       >
         <AppButton variant="ghost" disabled={resetting} onClick={resetSettings}>
           <RotateCcw aria-hidden="true" className="size-4" />
-          Reset workspace settings
+          {t("resetWorkspaceSettings")}
         </AppButton>
         <AppButton disabled={saving} onClick={save}>
           <Save aria-hidden="true" className="size-4" />
-          Save generation defaults
+          {t("saveGenerationDefaults")}
         </AppButton>
       </SectionHeader>
       <GenerationFields
@@ -104,6 +106,7 @@ function GenerationFields({
   ) => void;
   onSizeChange: (key: "width" | "height", value: number) => void;
 }) {
+  const { t } = useTranslation("settings");
   const modelChange = useCallback(
     (value: string) => onFieldChange("model", toImageModel(value)),
     [onFieldChange],
@@ -163,57 +166,62 @@ function GenerationFields({
     <div className="min-h-0 flex-1 overflow-auto p-3">
       <div className="grid gap-3 md:grid-cols-3">
         <SelectField
-          label="Model"
+          label={t("model")}
           value={generation.model}
           options={modelSelectOptions}
           onChange={modelChange}
         />
-        <NumberField label="Width" value={generation.size.width} onChange={widthChange} />
-        <NumberField label="Height" value={generation.size.height} onChange={heightChange} />
+        <NumberField label={t("width")} value={generation.size.width} onChange={widthChange} />
+        <NumberField label={t("height")} value={generation.size.height} onChange={heightChange} />
         <SelectField
-          label="Sampler"
+          label={t("sampler")}
           value={generation.sampler}
           options={samplerSelectOptions}
           onChange={samplerChange}
         />
         <SelectField
-          label="Noise schedule"
+          label={t("noiseSchedule")}
           value={generation.noise_schedule}
           options={noiseScheduleSelectOptions}
           onChange={noiseChange}
         />
         <SelectField
-          label="UC preset"
+          label={t("ucPreset")}
           value={generation.uc_preset}
           options={ucPresetSelectOptions}
           onChange={ucPresetChange}
         />
-        <NumberField label="Steps" value={generation.steps} onChange={stepsChange} />
-        <NumberField label="Scale" value={generation.scale} step="0.1" onChange={scaleChange} />
-        <NumberField label="Samples" value={generation.n_samples} onChange={samplesChange} />
-        <NumberField label="Seed" value={generation.seed} onChange={seedChange} />
+        <NumberField label={t("steps")} value={generation.steps} onChange={stepsChange} />
         <NumberField
-          label="CFG rescale"
+          label={t("scale")}
+          value={generation.scale}
+          step="0.1"
+          onChange={scaleChange}
+        />
+        <NumberField label={t("samples")} value={generation.n_samples} onChange={samplesChange} />
+        <NumberField label={t("seed")} value={generation.seed} onChange={seedChange} />
+        <NumberField
+          label={t("cfgRescale")}
           value={generation.cfg_rescale}
           step="0.1"
           onChange={cfgChange}
         />
         <SelectField
-          label="Image format"
+          label={t("imageFormat")}
           value={generation.image_format ?? "default"}
           options={nullableImageFormatSelectOptions}
           onChange={formatChange}
         />
       </div>
       <div className="mt-4 grid gap-2 border-t border-app-border pt-4 md:grid-cols-3">
-        <CheckboxField label="Quality" checked={generation.quality} onChange={qualityChange} />
+        <CheckboxField label={t("quality")} checked={generation.quality} onChange={qualityChange} />
         <CheckboxField
-          label="Variety boost"
+          label={t("varietyBoost")}
           checked={generation.variety_boost}
           onChange={varietyChange}
         />
         <CheckboxField
-          label="Strict mode"
+          label={t("strictMode")}
           checked={generation.strict_mode}
           onChange={strictChange}
         />

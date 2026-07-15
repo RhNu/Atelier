@@ -1,5 +1,6 @@
 import type { ChangeEvent } from "react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppSelect } from "@/components/ui";
 
@@ -35,6 +36,20 @@ export function GalleryFilters({
   onSafetyChange,
   onResetPage,
 }: GalleryFiltersProps) {
+  const { t } = useTranslation("gallery");
+  const { t: translateCommon } = useTranslation("common");
+  const localizedArtifacts = useMemo(
+    () => artifactOptions.map((option) => ({ ...option, label: t(option.labelKey) })),
+    [t],
+  );
+  const localizedSources = useMemo(
+    () => sourceOptions.map((option) => ({ ...option, label: t(option.labelKey) })),
+    [t],
+  );
+  const localizedSafety = useMemo(
+    () => safetyFilterOptions.map((option) => ({ ...option, label: t(option.labelKey) })),
+    [t],
+  );
   const handleArtifactChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => onArtifactChange(event.target.value),
     [onArtifactChange],
@@ -53,20 +68,18 @@ export function GalleryFilters({
   return (
     <div className="grid gap-3 border-b border-app-border p-3 lg:grid-cols-[1fr_180px_180px_180px_auto]">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-white">{total} indexed images</p>
-        <p className="text-xs text-app-muted">
-          Hidden items are excluded unless the safety filter is set to Hidden.
-        </p>
+        <p className="text-sm font-semibold text-white">{t("indexedImages", { count: total })}</p>
+        <p className="text-xs text-app-muted">{t("hiddenHint")}</p>
       </div>
       <label
         htmlFor="gallery-artifact-filter"
         className="grid gap-1 text-xs font-semibold text-app-muted"
       >
-        Artifact
+        {t("artifact")}
         <AppSelect
           id="gallery-artifact-filter"
-          aria-label="Artifact filter"
-          options={artifactOptions}
+          aria-label={t("artifactFilter")}
+          options={localizedArtifacts}
           value={artifactKind}
           onChange={handleArtifactChange}
         />
@@ -75,11 +88,11 @@ export function GalleryFilters({
         htmlFor="gallery-source-filter"
         className="grid gap-1 text-xs font-semibold text-app-muted"
       >
-        Source
+        {t("source")}
         <AppSelect
           id="gallery-source-filter"
-          aria-label="Source filter"
-          options={sourceOptions}
+          aria-label={t("sourceFilter")}
+          options={localizedSources}
           value={sourceFilter}
           onChange={handleSourceChange}
         />
@@ -88,17 +101,17 @@ export function GalleryFilters({
         htmlFor="gallery-safety-filter"
         className="grid gap-1 text-xs font-semibold text-app-muted"
       >
-        Safety
+        {t("safety")}
         <AppSelect
           id="gallery-safety-filter"
-          aria-label="Safety filter"
-          options={safetyFilterOptions}
+          aria-label={t("safetyFilter")}
+          options={localizedSafety}
           value={safetyFilter}
           onChange={handleSafetyChange}
         />
       </label>
       <AppButton variant="ghost" onClick={onResetPage} disabled={offset === 0}>
-        Reset
+        {translateCommon("reset")}
       </AppButton>
     </div>
   );

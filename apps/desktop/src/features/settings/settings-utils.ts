@@ -39,6 +39,7 @@ export function cloneGlobalSettings(settings: GlobalSettingsDto): GlobalSettings
   return {
     last_workspace: settings.last_workspace,
     frontend: {
+      language: settings.frontend.language,
       developer_mode: settings.frontend.developer_mode,
       gallery: { ...settings.frontend.gallery },
     },

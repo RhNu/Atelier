@@ -37,6 +37,7 @@ export type { ErrorEnvelopeDto } from "./ErrorEnvelopeDto";
 export type { EventsSinceRequestDto } from "./EventsSinceRequestDto";
 export type { ExportVibeDocumentRequestDto } from "./ExportVibeDocumentRequestDto";
 export type { ExportedVibeDocumentDto } from "./ExportedVibeDocumentDto";
+export type { FrontendLanguageDto } from "./FrontendLanguageDto";
 export type { GalleryImageReferenceDto } from "./GalleryImageReferenceDto";
 export type { GalleryImageReferenceRequestDto } from "./GalleryImageReferenceRequestDto";
 export type { GalleryImageReferenceTargetDto } from "./GalleryImageReferenceTargetDto";

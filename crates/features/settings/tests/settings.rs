@@ -3,9 +3,9 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
 use atelier_settings::{
-    GenerationDefaults, GlobalFrontendSettings, GlobalGallerySettings, GlobalSettings,
-    GlobalSettingsRepository, GlobalSettingsService, ImageVariantSettings, SettingsResult,
-    WorkspaceSettings, WorkspaceSettingsRepository, WorkspaceSettingsService,
+    FrontendLanguage, GenerationDefaults, GlobalFrontendSettings, GlobalGallerySettings,
+    GlobalSettings, GlobalSettingsRepository, GlobalSettingsService, ImageVariantSettings,
+    SettingsResult, WorkspaceSettings, WorkspaceSettingsRepository, WorkspaceSettingsService,
 };
 use futures_executor::block_on;
 
@@ -112,6 +112,7 @@ fn global_settings_service_preserves_lifecycle_state_when_updating_frontend() {
             .unwrap();
         let settings = service
             .update_frontend_settings(GlobalFrontendSettings {
+                language: FrontendLanguage::SimplifiedChinese,
                 developer_mode: true,
                 gallery: GlobalGallerySettings {
                     blur_sensitive_images: true,
@@ -121,6 +122,10 @@ fn global_settings_service_preserves_lifecycle_state_when_updating_frontend() {
             .unwrap();
 
         assert_eq!(settings.last_workspace, Some(workspace));
+        assert_eq!(
+            settings.frontend.language,
+            FrontendLanguage::SimplifiedChinese
+        );
         assert!(settings.frontend.developer_mode);
         assert!(settings.frontend.gallery.blur_sensitive_images);
     });

@@ -1,6 +1,7 @@
 use atelier_adapter_settings_fs::FileSystemGlobalSettingsRepository;
 use atelier_settings::{
-    GlobalFrontendSettings, GlobalGallerySettings, GlobalSettings, GlobalSettingsRepository,
+    FrontendLanguage, GlobalFrontendSettings, GlobalGallerySettings, GlobalSettings,
+    GlobalSettingsRepository,
 };
 use futures_executor::block_on;
 
@@ -19,6 +20,7 @@ fn missing_file_returns_defaults_and_round_trips_settings() {
         let settings = GlobalSettings {
             last_workspace: Some(temp.path().join("workspace")),
             frontend: GlobalFrontendSettings {
+                language: FrontendLanguage::SimplifiedChinese,
                 developer_mode: true,
                 gallery: GlobalGallerySettings {
                     blur_sensitive_images: true,
@@ -43,7 +45,7 @@ fn missing_file_returns_defaults_and_round_trips_settings() {
 }
 
 #[test]
-fn missing_developer_mode_defaults_to_false_without_quarantining_settings() {
+fn missing_frontend_fields_default_without_quarantining_settings() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("global-settings.json");
@@ -61,6 +63,7 @@ fn missing_developer_mode_defaults_to_false_without_quarantining_settings() {
         let repository = FileSystemGlobalSettingsRepository::new(&path);
 
         let settings = repository.get_global_settings().await.unwrap();
+        assert_eq!(settings.frontend.language, FrontendLanguage::System);
         assert!(!settings.frontend.developer_mode);
         assert!(settings.frontend.gallery.blur_sensitive_images);
         assert!(path.exists());

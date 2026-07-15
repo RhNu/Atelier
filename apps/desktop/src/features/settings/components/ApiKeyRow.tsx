@@ -1,5 +1,6 @@
 import { Check, PencilLine, Power, RefreshCw, Trash2, X } from "lucide-react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton } from "@/components/ui";
 import type { ApiKeyRecordDto, SubscriptionSummaryDto } from "@/types";
@@ -89,20 +90,24 @@ function ApiKeyIdentity({
   item: ApiKeyRecordDto;
   probeState: ApiKeyProbeState | undefined;
 }) {
+  const { t } = useTranslation("settings");
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2">
         <p className="truncate text-sm font-semibold text-app-text">{item.display_name}</p>
         {item.is_active ? (
           <span className="border border-emerald-500/45 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200 uppercase">
-            Active
+            {t("active")}
           </span>
         ) : null}
       </div>
       <p className="mt-1 text-xs break-all text-app-muted">ID {item.id}</p>
       {probeState?.subscription ? (
         <p className="mt-2 text-xs text-app-muted">
-          Probe {probeState.subscription.tier_name} / {probeState.subscription.anlas_balance} Anlas
+          {t("probeSummary", {
+            tier: probeState.subscription.tier_name,
+            balance: probeState.subscription.anlas_balance,
+          })}
         </p>
       ) : null}
       {probeState?.error ? <p className="mt-2 text-xs text-amber-200">{probeState.error}</p> : null}
@@ -125,6 +130,8 @@ function ApiKeyActions({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation("settings");
+  const { t: translateCommon } = useTranslation("common");
   return (
     <div className="flex flex-wrap gap-1.5">
       {!item.is_active ? (
@@ -132,42 +139,42 @@ function ApiKeyActions({
           variant="ghost"
           className="h-8 px-2 text-xs"
           disabled={busy}
-          aria-label={`Set ${item.display_name} active`}
+          aria-label={t("setActive", { name: item.display_name })}
           onClick={onSetActive}
         >
           <Power aria-hidden="true" className="size-3.5" />
-          Activate
+          {t("activate")}
         </AppButton>
       ) : null}
       <AppButton
         variant="ghost"
         className="h-8 px-2 text-xs"
         disabled={busy}
-        aria-label={`Probe ${item.display_name}`}
+        aria-label={t("probeKey", { name: item.display_name })}
         onClick={onProbe}
       >
         <RefreshCw aria-hidden="true" className="size-3.5" />
-        Probe
+        {t("probe")}
       </AppButton>
       <AppButton
         variant="ghost"
         className="h-8 px-2 text-xs"
         disabled={busy}
-        aria-label={`Edit ${item.display_name}`}
+        aria-label={t("editKey", { name: item.display_name })}
         onClick={onEdit}
       >
         <PencilLine aria-hidden="true" className="size-3.5" />
-        Edit
+        {translateCommon("edit")}
       </AppButton>
       <AppButton
         variant="danger"
         className="h-8 px-2 text-xs"
         disabled={busy}
-        aria-label={`Delete ${item.display_name}`}
+        aria-label={t("deleteKey", { name: item.display_name })}
         onClick={onDelete}
       >
         <Trash2 aria-hidden="true" className="size-3.5" />
-        Delete
+        {translateCommon("delete")}
       </AppButton>
     </div>
   );
@@ -186,6 +193,8 @@ function ApiKeyEditForm({
   onSaveEdit: () => void;
   onCancelEdit: () => void;
 }) {
+  const { t } = useTranslation("settings");
+  const { t: translateCommon } = useTranslation("common");
   const updateDisplayName = useCallback(
     (displayName: string) => {
       onEditChange({ ...editing, displayName });
@@ -202,25 +211,25 @@ function ApiKeyEditForm({
   return (
     <div className="mt-3 grid gap-2 border-t border-app-border pt-3 md:grid-cols-[1fr_1.3fr_auto]">
       <TextField
-        label="Edit API key display name"
+        label={t("editApiKeyName")}
         value={editing.displayName}
         onChange={updateDisplayName}
       />
       <TextField
-        label="Replace API key secret"
+        label={t("replaceApiKeySecret")}
         value={editing.secret}
         onChange={updateSecret}
         type="password"
         autoComplete="new-password"
       />
       <div className="flex items-end gap-2">
-        <AppButton disabled={busy} aria-label="Save API key changes" onClick={onSaveEdit}>
+        <AppButton disabled={busy} aria-label={t("saveApiKeyChanges")} onClick={onSaveEdit}>
           <Check aria-hidden="true" className="size-4" />
-          Save
+          {translateCommon("save")}
         </AppButton>
         <AppButton variant="ghost" disabled={busy} onClick={onCancelEdit}>
           <X aria-hidden="true" className="size-4" />
-          Cancel
+          {translateCommon("cancel")}
         </AppButton>
       </div>
     </div>

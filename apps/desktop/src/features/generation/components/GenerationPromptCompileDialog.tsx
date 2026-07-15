@@ -14,22 +14,29 @@ export function GenerationPromptCompileDialog({
   compiled: CompiledGenerationPromptDto | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("generation");
   return (
-    <AppModal open={open} title="Compiled prompt preview" onClose={onClose}>
-      {pending ? <p className="text-sm text-app-muted">Compiling prompt stack…</p> : null}
+    <AppModal open={open} title={t("compiledPreview")} onClose={onClose}>
+      {pending ? <p className="text-sm text-app-muted">{t("compilingPrompt")}</p> : null}
       {error ? <p className="text-sm text-rose-100">{error}</p> : null}
       {compiled ? (
         <div className="space-y-4">
-          <CompiledPromptSection title="Positive prompt" prompt={compiled.prompt} />
+          <CompiledPromptSection title={t("positivePrompt")} prompt={compiled.prompt} />
           {compiled.negative_prompt ? (
-            <CompiledPromptSection title="Undesired content" prompt={compiled.negative_prompt} />
+            <CompiledPromptSection
+              title={t("undesiredContent")}
+              prompt={compiled.negative_prompt}
+            />
           ) : null}
           {compiled.characters.map((character, index) => (
             <div key={`compiled-character-${index}`} className="space-y-2">
-              <CompiledPromptSection title={`Character ${index + 1}`} prompt={character.prompt} />
+              <CompiledPromptSection
+                title={t("character", { index: index + 1 })}
+                prompt={character.prompt}
+              />
               {character.negative_prompt ? (
                 <CompiledPromptSection
-                  title={`Character ${index + 1} undesired content`}
+                  title={t("characterNegative", { index: index + 1 })}
                   prompt={character.negative_prompt}
                 />
               ) : null}
@@ -74,3 +81,4 @@ function CompiledPromptSection({ title, prompt }: { title: string; prompt: Compi
     </section>
   );
 }
+import { useTranslation } from "react-i18next";

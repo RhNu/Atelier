@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Download, ImageIcon, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, type ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppIconButton, AppPanel } from "@/components/ui";
 import type { GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto } from "@/types";
@@ -62,6 +63,7 @@ export function GenerationHistoryRail({
   onDeleteSelected,
   onExportSelected,
 }: GenerationHistoryRailProps) {
+  const { t } = useTranslation("generation");
   const selectedBatch = batches.find((batch) => batch.batch_id === selectedBatchId) ?? null;
   const canPrevious = offset > 0;
   const canNext = offset + limit < total;
@@ -75,7 +77,7 @@ export function GenerationHistoryRail({
   return (
     <AppPanel
       as="aside"
-      aria-label="Generation history"
+      aria-label={t("history")}
       className="flex h-full min-h-0 flex-col overflow-hidden"
     >
       <header className="flex min-h-10 items-center justify-between gap-2 border-b border-app-border px-2 py-1">
@@ -84,7 +86,7 @@ export function GenerationHistoryRail({
         </label>
         <select
           id="generation-history-filter"
-          aria-label="Filter history batches"
+          aria-label={t("filterHistory")}
           value={statusFilter}
           onChange={handleStatusChange}
           className="h-7 w-24 border border-app-border bg-app-surface px-2 text-xs text-app-text outline-none focus:border-brand-400"
@@ -121,10 +123,10 @@ export function GenerationHistoryRail({
         </div>
       </header>
       <div className="min-h-0 flex-1 overflow-auto p-1">
-        {pending ? <p className="p-2 text-sm text-app-muted">Loading history</p> : null}
+        {pending ? <p className="p-2 text-sm text-app-muted">{t("loadingHistory")}</p> : null}
         {error ? <p className="p-2 text-sm text-rose-100">{error}</p> : null}
         {!pending && !error && batches.length === 0 ? (
-          <p className="p-4 text-center text-sm text-app-muted">No generation batches</p>
+          <p className="p-4 text-center text-sm text-app-muted">{t("noBatches")}</p>
         ) : null}
         <div className="grid gap-1">
           {batches.map((batch) => (

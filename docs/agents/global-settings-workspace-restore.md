@@ -5,7 +5,7 @@ Date: 2026-07-15
 Atelier separates process-level settings from workspace-local configuration.
 
 - `GlobalSettings` is stored as `global-settings.json` below Tauri's `app_config_dir`. It owns the last successfully opened workspace path and application-wide frontend preferences.
-- Global frontend preferences include Gallery sensitive-image blur and developer mode. Developer mode defaults to disabled and gates internal resource identifiers and diagnostic metadata; older schema-v1 files without the field load it as `false`.
+- Global frontend preferences include language, Gallery sensitive-image blur, and developer mode. Language supports `system`, `en`, and `zh-CN`, defaulting to `system`; any Chinese system locale resolves to Simplified Chinese and all others to English. Developer mode defaults to disabled and gates internal resource identifiers and diagnostic metadata. Older schema-v1 files without either field load compatible defaults without a schema migration.
 - `WorkspaceSettings` remains in the workspace SQLite database and owns NovelAI generation defaults and image variant sizes.
 - `AtelierRuntime` is process-scoped and owns global settings plus an optional `WorkspaceSession`. `WorkspaceSession` owns only one workspace's lock, database, services, and kernel runtime.
 - Startup calls `bootstrap_app`. A remembered workspace is reopened automatically. Missing, invalid, or locked workspaces produce a non-fatal restore failure containing the path and error; the remembered path remains until another workspace opens successfully.

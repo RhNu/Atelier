@@ -1,6 +1,7 @@
 /* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { Eye } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppModal } from "@/components/ui";
 import type { CompiledPromptDto, PromptChunkDto } from "@/types";
@@ -43,6 +44,7 @@ export function ChunkWorkspace({
   search: string;
   newRequest: number;
 }) {
+  const { t } = useTranslation("resources");
   const filtered = useMemo(
     () => chunks.filter((chunk) => matchesSearch(search, chunk.key, chunk.content, chunk.category)),
     [chunks, search],
@@ -121,8 +123,8 @@ export function ChunkWorkspace({
         onClose={() => setEditorOpen(false)}
       >
         <EditorPanel
-          title="Prompt Chunk"
-          subtitle="Reusable @chunk(...) source"
+          title={t("promptChunk")}
+          subtitle={t("chunkSubtitle")}
           error={errorMessage}
           actions={
             <EditorActions

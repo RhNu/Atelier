@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppPanel, EmptyState } from "@/components/ui";
+import { applyLanguagePreference } from "@/i18n";
 import type { GlobalSettingsDto, WorkspaceSettingsDto } from "@/types";
 
 import { useWorkspaceStatus } from "../workspace/useWorkspaceStatus";
@@ -23,6 +25,7 @@ import {
 import { cloneGlobalSettings, cloneSettings, formatError } from "./settings-utils";
 
 export function SettingsPage() {
+  const { t } = useTranslation("settings");
   const workspace = useWorkspaceStatus();
   const workspaceSettingsQuery = useWorkspaceSettingsQuery();
   const globalSettingsQuery = useGlobalSettingsQuery();
@@ -49,7 +52,7 @@ export function SettingsPage() {
   const saveGenerationSettings = useCallback(
     (settings: WorkspaceSettingsDto) => {
       if (!workspaceSettingsQuery.data) {
-        setCommandError("Workspace settings are not loaded.");
+        setCommandError(t("workspaceNotLoaded"));
         return;
       }
       const nextSettings = cloneSettings(workspaceSettingsQuery.data);
@@ -64,13 +67,13 @@ export function SettingsPage() {
         setCommandError,
       );
     },
-    [updateWorkspaceMutation, workspaceSettingsQuery.data],
+    [t, updateWorkspaceMutation, workspaceSettingsQuery.data],
   );
 
   const saveImageSettings = useCallback(
     (settings: WorkspaceSettingsDto) => {
       if (!workspaceSettingsQuery.data) {
-        setCommandError("Workspace settings are not loaded.");
+        setCommandError(t("workspaceNotLoaded"));
         return;
       }
       const nextSettings = cloneSettings(workspaceSettingsQuery.data);
@@ -82,7 +85,7 @@ export function SettingsPage() {
         setCommandError,
       );
     },
-    [updateWorkspaceMutation, workspaceSettingsQuery.data],
+    [t, updateWorkspaceMutation, workspaceSettingsQuery.data],
   );
 
   const saveFrontendSettings = useCallback(
@@ -93,6 +96,7 @@ export function SettingsPage() {
         {
           onSuccess: (updatedSettings) => {
             setGlobalDraft(cloneGlobalSettings(updatedSettings));
+            void applyLanguagePreference(updatedSettings.frontend.language);
           },
           onError: (error) => {
             setCommandError(formatError(error));
@@ -190,6 +194,7 @@ function SettingsContent({
   saveFrontendSettings,
   resetSettings,
 }: SettingsContentProps) {
+  const { t } = useTranslation("settings");
   if (activeSection === "account") {
     return <AccountSettingsSection />;
   }
@@ -203,16 +208,16 @@ function SettingsContent({
         commandError={workspaceLifecycleError}
       />
     ) : (
-      <SettingsUnavailable description="No workspace is open." />
+      <SettingsUnavailable description={t("noWorkspace")} title={t("settingsUnavailable")} />
     );
   }
 
   if (activeSection === "frontend") {
     if (globalError) {
-      return <SettingsUnavailable description={globalError} />;
+      return <SettingsUnavailable description={globalError} title={t("settingsUnavailable")} />;
     }
     if (globalPending || !globalDraft) {
-      return <SettingsLoading label="Loading application settings" />;
+      return <SettingsLoading label={t("loadingApplication")} />;
     }
     return (
       <FrontendSettingsSection
@@ -226,10 +231,10 @@ function SettingsContent({
   }
 
   if (workspaceError) {
-    return <SettingsUnavailable description={workspaceError} />;
+    return <SettingsUnavailable description={workspaceError} title={t("settingsUnavailable")} />;
   }
   if (workspacePending || !workspaceDraft) {
-    return <SettingsLoading label="Loading workspace settings" />;
+    return <SettingsLoading label={t("loadingWorkspace")} />;
   }
   if (activeSection === "generation") {
     return (
@@ -279,10 +284,10 @@ type SettingsContentProps = {
   resetSettings: () => void;
 };
 
-function SettingsUnavailable({ description }: { description: string }) {
+function SettingsUnavailable({ title, description }: { title: string; description: string }) {
   return (
     <AppPanel variant="section" className="min-h-0 overflow-hidden">
-      <EmptyState title="Settings unavailable" description={description} />
+      <EmptyState title={title} description={description} />
     </AppPanel>
   );
 }

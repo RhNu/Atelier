@@ -8,6 +8,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 const SIDEBAR_STORAGE_KEY = "atelier.ui.generate.sidebar-width.v1";
 const DEFAULT_SIDEBAR_WIDTH = 420;
@@ -26,6 +27,7 @@ export function GenerationWorkbenchLayout({
   preview: ReactNode;
   history: ReactNode;
 }) {
+  const { t } = useTranslation("generation");
   const containerRef = useRef<HTMLDivElement>(null);
   const pointerStartRef = useRef<{ x: number; width: number } | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -137,7 +139,7 @@ export function GenerationWorkbenchLayout({
       </aside>
       <div
         role="separator"
-        aria-label="Resize generation settings"
+        aria-label={t("resizeSettings")}
         aria-orientation="vertical"
         aria-valuemin={MIN_SIDEBAR_WIDTH}
         aria-valuemax={Math.round(maximumWidth)}

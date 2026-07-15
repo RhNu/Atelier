@@ -465,6 +465,7 @@ fn global_settings_preserve_last_workspace_and_update_frontend_independently() {
         let updated = host
             .update_global_settings(UpdateGlobalSettingsRequestDto {
                 frontend: GlobalFrontendSettingsDto {
+                    language: atelier_app_api::settings::FrontendLanguageDto::SimplifiedChinese,
                     developer_mode: true,
                     gallery: GlobalGallerySettingsDto {
                         blur_sensitive_images: true,

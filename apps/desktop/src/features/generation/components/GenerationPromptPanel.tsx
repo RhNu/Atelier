@@ -10,6 +10,7 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppSelect, AppTabs } from "@/components/ui";
 import type { PromptPresetDto } from "@/types";
@@ -53,6 +54,7 @@ export const GenerationPromptPanel = forwardRef<
   { draft, mainPresets, mainPresetsPending, onPatch, onFlush },
   forwardedRef,
 ) {
+  const { t } = useTranslation("generation");
   const [activeTab, setActiveTab] = useState<PromptTab>("positive");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mainPresetOptions = useMemo(
@@ -103,7 +105,7 @@ export const GenerationPromptPanel = forwardRef<
         Model
         <AppSelect
           id="generation-model"
-          aria-label="Model"
+          aria-label={t("model")}
           value={draft.model}
           options={MODEL_OPTIONS}
           onChange={(event) => onPatch({ model: toImageModel(event.target.value) })}
@@ -121,7 +123,7 @@ export const GenerationPromptPanel = forwardRef<
           />
           <details className="group relative">
             <summary
-              aria-label="Prompt options"
+              aria-label={t("promptOptions")}
               className="grid size-8 cursor-pointer list-none place-items-center border border-transparent text-app-muted hover:border-app-border hover:bg-app-surface hover:text-app-text"
             >
               <Settings2 aria-hidden="true" className="size-4" />
@@ -130,7 +132,7 @@ export const GenerationPromptPanel = forwardRef<
               <label className="flex items-center justify-between gap-3 text-sm text-app-text">
                 Quality tags
                 <input
-                  aria-label="Quality tags"
+                  aria-label={t("qualityTags")}
                   type="checkbox"
                   checked={draft.quality}
                   onChange={(event) => onPatch({ quality: event.target.checked })}
@@ -144,7 +146,7 @@ export const GenerationPromptPanel = forwardRef<
                 UC preset
                 <AppSelect
                   id="generation-uc-preset"
-                  aria-label="UC preset"
+                  aria-label={t("ucPreset")}
                   value={draft.ucPreset}
                   options={UC_PRESET_OPTIONS}
                   onChange={(event) => onPatch({ ucPreset: toUcPreset(event.target.value) })}
@@ -164,7 +166,7 @@ export const GenerationPromptPanel = forwardRef<
           onBlur={onFlush}
           className="min-h-44 resize-y border border-app-border bg-black/20 p-3 text-sm text-app-text outline-none focus:border-brand-400"
         />
-        <p className="text-[11px] text-app-muted">Ctrl+Tab switches prompt tabs.</p>
+        <p className="text-[11px] text-app-muted">{t("promptTabsHint")}</p>
       </div>
 
       <label
@@ -174,7 +176,7 @@ export const GenerationPromptPanel = forwardRef<
         Main preset
         <AppSelect
           id="generation-main-preset"
-          aria-label="Main preset"
+          aria-label={t("mainPreset")}
           value={draft.mainPresetId ?? ""}
           options={mainPresetOptions}
           onChange={(event: ChangeEvent<HTMLSelectElement>) =>

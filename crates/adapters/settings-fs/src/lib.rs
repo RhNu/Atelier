@@ -10,8 +10,8 @@ use std::{
 
 use async_trait::async_trait;
 use atelier_settings::{
-    GlobalFrontendSettings, GlobalGallerySettings, GlobalSettings, GlobalSettingsRepository,
-    SettingsError, SettingsResult,
+    FrontendLanguage, GlobalFrontendSettings, GlobalGallerySettings, GlobalSettings,
+    GlobalSettingsRepository, SettingsError, SettingsResult,
 };
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
@@ -138,6 +138,8 @@ impl StoredGlobalSettings {
 #[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
 struct StoredGlobalFrontendSettings {
     #[serde(default)]
+    language: StoredFrontendLanguage,
+    #[serde(default)]
     developer_mode: bool,
     gallery: StoredGlobalGallerySettings,
 }
@@ -145,6 +147,7 @@ struct StoredGlobalFrontendSettings {
 impl StoredGlobalFrontendSettings {
     const fn from_domain(settings: GlobalFrontendSettings) -> Self {
         Self {
+            language: StoredFrontendLanguage::from_domain(settings.language),
             developer_mode: settings.developer_mode,
             gallery: StoredGlobalGallerySettings::from_domain(settings.gallery),
         }
@@ -152,8 +155,38 @@ impl StoredGlobalFrontendSettings {
 
     const fn into_domain(self) -> GlobalFrontendSettings {
         GlobalFrontendSettings {
+            language: self.language.into_domain(),
             developer_mode: self.developer_mode,
             gallery: self.gallery.into_domain(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
+enum StoredFrontendLanguage {
+    #[default]
+    #[serde(rename = "system")]
+    System,
+    #[serde(rename = "en")]
+    English,
+    #[serde(rename = "zh-CN")]
+    SimplifiedChinese,
+}
+
+impl StoredFrontendLanguage {
+    const fn from_domain(language: FrontendLanguage) -> Self {
+        match language {
+            FrontendLanguage::System => Self::System,
+            FrontendLanguage::English => Self::English,
+            FrontendLanguage::SimplifiedChinese => Self::SimplifiedChinese,
+        }
+    }
+
+    const fn into_domain(self) -> FrontendLanguage {
+        match self {
+            Self::System => FrontendLanguage::System,
+            Self::English => FrontendLanguage::English,
+            Self::SimplifiedChinese => FrontendLanguage::SimplifiedChinese,
         }
     }
 }

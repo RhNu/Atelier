@@ -105,6 +105,7 @@ const defaultSettings: WorkspaceSettingsDto = {
 const defaultGlobalSettings: GlobalSettingsDto = {
   last_workspace: "D:/atelier",
   frontend: {
+    language: "system",
     developer_mode: false,
     gallery: {
       blur_sensitive_images: false,

@@ -27,6 +27,10 @@ export function RootWorkbenchLayout() {
       onOpenWorkspace={workspace.openWorkspace}
       onRetryWorkspaceRestore={workspace.retryWorkspaceRestore}
       onNavigate={handleNavigate}
+      language={workspace.language}
+      languagePending={workspace.languagePending}
+      languageErrorMessage={workspace.languageErrorMessage}
+      onChangeLanguage={workspace.changeLanguage}
     >
       <Outlet />
     </AppShell>

@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/prefer-tag-over-role */
 import { useCallback, type MouseEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { PromptCompletionItem } from "./prompt-completion-utils";
 
@@ -20,16 +21,17 @@ export function CompletionList({
   manualEmptyPicker,
   onAccept,
 }: CompletionListProps) {
+  const { t } = useTranslation("generation");
   return (
     <div
       id={id}
       role="listbox"
-      aria-label="Prompt completions"
+      aria-label={t("promptCompletions")}
       className="absolute z-30 mt-1 max-h-72 w-full overflow-auto border border-app-border bg-app-panel shadow-app-panel"
     >
       {manualEmptyPicker ? (
         <p className="border-b border-app-border px-3 py-2 text-xs text-app-muted">
-          Type to search NovelAI tags. Prompt chunks are available now.
+          {t("completionHint")}
         </p>
       ) : null}
       {items.map((item, index) => (

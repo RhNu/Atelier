@@ -42,8 +42,9 @@ use atelier_app_api::resource::{
     SaveResourceImageRequestDto, SaveResourceImagesZipEntryDto, SaveResourceImagesZipRequestDto,
 };
 use atelier_app_api::settings::{
-    GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto, GlobalSettingsDto,
-    ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto, UpdateGlobalSettingsRequestDto,
+    FrontendLanguageDto, GenerationDefaultsDto, GlobalFrontendSettingsDto,
+    GlobalGallerySettingsDto, GlobalSettingsDto, ImageVariantSettingsDto,
+    ResetWorkspaceSettingsResponseDto, UpdateGlobalSettingsRequestDto,
     UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
 use atelier_app_api::vibe::{
@@ -286,6 +287,7 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
     let settings = GlobalSettingsDto {
         last_workspace: Some("D:/atelier".into()),
         frontend: GlobalFrontendSettingsDto {
+            language: FrontendLanguageDto::SimplifiedChinese,
             developer_mode: true,
             gallery: GlobalGallerySettingsDto {
                 blur_sensitive_images: true,
@@ -298,6 +300,7 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
         json!({
             "last_workspace": "D:/atelier",
             "frontend": {
+                "language": "zh-CN",
                 "developer_mode": true,
                 "gallery": { "blur_sensitive_images": true }
             }
@@ -310,6 +313,7 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
         .unwrap(),
         json!({
             "frontend": {
+                "language": "zh-CN",
                 "developer_mode": true,
                 "gallery": { "blur_sensitive_images": true }
             }

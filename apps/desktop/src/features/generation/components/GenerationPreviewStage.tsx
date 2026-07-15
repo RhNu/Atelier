@@ -21,6 +21,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppIconButton, AppModal, AppPanel, ResourceImage } from "@/components/ui";
 
@@ -227,6 +228,7 @@ function RequestCursorStrip({
   selectedRequest,
   onSelectRequest,
 }: Pick<GenerationPreviewStageProps, "batch" | "selectedRequest" | "onSelectRequest">) {
+  const { t } = useTranslation("generation");
   const cursorRef = useRef<HTMLDivElement>(null);
   const selectedRequestIndex = batch?.requests.findIndex(
     (request) => request.jobId === selectedRequest?.jobId,
@@ -240,7 +242,7 @@ function RequestCursorStrip({
   return (
     <div
       ref={cursorRef}
-      aria-label="Generation requests"
+      aria-label={t("requests")}
       className="flex min-h-20 gap-1.5 overflow-x-auto border-b border-app-border bg-app-panel/80 p-1.5"
     >
       {batch?.requests.map((request) => (
@@ -250,7 +252,7 @@ function RequestCursorStrip({
           selected={request.jobId === selectedRequest?.jobId}
           onSelect={onSelectRequest}
         />
-      )) ?? <p className="p-2 text-sm text-app-muted">No request units</p>}
+      )) ?? <p className="p-2 text-sm text-app-muted">{t("noRequests")}</p>}
     </div>
   );
 }

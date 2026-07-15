@@ -1,5 +1,6 @@
 import { Save } from "lucide-react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel } from "@/components/ui";
 import type { WorkspaceSettingsDto } from "@/types";
@@ -20,6 +21,7 @@ export function ImageSettingsSection({
   saving: boolean;
   commandError: string | null;
 }) {
+  const { t } = useTranslation("settings");
   const variants = draft.image_variants;
   const isValid =
     isPositiveInteger(variants.thumbnail_long_edge) &&
@@ -45,30 +47,28 @@ export function ImageSettingsSection({
   return (
     <AppPanel variant="section" className="flex h-full min-h-0 flex-col overflow-hidden">
       <SectionHeader
-        kicker="Images"
-        title="Image Variants"
-        description="Workspace thumbnail and preview sizing for stored resources."
+        kicker={t("images")}
+        title={t("imageVariants")}
+        description={t("imagesDescriptionLong")}
       >
         <AppButton disabled={saving || !isValid} onClick={save}>
           <Save aria-hidden="true" className="size-4" />
-          Save image variants
+          {t("saveImageVariants")}
         </AppButton>
       </SectionHeader>
       <div className="grid gap-3 p-3 md:grid-cols-2">
         <NumberField
-          label="Thumbnail long edge"
+          label={t("thumbnailLongEdge")}
           value={variants.thumbnail_long_edge}
           onChange={updateThumbnail}
         />
         <NumberField
-          label="Preview long edge"
+          label={t("previewLongEdge")}
           value={variants.preview_long_edge}
           onChange={updatePreview}
         />
         {!isValid ? (
-          <p className="text-sm text-amber-200 md:col-span-2">
-            Image variant sizes must be positive integers.
-          </p>
+          <p className="text-sm text-amber-200 md:col-span-2">{t("positiveIntegerRequired")}</p>
         ) : null}
       </div>
       {commandError ? <ImageCommandError message={commandError} /> : null}

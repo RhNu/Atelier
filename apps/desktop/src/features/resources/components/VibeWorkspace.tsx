@@ -1,6 +1,7 @@
 /* eslint-disable max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
 import { Download, FilePlus2, Import, Pencil, Save, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppModal, AppPanel, EmptyState } from "@/components/ui";
 import type { VibeDocumentEntryDto } from "@/types";
@@ -31,6 +32,7 @@ export function VibeWorkspace({
   includeHidden: boolean;
   onIncludeHiddenChange: (value: boolean) => void;
 }) {
+  const { t } = useTranslation("resources");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingVibe, setEditingVibe] = useState<VibeDocumentEntryDto | null>(null);
   const filtered = useMemo(
@@ -75,8 +77,8 @@ export function VibeWorkspace({
     <AppPanel variant="section" className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold text-white">Vibe Documents</h2>
-          <p className="text-xs text-app-muted">Managed documents and cached encodings</p>
+          <h2 className="text-sm font-semibold text-white">{t("vibeDocuments")}</h2>
+          <p className="text-xs text-app-muted">{t("vibeDescription")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <CheckboxField
@@ -117,11 +119,11 @@ export function VibeWorkspace({
       ) : null}
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {pending ? (
-          <EmptyState title="Loading Vibe documents" />
+          <EmptyState title={t("loadingVibes")} />
         ) : error ? (
-          <EmptyState title="Vibe unavailable" description={error} />
+          <EmptyState title={t("vibeUnavailable")} description={error} />
         ) : filtered.length === 0 ? (
-          <EmptyState title="No Vibe documents" />
+          <EmptyState title={t("noVibes")} />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
             {filtered.map((vibe) => (
@@ -198,6 +200,7 @@ function VibeCard({
   onEdit: () => void;
   onEnsureEncoding: (() => void) | null;
 }) {
+  const { t } = useTranslation("resources");
   return (
     <article className="grid gap-3 border border-app-border bg-app-surface p-3">
       <PreviewSlot resource={vibe.preview ?? vibe.source_image} label={vibe.display_name} />
@@ -233,7 +236,7 @@ function VibeCard({
         <span>{vibe.available_model_keys.length} models</span>
         <span>{vibe.available_encoding_configs.length} encoding configs</span>
         <span>{vibe.encodings.length} cached encodings</span>
-        {vibe.hidden ? <span className="text-amber-200">Hidden</span> : null}
+        {vibe.hidden ? <span className="text-amber-200">{t("hidden")}</span> : null}
       </div>
     </article>
   );
@@ -252,6 +255,7 @@ function VibeEditDialog({
   onClose: () => void;
   onSave: (displayName: string, hidden: boolean) => void;
 }) {
+  const { t } = useTranslation("resources");
   const [name, setName] = useState("");
   const [hidden, setHidden] = useState(false);
   useEffect(() => {
@@ -263,7 +267,7 @@ function VibeEditDialog({
     onClose();
   };
   return (
-    <AppModal open={Boolean(vibe)} title="Edit Vibe document" onClose={close}>
+    <AppModal open={Boolean(vibe)} title={t("editVibe")} onClose={close}>
       <div className="grid gap-4">
         {error ? (
           <p className="border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
@@ -273,7 +277,7 @@ function VibeEditDialog({
         <TextInput label="Local display name" value={name} onChange={setName} />
         <label className="flex h-9 items-center gap-2 border border-app-border bg-black/20 px-3 text-sm text-app-text">
           <input
-            aria-label="Hidden"
+            aria-label={t("hidden")}
             type="checkbox"
             checked={hidden}
             onChange={(event) => setHidden(event.target.checked)}

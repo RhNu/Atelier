@@ -1,6 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { ChevronDown, ChevronUp, RefreshCw, RotateCcw, WandSparkles } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppRangeField, AppSelect } from "@/components/ui";
 
@@ -68,6 +69,7 @@ export function GenerationActionDock({
   onRetryDraftSave,
   onClearStoredDraft,
 }: GenerationActionDockProps) {
+  const { t } = useTranslation("generation");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const totalImages = draft.requestCount * draft.nSamples;
   const insufficientBalance = balance !== null && estimate !== null && estimate > balance;
@@ -82,12 +84,12 @@ export function GenerationActionDock({
       {settingsOpen ? (
         <div className="max-h-[60vh] space-y-4 overflow-y-auto border-b border-app-border p-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xs font-bold text-app-muted uppercase">AI settings</h2>
+            <h2 className="text-xs font-bold text-app-muted uppercase">{t("aiSettings")}</h2>
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 className="grid size-8 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
-                aria-label="Reset generation parameters"
+                aria-label={t("resetParameters")}
                 onClick={onResetParameters}
               >
                 <RotateCcw aria-hidden="true" className="size-4" />
@@ -95,7 +97,7 @@ export function GenerationActionDock({
               <button
                 type="button"
                 className="grid size-8 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
-                aria-label="Collapse AI settings"
+                aria-label={t("collapseAiSettings")}
                 onClick={toggleSettings}
               >
                 <ChevronDown aria-hidden="true" className="size-4" />
@@ -143,9 +145,9 @@ export function GenerationActionDock({
             <label className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
               Seed
               <input
-                aria-label="Seed"
+                aria-label={t("seed")}
                 type="number"
-                placeholder="Random"
+                placeholder={t("random")}
                 value={draft.seedMode === "random" ? "" : draft.seed}
                 className="h-9 border border-app-border bg-black/20 px-3 text-sm text-app-text outline-none focus:border-brand-400"
                 onChange={(event) => {
@@ -232,14 +234,14 @@ export function GenerationActionDock({
         <div className="space-y-1 border border-app-border bg-black/20 px-2.5 py-2 text-xs">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <span className="text-app-muted">Balance </span>
+              <span className="text-app-muted">{t("balance")} </span>
               <strong className="text-app-text">
                 {balancePending ? "Loading" : balance === null ? "Unavailable" : `${balance} Anlas`}
               </strong>
             </div>
             <button
               type="button"
-              aria-label="Refresh Anlas balance"
+              aria-label={t("refreshBalance")}
               className="grid size-7 place-items-center border border-app-border text-app-muted hover:text-app-text disabled:opacity-50"
               disabled={refreshPending}
               onClick={onRefreshBalance}
@@ -253,7 +255,7 @@ export function GenerationActionDock({
           {balanceError ? <p className="text-amber-200">{balanceError}</p> : null}
           {estimateError ? <p className="text-amber-200">{estimateError}</p> : null}
           {insufficientBalance ? (
-            <p className="text-amber-200">Insufficient Anlas balance.</p>
+            <p className="text-amber-200">{t("insufficientBalance")}</p>
           ) : null}
         </div>
 

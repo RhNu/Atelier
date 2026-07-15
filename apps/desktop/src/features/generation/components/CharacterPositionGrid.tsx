@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/prefer-tag-over-role, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
 import { useCallback, type KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { GenerationCharacterDraft } from "../model/generation-draft";
 
@@ -16,6 +17,7 @@ export function CharacterPositionGrid({
   onSelectCharacter: (index: number) => void;
   onChangePosition: (index: number, position: { x: number; y: number }) => void;
 }) {
+  const { t } = useTranslation("generation");
   const active = characters[activeIndex] ?? null;
   const moveActive = useCallback(
     (deltaX: number, deltaY: number) => {
@@ -55,7 +57,7 @@ export function CharacterPositionGrid({
     <div className="space-y-2">
       <div
         role="grid"
-        aria-label="Character position grid"
+        aria-label={t("positionGrid")}
         tabIndex={0}
         className="relative grid aspect-[4/3] grid-cols-5 overflow-hidden border border-app-border bg-black/20 outline-none focus:border-brand-400"
         onKeyDown={handleKeyDown}

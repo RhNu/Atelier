@@ -1,5 +1,6 @@
 /* eslint-disable max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { CharacterReferenceTypeDto, PromptPresetDto, ResourceRefDto } from "@/types";
 
@@ -46,6 +47,7 @@ export function AdvancedGenerationInputs({
   onExportVibeDocument,
   developerMode,
 }: AdvancedGenerationInputsProps) {
+  const { t } = useTranslation("generation");
   const [error, setError] = useState<string | null>(null);
   const characterPresetOptions = useMemo(
     () => [
@@ -177,7 +179,7 @@ export function AdvancedGenerationInputs({
   return (
     <section className="space-y-3 border-b border-app-border p-4">
       <header>
-        <h2 className="text-xs font-bold text-app-muted uppercase">Image guidance</h2>
+        <h2 className="text-xs font-bold text-app-muted uppercase">{t("imageGuidance")}</h2>
       </header>
       <div className="grid gap-1 text-sm text-app-text">
         {error ? <p className="text-rose-100">{error}</p> : null}

@@ -1,6 +1,7 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 import { Plus, Save, Search, Trash2 } from "lucide-react";
 import { Children, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel, EmptyState, ResourceImage } from "@/components/ui";
 import { resourceImageToDataUrl } from "@/platform/atelier";
@@ -15,14 +16,15 @@ export function SearchField({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useTranslation("resources");
   return (
     <label className="flex items-center gap-2 border border-app-border bg-app-panel px-3 py-1 text-sm text-app-muted">
       <Search aria-hidden="true" className="size-4" />
       <input
-        aria-label="Search resources"
+        aria-label={t("search")}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="Search resources"
+        placeholder={t("search")}
         className="h-7 w-64 bg-transparent text-app-text outline-none placeholder:text-app-muted"
       />
     </label>
@@ -41,17 +43,18 @@ export function ResourceList({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const { t } = useTranslation("resources");
   return (
     <AppPanel variant="section" className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">Library</h2>
+        <h2 className="text-sm font-semibold text-white">{t("library")}</h2>
         {actions}
       </header>
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {pending ? (
-          <EmptyState title="Loading resources" />
+          <EmptyState title={t("loading")} />
         ) : error ? (
-          <EmptyState title="Resources unavailable" description={error} />
+          <EmptyState title={t("unavailable")} description={error} />
         ) : Children.count(children) === 0 ? (
           <EmptyState title={emptyTitle} />
         ) : (
@@ -142,19 +145,21 @@ export function EditorActions({
   onSave: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation("resources");
+  const { t: translateCommon } = useTranslation("common");
   return (
     <div className="flex gap-2">
       <AppButton variant="ghost" onClick={onNew}>
         <Plus aria-hidden="true" className="size-4" />
-        New
+        {t("new")}
       </AppButton>
       <AppButton variant="secondary" onClick={onSave} disabled={saving}>
         <Save aria-hidden="true" className="size-4" />
-        Save
+        {translateCommon("save")}
       </AppButton>
       <AppButton variant="danger" onClick={onDelete} disabled={!canDelete || deleting}>
         <Trash2 aria-hidden="true" className="size-4" />
-        Delete
+        {translateCommon("delete")}
       </AppButton>
     </div>
   );
@@ -169,13 +174,14 @@ export function PreviewSlot({
   label: string;
   compact?: boolean;
 }) {
+  const { t } = useTranslation("resources");
   const imageQuery = useResourceImageQuery(resource);
   const src = imageQuery.data ? resourceImageToDataUrl(imageQuery.data) : null;
   return (
     <ResourceImage
       src={src}
       alt={label}
-      fallbackLabel={compact ? "" : "No preview"}
+      fallbackLabel={compact ? "" : t("noPreview")}
       className={
         compact
           ? "size-14 border border-app-border"
@@ -186,17 +192,18 @@ export function PreviewSlot({
 }
 
 export function CompiledPreview({ preview }: { preview: CompiledPromptDto | null }) {
+  const { t } = useTranslation("resources");
   if (!preview) {
     return null;
   }
   return (
     <article className="border border-app-border bg-black/20 p-3">
-      <p className="text-xs font-semibold text-app-muted uppercase">Compiled preview</p>
+      <p className="text-xs font-semibold text-app-muted uppercase">{t("compiledPreview")}</p>
       <p className="mt-2 text-sm leading-6 whitespace-pre-wrap text-app-text">
-        {preview.expanded_prompt || "Empty"}
+        {preview.expanded_prompt || t("empty")}
       </p>
       <p className="mt-2 text-xs text-app-muted">
-        {preview.trace.function_calls.length} function calls
+        {t("functionCalls", { count: preview.trace.function_calls.length })}
       </p>
     </article>
   );

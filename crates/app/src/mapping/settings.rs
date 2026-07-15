@@ -1,10 +1,11 @@
 use super::{
-    AppResult, GenerationDefaults, GenerationDefaultsDto, GlobalFrontendSettings,
-    GlobalFrontendSettingsDto, GlobalGallerySettings, GlobalGallerySettingsDto, GlobalSettings,
-    GlobalSettingsDto, ImageSize, ImageSizeDto, ImageVariantSettings, ImageVariantSettingsDto,
-    WorkspaceSettings, WorkspaceSettingsDto, image_format_to_domain, image_format_to_dto,
-    image_model_to_domain, image_model_to_dto, noise_schedule_to_domain, noise_schedule_to_dto,
-    sampler_to_domain, sampler_to_dto, uc_preset_to_domain, uc_preset_to_dto,
+    AppResult, FrontendLanguage, FrontendLanguageDto, GenerationDefaults, GenerationDefaultsDto,
+    GlobalFrontendSettings, GlobalFrontendSettingsDto, GlobalGallerySettings,
+    GlobalGallerySettingsDto, GlobalSettings, GlobalSettingsDto, ImageSize, ImageSizeDto,
+    ImageVariantSettings, ImageVariantSettingsDto, WorkspaceSettings, WorkspaceSettingsDto,
+    image_format_to_domain, image_format_to_dto, image_model_to_domain, image_model_to_dto,
+    noise_schedule_to_domain, noise_schedule_to_dto, sampler_to_domain, sampler_to_dto,
+    uc_preset_to_domain, uc_preset_to_dto,
 };
 
 pub fn workspace_settings_to_dto(value: &WorkspaceSettings) -> WorkspaceSettingsDto {
@@ -34,6 +35,7 @@ pub const fn global_frontend_settings_to_domain(
     value: GlobalFrontendSettingsDto,
 ) -> GlobalFrontendSettings {
     GlobalFrontendSettings {
+        language: frontend_language_to_domain(value.language),
         developer_mode: value.developer_mode,
         gallery: GlobalGallerySettings {
             blur_sensitive_images: value.gallery.blur_sensitive_images,
@@ -45,10 +47,27 @@ const fn global_frontend_settings_to_dto(
     value: GlobalFrontendSettings,
 ) -> GlobalFrontendSettingsDto {
     GlobalFrontendSettingsDto {
+        language: frontend_language_to_dto(value.language),
         developer_mode: value.developer_mode,
         gallery: GlobalGallerySettingsDto {
             blur_sensitive_images: value.gallery.blur_sensitive_images,
         },
+    }
+}
+
+const fn frontend_language_to_domain(value: FrontendLanguageDto) -> FrontendLanguage {
+    match value {
+        FrontendLanguageDto::System => FrontendLanguage::System,
+        FrontendLanguageDto::English => FrontendLanguage::English,
+        FrontendLanguageDto::SimplifiedChinese => FrontendLanguage::SimplifiedChinese,
+    }
+}
+
+const fn frontend_language_to_dto(value: FrontendLanguage) -> FrontendLanguageDto {
+    match value {
+        FrontendLanguage::System => FrontendLanguageDto::System,
+        FrontendLanguage::English => FrontendLanguageDto::English,
+        FrontendLanguage::SimplifiedChinese => FrontendLanguageDto::SimplifiedChinese,
     }
 }
 

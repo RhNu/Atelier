@@ -1,6 +1,7 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 import { ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppModal } from "@/components/ui";
 import type { ImageModelDto, VibeDocumentEntryDto } from "@/types";
@@ -22,6 +23,7 @@ export function VibeLibraryDialog({
   onClose: () => void;
   onSelect: (entry: VibeDocumentEntryDto) => void;
 }) {
+  const { t } = useTranslation("generation");
   const [offset, setOffset] = useState(0);
   const query = useVibeDocumentsQuery({ offset, limit: PAGE_LIMIT, include_hidden: false }, open);
   const entries = useMemo(
@@ -39,7 +41,7 @@ export function VibeLibraryDialog({
   }
 
   return (
-    <AppModal open={open} title="Vibe library" onClose={close}>
+    <AppModal open={open} title={t("vibeLibrary")} onClose={close}>
       <div className="grid gap-3">
         {query.isPending ? (
           <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-app-muted">

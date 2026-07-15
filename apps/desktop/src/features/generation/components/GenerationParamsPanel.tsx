@@ -1,5 +1,6 @@
 /* eslint-disable react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { GenerationDraft } from "../model/generation-draft";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
@@ -39,6 +40,7 @@ export function GenerationParamsPanel({
   onPatchSize,
   onFlush,
 }: GenerationParamsPanelProps) {
+  const { t } = useTranslation("generation");
   const matchedPreset = useMemo(
     () =>
       SIZE_PRESETS.find(
@@ -65,12 +67,12 @@ export function GenerationParamsPanel({
   return (
     <section className="space-y-4 border-b border-app-border p-4">
       <header>
-        <h2 className="text-xs font-bold text-app-muted uppercase">Image settings</h2>
+        <h2 className="text-xs font-bold text-app-muted uppercase">{t("imageSettings")}</h2>
       </header>
 
       <div className="flex gap-2">
         <select
-          aria-label="Size preset"
+          aria-label={t("sizePreset")}
           value={selectedPreset}
           onChange={handlePresetChange}
           className="h-9 min-w-0 flex-1 border border-app-border bg-app-surface px-3 text-sm text-app-text outline-none focus:border-brand-400"
@@ -85,12 +87,12 @@ export function GenerationParamsPanel({
             </optgroup>
           ))}
           <optgroup label="Custom">
-            <option value="custom">Custom</option>
+            <option value="custom">{t("custom")}</option>
           </optgroup>
         </select>
         <div className="flex min-w-0 flex-1 items-center border border-app-border bg-black/20 px-2">
           <input
-            aria-label="Width"
+            aria-label={t("width")}
             type="number"
             min={64}
             max={1600}
@@ -105,7 +107,7 @@ export function GenerationParamsPanel({
           />
           <span className="text-app-muted">×</span>
           <input
-            aria-label="Height"
+            aria-label={t("height")}
             type="number"
             min={64}
             max={1600}

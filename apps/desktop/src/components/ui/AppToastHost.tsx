@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useToastStore, type ToastItem as Toast, type ToastLevel } from "@/stores/toast-store";
 
@@ -24,6 +25,7 @@ export function AppToastHost() {
 }
 
 function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
+  const { t } = useTranslation("shell");
   const handleRemove = useCallback(() => {
     onRemove(toast.id);
   }, [onRemove, toast.id]);
@@ -39,7 +41,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         <p className="text-sm font-semibold">{toast.title ?? toast.level}</p>
         <button
           type="button"
-          aria-label="Close toast"
+          aria-label={t("closeToast")}
           className="text-current/70 transition-colors hover:text-current"
           onClick={handleRemove}
         >

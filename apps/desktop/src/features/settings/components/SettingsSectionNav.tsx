@@ -7,6 +7,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppPanel } from "@/components/ui";
 
@@ -14,16 +15,21 @@ export type SettingsSection = "workspace" | "account" | "generation" | "images" 
 
 type SettingSection = {
   id: SettingsSection;
-  label: string;
-  description: string;
+  labelKey: "interface" | "workspace" | "account" | "generation" | "images";
+  descriptionKey:
+    | "interfaceDescription"
+    | "workspaceDescription"
+    | "accountDescription"
+    | "generationDescription"
+    | "imagesDescription";
   icon: LucideIcon;
 };
 
 const applicationSections: ReadonlyArray<SettingSection> = [
   {
     id: "frontend",
-    label: "Interface",
-    description: "Preferences shared across workspaces",
+    labelKey: "interface",
+    descriptionKey: "interfaceDescription",
     icon: MonitorCog,
   },
 ];
@@ -31,26 +37,26 @@ const applicationSections: ReadonlyArray<SettingSection> = [
 const workspaceSections: ReadonlyArray<SettingSection> = [
   {
     id: "workspace",
-    label: "Workspace",
-    description: "Current workspace and lifecycle",
+    labelKey: "workspace",
+    descriptionKey: "workspaceDescription",
     icon: FolderCog,
   },
   {
     id: "account",
-    label: "Account",
-    description: "NovelAI API keys and subscription probes",
+    labelKey: "account",
+    descriptionKey: "accountDescription",
     icon: KeyRound,
   },
   {
     id: "generation",
-    label: "Generation",
-    description: "Workspace defaults for image requests",
+    labelKey: "generation",
+    descriptionKey: "generationDescription",
     icon: WandSparkles,
   },
   {
     id: "images",
-    label: "Images",
-    description: "Stored thumbnail and preview variants",
+    labelKey: "images",
+    descriptionKey: "imagesDescription",
     icon: Image,
   },
 ];
@@ -62,22 +68,23 @@ export function SettingsSectionNav({
   activeSection: SettingsSection;
   onSelect: (section: SettingsSection) => void;
 }) {
+  const { t } = useTranslation("settings");
   return (
     <AppPanel
       as="nav"
       variant="section"
-      aria-label="Settings sections"
+      aria-label={t("sections")}
       className="min-h-0 overflow-hidden"
     >
       <div className="grid gap-1 p-2">
         <SettingsSectionGroup
-          label="Application"
+          label={t("application")}
           sections={applicationSections}
           activeSection={activeSection}
           onSelect={onSelect}
         />
         <SettingsSectionGroup
-          label="Workspace"
+          label={t("workspace")}
           sections={workspaceSections}
           activeSection={activeSection}
           onSelect={onSelect}
@@ -124,7 +131,9 @@ function SettingsSectionButton({
   active: boolean;
   onSelect: (section: SettingsSection) => void;
 }) {
+  const { t } = useTranslation("settings");
   const Icon = section.icon;
+  const label = t(section.labelKey);
   const handleClick = useCallback(() => {
     onSelect(section.id);
   }, [onSelect, section.id]);
@@ -132,7 +141,7 @@ function SettingsSectionButton({
   return (
     <button
       type="button"
-      aria-label={section.label}
+      aria-label={label}
       aria-current={active ? "page" : undefined}
       className={[
         "flex min-h-14 items-start gap-3 border px-3 py-2 text-left transition-colors",
@@ -144,8 +153,10 @@ function SettingsSectionButton({
     >
       <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
       <span className="min-w-0">
-        <span className="block text-sm font-semibold">{section.label}</span>
-        <span className="mt-1 block text-xs leading-4 text-app-muted">{section.description}</span>
+        <span className="block text-sm font-semibold">{label}</span>
+        <span className="mt-1 block text-xs leading-4 text-app-muted">
+          {t(section.descriptionKey)}
+        </span>
       </span>
     </button>
   );

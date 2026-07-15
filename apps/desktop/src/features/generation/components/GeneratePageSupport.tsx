@@ -1,4 +1,5 @@
 import { Pause, Play, Square } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { AppIconButton, EmptyState } from "@/components/ui";
 
@@ -31,16 +32,17 @@ export function GenerationEconomyStatus({
   estimateError: string | null;
   estimateTotal: number | null;
 }) {
+  const { t } = useTranslation("generation");
   const accountLabel = accountError
     ? accountError
     : accountPending
-      ? "Account"
+      ? t("account")
       : `${anlasBalance ?? 0} Anlas`;
   const estimateLabel = estimateError
-    ? "Estimate unavailable"
+    ? t("estimateUnavailable")
     : estimatePending
-      ? "Estimating"
-      : `${estimateTotal ?? 0} planned`;
+      ? t("estimating")
+      : t("planned", { count: estimateTotal ?? 0 });
 
   return (
     <div className="flex items-center gap-2 text-xs text-app-muted">
@@ -51,20 +53,19 @@ export function GenerationEconomyStatus({
 }
 
 export function GenerationLoadingState() {
+  const { t } = useTranslation("generation");
   return (
     <div className="flex h-full min-h-0 items-center justify-center p-6">
-      <EmptyState title="Loading generation defaults" />
+      <EmptyState title={t("loadingDefaults")} />
     </div>
   );
 }
 
 export function GenerationSettingsError({ error }: { error: unknown }) {
+  const { t } = useTranslation("generation");
   return (
     <div className="flex h-full min-h-0 items-center justify-center p-6">
-      <EmptyState
-        title="Generation settings unavailable"
-        description={formatGenerationError(error)}
-      />
+      <EmptyState title={t("settingsUnavailable")} description={formatGenerationError(error)} />
     </div>
   );
 }

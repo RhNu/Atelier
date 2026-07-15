@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel, EmptyState } from "@/components/ui";
 import type { PromptLexiconPageDto } from "@/types";
@@ -24,6 +25,7 @@ export function LexiconResults({
   onPrevious,
   onNext,
 }: LexiconResultsProps) {
+  const { t } = useTranslation("lexicon");
   const shownFrom = page && page.items.length > 0 ? page.offset + 1 : 0;
   const shownTo = page ? page.offset + page.items.length : 0;
   return (
@@ -42,7 +44,7 @@ export function LexiconResults({
             <AppButton
               variant="ghost"
               className="size-8 p-0"
-              aria-label="Previous lexicon page"
+              aria-label={t("previousPage")}
               disabled={page.offset === 0 || pending}
               onClick={onPrevious}
             >
@@ -51,7 +53,7 @@ export function LexiconResults({
             <AppButton
               variant="ghost"
               className="size-8 p-0"
-              aria-label="Next lexicon page"
+              aria-label={t("nextPage")}
               disabled={shownTo >= page.total || pending}
               onClick={onNext}
             >
@@ -63,9 +65,9 @@ export function LexiconResults({
 
       <div className="min-h-0 flex-1 overflow-auto">
         {pending && !page ? (
-          <p className="p-4 text-sm text-app-muted">Loading lexicon entries</p>
+          <p className="p-4 text-sm text-app-muted">{t("loadingEntries")}</p>
         ) : error ? (
-          <EmptyState title="Lexicon query failed" description={error} />
+          <EmptyState title={t("queryFailed")} description={error} />
         ) : !page || page.items.length === 0 ? (
           <EmptyState title={emptyTitle} />
         ) : (

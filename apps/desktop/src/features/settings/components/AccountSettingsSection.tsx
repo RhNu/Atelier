@@ -9,15 +9,16 @@ import { LoadingPanel, SectionHeader, TextField } from "./SettingsControls";
 type ProbeState = Record<string, ApiKeyProbeState>;
 
 export function AccountSettingsSection() {
+  const { t } = useTranslation("settings");
   const account = useAccountSettingsController();
 
   return (
     <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_320px] divide-x divide-app-border">
       <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
         <SectionHeader
-          kicker="Account"
-          title="NovelAI Account"
-          description="Manage workspace API keys without exposing stored secrets."
+          kicker={t("account")}
+          title={t("accountTitle")}
+          description={t("accountDescriptionLong")}
         />
         <div className="min-h-0 flex-1 overflow-auto p-3">
           <CreateKeyForm
@@ -79,25 +80,26 @@ function CreateKeyForm({
   onSecretChange: (value: string) => void;
   onCreate: () => void;
 }) {
+  const { t } = useTranslation("settings");
   return (
     <div className="grid gap-3 border border-app-border/70 bg-app-surface/60 p-3 md:grid-cols-[1fr_1.4fr_auto]">
       <TextField
-        label="API key display name"
+        label={t("apiKeyDisplayName")}
         value={displayName}
         onChange={onDisplayNameChange}
-        placeholder="Main NovelAI key"
+        placeholder={t("mainKeyPlaceholder")}
       />
       <TextField
-        label="NovelAI API key secret"
+        label={t("apiKeySecret")}
         value={secret}
         onChange={onSecretChange}
-        placeholder="Paste key"
+        placeholder={t("pasteKeyPlaceholder")}
         type="password"
         autoComplete="new-password"
       />
       <div className="flex items-end">
         <AppButton className="w-full" disabled={disabled} onClick={onCreate}>
-          Add API key
+          {t("addApiKey")}
         </AppButton>
       </div>
     </div>
@@ -133,16 +135,17 @@ function ApiKeyList({
   onProbe: (item: ApiKeyRecordDto) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation("settings");
   if (pending) {
-    return <LoadingPanel label="Loading API keys" />;
+    return <LoadingPanel label={t("loadingApiKeys")} />;
   }
 
   if (error) {
-    return <EmptyState title="API keys unavailable" description={error} />;
+    return <EmptyState title={t("apiKeysUnavailable")} description={error} />;
   }
 
   if (keys.length === 0) {
-    return <EmptyState title="No API keys" />;
+    return <EmptyState title={t("noApiKeys")} />;
   }
 
   return (
@@ -166,3 +169,4 @@ function ApiKeyList({
     </div>
   );
 }
+import { useTranslation } from "react-i18next";

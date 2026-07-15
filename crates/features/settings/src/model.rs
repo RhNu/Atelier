@@ -113,7 +113,16 @@ pub struct GlobalSettings {
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub enum FrontendLanguage {
+    #[default]
+    System,
+    English,
+    SimplifiedChinese,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct GlobalFrontendSettings {
+    pub language: FrontendLanguage,
     pub developer_mode: bool,
     pub gallery: GlobalGallerySettings,
 }

@@ -1,9 +1,10 @@
 import { Minus, Square, X } from "lucide-react";
 import { useCallback, type MouseEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
-import { AppButton, AppPanel, AppToastHost } from "../components/ui";
+import { AppButton, AppPanel, AppToastHost, LanguageSelect } from "../components/ui";
 import { routeNavItems, type RouteNavItem } from "../routes/nav";
-import type { WorkspaceRestoreFailureDto, WorkspaceStatusDto } from "../types";
+import type { FrontendLanguageDto, WorkspaceRestoreFailureDto, WorkspaceStatusDto } from "../types";
 
 export type AppShellProps = {
   workspaceStatus: WorkspaceStatusDto | null;
@@ -16,6 +17,10 @@ export type AppShellProps = {
   onOpenWorkspace?: () => void;
   onRetryWorkspaceRestore?: () => void;
   onNavigate?: (to: RouteNavItem["to"]) => void;
+  language?: FrontendLanguageDto;
+  languagePending?: boolean;
+  languageErrorMessage?: string;
+  onChangeLanguage?: (language: FrontendLanguageDto) => void;
 };
 
 async function controlWindow(action: "close" | "maximize" | "minimize") {
@@ -66,7 +71,13 @@ export function AppShell({
   onOpenWorkspace,
   onRetryWorkspaceRestore,
   onNavigate,
+  language = "system",
+  languagePending,
+  languageErrorMessage,
+  onChangeLanguage,
 }: AppShellProps) {
+  const { t } = useTranslation("shell");
+  const { t: translateCommon } = useTranslation("common");
   const showWorkspaceGate = workspaceStatus === null;
   const fatalBootError = workspaceErrorCode !== undefined;
 
@@ -82,13 +93,13 @@ export function AppShell({
           </div>
           <div data-tauri-drag-region>
             <p className="text-sm font-semibold text-white">Atelier</p>
-            <p className="text-[11px] text-app-muted uppercase">NovelAI workspace</p>
+            <p className="text-[11px] text-app-muted uppercase">{t("subtitle")}</p>
           </div>
         </div>
         <div className="titlebar-no-drag flex h-full items-center">
           <button
             type="button"
-            aria-label="Minimize window"
+            aria-label={t("minimizeWindow")}
             className="grid h-full w-11 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
             onClick={handleMinimizeWindow}
           >
@@ -96,7 +107,7 @@ export function AppShell({
           </button>
           <button
             type="button"
-            aria-label="Maximize window"
+            aria-label={t("maximizeWindow")}
             className="grid h-full w-11 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
             onClick={handleMaximizeWindow}
           >
@@ -104,7 +115,7 @@ export function AppShell({
           </button>
           <button
             type="button"
-            aria-label="Close window"
+            aria-label={t("closeWindow")}
             className="grid h-full w-11 place-items-center text-app-muted hover:bg-rose-500 hover:text-white"
             onClick={handleCloseWindow}
           >
@@ -116,16 +127,16 @@ export function AppShell({
       {showWorkspaceGate ? (
         <main className="flex min-h-0 flex-1 items-center justify-center p-6">
           <AppPanel className="w-full max-w-xl p-6 shadow-app-panel">
-            <p className="text-xs font-semibold text-brand-200 uppercase">Workspace</p>
+            <p className="text-xs font-semibold text-brand-200 uppercase">{t("workspace")}</p>
             <h1 className="mt-2 text-xl font-semibold text-white">
-              {restoreFailure ? "Couldn’t reopen your last workspace" : "Open an Atelier workspace"}
+              {restoreFailure ? t("reopenFailed") : t("openTitle")}
             </h1>
             <p className="mt-3 text-sm text-app-muted">
               {restoreFailure
                 ? restoreFailure.error.message
                 : fatalBootError
-                  ? (workspaceErrorMessage ?? "Workspace status could not be loaded.")
-                  : "Select a workspace folder before running NovelAI generation workflows."}
+                  ? (workspaceErrorMessage ?? t("statusFailed"))
+                  : t("selectWorkspace")}
             </p>
             {restoreFailure ? (
               <p className="mt-3 border border-app-border bg-app-surface px-3 py-2 text-xs break-all text-app-muted">
@@ -135,23 +146,35 @@ export function AppShell({
             <div className="mt-5 flex gap-2">
               {restoreFailure ? (
                 <AppButton onClick={onRetryWorkspaceRestore} disabled={workspacePending}>
-                  {workspacePending ? "Retrying workspace" : "Retry"}
+                  {workspacePending ? t("retryingWorkspace") : translateCommon("retry")}
                 </AppButton>
               ) : null}
               <AppButton onClick={onOpenWorkspace} disabled={workspacePending}>
                 {workspacePending
-                  ? "Opening workspace"
+                  ? t("openingWorkspace")
                   : restoreFailure
-                    ? "Choose another workspace"
-                    : "Open workspace"}
+                    ? t("chooseAnotherWorkspace")
+                    : t("openWorkspace")}
               </AppButton>
             </div>
+            {onChangeLanguage ? (
+              <div className="mt-5 border-t border-app-border pt-4">
+                <LanguageSelect
+                  value={language}
+                  disabled={languagePending}
+                  onChange={onChangeLanguage}
+                />
+                {languageErrorMessage ? (
+                  <p className="mt-2 text-xs text-rose-200">{languageErrorMessage}</p>
+                ) : null}
+              </div>
+            ) : null}
           </AppPanel>
         </main>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[64px_minmax(0,1fr)]">
           <nav
-            aria-label="Workspace sections"
+            aria-label={t("workspaceSections")}
             className="flex min-h-0 flex-col items-center gap-2 border-r border-app-border bg-app-panel px-2 py-3"
           >
             {routeNavItems.map((item) => {
@@ -180,6 +203,8 @@ function RouteNavLink({
   item: RouteNavItem;
   onNavigate?: (to: RouteNavItem["to"]) => void;
 }) {
+  const { t } = useTranslation("shell");
+  const label = t(item.labelKey);
   const handleClick = useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {
       handleNavClick(event, item, onNavigate);
@@ -190,7 +215,7 @@ function RouteNavLink({
   return (
     <a
       href={item.to}
-      aria-label={item.label}
+      aria-label={label}
       aria-current={active ? "page" : undefined}
       className={[
         "grid size-10 place-items-center border transition-colors",
@@ -198,11 +223,11 @@ function RouteNavLink({
           ? "border-brand-400/70 bg-brand-500/20 text-brand-100"
           : "border-transparent text-app-muted hover:bg-app-surface hover:text-app-text",
       ].join(" ")}
-      title={item.label}
+      title={label}
       onClick={handleClick}
     >
       <item.icon aria-hidden="true" className="size-5" />
-      <span className="sr-only">{item.label}</span>
+      <span className="sr-only">{label}</span>
     </a>
   );
 }

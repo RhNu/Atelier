@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import { useCallback, type ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppPanel, AppTabs, EmptyState } from "@/components/ui";
 import type { PromptLexiconCatalogDto } from "@/types";
@@ -32,6 +33,7 @@ export function LexiconSidebar({
   onViewChange,
   onSelect,
 }: LexiconSidebarProps) {
+  const { t } = useTranslation("lexicon");
   return (
     <AppPanel variant="section" className="min-h-0 overflow-hidden">
       <div className="border-b border-app-border p-3">
@@ -47,11 +49,11 @@ export function LexiconSidebar({
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-app-muted"
           />
           <input
-            aria-label="Search tags"
+            aria-label={t("searchTags")}
             value={search}
             onChange={onSearchChange}
             className="h-9 w-full border border-app-border bg-black/20 pr-3 pl-9 text-sm text-app-text outline-none focus:border-brand-400"
-            placeholder="Tag, translation, or alias"
+            placeholder={t("searchPlaceholder")}
           />
         </label>
         {catalog ? <LexiconStats catalog={catalog} /> : null}
@@ -59,9 +61,9 @@ export function LexiconSidebar({
 
       <div className="h-full overflow-auto p-2">
         {catalogPending ? (
-          <p className="p-2 text-sm text-app-muted">Loading lexicon catalog</p>
+          <p className="p-2 text-sm text-app-muted">{t("loadingCatalog")}</p>
         ) : catalogError ? (
-          <EmptyState title="Lexicon unavailable" description={catalogError} />
+          <EmptyState title={t("unavailable")} description={catalogError} />
         ) : catalog ? (
           <CategoryNavigator catalog={catalog} selection={selection} onSelect={onSelect} />
         ) : null}
@@ -76,14 +78,15 @@ const LEXICON_VIEW_TABS = [
 ] as const;
 
 function LexiconStats({ catalog }: { catalog: PromptLexiconCatalogDto }) {
+  const { t } = useTranslation("lexicon");
   return (
     <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
       <div className="border border-app-border bg-app-surface p-2">
-        <dt className="text-xs text-app-muted uppercase">Tags</dt>
+        <dt className="text-xs text-app-muted uppercase">{t("tags")}</dt>
         <dd className="mt-1 font-semibold text-app-text">{catalog.stats.total_tags}</dd>
       </div>
       <div className="border border-app-border bg-app-surface p-2">
-        <dt className="text-xs text-app-muted uppercase">Translations</dt>
+        <dt className="text-xs text-app-muted uppercase">{t("translations")}</dt>
         <dd className="mt-1 font-semibold text-app-text">{catalog.stats.total_translations}</dd>
       </div>
     </dl>
@@ -99,8 +102,9 @@ function CategoryNavigator({
   selection: LexiconCategorySelection;
   onSelect: (selection: LexiconCategorySelection) => void;
 }) {
+  const { t } = useTranslation("lexicon");
   return (
-    <nav aria-label="Lexicon categories" className="grid gap-1">
+    <nav aria-label={t("categories")} className="grid gap-1">
       <CategoryButton
         label="All tags"
         count={catalog.stats.total_tags}

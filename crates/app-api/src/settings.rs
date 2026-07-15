@@ -78,8 +78,24 @@ pub struct GlobalSettingsDto {
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GlobalFrontendSettingsDto {
     #[serde(default)]
+    pub language: FrontendLanguageDto,
+    #[serde(default)]
     pub developer_mode: bool,
     pub gallery: GlobalGallerySettingsDto,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum FrontendLanguageDto {
+    #[default]
+    #[serde(rename = "system")]
+    #[ts(rename = "system")]
+    System,
+    #[serde(rename = "en")]
+    #[ts(rename = "en")]
+    English,
+    #[serde(rename = "zh-CN")]
+    #[ts(rename = "zh-CN")]
+    SimplifiedChinese,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]

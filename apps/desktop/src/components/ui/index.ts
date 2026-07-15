@@ -9,5 +9,6 @@ export { AppTabs } from "./AppTabs";
 export { AppToastHost } from "./AppToastHost";
 export { AppToolbar } from "./AppToolbar";
 export { EmptyState } from "./EmptyState";
+export { LanguageSelect } from "./LanguageSelect";
 export { ResourceImage } from "./ResourceImage";
 export { SafetyBadge } from "./SafetyBadge";

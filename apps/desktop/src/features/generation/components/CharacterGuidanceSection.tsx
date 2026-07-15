@@ -1,6 +1,7 @@
 /* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppIconButton } from "@/components/ui";
 
@@ -23,6 +24,7 @@ export function CharacterGuidanceSection({
   onPatch: PatchDraft;
   characterPresetOptions: ReadonlyArray<{ value: string; label: string }>;
 }) {
+  const { t } = useTranslation("generation");
   const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
   const showPositionSettings = draft.characters.length >= 2;
 
@@ -59,9 +61,9 @@ export function CharacterGuidanceSection({
 
   return (
     <GuidanceSection
-      title="Characters"
+      title={t("characters")}
       actions={
-        <AppIconButton icon={Plus} label="Add character prompt" size="sm" onClick={addCharacter} />
+        <AppIconButton icon={Plus} label={t("addCharacter")} size="sm" onClick={addCharacter} />
       }
     >
       <CharacterPositionSettings
@@ -102,18 +104,19 @@ function CharacterPositionSettings({
   activeCharacterIndex: number;
   onSelectCharacter: (index: number) => void;
 }) {
+  const { t } = useTranslation("generation");
   if (draft.characters.length < 2) {
     return null;
   }
   const useAiPositioning = draft.characterPositionMode === "global";
 
   return (
-    <GuidanceSettingsDisclosure title="Position" defaultOpen>
+    <GuidanceSettingsDisclosure title={t("position")} defaultOpen>
       <label className="flex items-center justify-between gap-3 text-xs text-app-muted">
         AI positioning
         <input
-          aria-label="Use AI character positioning"
-          title="Use AI character positioning"
+          aria-label={t("aiPositioning")}
+          title={t("aiPositioning")}
           type="checkbox"
           checked={useAiPositioning}
           onChange={(event) =>

@@ -1,6 +1,7 @@
 import { Clapperboard, Download, Maximize2, ShieldCheck, Trash2 } from "lucide-react";
 import type { ChangeEvent } from "react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppModal, AppPanel, AppSelect, EmptyState, SafetyBadge } from "@/components/ui";
 import type { GalleryItemDto } from "@/types";
@@ -45,44 +46,50 @@ function DetailRow({ label, value }: { label: string; value: string | number | n
 }
 
 function EmptyInspector() {
+  const { t } = useTranslation("gallery");
   return (
     <AppPanel
       as="aside"
       variant="section"
-      aria-label="Gallery item details"
+      aria-label={t("detailsLabel")}
       className="min-h-0 overflow-auto"
     >
       <div className="p-3">
-        <EmptyState title="No gallery item selected" description="Select an image to inspect it." />
+        <EmptyState title={t("noSelection")} description={t("selectToInspect")} />
       </div>
     </AppPanel>
   );
 }
 
 function ArtifactDetails({ item }: { item: GalleryItemDto }) {
+  const { t } = useTranslation("gallery");
   return (
     <section className="grid gap-2">
-      <h3 className="text-sm font-semibold text-white">Artifact</h3>
+      <h3 className="text-sm font-semibold text-white">{t("artifact")}</h3>
       <dl className="grid gap-2">
-        <DetailRow label="Artifact" value={item.artifact_id} />
-        <DetailRow label="Kind" value={item.artifact_kind} />
-        <DetailRow label="Source" value={item.source_kind} />
-        <DetailRow label="Model" value={item.model_name} />
-        <DetailRow label="Seed" value={item.seed === null ? null : `Seed ${item.seed}`} />
+        <DetailRow label={t("artifact")} value={item.artifact_id} />
+        <DetailRow label={t("kind")} value={item.artifact_kind} />
+        <DetailRow label={t("source")} value={item.source_kind} />
+        <DetailRow label={t("model")} value={item.model_name} />
         <DetailRow
-          label="Sample"
-          value={item.sample_index === null ? null : `Sample ${item.sample_index}`}
+          label={t("seed", { value: "" })}
+          value={item.seed === null ? null : t("seed", { value: item.seed })}
         />
-        <DetailRow label="Indexed" value={formatTimestamp(item.indexed_at_ms)} />
+        <DetailRow
+          label={t("sample", { value: "" })}
+          value={item.sample_index === null ? null : t("sample", { value: item.sample_index })}
+        />
+        <DetailRow label={t("indexed")} value={formatTimestamp(item.indexed_at_ms)} />
       </dl>
     </section>
   );
 }
 
 function AssetDetails({ item }: { item: GalleryItemDto }) {
+  const { t } = useTranslation("gallery");
   return (
     <section className="grid gap-2">
-      <h3 className="text-sm font-semibold text-white">Assets</h3>
+      <h3 className="text-sm font-semibold text-white">{t("assets")}</h3>
       <div className="grid gap-2">
         {item.assets.map((asset) => (
           <div
@@ -102,18 +109,19 @@ function AssetDetails({ item }: { item: GalleryItemDto }) {
 }
 
 function SafetyDetails({ item }: { item: GalleryItemDto }) {
+  const { t } = useTranslation("gallery");
   const nsfwScore = formatScore("NSFW", item.safety?.nsfw_score ?? null);
   const safeScore = formatScore("Safe", item.safety?.safe_score ?? null);
 
   return (
     <section className="grid gap-2">
-      <h3 className="text-sm font-semibold text-white">Safety</h3>
+      <h3 className="text-sm font-semibold text-white">{t("safety")}</h3>
       <dl className="grid gap-2">
-        <DetailRow label="Label" value={effectiveSafetyLabel(item)} />
+        <DetailRow label={t("label")} value={effectiveSafetyLabel(item)} />
         <DetailRow label="NSFW" value={nsfwScore} />
         <DetailRow label="Safe" value={safeScore} />
-        <DetailRow label="Model" value={item.safety?.model_id ?? null} />
-        <DetailRow label="Version" value={item.safety?.scorer_version ?? null} />
+        <DetailRow label={t("model")} value={item.safety?.model_id ?? null} />
+        <DetailRow label={t("version")} value={item.safety?.scorer_version ?? null} />
       </dl>
       {item.safety?.raw_scores.length ? (
         <div className="grid gap-1 border border-app-border bg-app-surface p-3">
@@ -145,6 +153,11 @@ function InspectorActions({
   deleting,
   handoffPending,
 }: GalleryInspectorProps & { item: GalleryItemDto }) {
+  const { t } = useTranslation("gallery");
+  const localizedOverrides = useMemo(
+    () => overrideOptions.map((option) => ({ ...option, label: t(option.labelKey) })),
+    [t],
+  );
   const handleOverrideChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => onOverrideChange(event.target.value),
     [onOverrideChange],
@@ -157,11 +170,11 @@ function InspectorActions({
         htmlFor="gallery-safety-override"
         className="grid gap-1 text-sm font-semibold text-app-text"
       >
-        Safety override
+        {t("safetyOverride")}
         <AppSelect
           id="gallery-safety-override"
-          aria-label="Safety override"
-          options={overrideOptions}
+          aria-label={t("safetyOverride")}
+          options={localizedOverrides}
           value={overrideValue}
           onChange={handleOverrideChange}
         />
@@ -174,11 +187,11 @@ function InspectorActions({
           className="w-full"
         >
           <ShieldCheck aria-hidden="true" className="size-4" />
-          Apply safety override
+          {t("applyOverride")}
         </AppButton>
         <AppButton variant="secondary" onClick={onExport} disabled={exporting} className="w-full">
           <Download aria-hidden="true" className="size-4" />
-          Export selected image
+          {t("exportImage")}
         </AppButton>
       </div>
       <AppButton
@@ -188,18 +201,19 @@ function InspectorActions({
         className="w-full"
       >
         <Clapperboard aria-hidden="true" className="size-4" />
-        Send to Director
+        {t("sendDirector")}
       </AppButton>
       <AppButton variant="danger" onClick={onDelete} disabled={deleting} className="w-full">
         <Trash2 aria-hidden="true" className="size-4" />
-        Delete selected gallery item
+        {t("deleteSelected")}
       </AppButton>
-      <p className="text-xs text-app-muted">Export target: {exportAsset.role}</p>
+      <p className="text-xs text-app-muted">{t("exportTarget", { role: exportAsset.role })}</p>
     </section>
   );
 }
 
 export function GalleryInspector(props: GalleryInspectorProps) {
+  const { t } = useTranslation("gallery");
   const { item, blurSensitive } = props;
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const openLightbox = useCallback(() => setLightboxOpen(true), []);
@@ -213,13 +227,13 @@ export function GalleryInspector(props: GalleryInspectorProps) {
     <AppPanel
       as="aside"
       variant="section"
-      aria-label="Gallery item details"
+      aria-label={t("detailsLabel")}
       className="min-h-0 overflow-auto"
     >
       <header className="border-b border-app-border px-4 py-3">
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-brand-200 uppercase">Details</p>
+            <p className="text-xs font-semibold text-brand-200 uppercase">{t("details")}</p>
             <h2 className="truncate text-base font-semibold text-white">{item.item_id}</h2>
           </div>
           <SafetyBadge label={effectiveSafetyLabel(item)} />
@@ -233,21 +247,21 @@ export function GalleryInspector(props: GalleryInspectorProps) {
         ) : null}
         <button
           type="button"
-          aria-label={`Enlarge ${item.item_id}`}
+          aria-label={t("enlargeItem", { id: item.item_id })}
           className="cursor-zoom-in"
           onClick={openLightbox}
         >
           <GalleryItemImage
             item={item}
             resource={preferredPreviewResource(item)}
-            alt={`${item.item_id} detail preview`}
+            alt={t("detailPreview", { id: item.item_id })}
             className="aspect-square w-full border border-app-border bg-app-bg"
             blurSensitive={blurSensitive}
           />
         </button>
         <AppButton variant="secondary" onClick={openLightbox}>
           <Maximize2 aria-hidden="true" className="size-4" />
-          Enlarge image
+          {t("enlargeImage")}
         </AppButton>
         <ArtifactDetails item={item} />
         <AssetDetails item={item} />
@@ -259,7 +273,7 @@ export function GalleryInspector(props: GalleryInspectorProps) {
           <GalleryItemImage
             item={item}
             resource={preferredPreviewResource(item)}
-            alt={`${item.item_id} enlarged preview`}
+            alt={t("enlargedPreview", { id: item.item_id })}
             className="max-h-full max-w-full object-contain"
             blurSensitive={blurSensitive}
           />

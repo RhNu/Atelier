@@ -10,15 +10,15 @@ import {
 
 export type RouteNavItem = {
   to: "/generate" | "/director" | "/resources" | "/lexicon" | "/gallery" | "/settings";
-  label: string;
+  labelKey: `nav.${"generate" | "director" | "resources" | "lexicon" | "gallery" | "settings"}`;
   icon: LucideIcon;
 };
 
 export const routeNavItems: ReadonlyArray<RouteNavItem> = [
-  { to: "/generate", label: "Generate", icon: WandSparkles },
-  { to: "/director", label: "Director", icon: Clapperboard },
-  { to: "/resources", label: "Resources", icon: Boxes },
-  { to: "/lexicon", label: "Lexicon", icon: BookOpen },
-  { to: "/gallery", label: "Gallery", icon: Images },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/generate", labelKey: "nav.generate", icon: WandSparkles },
+  { to: "/director", labelKey: "nav.director", icon: Clapperboard },
+  { to: "/resources", labelKey: "nav.resources", icon: Boxes },
+  { to: "/lexicon", labelKey: "nav.lexicon", icon: BookOpen },
+  { to: "/gallery", labelKey: "nav.gallery", icon: Images },
+  { to: "/settings", labelKey: "nav.settings", icon: Settings },
 ];

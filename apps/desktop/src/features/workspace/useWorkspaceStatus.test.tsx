@@ -71,7 +71,11 @@ beforeEach(() => {
   mocks.workspaceApi.bootstrap.mockResolvedValue({
     global_settings: {
       last_workspace: null,
-      frontend: { developer_mode: false, gallery: { blur_sensitive_images: false } },
+      frontend: {
+        language: "system",
+        developer_mode: false,
+        gallery: { blur_sensitive_images: false },
+      },
     },
     workspace: null,
     restore_failure: null,
@@ -84,7 +88,11 @@ beforeEach(() => {
   mocks.workspaceApi.close.mockResolvedValue({ was_open: true });
   mocks.globalSettingsApi.get.mockResolvedValue({
     last_workspace: "D:/atelier-next",
-    frontend: { developer_mode: false, gallery: { blur_sensitive_images: false } },
+    frontend: {
+      language: "system",
+      developer_mode: false,
+      gallery: { blur_sensitive_images: false },
+    },
   });
 });
 
