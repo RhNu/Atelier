@@ -128,7 +128,7 @@ export function SettingsPage() {
         </div>
       </AppToolbar>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] gap-3 p-3">
+      <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] divide-x divide-app-border">
         <SettingsSectionNav activeSection={activeSection} onSelect={setActiveSection} />
         <SettingsContent
           activeSection={activeSection}
@@ -292,7 +292,7 @@ type SettingsContentProps = {
 
 function SettingsUnavailable({ description }: { description: string }) {
   return (
-    <AppPanel className="min-h-0 overflow-hidden">
+    <AppPanel variant="section" className="min-h-0 overflow-hidden">
       <EmptyState title="Settings unavailable" description={description} />
     </AppPanel>
   );
@@ -300,7 +300,7 @@ function SettingsUnavailable({ description }: { description: string }) {
 
 function SettingsLoading({ label }: { label: string }) {
   return (
-    <AppPanel className="min-h-0 overflow-hidden">
+    <AppPanel variant="section" className="min-h-0 overflow-hidden">
       <LoadingPanel label={label} />
     </AppPanel>
   );

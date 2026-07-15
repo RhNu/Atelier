@@ -42,7 +42,7 @@ export function ImageSettingsSection({
   }, [draft, saveSettings]);
 
   return (
-    <AppPanel className="flex h-full min-h-0 flex-col overflow-hidden">
+    <AppPanel variant="section" className="flex h-full min-h-0 flex-col overflow-hidden">
       <SectionHeader
         kicker="Images"
         title="Image Variants"

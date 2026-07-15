@@ -6,6 +6,7 @@ import { AppButton } from "./AppButton";
 import { AppHelpMarker } from "./AppHelpMarker";
 import { AppIconButton } from "./AppIconButton";
 import { AppModal } from "./AppModal";
+import { AppPanel } from "./AppPanel";
 import { AppRangeField } from "./AppRangeField";
 import { AppTabs } from "./AppTabs";
 import { EmptyState } from "./EmptyState";
@@ -47,6 +48,19 @@ describe("UI primitives", () => {
     expect(screen.getByRole("tab", { name: "Gallery", selected: true })).toBeInTheDocument();
     expect(screen.getByText("SENSITIVE")).toBeInTheDocument();
     expect(screen.getByText("No artifacts")).toBeInTheDocument();
+  });
+
+  it("supports bordered panels and flush page sections", () => {
+    render(
+      <>
+        <AppPanel>Panel content</AppPanel>
+        <AppPanel variant="section">Section content</AppPanel>
+      </>,
+    );
+
+    expect(screen.getByText("Panel content")).toHaveClass("border", "border-app-border");
+    expect(screen.getByText("Section content")).toHaveClass("bg-app-panel");
+    expect(screen.getByText("Section content")).not.toHaveClass("border", "shadow-app-panel");
   });
 
   it("renders compact help and controlled range primitives", () => {

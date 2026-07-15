@@ -16,7 +16,7 @@ export function WorkspaceLifecycleSection({
   commandError: string | null;
 }) {
   return (
-    <AppPanel className="h-full min-h-0 overflow-hidden">
+    <AppPanel variant="section" className="h-full min-h-0 overflow-hidden">
       <SectionHeader
         kicker="Workspace"
         title="Current Workspace"

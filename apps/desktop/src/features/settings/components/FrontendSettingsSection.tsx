@@ -52,7 +52,7 @@ export function FrontendSettingsSection({
   }, [draft, saveSettings]);
 
   return (
-    <AppPanel className="h-full min-h-0 overflow-hidden">
+    <AppPanel variant="section" className="h-full min-h-0 overflow-hidden">
       <SectionHeader
         kicker="Frontend"
         title="Frontend Preferences"

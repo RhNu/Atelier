@@ -219,7 +219,7 @@ export function DirectorPage() {
         </p>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[340px_minmax(0,1fr)_340px] gap-3 p-3">
+      <div className="grid min-h-0 flex-1 grid-cols-[340px_minmax(0,1fr)_340px] divide-x divide-app-border">
         <DirectorInputPanel
           input={input}
           imageSrc={sourceImageSrc}

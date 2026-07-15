@@ -70,7 +70,7 @@ export function VibeWorkspace({
   }
 
   return (
-    <AppPanel className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <AppPanel variant="section" className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-white">Vibe Documents</h2>

@@ -29,7 +29,7 @@ export function LexiconSidebar({
   onSelect,
 }: LexiconSidebarProps) {
   return (
-    <AppPanel className="min-h-0 overflow-hidden">
+    <AppPanel variant="section" className="min-h-0 overflow-hidden">
       <div className="border-b border-app-border p-3">
         <label className="relative block">
           <Search

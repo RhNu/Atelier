@@ -45,7 +45,12 @@ function DetailRow({ label, value }: { label: string; value: string | number | n
 
 function EmptyInspector() {
   return (
-    <AppPanel as="aside" aria-label="Gallery item details" className="min-h-0 overflow-auto">
+    <AppPanel
+      as="aside"
+      variant="section"
+      aria-label="Gallery item details"
+      className="min-h-0 overflow-auto"
+    >
       <div className="p-3">
         <EmptyState title="No gallery item selected" description="Select an image to inspect it." />
       </div>
@@ -201,7 +206,12 @@ export function GalleryInspector(props: GalleryInspectorProps) {
   }
 
   return (
-    <AppPanel as="aside" aria-label="Gallery item details" className="min-h-0 overflow-auto">
+    <AppPanel
+      as="aside"
+      variant="section"
+      aria-label="Gallery item details"
+      className="min-h-0 overflow-auto"
+    >
       <header className="border-b border-app-border px-4 py-3">
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">

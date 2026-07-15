@@ -50,7 +50,7 @@ export function DirectorInputPanel({
   onClear: () => void;
 }) {
   return (
-    <AppPanel className="flex min-h-0 flex-col overflow-hidden">
+    <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
       <header className="border-b border-app-border px-4 py-3">
         <h2 className="text-sm font-semibold text-white">Input</h2>
       </header>
@@ -100,8 +100,8 @@ export function DirectorPreviewPanel({
   resultError: string | null;
 }) {
   return (
-    <AppPanel className="min-h-0 overflow-hidden bg-black/25">
-      <div className="grid h-full min-h-0 grid-cols-2 gap-3 p-3">
+    <AppPanel variant="section" className="min-h-0 overflow-hidden bg-black/25">
+      <div className="grid h-full min-h-0 grid-cols-2 divide-x divide-app-border">
         <PreviewFrame title="Original" src={sourceSrc} pending={false} error={null} />
         <PreviewFrame title="Result" src={resultSrc} pending={resultPending} error={resultError} />
       </div>
@@ -121,7 +121,7 @@ function PreviewFrame({
   error: string | null;
 }) {
   return (
-    <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2">
+    <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 p-3">
       <h2 className="text-xs font-semibold text-app-muted uppercase">{title}</h2>
       {pending ? (
         <EmptyState title="Loading result" />
@@ -180,7 +180,7 @@ export function DirectorRunPanel({
   onApplySafety: () => void;
 }) {
   return (
-    <AppPanel className="flex min-h-0 flex-col overflow-hidden">
+    <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
       <header className="border-b border-app-border px-4 py-3">
         <h2 className="text-sm font-semibold text-white">Run State</h2>
       </header>

@@ -27,7 +27,7 @@ export function LexiconResults({
   const shownFrom = page && page.items.length > 0 ? page.offset + 1 : 0;
   const shownTo = page ? page.offset + page.items.length : 0;
   return (
-    <AppPanel className="flex min-h-0 flex-col overflow-hidden">
+    <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
       <header className="flex min-h-12 items-center justify-between gap-3 border-b border-app-border px-4 py-2">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-semibold text-white">{title}</h2>

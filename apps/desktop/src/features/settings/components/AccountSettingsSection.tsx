@@ -11,8 +11,8 @@ export function AccountSettingsSection() {
   const account = useAccountSettingsController();
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_320px] gap-3">
-      <AppPanel className="flex min-h-0 flex-col overflow-hidden">
+    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_320px] divide-x divide-app-border">
+      <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
         <SectionHeader
           kicker="Account"
           title="NovelAI Account"

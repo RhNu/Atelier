@@ -102,8 +102,8 @@ export function GalleryPage() {
         </div>
       </AppToolbar>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] gap-3 p-3">
-        <AppPanel className="flex min-h-0 flex-col overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] divide-x divide-app-border">
+        <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
           <GalleryFilters
             artifactKind={artifactKind}
             sourceFilter={sourceFilter}

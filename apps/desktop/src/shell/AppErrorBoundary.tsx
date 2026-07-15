@@ -31,7 +31,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     if (this.state.error) {
       return (
         <div className="flex h-svh items-center justify-center bg-app-bg p-6">
-          <AppPanel className="max-w-xl p-6">
+          <AppPanel className="max-w-xl p-6 shadow-app-panel">
             <p className="text-xs font-semibold text-rose-100 uppercase">Frontend error</p>
             <h1 className="mt-2 text-lg font-semibold text-white">
               Atelier could not render this view

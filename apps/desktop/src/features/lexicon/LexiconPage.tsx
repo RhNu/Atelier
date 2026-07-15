@@ -83,7 +83,7 @@ export function LexiconPage() {
         />
       </AppToolbar>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[320px_minmax(0,1fr)] gap-3 p-3">
+      <div className="grid min-h-0 flex-1 grid-cols-[320px_minmax(0,1fr)] divide-x divide-app-border">
         <LexiconSidebar
           catalog={catalogQuery.data}
           catalogPending={catalogQuery.isPending}

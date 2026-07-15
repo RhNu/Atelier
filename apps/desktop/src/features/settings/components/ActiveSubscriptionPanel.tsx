@@ -16,7 +16,7 @@ export function ActiveSubscriptionPanel({
   onRefresh: () => void;
 }) {
   return (
-    <AppPanel className="min-h-0 overflow-hidden">
+    <AppPanel variant="section" className="min-h-0 overflow-hidden">
       <SectionHeader
         kicker="Subscription"
         title="Active Key Probe"

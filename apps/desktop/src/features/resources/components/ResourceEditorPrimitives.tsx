@@ -29,7 +29,7 @@ export function SearchField({
 }
 export function ResourceEditorLayout({ list, editor }: { list: ReactNode; editor: ReactNode }) {
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)] gap-3">
+    <div className="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)] divide-x divide-app-border">
       {list}
       {editor}
     </div>
@@ -48,7 +48,7 @@ export function ResourceList({
   children: ReactNode;
 }) {
   return (
-    <AppPanel className="min-h-0 overflow-hidden">
+    <AppPanel variant="section" className="min-h-0 overflow-hidden">
       <header className="border-b border-app-border px-4 py-3">
         <h2 className="text-sm font-semibold text-white">Library</h2>
       </header>
@@ -114,7 +114,7 @@ export function EditorPanel({
   children: ReactNode;
 }) {
   return (
-    <AppPanel className="flex min-h-0 flex-col overflow-hidden">
+    <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
       <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-white">{title}</h2>

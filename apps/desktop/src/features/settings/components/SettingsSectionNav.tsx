@@ -63,7 +63,12 @@ export function SettingsSectionNav({
   onSelect: (section: SettingsSection) => void;
 }) {
   return (
-    <AppPanel as="nav" aria-label="Settings sections" className="min-h-0 overflow-hidden">
+    <AppPanel
+      as="nav"
+      variant="section"
+      aria-label="Settings sections"
+      className="min-h-0 overflow-hidden"
+    >
       <div className="grid gap-1 p-2">
         <SettingsSectionGroup
           label="Application"

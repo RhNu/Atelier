@@ -115,7 +115,7 @@ export function AppShell({
 
       {showWorkspaceGate ? (
         <main className="flex min-h-0 flex-1 items-center justify-center p-6">
-          <AppPanel className="w-full max-w-xl p-6">
+          <AppPanel className="w-full max-w-xl p-6 shadow-app-panel">
             <p className="text-xs font-semibold text-brand-200 uppercase">Workspace</p>
             <h1 className="mt-2 text-xl font-semibold text-white">
               {restoreFailure ? "Couldn’t reopen your last workspace" : "Open an Atelier workspace"}
