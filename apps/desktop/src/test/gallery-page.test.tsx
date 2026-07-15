@@ -217,6 +217,21 @@ describe("GalleryPage", () => {
     expect(screen.getByAltText("safe-item preview")).not.toHaveClass("blur-md");
   });
 
+  it("opens the selected image in a fullscreen lightbox from the preview and button", async () => {
+    const { user } = setup();
+
+    const preview = await screen.findByAltText("safe-item detail preview");
+    await user.click(preview);
+    expect(screen.getByRole("dialog", { name: "safe-item" })).toBeInTheDocument();
+    expect(await screen.findByAltText("safe-item enlarged preview")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog", { name: "safe-item" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Enlarge image" }));
+    expect(screen.getByRole("dialog", { name: "safe-item" })).toBeInTheDocument();
+  });
+
   it("filters hidden items, updates safety overrides, and exports the preferred resource", async () => {
     const { user } = setup();
 

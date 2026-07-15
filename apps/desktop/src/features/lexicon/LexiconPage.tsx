@@ -1,6 +1,5 @@
 import { useCallback, useDeferredValue, useState, type ChangeEvent } from "react";
 
-import { AppTabs, AppToolbar } from "../../components/ui";
 import type { PromptLexiconListQueryDto } from "../../types";
 import { LexiconResults } from "./components/LexiconResults";
 import { LexiconSidebar, type LexiconCategorySelection } from "./components/LexiconSidebar";
@@ -13,10 +12,6 @@ import {
 
 type LexiconView = "catalog" | "search";
 
-const lexiconViewTabs = [
-  { value: "catalog", label: "Catalog" },
-  { value: "search", label: "Search" },
-] as const;
 const EMPTY_SELECTION: LexiconCategorySelection = { category: null, subcategory: null };
 
 export function LexiconPage() {
@@ -70,27 +65,16 @@ export function LexiconPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <AppToolbar>
-        <div>
-          <p className="text-xs font-semibold text-brand-200 uppercase">Lexicon</p>
-          <h1 className="text-lg font-semibold text-white">NovelAI Prompt Lexicon</h1>
-        </div>
-        <AppTabs
-          value={view}
-          label="Lexicon views"
-          tabs={lexiconViewTabs}
-          onChange={handleViewChange}
-        />
-      </AppToolbar>
-
       <div className="grid min-h-0 flex-1 grid-cols-[320px_minmax(0,1fr)] divide-x divide-app-border">
         <LexiconSidebar
           catalog={catalogQuery.data}
           catalogPending={catalogQuery.isPending}
           catalogError={catalogQuery.isError ? formatError(catalogQuery.error) : null}
           search={search}
+          view={view}
           selection={selection}
           onSearchChange={handleSearchChange}
+          onViewChange={handleViewChange}
           onSelect={handleSelectionChange}
         />
         <LexiconResults

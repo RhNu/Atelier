@@ -91,10 +91,25 @@ describe("LexiconPage", () => {
         limit: 80,
       }),
     );
+    await user.click(screen.getByRole("button", { name: /Hair/ }));
+    await waitFor(() =>
+      expect(mocks.lexiconList).toHaveBeenCalledWith({
+        query: "",
+        category: "Characters",
+        subcategory: "Hair",
+        offset: 0,
+        limit: 80,
+      }),
+    );
     await user.click(screen.getByRole("button", { name: "Next lexicon page" }));
     await waitFor(() =>
       expect(mocks.lexiconList).toHaveBeenCalledWith(
-        expect.objectContaining({ category: "Characters", offset: 80, limit: 80 }),
+        expect.objectContaining({
+          category: "Characters",
+          subcategory: "Hair",
+          offset: 80,
+          limit: 80,
+        }),
       ),
     );
   });

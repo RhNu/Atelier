@@ -1,8 +1,6 @@
 /* eslint-disable max-lines-per-function */
-import { Clapperboard } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 
-import { AppToolbar } from "../../components/ui";
 import { desktopApi, resourceApi, uniqueImportedImageResources } from "../../platform/atelier";
 import type { DirectorToolDto, DirectorToolResultDto } from "../../types";
 import { formatError } from "../gallery/gallery-utils";
@@ -201,18 +199,6 @@ export function DirectorPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <AppToolbar>
-        <div>
-          <p className="text-xs font-semibold text-brand-200 uppercase">Director</p>
-          <h1 className="text-lg font-semibold text-white">NovelAI Director Tools</h1>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-app-muted">
-          <Clapperboard aria-hidden="true" className="size-4" />
-          <span>{runSummary.tier}</span>
-          {runSummary.anlas === null ? null : <span>{runSummary.anlas} Anlas</span>}
-        </div>
-      </AppToolbar>
-
       {actionError ? (
         <p className="border-b border-app-border bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
           {actionError}
@@ -232,7 +218,6 @@ export function DirectorPage() {
         />
 
         <DirectorPreviewPanel
-          sourceSrc={sourceImageSrc}
           resultSrc={resultImageSrc}
           resultPending={resultImageQuery.isPending && Boolean(result)}
           resultError={resultImageQuery.isError ? formatError(resultImageQuery.error) : null}
@@ -241,6 +226,8 @@ export function DirectorPage() {
         <DirectorRunPanel
           tool={tool}
           toolDescription={runSummary.tool}
+          tier={runSummary.tier}
+          anlas={runSummary.anlas}
           showsPrompt={showsPrompt}
           promptRequired={promptRequired}
           prompt={prompt}

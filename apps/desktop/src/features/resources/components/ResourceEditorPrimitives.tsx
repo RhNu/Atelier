@@ -27,32 +27,26 @@ export function SearchField({
     </label>
   );
 }
-export function ResourceEditorLayout({ list, editor }: { list: ReactNode; editor: ReactNode }) {
-  return (
-    <div className="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)] divide-x divide-app-border">
-      {list}
-      {editor}
-    </div>
-  );
-}
-
 export function ResourceList({
   pending,
   error,
   emptyTitle,
+  actions,
   children,
 }: {
   pending: boolean;
   error: string | null;
   emptyTitle: string;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <AppPanel variant="section" className="min-h-0 overflow-hidden">
-      <header className="border-b border-app-border px-4 py-3">
+    <AppPanel variant="section" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
         <h2 className="text-sm font-semibold text-white">Library</h2>
+        {actions}
       </header>
-      <div className="min-h-0 overflow-auto p-3">
+      <div className="min-h-0 flex-1 overflow-auto p-3">
         {pending ? (
           <EmptyState title="Loading resources" />
         ) : error ? (
@@ -114,8 +108,8 @@ export function EditorPanel({
   children: ReactNode;
 }) {
   return (
-    <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
-      <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
+    <div className="grid gap-4">
+      <header className="flex items-center justify-between gap-3 border-b border-app-border pb-3">
         <div>
           <h2 className="text-sm font-semibold text-white">{title}</h2>
           <p className="text-xs text-app-muted">{subtitle}</p>
@@ -123,14 +117,12 @@ export function EditorPanel({
         {actions}
       </header>
       {error ? (
-        <p className="border-b border-app-border bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+        <p className="border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
           {error}
         </p>
       ) : null}
-      <div className="min-h-0 flex-1 overflow-auto p-4">
-        <div className="grid gap-3">{children}</div>
-      </div>
-    </AppPanel>
+      <div className="grid gap-3">{children}</div>
+    </div>
   );
 }
 

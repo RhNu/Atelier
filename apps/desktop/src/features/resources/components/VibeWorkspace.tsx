@@ -1,8 +1,8 @@
-/* eslint-disable react-perf/jsx-no-new-function-as-prop */
-import { Archive, Download, FilePlus2, Import, Save, Sparkles } from "lucide-react";
+/* eslint-disable max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
+import { Download, FilePlus2, Import, Pencil, Save, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { AppButton, AppPanel, EmptyState } from "../../../components/ui";
+import { AppButton, AppModal, AppPanel, EmptyState } from "../../../components/ui";
 import type { VibeDocumentEntryDto } from "../../../types";
 import {
   useEnsureVibeEncodingFromSourceMutation,
@@ -31,6 +31,7 @@ export function VibeWorkspace({
   onIncludeHiddenChange: (value: boolean) => void;
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [editingVibe, setEditingVibe] = useState<VibeDocumentEntryDto | null>(null);
   const filtered = useMemo(
     () => vibes.filter((vibe) => matchesSearch(search, vibe.display_name, vibe.vibe_id)),
     [search, vibes],
@@ -142,16 +143,37 @@ export function VibeWorkspace({
                     format: "naiv4vibe",
                   })
                 }
-                onRename={(display_name) =>
-                  renameMutation.mutate({ vibe_id: vibe.vibe_id, display_name })
-                }
-                onHide={() => hideMutation.mutate({ vibe_id: vibe.vibe_id, hidden: !vibe.hidden })}
+                onEdit={() => setEditingVibe(vibe)}
                 onEnsureEncoding={ensureEncodingHandler(vibe)}
               />
             ))}
           </div>
         )}
       </div>
+      <VibeEditDialog
+        vibe={editingVibe}
+        saving={renameMutation.isPending || hideMutation.isPending}
+        error={commandError ? formatError(commandError) : null}
+        onClose={() => setEditingVibe(null)}
+        onSave={(displayName, hidden) => {
+          if (!editingVibe) return;
+          const updates: Promise<unknown>[] = [];
+          if (displayName !== editingVibe.display_name) {
+            updates.push(
+              renameMutation.mutateAsync({
+                vibe_id: editingVibe.vibe_id,
+                display_name: displayName,
+              }),
+            );
+          }
+          if (hidden !== editingVibe.hidden) {
+            updates.push(hideMutation.mutateAsync({ vibe_id: editingVibe.vibe_id, hidden }));
+          }
+          void Promise.all(updates)
+            .then(() => setEditingVibe(null))
+            .catch(() => undefined);
+        }}
+      />
     </AppPanel>
   );
 }
@@ -163,8 +185,7 @@ function VibeCard({
   encodePending,
   onToggleSelected,
   onExport,
-  onRename,
-  onHide,
+  onEdit,
   onEnsureEncoding,
 }: {
   vibe: VibeDocumentEntryDto;
@@ -173,14 +194,9 @@ function VibeCard({
   encodePending: boolean;
   onToggleSelected: (selected: boolean) => void;
   onExport: () => void;
-  onRename: (displayName: string) => void;
-  onHide: () => void;
+  onEdit: () => void;
   onEnsureEncoding: (() => void) | null;
 }) {
-  const [name, setName] = useState(vibe.display_name);
-  useEffect(() => {
-    setName(vibe.display_name);
-  }, [vibe.display_name]);
   return (
     <article className="grid gap-3 border border-app-border bg-app-surface p-3">
       <PreviewSlot resource={vibe.preview ?? vibe.source_image} label={vibe.display_name} />
@@ -193,20 +209,18 @@ function VibeCard({
         />
         Select
       </label>
-      <TextInput label="Local display name" value={name} onChange={setName} />
       <div className="grid grid-cols-3 gap-2">
-        <AppButton variant="secondary" onClick={() => onRename(name)}>
-          <Save aria-hidden="true" className="size-4" />
-          Rename
+        <AppButton variant="secondary" onClick={onEdit}>
+          <Pencil aria-hidden="true" className="size-4" />
+          Edit
         </AppButton>
         <AppButton variant="secondary" onClick={onExport} disabled={exportPending}>
           <Download aria-hidden="true" className="size-4" />
           Export
         </AppButton>
-        <AppButton variant="ghost" onClick={onHide}>
-          <Archive aria-hidden="true" className="size-4" />
-          {vibe.hidden ? "Unhide" : "Hide"}
-        </AppButton>
+        <span className="flex items-center justify-center text-xs text-app-muted">
+          {vibe.hidden ? "Hidden" : "Visible"}
+        </span>
       </div>
       {onEnsureEncoding ? (
         <AppButton variant="secondary" onClick={onEnsureEncoding} disabled={encodePending}>
@@ -221,5 +235,55 @@ function VibeCard({
         {vibe.hidden ? <span className="text-amber-200">Hidden</span> : null}
       </div>
     </article>
+  );
+}
+
+function VibeEditDialog({
+  vibe,
+  saving,
+  error,
+  onClose,
+  onSave,
+}: {
+  vibe: VibeDocumentEntryDto | null;
+  saving: boolean;
+  error: string | null;
+  onClose: () => void;
+  onSave: (displayName: string, hidden: boolean) => void;
+}) {
+  const [name, setName] = useState("");
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    setName(vibe?.display_name ?? "");
+    setHidden(vibe?.hidden ?? false);
+  }, [vibe?.display_name, vibe?.hidden, vibe?.vibe_id]);
+  const close = () => {
+    setName("");
+    onClose();
+  };
+  return (
+    <AppModal open={Boolean(vibe)} title="Edit Vibe document" onClose={close}>
+      <div className="grid gap-4">
+        {error ? (
+          <p className="border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
+            {error}
+          </p>
+        ) : null}
+        <TextInput label="Local display name" value={name} onChange={setName} />
+        <label className="flex h-9 items-center gap-2 border border-app-border bg-black/20 px-3 text-sm text-app-text">
+          <input
+            aria-label="Hidden"
+            type="checkbox"
+            checked={hidden}
+            onChange={(event) => setHidden(event.target.checked)}
+          />
+          Hidden
+        </label>
+        <AppButton onClick={() => onSave(name, hidden)} disabled={saving || !name.trim()}>
+          <Save aria-hidden="true" className="size-4" />
+          Save changes
+        </AppButton>
+      </div>
+    </AppModal>
   );
 }

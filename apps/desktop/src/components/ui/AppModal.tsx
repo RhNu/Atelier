@@ -16,11 +16,12 @@ const FOCUSABLE_SELECTOR = [
 type AppModalProps = {
   open: boolean;
   title: string;
+  size?: "default" | "fullscreen";
   children: ReactNode;
   onClose: () => void;
 };
 
-export function AppModal({ open, title, children, onClose }: AppModalProps) {
+export function AppModal({ open, title, size = "default", children, onClose }: AppModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -78,7 +79,12 @@ export function AppModal({ open, title, children, onClose }: AppModalProps) {
         tabIndex={-1}
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative m-0 grid max-h-[88svh] w-full max-w-3xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden border border-app-border bg-app-panel p-0 text-left text-app-text shadow-app-panel"
+        className={[
+          "relative m-0 grid w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden border border-app-border bg-app-panel p-0 text-left text-app-text shadow-app-panel",
+          size === "fullscreen"
+            ? "h-[calc(100svh-2rem)] max-h-none max-w-[calc(100vw-2rem)]"
+            : "max-h-[88svh] max-w-3xl",
+        ].join(" ")}
         onKeyDown={handleKeyDown}
       >
         <header className="flex items-center justify-between border-b border-app-border px-4 py-3">

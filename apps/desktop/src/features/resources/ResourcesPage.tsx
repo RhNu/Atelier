@@ -1,6 +1,7 @@
+import { Plus } from "lucide-react";
 import { useCallback, useState } from "react";
 
-import { AppTabs, AppToolbar } from "../../components/ui";
+import { AppButton, AppTabs } from "../../components/ui";
 import type { PromptChunkDto, PromptPresetDto, VibeDocumentEntryDto } from "../../types";
 import { ChunkWorkspace } from "./components/ChunkWorkspace";
 import { PresetWorkspace } from "./components/PresetWorkspace";
@@ -27,6 +28,7 @@ export function ResourcesPage() {
   const [tab, setTab] = useState<ResourceTab>("chunks");
   const [search, setSearch] = useState("");
   const [includeHiddenVibes, setIncludeHiddenVibes] = useState(false);
+  const [newRequest, setNewRequest] = useState(0);
   const chunksQuery = usePromptChunksQuery({ offset: 0, limit: 200 });
   const mainPresetsQuery = usePromptPresetsQuery({
     kind: "main",
@@ -46,21 +48,25 @@ export function ResourcesPage() {
     include_hidden: includeHiddenVibes,
   });
   const handleTabChange = useCallback((value: string) => setTab(parseTab(value)), []);
+  const handleNew = useCallback(() => setNewRequest((value) => value + 1), []);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <AppToolbar>
-        <div>
-          <p className="text-xs font-semibold text-brand-200 uppercase">Resources</p>
-          <h1 className="text-lg font-semibold text-white">Prompt and Vibe Workspace</h1>
-        </div>
-        <SearchField value={search} onChange={setSearch} />
-      </AppToolbar>
-
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-12 items-center justify-between gap-3 border-b border-app-border bg-app-panel px-3 py-2">
-          <AppTabs value={tab} tabs={RESOURCE_TABS} onChange={handleTabChange} />
-          <span className="text-xs text-app-muted">{tabSummary(tab)}</span>
+          <div className="flex min-w-0 items-center gap-3">
+            <AppTabs value={tab} tabs={RESOURCE_TABS} onChange={handleTabChange} />
+            <span className="hidden text-xs text-app-muted xl:inline">{tabSummary(tab)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <SearchField value={search} onChange={setSearch} />
+            {tab === "vibe" ? null : (
+              <AppButton variant="secondary" onClick={handleNew}>
+                <Plus aria-hidden="true" className="size-4" />
+                New
+              </AppButton>
+            )}
+          </div>
         </div>
         {tab === "chunks" ? (
           <ChunkWorkspace
@@ -68,6 +74,7 @@ export function ResourcesPage() {
             pending={chunksQuery.isPending}
             error={chunksQuery.isError ? formatError(chunksQuery.error) : null}
             search={search}
+            newRequest={newRequest}
           />
         ) : null}
         {tab === "main-presets" ? (
@@ -77,6 +84,7 @@ export function ResourcesPage() {
             pending={mainPresetsQuery.isPending}
             error={mainPresetsQuery.isError ? formatError(mainPresetsQuery.error) : null}
             search={search}
+            newRequest={newRequest}
           />
         ) : null}
         {tab === "character-presets" ? (
@@ -86,6 +94,7 @@ export function ResourcesPage() {
             pending={characterPresetsQuery.isPending}
             error={characterPresetsQuery.isError ? formatError(characterPresetsQuery.error) : null}
             search={search}
+            newRequest={newRequest}
           />
         ) : null}
         {tab === "vibe" ? (

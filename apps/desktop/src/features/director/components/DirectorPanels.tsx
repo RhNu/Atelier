@@ -1,5 +1,8 @@
+/* eslint-disable max-lines */
 import {
   Brush,
+  ChevronDown,
+  Clapperboard,
   Eraser,
   ImagePlus,
   Layers,
@@ -89,22 +92,17 @@ export function DirectorInputPanel({
 }
 
 export function DirectorPreviewPanel({
-  sourceSrc,
   resultSrc,
   resultPending,
   resultError,
 }: {
-  sourceSrc: string | null;
   resultSrc: string | null;
   resultPending: boolean;
   resultError: string | null;
 }) {
   return (
     <AppPanel variant="section" className="min-h-0 overflow-hidden bg-black/25">
-      <div className="grid h-full min-h-0 grid-cols-2 divide-x divide-app-border">
-        <PreviewFrame title="Original" src={sourceSrc} pending={false} error={null} />
-        <PreviewFrame title="Result" src={resultSrc} pending={resultPending} error={resultError} />
-      </div>
+      <PreviewFrame title="Output" src={resultSrc} pending={resultPending} error={resultError} />
     </AppPanel>
   );
 }
@@ -137,6 +135,8 @@ function PreviewFrame({
 export function DirectorRunPanel({
   tool,
   toolDescription,
+  tier,
+  anlas,
   showsPrompt,
   promptRequired,
   prompt,
@@ -159,6 +159,8 @@ export function DirectorRunPanel({
 }: {
   tool: DirectorToolDto;
   toolDescription: string;
+  tier: string;
+  anlas: number | null;
   showsPrompt: boolean;
   promptRequired: boolean;
   prompt: string;
@@ -182,7 +184,14 @@ export function DirectorRunPanel({
   return (
     <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
       <header className="border-b border-app-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">Run State</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-white">Controls</h2>
+          <div className="flex items-center gap-2 text-xs text-app-muted">
+            <Clapperboard aria-hidden="true" className="size-4" />
+            <span>{tier}</span>
+            {anlas === null ? null : <span>{anlas} Anlas</span>}
+          </div>
+        </div>
       </header>
       <div className="min-h-0 flex-1 overflow-auto p-3">
         <div className="grid gap-4 text-sm text-app-text">
@@ -266,22 +275,33 @@ function ResultActions({
         <Save aria-hidden="true" className="size-4" />
         Save result
       </AppButton>
-      <label
-        htmlFor="director-safety-override"
-        className="grid gap-1 text-xs font-semibold text-app-muted uppercase"
-      >
-        Safety override
-        <AppSelect
-          id="director-safety-override"
-          aria-label="Director safety override"
-          value={safetyOverride}
-          options={SAFETY_OPTIONS}
-          onChange={onSafetyChange}
-        />
-      </label>
-      <AppButton variant="secondary" onClick={onApplySafety} disabled={safetyPending}>
-        Apply safety override
-      </AppButton>
+      <details className="group border-t border-app-border pt-3">
+        <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-app-muted uppercase">
+          Advanced settings
+          <ChevronDown
+            aria-hidden="true"
+            className="size-4 transition-transform group-open:rotate-180"
+          />
+        </summary>
+        <div className="mt-3 grid gap-2">
+          <label
+            htmlFor="director-safety-override"
+            className="grid gap-1 text-xs font-semibold text-app-muted uppercase"
+          >
+            Safety override
+            <AppSelect
+              id="director-safety-override"
+              aria-label="Director safety override"
+              value={safetyOverride}
+              options={SAFETY_OPTIONS}
+              onChange={onSafetyChange}
+            />
+          </label>
+          <AppButton variant="secondary" onClick={onApplySafety} disabled={safetyPending}>
+            Apply safety override
+          </AppButton>
+        </div>
+      </details>
     </section>
   );
 }

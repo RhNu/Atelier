@@ -14,18 +14,6 @@ pub fn normalize_catalog_key(value: &str) -> String {
     value.trim().to_lowercase()
 }
 
-pub fn required_catalog_key(value: Option<&str>, name: &str) -> Result<String, PromptLexiconError> {
-    value
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(normalize_catalog_key)
-        .ok_or_else(|| {
-            PromptLexiconError::InvalidRequest(format!(
-                "prompt lexicon browse mode requires {name}"
-            ))
-        })
-}
-
 pub fn slice_checked<'a, T>(
     values: &'a [T],
     start: usize,

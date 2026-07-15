@@ -1,8 +1,8 @@
 /* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { Eye } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { AppButton } from "../../../components/ui";
+import { AppButton, AppModal } from "../../../components/ui";
 import type { CompiledPromptDto, PromptChunkDto } from "../../../types";
 import {
   useCompilePromptPreviewMutation,
@@ -23,7 +23,6 @@ import {
   EditorActions,
   EditorPanel,
   PreviewSlot,
-  ResourceEditorLayout,
   ResourceList,
   ResourceListButton,
   TextArea,
@@ -35,11 +34,13 @@ export function ChunkWorkspace({
   pending,
   error,
   search,
+  newRequest,
 }: {
   chunks: ReadonlyArray<PromptChunkDto>;
   pending: boolean;
   error: string | null;
   search: string;
+  newRequest: number;
 }) {
   const filtered = useMemo(
     () => chunks.filter((chunk) => matchesSearch(search, chunk.key, chunk.content, chunk.category)),
@@ -51,12 +52,26 @@ export function ChunkWorkspace({
   const compileMutation = useCompilePromptPreviewMutation();
   const [preview, setPreview] = useState<CompiledPromptDto | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const previousNewRequest = useRef(newRequest);
+
+  useEffect(() => {
+    if (newRequest === previousNewRequest.current) return;
+    previousNewRequest.current = newRequest;
+    setDraft(blankChunkDraft());
+    setPreview(null);
+    setErrorMessage(null);
+    setEditorOpen(true);
+  }, [newRequest]);
 
   function save() {
     setErrorMessage(null);
     void upsertMutation
       .mutateAsync(normalizeChunkDraft(draft))
-      .then((saved) => setDraft(chunkToDraft(saved)))
+      .then((saved) => {
+        setDraft(chunkToDraft(saved));
+        setEditorOpen(false);
+      })
       .catch((err: unknown) => setErrorMessage(formatError(err)));
   }
   function remove() {
@@ -66,7 +81,10 @@ export function ChunkWorkspace({
     setErrorMessage(null);
     void deleteMutation
       .mutateAsync({ chunk_id: draft.chunk_id })
-      .then(() => setDraft(blankChunkDraft()))
+      .then(() => {
+        setDraft(blankChunkDraft());
+        setEditorOpen(false);
+      })
       .catch((err: unknown) => setErrorMessage(formatError(err)));
   }
   function compile() {
@@ -78,25 +96,29 @@ export function ChunkWorkspace({
   }
 
   return (
-    <ResourceEditorLayout
-      list={
-        <ResourceList pending={pending} error={error} emptyTitle="No prompt chunks">
-          {filtered.map((chunk) => (
-            <ResourceListButton
-              key={chunk.chunk_id}
-              selected={draft.chunk_id === chunk.chunk_id}
-              title={chunk.key}
-              detail={chunk.category ?? "Uncategorized"}
-              preview={chunk.preview}
-              onClick={() => {
-                setDraft(chunkToDraft(chunk));
-                setPreview(null);
-              }}
-            />
-          ))}
-        </ResourceList>
-      }
-      editor={
+    <>
+      <ResourceList pending={pending} error={error} emptyTitle="No prompt chunks">
+        {filtered.map((chunk) => (
+          <ResourceListButton
+            key={chunk.chunk_id}
+            selected={draft.chunk_id === chunk.chunk_id}
+            title={chunk.key}
+            detail={chunk.category ?? "Uncategorized"}
+            preview={chunk.preview}
+            onClick={() => {
+              setDraft(chunkToDraft(chunk));
+              setPreview(null);
+              setErrorMessage(null);
+              setEditorOpen(true);
+            }}
+          />
+        ))}
+      </ResourceList>
+      <AppModal
+        open={editorOpen}
+        title={draft.chunk_id ? "Edit prompt chunk" : "New prompt chunk"}
+        onClose={() => setEditorOpen(false)}
+      >
         <EditorPanel
           title="Prompt Chunk"
           subtitle="Reusable @chunk(...) source"
@@ -145,7 +167,7 @@ export function ChunkWorkspace({
           </AppButton>
           <CompiledPreview preview={preview} />
         </EditorPanel>
-      }
-    />
+      </AppModal>
+    </>
   );
 }

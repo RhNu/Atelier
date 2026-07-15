@@ -1,7 +1,6 @@
-import { Settings } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { AppPanel, AppToolbar, EmptyState } from "../../components/ui";
+import { AppPanel, EmptyState } from "../../components/ui";
 import type { GlobalSettingsDto, WorkspaceSettingsDto } from "../../types";
 import { useWorkspaceStatus } from "../workspace/useWorkspaceStatus";
 import { AccountSettingsSection } from "./components/AccountSettingsSection";
@@ -117,17 +116,6 @@ export function SettingsPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <AppToolbar>
-        <div>
-          <p className="text-xs font-semibold text-brand-200 uppercase">Settings</p>
-          <h1 className="text-lg font-semibold text-white">Atelier Settings</h1>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-app-muted">
-          <Settings aria-hidden="true" className="size-4" />
-          Application and NovelAI workspace configuration
-        </div>
-      </AppToolbar>
-
       <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)] divide-x divide-app-border">
         <SettingsSectionNav activeSection={activeSection} onSelect={setActiveSection} />
         <SettingsContent

@@ -30,14 +30,16 @@ use search::{
     SearchEntry, SearchMatch, compare_browse_entries, compare_search_match, insert_sorted_match,
 };
 use validation::{
-    derive_stats, normalize_catalog_key, normalize_search_text, required_catalog_key,
-    slice_checked, validate_payload_ranges,
+    derive_stats, normalize_catalog_key, normalize_search_text, slice_checked,
+    validate_payload_ranges,
 };
 
 #[derive(Clone, Debug)]
 pub struct PromptLexicon {
     catalog: PromptLexiconCatalog,
     entries: Vec<SearchEntry>,
+    all_browse_entries: Vec<usize>,
+    category_browse_buckets: HashMap<String, Vec<usize>>,
     browse_buckets: HashMap<(String, String), Vec<usize>>,
     search_trigrams: OnceLock<HashMap<u64, Vec<u32>>>,
 }
@@ -79,7 +81,7 @@ impl PromptLexicon {
     /// Returns an error when the JSON is invalid or uses an unsupported schema.
     pub fn from_json_str(payload: &str) -> Result<Self, PromptLexiconError> {
         let payload = serde_json::from_str::<LexiconFile>(payload)?;
-        Self::from_payload(payload)
+        Self::from_payload(&payload)
     }
 
     /// Returns the prompt lexicon catalog tree.
@@ -91,7 +93,7 @@ impl PromptLexicon {
     /// Lists browse or search results with pagination.
     ///
     /// # Errors
-    /// Returns an error when browse mode omits category or subcategory.
+    /// Returns an error when the requested browse category or subcategory is invalid.
     pub fn list(
         &self,
         query: &PromptLexiconListQuery,
@@ -116,16 +118,41 @@ impl PromptLexicon {
             });
         }
 
-        let category = required_catalog_key(query.category.as_deref(), "category")?;
-        let subcategory = required_catalog_key(query.subcategory.as_deref(), "subcategory")?;
-        let bucket = self
-            .browse_buckets
-            .get(&(category, subcategory))
-            .ok_or_else(|| {
-                PromptLexiconError::InvalidRequest(
-                    "prompt lexicon category or subcategory is invalid".to_owned(),
-                )
-            })?;
+        let category = query
+            .category
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(normalize_catalog_key);
+        let subcategory = query
+            .subcategory
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(normalize_catalog_key);
+        let bucket = match (category, subcategory) {
+            (None, None) => &self.all_browse_entries,
+            (Some(category), None) => {
+                self.category_browse_buckets.get(&category).ok_or_else(|| {
+                    PromptLexiconError::InvalidRequest(
+                        "prompt lexicon category is invalid".to_owned(),
+                    )
+                })?
+            }
+            (Some(category), Some(subcategory)) => self
+                .browse_buckets
+                .get(&(category, subcategory))
+                .ok_or_else(|| {
+                    PromptLexiconError::InvalidRequest(
+                        "prompt lexicon category or subcategory is invalid".to_owned(),
+                    )
+                })?,
+            (None, Some(_)) => {
+                return Err(PromptLexiconError::InvalidRequest(
+                    "prompt lexicon subcategory requires category".to_owned(),
+                ));
+            }
+        };
         let total = bucket.len();
         let items = bucket
             .iter()
@@ -169,21 +196,16 @@ impl PromptLexicon {
             .get_or_init(|| build_search_trigram_index(&self.entries));
     }
 
-    fn from_payload(payload: LexiconFile) -> Result<Self, PromptLexiconError> {
-        if payload.schema != EXPECTED_SCHEMA || payload.version != EXPECTED_VERSION {
-            return Err(PromptLexiconError::UnsupportedSchema {
-                schema: payload.schema,
-                version: payload.version,
-            });
-        }
-
-        validate_payload_ranges(&payload)?;
+    fn from_payload(payload: &LexiconFile) -> Result<Self, PromptLexiconError> {
+        validate_schema(payload)?;
+        validate_payload_ranges(payload)?;
         let stats = match payload.stats.clone() {
             Some(stats) => stats.into(),
-            None => derive_stats(&payload)?,
+            None => derive_stats(payload)?,
         };
         let mut entries = Vec::new();
         let mut categories = Vec::with_capacity(payload.categories.len());
+        let mut category_browse_buckets = HashMap::new();
         let mut browse_buckets = HashMap::new();
         for (category_index, category) in payload.categories.iter().enumerate() {
             let subcategories = slice_checked(
@@ -194,6 +216,7 @@ impl PromptLexicon {
             )?;
             let mut subcategory_summaries = Vec::with_capacity(subcategories.len());
             let mut category_tag_count = 0usize;
+            let mut category_entry_indices = Vec::new();
             for subcategory in subcategories {
                 if subcategory.category_index != category_index {
                     return Err(PromptLexiconError::InvalidPayload(
@@ -230,9 +253,8 @@ impl PromptLexicon {
                     ));
                     entry_indices.push(entry_index);
                 }
-                entry_indices.sort_by(|left, right| {
-                    compare_browse_entries(&entries[*left], &entries[*right])
-                });
+                sort_browse_indices(&entries, &mut entry_indices);
+                category_entry_indices.extend(entry_indices.iter().copied());
                 category_tag_count += tags.len();
                 subcategory_summaries.push(PromptLexiconSubcategorySummary {
                     name: subcategory.name.clone(),
@@ -246,6 +268,9 @@ impl PromptLexicon {
                     entry_indices,
                 );
             }
+            sort_browse_indices(&entries, &mut category_entry_indices);
+            let category_key = normalize_catalog_key(&category.name);
+            category_browse_buckets.insert(category_key, category_entry_indices);
             categories.push(PromptLexiconCategorySummary {
                 name: category.name.clone(),
                 tag_count: category_tag_count,
@@ -260,9 +285,13 @@ impl PromptLexicon {
                 "prompt lexicon contains too many searchable entries".to_owned(),
             ));
         }
+        let mut all_browse_entries = (0..entries.len()).collect::<Vec<_>>();
+        sort_browse_indices(&entries, &mut all_browse_entries);
         Ok(Self {
             catalog: PromptLexiconCatalog { stats, categories },
             entries,
+            all_browse_entries,
+            category_browse_buckets,
             browse_buckets,
             search_trigrams: OnceLock::new(),
         })
@@ -304,6 +333,20 @@ impl PromptLexicon {
         }
         (total, matches)
     }
+}
+
+fn validate_schema(payload: &LexiconFile) -> Result<(), PromptLexiconError> {
+    if payload.schema == EXPECTED_SCHEMA && payload.version == EXPECTED_VERSION {
+        return Ok(());
+    }
+    Err(PromptLexiconError::UnsupportedSchema {
+        schema: payload.schema.clone(),
+        version: payload.version,
+    })
+}
+
+fn sort_browse_indices(entries: &[SearchEntry], indices: &mut [usize]) {
+    indices.sort_by(|left, right| compare_browse_entries(&entries[*left], &entries[*right]));
 }
 
 fn build_search_trigram_index(entries: &[SearchEntry]) -> HashMap<u64, Vec<u32>> {

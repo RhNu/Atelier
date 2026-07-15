@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 import { useCallback, type ChangeEvent } from "react";
 
-import { AppPanel, EmptyState } from "../../../components/ui";
+import { AppPanel, AppTabs, EmptyState } from "../../../components/ui";
 import type { PromptLexiconCatalogDto } from "../../../types";
 
 export type LexiconCategorySelection = {
@@ -14,8 +14,10 @@ type LexiconSidebarProps = {
   catalogPending: boolean;
   catalogError: string | null;
   search: string;
+  view: "catalog" | "search";
   selection: LexiconCategorySelection;
   onSearchChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onViewChange: (value: string) => void;
   onSelect: (selection: LexiconCategorySelection) => void;
 };
 
@@ -24,14 +26,22 @@ export function LexiconSidebar({
   catalogPending,
   catalogError,
   search,
+  view,
   selection,
   onSearchChange,
+  onViewChange,
   onSelect,
 }: LexiconSidebarProps) {
   return (
     <AppPanel variant="section" className="min-h-0 overflow-hidden">
       <div className="border-b border-app-border p-3">
-        <label className="relative block">
+        <AppTabs
+          value={view}
+          label="Lexicon views"
+          tabs={LEXICON_VIEW_TABS}
+          onChange={onViewChange}
+        />
+        <label className="relative mt-3 block">
           <Search
             aria-hidden="true"
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-app-muted"
@@ -59,6 +69,11 @@ export function LexiconSidebar({
     </AppPanel>
   );
 }
+
+const LEXICON_VIEW_TABS = [
+  { value: "catalog", label: "Catalog" },
+  { value: "search", label: "Search" },
+] as const;
 
 function LexiconStats({ catalog }: { catalog: PromptLexiconCatalogDto }) {
   return (

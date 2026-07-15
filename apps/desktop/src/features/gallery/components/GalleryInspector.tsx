@@ -1,8 +1,15 @@
-import { Clapperboard, Download, ShieldCheck, Trash2 } from "lucide-react";
+import { Clapperboard, Download, Maximize2, ShieldCheck, Trash2 } from "lucide-react";
 import type { ChangeEvent } from "react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
-import { AppButton, AppPanel, AppSelect, EmptyState, SafetyBadge } from "../../../components/ui";
+import {
+  AppButton,
+  AppModal,
+  AppPanel,
+  AppSelect,
+  EmptyState,
+  SafetyBadge,
+} from "../../../components/ui";
 import type { GalleryItemDto } from "../../../types";
 import {
   effectiveSafetyLabel,
@@ -200,6 +207,9 @@ function InspectorActions({
 
 export function GalleryInspector(props: GalleryInspectorProps) {
   const { item, blurSensitive } = props;
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const openLightbox = useCallback(() => setLightboxOpen(true), []);
+  const closeLightbox = useCallback(() => setLightboxOpen(false), []);
 
   if (!item) {
     return <EmptyInspector />;
@@ -227,18 +237,40 @@ export function GalleryInspector(props: GalleryInspectorProps) {
             {props.commandError}
           </p>
         ) : null}
-        <GalleryItemImage
-          item={item}
-          resource={preferredPreviewResource(item)}
-          alt={`${item.item_id} detail preview`}
-          className="aspect-square w-full border border-app-border bg-app-bg"
-          blurSensitive={blurSensitive}
-        />
+        <button
+          type="button"
+          aria-label={`Enlarge ${item.item_id}`}
+          className="cursor-zoom-in"
+          onClick={openLightbox}
+        >
+          <GalleryItemImage
+            item={item}
+            resource={preferredPreviewResource(item)}
+            alt={`${item.item_id} detail preview`}
+            className="aspect-square w-full border border-app-border bg-app-bg"
+            blurSensitive={blurSensitive}
+          />
+        </button>
+        <AppButton variant="secondary" onClick={openLightbox}>
+          <Maximize2 aria-hidden="true" className="size-4" />
+          Enlarge image
+        </AppButton>
         <ArtifactDetails item={item} />
         <AssetDetails item={item} />
         <SafetyDetails item={item} />
         <InspectorActions {...props} item={item} />
       </div>
+      <AppModal open={lightboxOpen} title={item.item_id} size="fullscreen" onClose={closeLightbox}>
+        <div className="flex h-full min-h-0 items-center justify-center bg-black/40">
+          <GalleryItemImage
+            item={item}
+            resource={preferredPreviewResource(item)}
+            alt={`${item.item_id} enlarged preview`}
+            className="max-h-full max-w-full object-contain"
+            blurSensitive={blurSensitive}
+          />
+        </div>
+      </AppModal>
     </AppPanel>
   );
 }

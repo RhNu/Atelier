@@ -15,6 +15,7 @@ type GalleryFiltersProps = {
   artifactKind: string;
   sourceFilter: SourceFilter;
   safetyFilter: SafetyFilter;
+  total: number;
   offset: number;
   onArtifactChange: (value: string) => void;
   onSourceChange: (value: SourceFilter) => void;
@@ -26,6 +27,7 @@ export function GalleryFilters({
   artifactKind,
   sourceFilter,
   safetyFilter,
+  total,
   offset,
   onArtifactChange,
   onSourceChange,
@@ -50,7 +52,7 @@ export function GalleryFilters({
   return (
     <div className="grid gap-3 border-b border-app-border p-3 lg:grid-cols-[1fr_180px_180px_180px_auto]">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-white">Browse indexed images</p>
+        <p className="text-sm font-semibold text-white">{total} indexed images</p>
         <p className="text-xs text-app-muted">
           Hidden items are excluded unless the safety filter is set to Hidden.
         </p>

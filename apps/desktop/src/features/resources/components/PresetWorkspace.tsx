@@ -1,8 +1,8 @@
-/* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
+/* eslint-disable max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { Eye } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { AppButton } from "../../../components/ui";
+import { AppButton, AppModal } from "../../../components/ui";
 import type { CompiledPromptDto, PromptPresetDto, PromptPresetKindDto } from "../../../types";
 import {
   useCompilePromptPreviewMutation,
@@ -26,7 +26,6 @@ import {
   EditorPanel,
   NumberInput,
   PreviewSlot,
-  ResourceEditorLayout,
   ResourceList,
   ResourceListButton,
   TextArea,
@@ -39,12 +38,14 @@ export function PresetWorkspace({
   pending,
   error,
   search,
+  newRequest,
 }: {
   kind: PromptPresetKindDto;
   presets: ReadonlyArray<PromptPresetDto>;
   pending: boolean;
   error: string | null;
   search: string;
+  newRequest: number;
 }) {
   const filtered = useMemo(
     () =>
@@ -59,13 +60,27 @@ export function PresetWorkspace({
   const compileMutation = useCompilePromptPreviewMutation();
   const [preview, setPreview] = useState<CompiledPromptDto | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const previousNewRequest = useRef(newRequest);
   const mainPreset = kind === "main";
+
+  useEffect(() => {
+    if (newRequest === previousNewRequest.current) return;
+    previousNewRequest.current = newRequest;
+    setDraft(blankPresetDraft(kind));
+    setPreview(null);
+    setErrorMessage(null);
+    setEditorOpen(true);
+  }, [kind, newRequest]);
 
   function save() {
     setErrorMessage(null);
     void upsertMutation
       .mutateAsync(normalizePresetDraft(draft, kind))
-      .then((saved) => setDraft(presetToDraft(saved)))
+      .then((saved) => {
+        setDraft(presetToDraft(saved));
+        setEditorOpen(false);
+      })
       .catch((err: unknown) => setErrorMessage(formatError(err)));
   }
   function remove() {
@@ -75,7 +90,10 @@ export function PresetWorkspace({
     setErrorMessage(null);
     void deleteMutation
       .mutateAsync({ preset_id: draft.preset_id })
-      .then(() => setDraft(blankPresetDraft(kind)))
+      .then(() => {
+        setDraft(blankPresetDraft(kind));
+        setEditorOpen(false);
+      })
       .catch((err: unknown) => setErrorMessage(formatError(err)));
   }
   function compile() {
@@ -87,25 +105,33 @@ export function PresetWorkspace({
   }
 
   return (
-    <ResourceEditorLayout
-      list={
-        <ResourceList pending={pending} error={error} emptyTitle="No prompt presets">
-          {filtered.map((preset) => (
-            <ResourceListButton
-              key={preset.preset_id}
-              selected={draft.preset_id === preset.preset_id}
-              title={preset.name}
-              detail={`${preset.enabled ? "Enabled" : "Disabled"} · ${preset.category ?? "Preset"}`}
-              preview={preset.preview}
-              onClick={() => {
-                setDraft(presetToDraft(preset));
-                setPreview(null);
-              }}
-            />
-          ))}
-        </ResourceList>
-      }
-      editor={
+    <>
+      <ResourceList pending={pending} error={error} emptyTitle="No prompt presets">
+        {filtered.map((preset) => (
+          <ResourceListButton
+            key={preset.preset_id}
+            selected={draft.preset_id === preset.preset_id}
+            title={preset.name}
+            detail={`${preset.enabled ? "Enabled" : "Disabled"} · ${preset.category ?? "Preset"}`}
+            preview={preset.preview}
+            onClick={() => {
+              setDraft(presetToDraft(preset));
+              setPreview(null);
+              setErrorMessage(null);
+              setEditorOpen(true);
+            }}
+          />
+        ))}
+      </ResourceList>
+      <AppModal
+        open={editorOpen}
+        title={
+          draft.preset_id
+            ? `Edit ${mainPreset ? "main" : "character"} preset`
+            : `New ${mainPreset ? "main" : "character"} preset`
+        }
+        onClose={() => setEditorOpen(false)}
+      >
         <EditorPanel
           title={mainPreset ? "Main Preset" : "Character Preset"}
           subtitle={
@@ -163,8 +189,8 @@ export function PresetWorkspace({
           </AppButton>
           <CompiledPreview preview={preview} />
         </EditorPanel>
-      }
-    />
+      </AppModal>
+    </>
   );
 }
 

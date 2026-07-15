@@ -132,20 +132,65 @@ fn list_pages_browse_results_and_reuses_search_order_for_queries() {
 }
 
 #[test]
-fn list_rejects_missing_browse_scope_when_query_is_empty() {
+fn list_browses_all_tags_and_category_scope() {
     let lexicon = sample_lexicon();
 
-    let error = lexicon
+    let all = lexicon
         .list(&PromptLexiconListQuery {
             query: String::new(),
             category: None,
+            subcategory: None,
+            limit: 3,
+            offset: 1,
+        })
+        .unwrap();
+    assert_eq!(all.total, 7);
+    assert_eq!(all.items[0].tag, "weighted_alias");
+
+    let category = lexicon
+        .list(&PromptLexiconListQuery {
+            query: String::new(),
+            category: Some("people".to_owned()),
+            subcategory: None,
+            limit: 20,
+            offset: 0,
+        })
+        .unwrap();
+    assert_eq!(category.total, 3);
+    assert_eq!(category.items[0].tag, "hero_pose");
+}
+
+#[test]
+fn list_rejects_invalid_browse_scope() {
+    let lexicon = sample_lexicon();
+
+    let unknown_category = lexicon
+        .list(&PromptLexiconListQuery {
+            query: String::new(),
+            category: Some("missing".to_owned()),
             subcategory: None,
             limit: 20,
             offset: 0,
         })
         .unwrap_err();
+    assert!(matches!(
+        unknown_category,
+        PromptLexiconError::InvalidRequest(_)
+    ));
 
-    assert!(matches!(error, PromptLexiconError::InvalidRequest(_)));
+    let orphan_subcategory = lexicon
+        .list(&PromptLexiconListQuery {
+            query: String::new(),
+            category: None,
+            subcategory: Some("basic".to_owned()),
+            limit: 20,
+            offset: 0,
+        })
+        .unwrap_err();
+    assert!(matches!(
+        orphan_subcategory,
+        PromptLexiconError::InvalidRequest(_)
+    ));
 }
 
 #[test]

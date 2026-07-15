@@ -1,7 +1,6 @@
-import { ImageIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AppButton, AppPanel, AppToolbar } from "../../components/ui";
+import { AppButton, AppPanel } from "../../components/ui";
 import type { GalleryQueryDto } from "../../types";
 import { GalleryDeleteConfirmation } from "./components/GalleryDeleteConfirmation";
 import { GalleryFilters } from "./components/GalleryFilters";
@@ -91,23 +90,13 @@ export function GalleryPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <AppToolbar>
-        <div>
-          <p className="text-xs font-semibold text-brand-200 uppercase">Gallery</p>
-          <h1 className="text-lg font-semibold text-white">NovelAI Image Gallery</h1>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-app-muted">
-          <ImageIcon aria-hidden="true" className="size-4" />
-          <span>{total} indexed</span>
-        </div>
-      </AppToolbar>
-
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_360px] divide-x divide-app-border">
         <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
           <GalleryFilters
             artifactKind={artifactKind}
             sourceFilter={sourceFilter}
             safetyFilter={safetyFilter}
+            total={total}
             offset={offset}
             onArtifactChange={changeArtifact}
             onSourceChange={changeSource}

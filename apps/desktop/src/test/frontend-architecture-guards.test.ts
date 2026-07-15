@@ -30,6 +30,13 @@ const QUERY_HOOK_ALLOWED_PATH_PATTERNS = [
   /^src\/features\/workspace\//u,
   /^src\/platform\/atelier\//u,
 ] as const;
+const TOP_LEVEL_PAGE_PATHS = [
+  "src/features/director/DirectorPage.tsx",
+  "src/features/gallery/GalleryPage.tsx",
+  "src/features/lexicon/LexiconPage.tsx",
+  "src/features/resources/ResourcesPage.tsx",
+  "src/features/settings/SettingsPage.tsx",
+] as const;
 
 function walkFiles(dirPath: string): string[] {
   return readdirSync(dirPath)
@@ -136,6 +143,15 @@ describe("frontend architecture guards", () => {
         );
       })
       .map(toProjectPath);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps top-level workbench pages free of redundant title headers", () => {
+    const offenders = TOP_LEVEL_PAGE_PATHS.filter((relativePath) => {
+      const contents = readProjectFile(path.join(projectRoot, relativePath));
+      return contents.includes("AppToolbar") || contents.includes("<h1");
+    });
 
     expect(offenders).toEqual([]);
   });
