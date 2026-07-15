@@ -5,6 +5,7 @@ import { Sparkles } from "lucide-react";
 import { AppButton } from "./AppButton";
 import { AppHelpMarker } from "./AppHelpMarker";
 import { AppIconButton } from "./AppIconButton";
+import { AppModal } from "./AppModal";
 import { AppRangeField } from "./AppRangeField";
 import { AppTabs } from "./AppTabs";
 import { EmptyState } from "./EmptyState";
@@ -80,5 +81,23 @@ describe("UI primitives", () => {
     expect(onChange).toHaveBeenCalledWith(0.75);
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Remove" })).toHaveClass("size-8");
+  });
+
+  it("centers modal dialogs in a viewport portal and closes them with Escape", () => {
+    const onClose = vi.fn<() => void>();
+
+    render(
+      <AppModal open title="Vibe library" onClose={onClose}>
+        <button type="button">Choose Vibe</button>
+      </AppModal>,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Vibe library" });
+    expect(dialog.parentElement).toBe(document.body.lastElementChild);
+    expect(dialog.parentElement).toHaveClass("fixed", "inset-0", "grid", "place-items-center");
+    expect(dialog).toHaveClass("relative", "m-0", "grid", "p-0");
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

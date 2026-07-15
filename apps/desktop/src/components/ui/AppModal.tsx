@@ -1,7 +1,17 @@
 import { X } from "lucide-react";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { AppIconButton } from "./AppIconButton";
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
 
 type AppModalProps = {
   open: boolean;
@@ -11,24 +21,75 @@ type AppModalProps = {
 };
 
 export function AppModal({ open, title, children, onClose }: AppModalProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+    return () => previouslyFocused?.focus();
+  }, [open]);
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDialogElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = event.currentTarget;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        dialog.focus();
+      } else if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === dialog)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    },
+    [onClose],
+  );
+
   if (!open) {
     return null;
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/58 px-4 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/58 p-4 backdrop-blur-sm">
       <dialog
+        ref={dialogRef}
         open
+        tabIndex={-1}
         aria-modal="true"
-        aria-label={title}
-        className="max-h-[88vh] w-full max-w-3xl overflow-hidden border border-app-border bg-app-panel shadow-app-panel"
+        aria-labelledby={titleId}
+        className="relative m-0 grid max-h-[88svh] w-full max-w-3xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden border border-app-border bg-app-panel p-0 text-left text-app-text shadow-app-panel"
+        onKeyDown={handleKeyDown}
       >
         <header className="flex items-center justify-between border-b border-app-border px-4 py-3">
-          <h2 className="text-sm font-semibold text-app-text">{title}</h2>
+          <h2 id={titleId} className="text-sm font-semibold text-app-text">
+            {title}
+          </h2>
           <AppIconButton icon={X} label="Close" onClick={onClose} />
         </header>
-        <div className="max-h-[calc(88vh-56px)] overflow-y-auto p-4">{children}</div>
+        <div className="min-h-0 overflow-y-auto p-4">{children}</div>
       </dialog>
-    </div>
+    </div>,
+    document.body,
   );
 }

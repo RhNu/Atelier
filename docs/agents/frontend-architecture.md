@@ -72,6 +72,15 @@ Atelier uses a dark desktop workbench style:
 
 Settings pages should use a second-level section navigator inside the Settings route. The global icon rail remains the top-level app navigation; the Settings inner navigator owns Account, Generation, Images, and future Frontend preferences.
 
+### Modal Surfaces
+
+- Standard dialogs use the shared `AppModal`; feature pages should not create their own fixed overlays.
+- Modal overlays are portaled to `document.body`, cover the application viewport, and center the dialog on both axes with compact viewport padding.
+- Native `dialog` positioning, margin, and padding must be reset so browser defaults cannot move the surface away from the shared layout.
+- Dialog height is bounded by the viewport. The title bar stays visible while the content area owns vertical scrolling.
+- Every modal has a visible title, an explicit close action, Escape handling, focus containment, and focus restoration.
+- Modal content may use feature-owned controls, but backdrop, stacking, placement, and scroll behavior remain responsibilities of `AppModal`.
+
 ## Settings Scope
 
 The current Settings frontend separates application and workspace scopes:
