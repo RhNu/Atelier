@@ -37,4 +37,5 @@ async-trait = { workspace = true }
 futures-executor = { workspace = true }
 futures-util = { workspace = true }
 image = { workspace = true, features = ["png"] }
+rusqlite = { workspace = true, features = ["bundled"] }
 tempfile = { workspace = true }

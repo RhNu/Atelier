@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -23,7 +24,9 @@ import type {
   PromptPresetPageDto,
   ResourceRefDto,
   RerunGenerationHistoryItemRequestDto,
+  RerunGenerationHistoryBatchRequestDto,
   SaveResourceImageRequestDto,
+  SaveResourceImagesZipRequestDto,
   SubmitGenerationBatchRequestDto,
   VibeModelDto,
 } from "../../../types";
@@ -190,9 +193,33 @@ export function useDeleteRunHistoryMutation() {
   });
 }
 
+export function useRerunGenerationBatchMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: RerunGenerationHistoryBatchRequestDto) =>
+      historyApi.rerunGenerationBatch(request),
+    onSuccess: async () => invalidateGenerationWorkbench(queryClient),
+  });
+}
+
+export function useDeleteGenerationBatchesMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (batchIds: string[]) => historyApi.deleteGenerationBatches({ batch_ids: batchIds }),
+    onSuccess: async () => invalidateGenerationWorkbench(queryClient),
+  });
+}
+
 export function useSaveResourceImageMutation() {
   return useMutation({
     mutationFn: (request: SaveResourceImageRequestDto) => desktopApi.saveResourceImage(request),
+  });
+}
+
+export function useSaveResourceImagesZipMutation() {
+  return useMutation({
+    mutationFn: (request: SaveResourceImagesZipRequestDto) =>
+      desktopApi.saveResourceImagesZip(request),
   });
 }
 

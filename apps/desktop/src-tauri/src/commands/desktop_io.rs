@@ -2,6 +2,7 @@
 
 use std::{
     fs,
+    io::{Cursor, Write},
     path::{Path, PathBuf},
 };
 
@@ -16,7 +17,7 @@ use atelier_app_api::{
     resource::{
         GetResourceImageRequestDto, ImageResourceKindDto, ImportImageResourceRequestDto,
         ImportImageResourceResponseDto, ReleaseImportedImageResourcesRequestDto,
-        SaveResourceImageRequestDto,
+        SaveResourceImageRequestDto, SaveResourceImagesZipRequestDto,
     },
     vibe::{
         ExportVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
@@ -36,6 +37,13 @@ use crate::{
 #[serde(rename_all = "camelCase")]
 pub struct SavedDesktopFileDto {
     pub path: PathBuf,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedDesktopArchiveDto {
+    pub path: PathBuf,
+    pub exported: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -214,6 +222,47 @@ pub async fn save_resource_image(
 }
 
 #[tauri::command]
+pub async fn save_resource_images_zip(
+    state: State<'_, DesktopState>,
+    request: SaveResourceImagesZipRequestDto,
+) -> CommandResult<Option<SavedDesktopArchiveDto>> {
+    if request.entries.is_empty() {
+        return Err(ErrorEnvelopeDto::new(
+            "invalid_request",
+            "at least one image is required for ZIP export",
+        ));
+    }
+    let default_file_name = zip_file_name(request.suggested_file_name);
+    let dialog = TauriDialog::new(state.app_handle.clone());
+    let Some(path) = desktop_result(dialog.save_file(Some(&default_file_name), Some("zip")))?
+    else {
+        return Ok(None);
+    };
+
+    let exported = request.entries.len();
+    let mut images = Vec::with_capacity(exported);
+    for entry in request.entries {
+        let image = state
+            .host
+            .get_resource_image(GetResourceImageRequestDto {
+                resource: entry.resource,
+            })
+            .await?;
+        let extension = image_extension(image.mime_type.as_deref());
+        let file_name =
+            resource_file_name(Some(sanitize_archive_name(&entry.file_name)), extension);
+        let bytes = STANDARD
+            .decode(image.image_base64.trim())
+            .map_err(|error| ErrorEnvelopeDto::new("resource_decode_error", error.to_string()))?;
+        images.push((file_name, bytes));
+    }
+    let archive = build_resource_images_zip(images)?;
+    desktop_result(write_file_bytes(&path, &archive))?;
+    desktop_result(state.system.allow_user_path(&path))?;
+    Ok(Some(SavedDesktopArchiveDto { path, exported }))
+}
+
+#[tauri::command]
 pub fn open_path(state: State<'_, DesktopState>, path: PathBuf) -> CommandResult<()> {
     let opener = TauriPathOpener::new(state.app_handle.clone());
     desktop_result(state.system.open_path(path, &opener))
@@ -340,6 +389,53 @@ fn resource_file_name(suggested_file_name: Option<String>, extension: &str) -> S
     }
 }
 
+fn zip_file_name(suggested_file_name: Option<String>) -> String {
+    let name = suggested_file_name
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "generation-batch".to_owned());
+    if Path::new(&name).extension().is_some() {
+        name
+    } else {
+        format!("{name}.zip")
+    }
+}
+
+fn sanitize_archive_name(value: &str) -> String {
+    let sanitized = value
+        .trim()
+        .chars()
+        .map(|character| match character {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            _ => character,
+        })
+        .collect::<String>();
+    if sanitized.is_empty() {
+        "image".to_owned()
+    } else {
+        sanitized
+    }
+}
+
+fn build_resource_images_zip(images: Vec<(String, Vec<u8>)>) -> CommandResult<Vec<u8>> {
+    let cursor = Cursor::new(Vec::new());
+    let mut archive = zip::ZipWriter::new(cursor);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    for (file_name, bytes) in images {
+        archive
+            .start_file(file_name, options)
+            .map_err(|error| ErrorEnvelopeDto::new("zip_write_error", error.to_string()))?;
+        archive
+            .write_all(&bytes)
+            .map_err(|error| ErrorEnvelopeDto::new("zip_write_error", error.to_string()))?;
+    }
+    archive
+        .finish()
+        .map(Cursor::into_inner)
+        .map_err(|error| ErrorEnvelopeDto::new("zip_write_error", error.to_string()))
+}
+
 fn file_name(path: &Path) -> String {
     path.file_name()
         .and_then(|file_name| file_name.to_str())
@@ -354,6 +450,7 @@ fn desktop_result<T>(result: DesktopSystemResult<T>) -> CommandResult<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Read;
 
     #[test]
     fn image_resource_request_reads_selected_file_bytes() {
@@ -404,6 +501,32 @@ mod tests {
             "sample.png"
         );
         assert_eq!(image_extension(Some("image/jpeg")), "jpg");
+    }
+
+    #[test]
+    fn resource_images_zip_preserves_stable_names_order_and_bytes() {
+        let bytes = build_resource_images_zip(vec![
+            ("request-01_sample-01.png".to_owned(), vec![1, 2, 3]),
+            ("request-02_sample-01.webp".to_owned(), vec![4, 5]),
+        ])
+        .unwrap();
+        let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+        assert_eq!(archive.len(), 2);
+
+        let mut first_bytes = Vec::new();
+        let mut first = archive.by_index(0).unwrap();
+        assert_eq!(first.name(), "request-01_sample-01.png");
+        first.read_to_end(&mut first_bytes).unwrap();
+        drop(first);
+
+        let mut second_bytes = Vec::new();
+        let mut second = archive.by_index(1).unwrap();
+        assert_eq!(second.name(), "request-02_sample-01.webp");
+        second.read_to_end(&mut second_bytes).unwrap();
+        assert_eq!(first_bytes, vec![1, 2, 3]);
+        assert_eq!(second_bytes, vec![4, 5]);
+        assert_eq!(sanitize_archive_name("../bad:name"), ".._bad_name");
+        assert_eq!(zip_file_name(Some("batch-1".to_owned())), "batch-1.zip");
     }
 
     #[test]

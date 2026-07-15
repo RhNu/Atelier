@@ -13,11 +13,14 @@ use atelier_app_api::gallery::{
 use atelier_app_api::generation::{
     GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationEstimateRequestDto,
     GenerationPlanContextDto, GenerationWorkRequestDto, ImageModelDto, Img2ImgRequestDto,
-    QueueDirectiveDto, StreamModeDto, SubmitGenerationRequestDto,
+    QueueDirectiveDto, StreamModeDto, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
+    SubmitGenerationRequestDto,
 };
 use atelier_app_api::history::{
-    RerunGenerationHistoryItemRequestDto, RunHistoryKindDto, RunHistoryQueryDto,
-    RunHistoryStatusDto,
+    DeleteGenerationHistoryBatchesRequestDto, GenerationHistoryBatchDetailDto,
+    GenerationHistoryBatchRequestDto, GenerationHistoryQueryDto,
+    RerunGenerationHistoryBatchRequestDto, RerunGenerationHistoryItemRequestDto, RunHistoryKindDto,
+    RunHistoryQueryDto, RunHistoryStatusDto,
 };
 use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
@@ -78,6 +81,31 @@ fn stream_submit_request(batch_id: &str, job_id: &str, prompt: &str) -> SubmitGe
             stream: StreamModeDto::Sse,
         }),
         context: GenerationPlanContextDto::default(),
+    }
+}
+
+fn submit_batch_request(
+    batch_id: &str,
+    jobs: &[(&str, &str, u32)],
+) -> SubmitGenerationBatchRequestDto {
+    SubmitGenerationBatchRequestDto {
+        batch_id: batch_id.to_owned(),
+        jobs: jobs
+            .iter()
+            .map(|(job_id, prompt, n_samples)| SubmitGenerationBatchJobDto {
+                job_id: (*job_id).to_owned(),
+                work: GenerationWorkRequestDto::Image(GenerateImageRequestDto {
+                    prompt: (*prompt).to_owned(),
+                    n_samples: *n_samples,
+                    model: ImageModelDto::NaiDiffusion45Full,
+                    ..GenerateImageRequestDto::default()
+                }),
+            })
+            .collect(),
+        context: GenerationPlanContextDto {
+            request_count: u32::try_from(jobs.len()).unwrap_or(u32::MAX),
+            ..GenerationPlanContextDto::default()
+        },
     }
 }
 

@@ -15,12 +15,16 @@ use atelier_app_api::gallery::{
 use atelier_app_api::generation::{
     CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
     ControlNetConfigDto, ControlNetInputDto, GenerateImageRequestDto, GenerationAnlasEstimateDto,
-    GenerationEstimateRequestDto, GenerationStatusQueryDto, ImageModelDto, Img2ImgRequestDto,
-    QueueDirectiveDto, RunGenerationJobRequestDto, StreamModeDto, SubmitGenerationBatchJobDto,
+    GenerationEstimateRequestDto, GenerationRequestStatusDto, GenerationStatusDto,
+    GenerationStatusQueryDto, ImageModelDto, Img2ImgRequestDto, QueueDirectiveDto,
+    RunGenerationJobRequestDto, StreamModeDto, SubmitGenerationBatchJobDto,
     SubmitGenerationBatchRequestDto,
 };
 use atelier_app_api::history::{
+    DeleteGenerationHistoryBatchesRequestDto, DeleteGenerationHistoryBatchesResponseDto,
     DeleteRunHistoryItemsRequestDto, DeleteRunHistoryItemsResponseDto,
+    GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto, GenerationHistoryPageDto,
+    GenerationHistoryQueryDto, RerunGenerationHistoryBatchRequestDto,
     RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto, RunHistoryItemDto,
     RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto, RunHistoryQueryDto,
     RunHistoryStatusDto,
@@ -35,7 +39,7 @@ use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
     ImportImageResourceResponseDto, ReleaseImportedImageResourcesRequestDto,
     ReleaseImportedImageResourcesResponseDto, ResourceImageDto, ResourceRefDto,
-    SaveResourceImageRequestDto,
+    SaveResourceImageRequestDto, SaveResourceImagesZipEntryDto, SaveResourceImagesZipRequestDto,
 };
 use atelier_app_api::settings::{
     GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto, GlobalSettingsDto,
@@ -69,6 +73,7 @@ fn sample_run_history_item() -> RunHistoryItemDto {
         completed_at_ms: Some(20),
         recoverable: false,
         outputs: vec![RunHistoryOutputDto {
+            sample_index: Some(0),
             artifact_id: "artifact:job-1:sample:0".to_owned(),
             item_id: Some("gallery:job-1:sample:0".to_owned()),
             resource: ResourceRefDto {

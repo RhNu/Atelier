@@ -83,6 +83,7 @@ where
                 .run_history
                 .upsert_run_output(RunOutputRecord {
                     run_id: run_id.clone(),
+                    sample_index: None,
                     artifact_id: result.artifact_id.as_str().to_owned(),
                     item_id: Some(result.item.id.as_str().to_owned()),
                     resource_id: asset.resource.id.as_str().to_owned(),
@@ -133,6 +134,8 @@ where
                 batch_id: None,
                 job_id: None,
                 origin_run_id: None,
+                request_index: None,
+                expected_samples: None,
                 submitted_payload_ref: None,
                 prepared_payload_ref: None,
                 title: title.or_else(|| existing.as_ref().and_then(|record| record.title.clone())),

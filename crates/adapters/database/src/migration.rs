@@ -2,7 +2,7 @@ use rusqlite::{Connection, params};
 
 use crate::error::DatabaseResult;
 
-const CURRENT_SCHEMA_VERSION: i64 = 6;
+const CURRENT_SCHEMA_VERSION: i64 = 7;
 const API_KEY_REGISTRY_SQL: &str = r"
 CREATE TABLE IF NOT EXISTS api_key_records (
     id TEXT PRIMARY KEY,
@@ -182,6 +182,8 @@ CREATE TABLE IF NOT EXISTS run_history (
     batch_id TEXT,
     job_id TEXT,
     origin_run_id TEXT,
+    request_index INTEGER,
+    expected_samples INTEGER,
     submitted_payload_ref TEXT,
     prepared_payload_ref TEXT,
     title TEXT,
@@ -202,9 +204,9 @@ CREATE INDEX IF NOT EXISTS idx_run_history_batch
     ON run_history(batch_id);
 CREATE INDEX IF NOT EXISTS idx_run_history_job
     ON run_history(job_id);
-
 CREATE TABLE IF NOT EXISTS run_outputs (
     run_id TEXT NOT NULL,
+    sample_index INTEGER,
     artifact_id TEXT NOT NULL,
     item_id TEXT,
     resource_id TEXT NOT NULL,
@@ -218,6 +220,70 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_run_outputs_unique
     ON run_outputs(run_id, artifact_id, resource_id, asset_role, COALESCE(variant_id, ''));
 CREATE INDEX IF NOT EXISTS idx_run_outputs_run
     ON run_outputs(run_id);
+";
+
+const GENERATION_BATCH_HISTORY_INDEX_SQL: &str = r"
+CREATE INDEX IF NOT EXISTS idx_run_history_generation_batch_order
+    ON run_history(run_kind, batch_id, request_index, run_id);
+CREATE INDEX IF NOT EXISTS idx_run_outputs_sample
+    ON run_outputs(run_id, sample_index, artifact_id);
+";
+
+const GENERATION_BATCH_HISTORY_SQL: &str = r"
+ALTER TABLE run_history ADD COLUMN request_index INTEGER;
+ALTER TABLE run_history ADD COLUMN expected_samples INTEGER;
+ALTER TABLE run_outputs ADD COLUMN sample_index INTEGER;
+
+UPDATE run_history
+SET request_index = (
+    SELECT COUNT(*)
+    FROM run_history AS earlier
+    WHERE earlier.run_kind = 'generation'
+        AND earlier.batch_id = run_history.batch_id
+        AND (
+            earlier.created_at_ms < run_history.created_at_ms
+            OR (
+                earlier.created_at_ms = run_history.created_at_ms
+                AND earlier.run_id < run_history.run_id
+            )
+        )
+)
+WHERE run_kind = 'generation' AND batch_id IS NOT NULL AND request_index IS NULL;
+
+UPDATE run_outputs
+SET sample_index = COALESCE(
+    (
+        SELECT CAST(json_extract(gallery_items.item_json, '$.metadata.sample_index') AS INTEGER)
+        FROM gallery_items
+        WHERE gallery_items.item_id = run_outputs.item_id
+    ),
+    0
+)
+WHERE sample_index IS NULL;
+
+UPDATE run_history
+SET expected_samples = MAX(
+    1,
+    COALESCE(
+        (
+            SELECT COALESCE(
+                CAST(json_extract(payload.payload_json, '$.request.request.base.n_samples') AS INTEGER),
+                CAST(json_extract(payload.payload_json, '$.request.request.n_samples') AS INTEGER)
+            )
+            FROM generation_payloads AS payload
+            WHERE payload.payload_kind = 'submitted'
+                AND payload.payload_ref = run_history.submitted_payload_ref
+        ),
+        (
+            SELECT MAX(run_outputs.sample_index) + 1
+            FROM run_outputs
+            WHERE run_outputs.run_id = run_history.run_id
+        ),
+        1
+    )
+)
+WHERE run_kind = 'generation' AND expected_samples IS NULL;
+
 ";
 
 const GALLERY_EFFECTIVE_SAFETY_SQL: &str = r"
@@ -249,44 +315,22 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
         ",
     )?;
 
-    let current_applied = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = ?1)",
-        params![CURRENT_SCHEMA_VERSION],
-        |row| row.get::<_, bool>(0),
-    )?;
+    let current_applied = migration_applied(connection, CURRENT_SCHEMA_VERSION)?;
     if current_applied {
         connection.execute_batch(API_KEY_REGISTRY_SQL)?;
         connection.execute_batch(PROMPT_RESOURCES_SQL)?;
         connection.execute_batch(SETTINGS_SQL)?;
         connection.execute_batch(JOB_HISTORY_SQL)?;
+        connection.execute_batch(GENERATION_BATCH_HISTORY_INDEX_SQL)?;
         return Ok(());
     }
 
-    let v1_applied = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 1)",
-        [],
-        |row| row.get::<_, bool>(0),
-    )?;
-    let v2_applied = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 2)",
-        [],
-        |row| row.get::<_, bool>(0),
-    )?;
-    let v3_applied = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 3)",
-        [],
-        |row| row.get::<_, bool>(0),
-    )?;
-    let v4_applied = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 4)",
-        [],
-        |row| row.get::<_, bool>(0),
-    )?;
-    let v5_applied = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = 5)",
-        [],
-        |row| row.get::<_, bool>(0),
-    )?;
+    let v1_applied = migration_applied(connection, 1)?;
+    let v2_applied = migration_applied(connection, 2)?;
+    let v3_applied = migration_applied(connection, 3)?;
+    let v4_applied = migration_applied(connection, 4)?;
+    let v5_applied = migration_applied(connection, 5)?;
+    let v6_applied = migration_applied(connection, 6)?;
 
     let tx = connection.transaction()?;
     // Recreate any missing idempotent v1 objects as well as trusting the marker. This also
@@ -326,11 +370,31 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
             [],
         )?;
     }
-    tx.execute_batch(GALLERY_EFFECTIVE_SAFETY_SQL)?;
+    if !v6_applied {
+        tx.execute_batch(GALLERY_EFFECTIVE_SAFETY_SQL)?;
+        tx.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version) VALUES (6)",
+            [],
+        )?;
+    }
+    if v4_applied {
+        tx.execute_batch(GENERATION_BATCH_HISTORY_SQL)?;
+    }
+    tx.execute_batch(GENERATION_BATCH_HISTORY_INDEX_SQL)?;
     tx.execute(
         "INSERT OR IGNORE INTO schema_migrations(version) VALUES (?1)",
         params![CURRENT_SCHEMA_VERSION],
     )?;
     tx.commit()?;
     Ok(())
+}
+
+fn migration_applied(connection: &Connection, version: i64) -> DatabaseResult<bool> {
+    connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = ?1)",
+            params![version],
+            |row| row.get(0),
+        )
+        .map_err(Into::into)
 }

@@ -10,6 +10,7 @@ export type StreamGenerationPreview = {
   stepIndex: number | null;
   generationId: number;
   eventType: string;
+  sequence: number;
   src: string;
 };
 
@@ -21,6 +22,7 @@ export type ResourceGenerationPreview = {
   artifactId: string;
   galleryItemId: string | null;
   resource: ResourceRefDto;
+  sequence: number;
 };
 
 export type GenerationPreview = StreamGenerationPreview | ResourceGenerationPreview;
@@ -31,42 +33,89 @@ export type GenerationRunError = {
   message: string;
 };
 
+export type GenerationFocusMode = "follow" | "pin";
+
 export type GenerationEventState = {
-  activeBatchId: string | null;
-  activeJobId: string | null;
-  activePreview: GenerationPreview | null;
-  filmstrip: GenerationPreview[];
+  liveBatchId: string | null;
+  viewBatchId: string | null;
+  latestJobId: string | null;
+  selectedJobId: string | null;
+  focusedSampleIndex: number | null;
+  focusMode: GenerationFocusMode;
+  previews: Record<string, GenerationPreview>;
   lastError: GenerationRunError | null;
   terminalJobId: string | null;
   terminalStatus: "succeeded" | "failed" | null;
-  selectedHistoryItemId: string | null;
   recordEvent: (event: AppEventDto) => void;
-  selectPreview: (preview: GenerationPreview) => void;
-  selectHistoryItem: (itemId: string | null) => void;
+  syncActiveBatch: (batchId: string | null, currentJobId: string | null) => void;
+  selectBatch: (batchId: string) => void;
+  selectRequest: (jobId: string) => void;
+  focusSample: (jobId: string, sampleIndex: number) => void;
+  showRequestGrid: () => void;
+  resumeFollow: () => void;
   reset: () => void;
 };
 
 const initialState = {
-  activeBatchId: null,
-  activeJobId: null,
-  activePreview: null,
-  filmstrip: [],
+  liveBatchId: null,
+  viewBatchId: null,
+  latestJobId: null,
+  selectedJobId: null,
+  focusedSampleIndex: null,
+  focusMode: "follow",
+  previews: {},
   lastError: null,
   terminalJobId: null,
   terminalStatus: null,
-  selectedHistoryItemId: null,
 } satisfies Omit<
   GenerationEventState,
-  "recordEvent" | "selectPreview" | "selectHistoryItem" | "reset"
+  | "recordEvent"
+  | "syncActiveBatch"
+  | "selectBatch"
+  | "selectRequest"
+  | "focusSample"
+  | "showRequestGrid"
+  | "resumeFollow"
+  | "reset"
 >;
 
 export const useGenerationEventStore = create<GenerationEventState>((set) => ({
   ...initialState,
-  recordEvent: (event) => {
-    set((state) => applyGenerationEvent(state, event));
-  },
-  selectPreview: (preview) => set({ activePreview: preview }),
-  selectHistoryItem: (itemId) => set({ selectedHistoryItemId: itemId }),
+  recordEvent: (event) => set((state) => applyGenerationEvent(state, event)),
+  syncActiveBatch: (batchId, currentJobId) =>
+    set((state) => {
+      if (!batchId) {
+        return { liveBatchId: null };
+      }
+      if (state.focusMode !== "follow") {
+        return { liveBatchId: batchId, latestJobId: currentJobId ?? state.latestJobId };
+      }
+      return {
+        liveBatchId: batchId,
+        viewBatchId: batchId,
+        latestJobId: currentJobId ?? state.latestJobId,
+        selectedJobId: currentJobId ?? state.selectedJobId,
+      };
+    }),
+  selectBatch: (batchId) =>
+    set({
+      viewBatchId: batchId,
+      selectedJobId: null,
+      focusedSampleIndex: null,
+      focusMode: "pin",
+    }),
+  selectRequest: (jobId) =>
+    set({ selectedJobId: jobId, focusedSampleIndex: null, focusMode: "pin" }),
+  focusSample: (jobId, sampleIndex) =>
+    set({ selectedJobId: jobId, focusedSampleIndex: sampleIndex, focusMode: "pin" }),
+  showRequestGrid: () => set({ focusedSampleIndex: null }),
+  resumeFollow: () =>
+    set((state) => ({
+      viewBatchId: state.liveBatchId,
+      selectedJobId: state.latestJobId,
+      focusedSampleIndex: null,
+      focusMode: "follow",
+    })),
   reset: () => set(initialState),
 }));
 
@@ -78,31 +127,37 @@ export function resetGenerationEventState(): void {
   useGenerationEventStore.getState().reset();
 }
 
+export function generationPreviewKey(batchId: string, jobId: string, sampleIndex: number): string {
+  return `${batchId}:${jobId}:${sampleIndex}`;
+}
+
 function applyGenerationEvent(
   state: GenerationEventState,
   event: AppEventDto,
 ): Partial<GenerationEventState> {
   switch (event.kind.kind) {
-    case "batch_submitted":
+    case "batch_submitted": {
+      const followingLive = state.focusMode === "follow";
       return {
-        activeBatchId: event.kind.batch_id,
-        activeJobId: null,
-        activePreview: null,
-        filmstrip: [],
+        liveBatchId: event.kind.batch_id,
+        viewBatchId: followingLive ? event.kind.batch_id : state.viewBatchId,
+        latestJobId: null,
+        selectedJobId: followingLive ? null : state.selectedJobId,
+        focusedSampleIndex: followingLive ? null : state.focusedSampleIndex,
+        previews: {},
         lastError: null,
         terminalJobId: null,
         terminalStatus: null,
       };
+    }
     case "job_preparing":
     case "prompt_compiled":
     case "generation_planned":
-      return {
-        activeBatchId: event.kind.batch_id,
-        activeJobId: event.kind.job_id,
+      return followJob(state, event.kind.batch_id, event.kind.job_id, {
         lastError: null,
-      };
-    case "generation_stream_chunk":
-      const streamPreview: StreamGenerationPreview = {
+      });
+    case "generation_stream_chunk": {
+      const preview: StreamGenerationPreview = {
         kind: "stream",
         batchId: event.kind.batch_id,
         jobId: event.kind.job_id,
@@ -110,17 +165,16 @@ function applyGenerationEvent(
         stepIndex: event.kind.step_index,
         generationId: event.kind.generation_id,
         eventType: event.kind.event_type,
+        sequence: event.sequence,
         src: `data:image/png;base64,${event.kind.image}`,
       };
-      return {
-        activeBatchId: event.kind.batch_id,
-        activeJobId: event.kind.job_id,
+      return followJob(state, preview.batchId, preview.jobId, {
+        previews: upsertPreview(state.previews, preview),
         lastError: null,
-        activePreview: streamPreview,
-        filmstrip: appendFilmstripPreview(state.filmstrip, streamPreview),
-      };
-    case "sample_persisted":
-      const resourcePreview: ResourceGenerationPreview = {
+      });
+    }
+    case "sample_persisted": {
+      const preview: ResourceGenerationPreview = {
         kind: "resource",
         batchId: event.kind.batch_id,
         jobId: event.kind.job_id,
@@ -128,58 +182,40 @@ function applyGenerationEvent(
         artifactId: event.kind.artifact_id,
         galleryItemId: null,
         resource: event.kind.resource,
+        sequence: event.sequence,
       };
-      return {
-        activeBatchId: event.kind.batch_id,
-        activeJobId: event.kind.job_id,
+      return followJob(state, preview.batchId, preview.jobId, {
+        previews: upsertPreview(state.previews, preview),
         lastError: null,
-        activePreview: resourcePreview,
-        filmstrip: appendFilmstripPreview(state.filmstrip, resourcePreview),
-      };
-    case "gallery_indexed":
-      const galleryItemId = event.kind.item_id;
-      const galleryBatchId = event.kind.batch_id;
-      const galleryJobId = event.kind.job_id;
-      const gallerySampleIndex = event.kind.sample_index;
-      const galleryArtifactId = event.kind.artifact_id;
-      const filmstrip = state.filmstrip.map((preview) =>
-        preview.kind === "resource" &&
-        preview.batchId === galleryBatchId &&
-        preview.jobId === galleryJobId &&
-        preview.sampleIndex === gallerySampleIndex &&
-        preview.artifactId === galleryArtifactId
-          ? { ...preview, galleryItemId }
-          : preview,
+      });
+    }
+    case "gallery_indexed": {
+      const key = generationPreviewKey(
+        event.kind.batch_id,
+        event.kind.job_id,
+        event.kind.sample_index,
       );
-      const activePreview = state.activePreview;
-      if (
-        activePreview?.kind === "resource" &&
-        activePreview.batchId === galleryBatchId &&
-        activePreview.jobId === galleryJobId &&
-        activePreview.sampleIndex === gallerySampleIndex &&
-        activePreview.artifactId === galleryArtifactId
-      ) {
-        return {
-          activePreview: {
-            ...activePreview,
-            galleryItemId: event.kind.item_id,
-          },
-          filmstrip,
-        };
+      const preview = state.previews[key];
+      if (preview?.kind !== "resource" || preview.artifactId !== event.kind.artifact_id) {
+        return {};
       }
-      return { filmstrip };
+      return {
+        previews: {
+          ...state.previews,
+          [key]: { ...preview, galleryItemId: event.kind.item_id, sequence: event.sequence },
+        },
+      };
+    }
     case "job_succeeded":
       return {
-        activeBatchId: event.kind.batch_id,
-        activeJobId: event.kind.job_id,
+        latestJobId: event.kind.job_id,
         lastError: null,
         terminalJobId: event.kind.job_id,
         terminalStatus: "succeeded",
       };
     case "job_failed":
       return {
-        activeBatchId: event.kind.batch_id,
-        activeJobId: event.kind.job_id,
+        latestJobId: event.kind.job_id,
         lastError: {
           batchId: event.kind.batch_id,
           jobId: event.kind.job_id,
@@ -194,30 +230,36 @@ function applyGenerationEvent(
   }
 }
 
-function appendFilmstripPreview(
-  current: GenerationPreview[],
-  preview: GenerationPreview,
-): GenerationPreview[] {
-  const next = [...current.filter((item) => filmstripKey(item) !== filmstripKey(preview)), preview];
-  return next.slice(-24);
+function followJob(
+  state: GenerationEventState,
+  batchId: string,
+  jobId: string,
+  update: Partial<GenerationEventState>,
+): Partial<GenerationEventState> {
+  const followingLive = state.focusMode === "follow";
+  return {
+    ...update,
+    liveBatchId: batchId,
+    latestJobId: jobId,
+    viewBatchId: followingLive ? batchId : state.viewBatchId,
+    selectedJobId: followingLive ? jobId : state.selectedJobId,
+    focusedSampleIndex: followingLive ? null : state.focusedSampleIndex,
+  };
 }
 
-function filmstripKey(preview: GenerationPreview): string {
-  if (preview.kind === "stream") {
-    return [
-      preview.kind,
-      preview.batchId,
-      preview.jobId,
-      preview.sampleIndex,
-      preview.stepIndex ?? "final",
-      preview.generationId,
-    ].join(":");
+function upsertPreview(
+  previews: Record<string, GenerationPreview>,
+  preview: GenerationPreview,
+): Record<string, GenerationPreview> {
+  const key = generationPreviewKey(preview.batchId, preview.jobId, preview.sampleIndex);
+  const next = { ...previews, [key]: preview };
+  const keys = Object.keys(next);
+  if (keys.length <= 32) {
+    return next;
   }
-  return [
-    preview.kind,
-    preview.batchId,
-    preview.jobId,
-    preview.sampleIndex,
-    preview.artifactId,
-  ].join(":");
+  keys
+    .sort((left, right) => (next[left]?.sequence ?? 0) - (next[right]?.sequence ?? 0))
+    .slice(0, keys.length - 32)
+    .forEach((oldest) => delete next[oldest]);
+  return next;
 }

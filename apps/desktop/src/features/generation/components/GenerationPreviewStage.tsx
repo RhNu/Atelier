@@ -1,239 +1,537 @@
-import { ImageIcon, Save, Sparkles, Wand2 } from "lucide-react";
-import { useCallback, type ReactNode } from "react";
+/* eslint-disable max-lines */
+import {
+  Download,
+  Grid2X2,
+  ImageIcon,
+  RadioTower,
+  RotateCcw,
+  Save,
+  Sparkles,
+  Trash2,
+  Wand2,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-import { AppButton, AppPanel, ResourceImage } from "../../../components/ui";
-import type { GenerationStatusDto, ResourceImageDto } from "../../../types";
-import type { GenerationPreview } from "../state/generation-event-store";
+import {
+  AppButton,
+  AppIconButton,
+  AppModal,
+  AppPanel,
+  ResourceImage,
+} from "../../../components/ui";
+import type {
+  GenerationBatchView,
+  GenerationRequestUnit,
+  GenerationSampleSlot,
+} from "../model/generation-preview-model";
+import type { GenerationFocusMode } from "../state/generation-event-store";
+import { GenerationResourceImage } from "./GenerationResourceImage";
 
 type GenerationPreviewStageProps = {
-  preview: GenerationPreview | null;
-  finalImage: ResourceImageDto | undefined;
-  finalImagePending: boolean;
-  finalImageError: string | null;
-  status: GenerationStatusDto | undefined;
+  batch: GenerationBatchView | null;
+  selectedRequest: GenerationRequestUnit | null;
+  focusedSampleIndex: number | null;
+  focusMode: GenerationFocusMode;
+  isViewingLive: boolean;
+  liveBatchAvailable: boolean;
   statusError: string | null;
   lastError: string | null;
-  filmstrip: ReadonlyArray<GenerationPreview>;
   savePending: boolean;
+  zipPending: boolean;
   handoffPending: boolean;
+  rerunPending: boolean;
+  deletePending: boolean;
   compilePending: boolean;
   queueControls: ReactNode;
-  onSelectPreview: (preview: GenerationPreview) => void;
-  onSavePreview: () => void;
-  onSendPreviewToDirector: () => void;
+  onSelectRequest: (jobId: string) => void;
+  onFocusSample: (jobId: string, sampleIndex: number) => void;
+  onShowRequestGrid: () => void;
+  onResumeLive: () => void;
+  onSaveSample: () => void;
+  onSendSampleToDirector: () => void;
+  onExportRequest: () => void;
+  onRerunRequest: () => void;
+  onDeleteRequest: () => void;
   onCompilePrompt: () => void;
 };
 
 export function GenerationPreviewStage({
-  preview,
-  finalImage,
-  finalImagePending,
-  finalImageError,
-  status,
+  batch,
+  selectedRequest,
+  focusedSampleIndex,
+  focusMode,
+  isViewingLive,
+  liveBatchAvailable,
   statusError,
   lastError,
-  filmstrip,
   savePending,
+  zipPending,
   handoffPending,
+  rerunPending,
+  deletePending,
   compilePending,
   queueControls,
-  onSelectPreview,
-  onSavePreview,
-  onSendPreviewToDirector,
+  onSelectRequest,
+  onFocusSample,
+  onShowRequestGrid,
+  onResumeLive,
+  onSaveSample,
+  onSendSampleToDirector,
+  onExportRequest,
+  onRerunRequest,
+  onDeleteRequest,
   onCompilePrompt,
 }: GenerationPreviewStageProps) {
-  const src = previewSrc(preview, finalImage);
-  const alt =
-    preview?.kind === "resource" ? "Final generation preview" : "Active generation preview";
-  const fallback = getPreviewFallback({
-    finalImagePending,
-    finalImageError,
-    statusError,
-  });
-  const activityLabel = getActivityLabel(status);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const focusedSample =
+    focusedSampleIndex === null
+      ? null
+      : (selectedRequest?.samples.find((sample) => sample.sampleIndex === focusedSampleIndex) ??
+        null);
+  useEffect(() => setLightboxOpen(false), [focusedSampleIndex, selectedRequest?.jobId]);
+  const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+  const openLightbox = useCallback(() => {
+    if (focusedSample?.resource || focusedSample?.streamSrc) setLightboxOpen(true);
+  }, [focusedSample]);
+  const showResume = liveBatchAvailable && (!isViewingLive || focusMode === "pin");
 
   return (
-    <AppPanel className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
-      <header className="flex items-center justify-between gap-3 border-b border-app-border px-3 py-2">
-        <div>
-          <p className="text-xs font-semibold text-brand-200 uppercase">Preview</p>
-          <h2 className="text-base font-semibold text-white">
-            {preview?.kind === "stream" ? "Streaming frame" : "Generation canvas"}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          {lastError ? (
-            <span className="max-w-48 truncate text-xs text-rose-100" title={lastError}>
-              {lastError}
-            </span>
-          ) : null}
-          {activityLabel ? (
-            <span className="border border-brand-400/40 bg-brand-500/10 px-2 py-1 text-xs text-brand-100">
-              {activityLabel}
-            </span>
-          ) : null}
-          {filmstrip.length ? (
-            <span className="text-xs text-app-muted">
-              {filmstrip.length} {filmstrip.length === 1 ? "preview" : "previews"}
-            </span>
-          ) : null}
-          <AppButton variant="ghost" onClick={onCompilePrompt} disabled={compilePending}>
-            <Sparkles aria-hidden="true" className="size-4" />
-            Compile
-          </AppButton>
-          {queueControls}
-          <AppButton
-            variant="secondary"
-            onClick={onSavePreview}
-            disabled={preview?.kind !== "resource" || savePending}
-          >
-            <Save aria-hidden="true" className="size-4" />
-            Save
-          </AppButton>
-          <AppButton
-            variant="ghost"
-            onClick={onSendPreviewToDirector}
-            disabled={preview?.kind !== "resource" || !preview.galleryItemId || handoffPending}
-          >
-            <Wand2 aria-hidden="true" className="size-4" />
-            Director
-          </AppButton>
-        </div>
-      </header>
-      <div className="min-h-0 bg-black/30 p-2">
-        {src ? (
-          <ResourceImage src={src} alt={alt} className="h-full min-h-[360px] w-full" />
-        ) : (
-          <div className="flex h-full min-h-[360px] flex-col items-center justify-center bg-app-surface text-app-muted">
-            <ImageIcon aria-hidden="true" className="mb-4 size-12 opacity-40" />
-            <p className="text-sm">{fallback}</p>
-          </div>
-        )}
-      </div>
-      {filmstrip.length ? (
-        <div className="flex gap-2 overflow-x-auto border-t border-app-border bg-app-panel/80 p-2">
-          {filmstrip.map((item, index) => (
-            <FilmstripButton
-              key={filmstripKey(item)}
-              item={item}
-              index={index}
-              selected={preview ? filmstripKey(preview) === filmstripKey(item) : false}
-              onSelectPreview={onSelectPreview}
-            />
-          ))}
-        </div>
-      ) : null}
+    <AppPanel className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden">
+      <PreviewHeader
+        batch={batch}
+        isViewingLive={isViewingLive}
+        lastError={lastError}
+        showResume={showResume}
+        compilePending={compilePending}
+        queueControls={queueControls}
+        onResumeLive={onResumeLive}
+        onCompilePrompt={onCompilePrompt}
+      />
+      <RequestCursorStrip
+        batch={batch}
+        selectedRequest={selectedRequest}
+        onSelectRequest={onSelectRequest}
+      />
+      <RequestPreviewSurface
+        selectedRequest={selectedRequest}
+        focusedSample={focusedSample}
+        statusError={statusError}
+        savePending={savePending}
+        zipPending={zipPending}
+        handoffPending={handoffPending}
+        rerunPending={rerunPending}
+        deletePending={deletePending}
+        onFocusSample={onFocusSample}
+        onShowRequestGrid={onShowRequestGrid}
+        onOpenLightbox={openLightbox}
+        onSaveSample={onSaveSample}
+        onSendSampleToDirector={onSendSampleToDirector}
+        onExportRequest={onExportRequest}
+        onRerunRequest={onRerunRequest}
+        onDeleteRequest={onDeleteRequest}
+      />
+      <SampleLightbox
+        open={lightboxOpen}
+        request={selectedRequest}
+        sample={focusedSample}
+        onClose={closeLightbox}
+      />
     </AppPanel>
   );
 }
 
-function FilmstripButton({
-  item,
-  index,
-  selected,
-  onSelectPreview,
-}: {
-  item: GenerationPreview;
-  index: number;
-  selected: boolean;
-  onSelectPreview: (preview: GenerationPreview) => void;
-}) {
-  const handleClick = useCallback(() => {
-    onSelectPreview(item);
-  }, [item, onSelectPreview]);
+function PreviewHeader({
+  batch,
+  isViewingLive,
+  lastError,
+  showResume,
+  compilePending,
+  queueControls,
+  onResumeLive,
+  onCompilePrompt,
+}: Pick<
+  GenerationPreviewStageProps,
+  | "batch"
+  | "isViewingLive"
+  | "lastError"
+  | "compilePending"
+  | "queueControls"
+  | "onResumeLive"
+  | "onCompilePrompt"
+> & { showResume: boolean }) {
+  return (
+    <header className="flex items-center justify-between gap-3 border-b border-app-border px-3 py-2">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold text-brand-200 uppercase">
+          {isViewingLive ? "Live preview" : "History preview"}
+        </p>
+        <h2 className="truncate text-base font-semibold text-white">
+          {batch
+            ? `Batch · ${batch.requests.length} request${batch.requests.length === 1 ? "" : "s"}`
+            : "Generation canvas"}
+        </h2>
+      </div>
+      <div className="flex items-center gap-1">
+        {lastError ? (
+          <span className="max-w-40 truncate text-xs text-rose-100" title={lastError}>
+            {lastError}
+          </span>
+        ) : null}
+        {showResume ? (
+          <AppIconButton
+            icon={RadioTower}
+            label={isViewingLive ? "Follow latest request" : "Return to live batch"}
+            onClick={onResumeLive}
+          />
+        ) : null}
+        <AppButton variant="ghost" onClick={onCompilePrompt} disabled={compilePending}>
+          <Sparkles aria-hidden="true" className="size-4" />
+          Compile
+        </AppButton>
+        {queueControls}
+      </div>
+    </header>
+  );
+}
 
+function RequestCursorStrip({
+  batch,
+  selectedRequest,
+  onSelectRequest,
+}: Pick<GenerationPreviewStageProps, "batch" | "selectedRequest" | "onSelectRequest">) {
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const selectedRequestIndex = batch?.requests.findIndex(
+    (request) => request.jobId === selectedRequest?.jobId,
+  );
+  useEffect(() => {
+    if (selectedRequestIndex === undefined || selectedRequestIndex < 0) return;
+    const selectedElement = cursorRef.current?.children.item(selectedRequestIndex);
+    if (!(selectedElement instanceof HTMLElement) || !selectedElement.scrollIntoView) return;
+    selectedElement.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  }, [selectedRequestIndex]);
+  return (
+    <div
+      ref={cursorRef}
+      aria-label="Generation requests"
+      className="flex min-h-24 gap-2 overflow-x-auto border-b border-app-border bg-app-panel/80 p-2"
+    >
+      {batch?.requests.map((request) => (
+        <RequestCursorUnit
+          key={request.jobId}
+          request={request}
+          selected={request.jobId === selectedRequest?.jobId}
+          onSelect={onSelectRequest}
+        />
+      )) ?? <p className="p-2 text-sm text-app-muted">No request units</p>}
+    </div>
+  );
+}
+
+function RequestPreviewSurface({
+  selectedRequest,
+  focusedSample,
+  statusError,
+  savePending,
+  zipPending,
+  handoffPending,
+  rerunPending,
+  deletePending,
+  onFocusSample,
+  onShowRequestGrid,
+  onOpenLightbox,
+  onSaveSample,
+  onSendSampleToDirector,
+  onExportRequest,
+  onRerunRequest,
+  onDeleteRequest,
+}: Pick<
+  GenerationPreviewStageProps,
+  | "selectedRequest"
+  | "statusError"
+  | "savePending"
+  | "zipPending"
+  | "handoffPending"
+  | "rerunPending"
+  | "deletePending"
+  | "onFocusSample"
+  | "onShowRequestGrid"
+  | "onSaveSample"
+  | "onSendSampleToDirector"
+  | "onExportRequest"
+  | "onRerunRequest"
+  | "onDeleteRequest"
+> & { focusedSample: GenerationSampleSlot | null; onOpenLightbox: () => void }) {
+  const requestHasOutput = selectedRequest?.samples.some((sample) => sample.resource) ?? false;
+  const canMutateRequest = Boolean(selectedRequest?.runId);
+  return (
+    <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-black/30">
+      <div className="flex min-h-11 items-center justify-between gap-2 border-b border-app-border px-3 py-1">
+        <div className="min-w-0">
+          <span className="text-sm font-semibold text-app-text">
+            {selectedRequest ? `Request ${selectedRequest.requestIndex + 1}` : "No request"}
+          </span>
+          {selectedRequest ? (
+            <span className="ml-2 text-xs text-app-muted">
+              {selectedRequest.status} · {selectedRequest.expectedSamples} sample
+              {selectedRequest.expectedSamples === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-1">
+          {focusedSample ? (
+            <AppIconButton icon={Grid2X2} label="Back to sample grid" onClick={onShowRequestGrid} />
+          ) : null}
+          <AppIconButton
+            icon={Download}
+            label="Export request as ZIP"
+            disabled={!requestHasOutput || zipPending}
+            onClick={onExportRequest}
+          />
+          <AppIconButton
+            icon={RotateCcw}
+            label="Rerun request"
+            disabled={!canMutateRequest || rerunPending}
+            onClick={onRerunRequest}
+          />
+          <AppIconButton
+            icon={Trash2}
+            label="Delete request history"
+            variant="danger"
+            disabled={!canMutateRequest || deletePending}
+            onClick={onDeleteRequest}
+          />
+          <AppIconButton
+            icon={Save}
+            label="Save selected sample"
+            disabled={!focusedSample?.resource || savePending}
+            onClick={onSaveSample}
+          />
+          <AppIconButton
+            icon={Wand2}
+            label="Send selected sample to Director"
+            disabled={!focusedSample?.resource || !focusedSample.galleryItemId || handoffPending}
+            onClick={onSendSampleToDirector}
+          />
+        </div>
+      </div>
+      <div className="min-h-0 p-2">
+        {focusedSample && selectedRequest ? (
+          <FocusedSample
+            request={selectedRequest}
+            sample={focusedSample}
+            onOpenLightbox={onOpenLightbox}
+          />
+        ) : selectedRequest ? (
+          <SampleGrid request={selectedRequest} onFocusSample={onFocusSample} />
+        ) : (
+          <PreviewEmptyState message={statusError ?? "No active preview"} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SampleLightbox({
+  open,
+  request,
+  sample,
+  onClose,
+}: {
+  open: boolean;
+  request: GenerationRequestUnit | null;
+  sample: GenerationSampleSlot | null;
+  onClose: () => void;
+}) {
+  return (
+    <AppModal
+      open={open}
+      title={
+        request && sample
+          ? `Request ${request.requestIndex + 1} · Sample ${sample.sampleIndex + 1}`
+          : "Generation sample"
+      }
+      onClose={onClose}
+    >
+      {sample ? (
+        <SampleVisual
+          sample={sample}
+          alt={`Generation sample ${sample.sampleIndex + 1}`}
+          className="max-h-[72svh] w-full bg-black/40"
+        />
+      ) : null}
+    </AppModal>
+  );
+}
+
+function RequestCursorUnit({
+  request,
+  selected,
+  onSelect,
+}: {
+  request: GenerationRequestUnit;
+  selected: boolean;
+  onSelect: (jobId: string) => void;
+}) {
+  const handleSelect = useCallback(() => onSelect(request.jobId), [onSelect, request.jobId]);
   return (
     <button
       type="button"
-      onClick={handleClick}
+      onClick={handleSelect}
       className={[
-        "h-16 w-20 shrink-0 border bg-black/30 text-xs text-app-muted",
-        selected ? "border-brand-400" : "border-app-border hover:border-brand-400/60",
+        "grid w-28 shrink-0 grid-rows-[minmax(0,1fr)_auto] gap-1 border p-1 text-left",
+        selected
+          ? "border-brand-400 bg-brand-500/10"
+          : "border-app-border bg-app-surface/70 hover:border-brand-400/60",
       ].join(" ")}
     >
-      {item.kind === "stream" ? (
-        <img
-          src={item.src}
-          alt={`Filmstrip frame ${index + 1}`}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <span className="flex h-full w-full items-center justify-center px-1 text-center">
-          Preview {index + 1}
-        </span>
-      )}
+      <span className="grid min-h-14 grid-cols-2 grid-rows-2 gap-px overflow-hidden bg-black/40">
+        {request.samples.slice(0, 4).map((sample) => (
+          <SampleVisual
+            key={sample.sampleIndex}
+            sample={sample}
+            alt={`Request ${request.requestIndex + 1} sample ${sample.sampleIndex + 1}`}
+            className="h-full min-h-0 w-full bg-app-panel text-[9px]"
+          />
+        ))}
+      </span>
+      <span className="flex items-center justify-between gap-1 text-[10px] text-app-muted">
+        <span>R{request.requestIndex + 1}</span>
+        <span className={statusTextClass(request.status)}>{shortStatus(request.status)}</span>
+      </span>
     </button>
   );
 }
 
-function filmstripKey(preview: GenerationPreview): string {
-  if (preview.kind === "stream") {
-    return [
-      preview.kind,
-      preview.batchId,
-      preview.jobId,
-      preview.sampleIndex,
-      preview.stepIndex ?? "final",
-      preview.generationId,
-    ].join(":");
-  }
-  return [
-    preview.kind,
-    preview.batchId,
-    preview.jobId,
-    preview.sampleIndex,
-    preview.artifactId,
-  ].join(":");
-}
-
-function getPreviewFallback({
-  finalImagePending,
-  finalImageError,
-  statusError,
+function SampleGrid({
+  request,
+  onFocusSample,
 }: {
-  finalImagePending: boolean;
-  finalImageError: string | null;
-  statusError: string | null;
-}): string {
-  if (finalImageError) {
-    return `Final image unavailable: ${finalImageError}`;
-  }
-  if (statusError) {
-    return `Generation status unavailable: ${statusError}`;
-  }
-  if (finalImagePending) {
-    return "Loading final image";
-  }
-  return "No active preview";
+  request: GenerationRequestUnit;
+  onFocusSample: (jobId: string, sampleIndex: number) => void;
+}) {
+  return (
+    <div className={sampleGridClass(request.samples.length)}>
+      {request.samples.map((sample) => (
+        <SampleGridButton
+          key={sample.sampleIndex}
+          request={request}
+          sample={sample}
+          onFocusSample={onFocusSample}
+        />
+      ))}
+    </div>
+  );
 }
 
-function getActivityLabel(status: GenerationStatusDto | undefined): string | null {
-  const statuses = [status?.batch_status, status?.job_status].map((value) => value?.toLowerCase());
-  if (statuses.includes("running")) {
-    return "Generating";
-  }
-  if (statuses.includes("waiting")) {
-    return "Queued";
-  }
-  if (statuses.includes("paused")) {
-    return "Paused";
-  }
-  return null;
+function SampleGridButton({
+  request,
+  sample,
+  onFocusSample,
+}: {
+  request: GenerationRequestUnit;
+  sample: GenerationSampleSlot;
+  onFocusSample: (jobId: string, sampleIndex: number) => void;
+}) {
+  const handleFocus = useCallback(
+    () => onFocusSample(request.jobId, sample.sampleIndex),
+    [onFocusSample, request.jobId, sample.sampleIndex],
+  );
+  return (
+    <button
+      type="button"
+      aria-label={`Focus sample ${sample.sampleIndex + 1}`}
+      onClick={handleFocus}
+      className="group relative min-h-0 overflow-hidden border border-app-border bg-black/35 hover:border-brand-400/70"
+    >
+      <SampleVisual
+        sample={sample}
+        alt={`Generation sample ${sample.sampleIndex + 1}`}
+        className="h-full min-h-[220px] w-full"
+      />
+      <span className="absolute right-1 bottom-1 border border-app-border bg-black/75 px-1.5 py-0.5 text-[10px] text-app-text">
+        S{sample.sampleIndex + 1} · {sample.state}
+      </span>
+    </button>
+  );
 }
 
-function previewSrc(
-  preview: GenerationPreview | null,
-  finalImage: ResourceImageDto | undefined,
-): string | null {
-  if (!preview) {
-    return null;
-  }
-  if (preview.kind === "stream") {
-    return preview.src;
-  }
-  if (!finalImage) {
-    return null;
-  }
+function FocusedSample({
+  request,
+  sample,
+  onOpenLightbox,
+}: {
+  request: GenerationRequestUnit;
+  sample: GenerationSampleSlot;
+  onOpenLightbox: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={`Open sample ${sample.sampleIndex + 1} lightbox`}
+      onClick={onOpenLightbox}
+      disabled={!sample.resource && !sample.streamSrc}
+      className="relative h-full w-full overflow-hidden border border-app-border bg-black/35 disabled:cursor-default"
+    >
+      <SampleVisual
+        sample={sample}
+        alt={`Request ${request.requestIndex + 1} sample ${sample.sampleIndex + 1}`}
+        className="h-full min-h-[360px] w-full"
+      />
+      <span className="absolute right-2 bottom-2 border border-app-border bg-black/75 px-2 py-1 text-xs text-app-text">
+        Sample {sample.sampleIndex + 1} · {sample.state}
+      </span>
+    </button>
+  );
+}
 
-  return `data:${finalImage.mime_type ?? "image/png"};base64,${finalImage.image_base64}`;
+function SampleVisual({
+  sample,
+  alt,
+  className,
+}: {
+  sample: GenerationSampleSlot;
+  alt: string;
+  className: string;
+}) {
+  if (sample.resource) {
+    return (
+      <GenerationResourceImage
+        resource={sample.resource}
+        alt={alt}
+        className={className}
+        fallbackLabel="Final image unavailable"
+      />
+    );
+  }
+  if (sample.streamSrc) {
+    return <ResourceImage src={sample.streamSrc} alt={alt} className={className} />;
+  }
+  return <ResourceImage src={null} alt="" className={className} fallbackLabel={sample.state} />;
+}
+
+function PreviewEmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex h-full min-h-[360px] flex-col items-center justify-center bg-app-surface text-app-muted">
+      <ImageIcon aria-hidden="true" className="mb-4 size-12 opacity-40" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
+
+function sampleGridClass(count: number): string {
+  const columns = count === 1 ? "grid-cols-1" : "grid-cols-2";
+  const rows = count <= 2 ? "grid-rows-1" : "grid-rows-2";
+  return `grid h-full min-h-0 gap-2 ${columns} ${rows}`;
+}
+
+function shortStatus(status: string): string {
+  return status === "partially_succeeded" ? "partial" : status;
+}
+
+function statusTextClass(status: string): string {
+  if (status === "failed") return "text-rose-200";
+  if (status === "succeeded" || status === "complete") return "text-emerald-200";
+  if (status === "partially_succeeded" || status === "partial") return "text-amber-200";
+  if (status === "running") return "text-brand-200";
+  return "text-app-muted";
 }

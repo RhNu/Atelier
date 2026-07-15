@@ -25,14 +25,19 @@ use atelier_app_api::{
         GenerationDraftCharacterPositionModeDto, GenerationDraftDto, GenerationDraftI2iDto,
         GenerationDraftPreciseReferenceDto, GenerationDraftSeedModeDto, GenerationDraftVibeDto,
         GenerationDraftVibeSlotDto, GenerationEstimateRequestDto, GenerationPlanContextDto,
-        GenerationStatusDto, GenerationStatusQueryDto, GenerationWorkRequestDto, ImageFormatDto,
-        ImageModelDto, ImageSizeDto, Img2ImgRequestDto, NoiseScheduleDto, QueueDelayDto,
-        QueueDirectiveDto, RunGenerationJobRequestDto, SamplerDto, SaveGenerationDraftRequestDto,
-        StreamModeDto, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
-        SubmitGenerationRequestDto, UcPresetDto,
+        GenerationRequestStatusDto, GenerationStatusDto, GenerationStatusQueryDto,
+        GenerationWorkRequestDto, ImageFormatDto, ImageModelDto, ImageSizeDto, Img2ImgRequestDto,
+        NoiseScheduleDto, QueueDelayDto, QueueDirectiveDto, RunGenerationJobRequestDto, SamplerDto,
+        SaveGenerationDraftRequestDto, StreamModeDto, SubmitGenerationBatchJobDto,
+        SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, UcPresetDto,
     },
     history::{
+        DeleteGenerationHistoryBatchesRequestDto, DeleteGenerationHistoryBatchesResponseDto,
         DeleteRunHistoryItemsRequestDto, DeleteRunHistoryItemsResponseDto,
+        GenerationBatchHistoryStatusDto, GenerationHistoryBatchDetailDto,
+        GenerationHistoryBatchDto, GenerationHistoryBatchRequestDto, GenerationHistoryPageDto,
+        GenerationHistoryQueryDto, GenerationHistoryRequestDto,
+        RerunGenerationHistoryBatchRequestDto, RerunGenerationHistoryBatchResponseDto,
         RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto,
         RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto,
         RunHistoryQueryDto, RunHistoryStatusDto,
@@ -56,6 +61,7 @@ use atelier_app_api::{
         ImportImageResourceRequestDto, ImportImageResourceResponseDto,
         ReleaseImportedImageResourcesRequestDto, ReleaseImportedImageResourcesResponseDto,
         ResourceImageDto, ResourceRefDto, SaveResourceImageRequestDto,
+        SaveResourceImagesZipEntryDto, SaveResourceImagesZipRequestDto,
     },
     settings::{
         GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto,
@@ -225,6 +231,7 @@ fn export_generation_types(config: &Config) -> Result<(), String> {
         RunGenerationJobRequestDto,
         QueueDelayDto,
         QueueDirectiveDto,
+        GenerationRequestStatusDto,
         GenerationStatusDto,
         GenerationStatusQueryDto,
     )
@@ -243,6 +250,17 @@ fn export_history_types(config: &Config) -> Result<(), String> {
         DeleteRunHistoryItemsResponseDto,
         RerunGenerationHistoryItemRequestDto,
         RerunGenerationHistoryItemResponseDto,
+        GenerationBatchHistoryStatusDto,
+        GenerationHistoryQueryDto,
+        GenerationHistoryBatchDto,
+        GenerationHistoryPageDto,
+        GenerationHistoryBatchRequestDto,
+        GenerationHistoryRequestDto,
+        GenerationHistoryBatchDetailDto,
+        DeleteGenerationHistoryBatchesRequestDto,
+        DeleteGenerationHistoryBatchesResponseDto,
+        RerunGenerationHistoryBatchRequestDto,
+        RerunGenerationHistoryBatchResponseDto,
     )
 }
 
@@ -298,6 +316,8 @@ fn export_resource_types(config: &Config) -> Result<(), String> {
         ReleaseImportedImageResourcesResponseDto,
         GetResourceImageRequestDto,
         SaveResourceImageRequestDto,
+        SaveResourceImagesZipEntryDto,
+        SaveResourceImagesZipRequestDto,
         ResourceImageDto,
     )
 }

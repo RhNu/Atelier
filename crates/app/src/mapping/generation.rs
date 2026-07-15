@@ -1,5 +1,6 @@
 use super::{
-    BatchStatus, GenerationStatusDto, QueueDelay, QueueDelayDto, QueueDirective, QueueDirectiveDto,
+    ActiveJobBatchSnapshot, BatchStatus, GenerationRequestStatusDto, GenerationStatusDto,
+    QueueDelay, QueueDelayDto, QueueDirective, QueueDirectiveDto, RunHistoryRecord,
 };
 
 pub fn queue_directive_to_dto(value: QueueDirective) -> QueueDirectiveDto {
@@ -16,12 +17,52 @@ pub fn queue_directive_to_dto(value: QueueDirective) -> QueueDirectiveDto {
 }
 
 pub fn generation_status_to_dto(
-    batch: Option<BatchStatus>,
-    job: Option<atelier_jobs::JobStatus>,
+    snapshot: Option<ActiveJobBatchSnapshot>,
+    history: &[RunHistoryRecord],
+    requested_job_id: Option<&str>,
 ) -> GenerationStatusDto {
+    let Some(active) = snapshot else {
+        return GenerationStatusDto::default();
+    };
+    let current_job_id = active.current_job.as_ref().map(|id| id.as_str().to_owned());
+    let job_status = requested_job_id
+        .or(current_job_id.as_deref())
+        .and_then(|id| {
+            active
+                .batch
+                .jobs
+                .iter()
+                .find(|job| job.job_id.as_str() == id)
+        })
+        .map(|job| job_status_as_str(job.status).to_owned());
+    let requests = active
+        .batch
+        .jobs
+        .iter()
+        .enumerate()
+        .map(|(index, job)| {
+            let record = history
+                .iter()
+                .find(|record| record.job_id.as_deref() == Some(job.job_id.as_str()));
+            GenerationRequestStatusDto {
+                job_id: job.job_id.as_str().to_owned(),
+                request_index: record
+                    .and_then(|record| record.request_index)
+                    .unwrap_or_else(|| u32::try_from(index).unwrap_or(u32::MAX)),
+                expected_samples: record
+                    .and_then(|record| record.expected_samples)
+                    .unwrap_or(1)
+                    .max(1),
+                status: job_status_as_str(job.status).to_owned(),
+            }
+        })
+        .collect();
     GenerationStatusDto {
-        batch_status: batch.map(|value| batch_status_as_str(value).to_owned()),
-        job_status: job.map(|value| job_status_as_str(value).to_owned()),
+        batch_id: Some(active.batch.batch_id.as_str().to_owned()),
+        batch_status: Some(batch_status_as_str(active.batch.status).to_owned()),
+        current_job_id,
+        job_status,
+        requests,
     }
 }
 

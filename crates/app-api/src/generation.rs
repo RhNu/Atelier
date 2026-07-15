@@ -401,9 +401,22 @@ pub enum QueueDirectiveDto {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GenerationStatusDto {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub batch_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_status: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_job_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub job_status: Option<String>,
+    pub requests: Vec<GenerationRequestStatusDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct GenerationRequestStatusDto {
+    pub job_id: String,
+    pub request_index: u32,
+    pub expected_samples: u32,
+    pub status: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]

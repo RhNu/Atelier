@@ -7,7 +7,8 @@ mod queue;
 
 pub use error::{JobQueueError, JobQueueErrorKind, JobResult};
 pub use model::{
-    ActiveJobBatchSnapshot, BatchId, BatchStatus, JobBatch, JobEvent, JobEventKind,
+    ActiveJobBatchSnapshot, BatchId, BatchStatus, GenerationBatchHistoryQuery,
+    GenerationBatchHistoryRecord, GenerationBatchHistoryStatus, JobBatch, JobEvent, JobEventKind,
     JobFailureImpact, JobId, JobKind, JobPayloadRef, JobQueueSnapshot, JobRecord, JobStatus,
     QueueCommand, QueueDelay, QueueDirective, RetryPolicy, RunHistoryKind, RunHistoryQuery,
     RunHistoryRecord, RunHistoryStatus, RunOutputRecord, SubmitJob,

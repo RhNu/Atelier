@@ -112,18 +112,18 @@ describe("useWorkspaceStatus", () => {
 
     expect(await screen.findByText("D:/atelier-next")).toBeInTheDocument();
     expect(screen.getByText("no-preview")).toBeInTheDocument();
-    expect(useGenerationEventStore.getState().activePreview).toBeNull();
+    expect(useGenerationEventStore.getState().previews).toEqual({});
   });
 });
 
 function WorkspaceProbe() {
   const workspace = useWorkspaceStatus();
-  const activePreview = useGenerationEventStore((state) => state.activePreview);
+  const latestJobId = useGenerationEventStore((state) => state.latestJobId);
 
   return (
     <div>
       <p>{workspace.workspaceStatus?.root ?? "closed"}</p>
-      <p>{activePreview?.jobId ?? "no-preview"}</p>
+      <p>{latestJobId ?? "no-preview"}</p>
       <button type="button" onClick={workspace.openWorkspace}>
         Open workspace
       </button>

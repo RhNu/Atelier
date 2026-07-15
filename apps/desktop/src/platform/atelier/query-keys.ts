@@ -1,5 +1,6 @@
 import type {
   GalleryQueryDto,
+  GenerationHistoryQueryDto,
   ListPromptPresetsRequestDto,
   ListVibeDocumentsRequestDto,
   PromptLexiconListQueryDto,
@@ -48,6 +49,10 @@ export const queryKeys = {
   history: {
     root: () => ["workspace", "history"] as const,
     list: (query: RunHistoryQueryDto) => ["workspace", "history", "list", query] as const,
+    generationBatches: (query: GenerationHistoryQueryDto) =>
+      ["workspace", "history", "generation-batches", query] as const,
+    generationBatch: (batchId: string | null) =>
+      ["workspace", "history", "generation-batch", batchId] as const,
   },
   gallery: {
     root: () => ["workspace", "gallery"] as const,

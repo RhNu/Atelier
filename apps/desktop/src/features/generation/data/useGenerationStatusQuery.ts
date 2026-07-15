@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { generationApi, historyApi, queryKeys } from "../../../platform/atelier";
-import type { RunHistoryQueryDto } from "../../../types";
+import type { GenerationHistoryQueryDto, RunHistoryQueryDto } from "../../../types";
 
 const latestHistoryQuery: RunHistoryQueryDto = {
   offset: 0,
@@ -25,5 +25,25 @@ export function useRunHistoryQuery(query: RunHistoryQueryDto) {
   return useQuery({
     queryKey: queryKeys.history.list(query),
     queryFn: () => historyApi.list(query),
+  });
+}
+
+export function useGenerationHistoryQuery(query: GenerationHistoryQueryDto) {
+  return useQuery({
+    queryKey: queryKeys.history.generationBatches(query),
+    queryFn: () => historyApi.listGenerationBatches(query),
+  });
+}
+
+export function useGenerationHistoryBatchQuery(batchId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.history.generationBatch(batchId),
+    queryFn: () => {
+      if (!batchId) {
+        throw new Error("generation history batch id is required");
+      }
+      return historyApi.getGenerationBatch({ batch_id: batchId });
+    },
+    enabled: Boolean(batchId),
   });
 }

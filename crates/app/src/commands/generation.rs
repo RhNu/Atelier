@@ -141,10 +141,11 @@ where
         &self,
         request: GenerationStatusQueryDto,
     ) -> CommandResult<GenerationStatusDto> {
-        Ok(self
-            .current_session()?
-            .generation()
-            .status(request.job_id.as_deref())
-            .await)
+        Self::command_result(
+            self.current_session()?
+                .generation()
+                .status(request.job_id.as_deref())
+                .await,
+        )
     }
 }

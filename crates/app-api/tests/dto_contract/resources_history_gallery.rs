@@ -198,6 +198,7 @@ fn run_history_query_and_page_dtos_have_stable_shapes() {
                 "completed_at_ms": 20,
                 "recoverable": false,
                 "outputs": [{
+                    "sample_index": 0,
                     "artifact_id": "artifact:job-1:sample:0",
                     "item_id": "gallery:job-1:sample:0",
                     "resource": {
@@ -256,6 +257,7 @@ fn rerun_generation_history_dtos_have_stable_shapes() {
                 "completed_at_ms": 20,
                 "recoverable": false,
                 "outputs": [{
+                    "sample_index": 0,
                     "artifact_id": "artifact:job-1:sample:0",
                     "item_id": "gallery:job-1:sample:0",
                     "resource": {
@@ -282,6 +284,139 @@ fn delete_run_history_dtos_have_stable_shapes() {
     assert_eq!(
         serde_json::to_value(DeleteRunHistoryItemsResponseDto { deleted: 2 }).unwrap(),
         json!({ "deleted": 2 })
+    );
+}
+
+#[test]
+fn generation_batch_history_dtos_have_stable_shapes() {
+    let batch = GenerationHistoryBatchDto {
+        batch_id: "batch-1".to_owned(),
+        status: GenerationBatchHistoryStatusDto::PartiallySucceeded,
+        title: Some("1girl".to_owned()),
+        last_error: Some("request 2 failed".to_owned()),
+        created_at_ms: 10,
+        updated_at_ms: 20,
+        completed_at_ms: Some(20),
+        request_count: 2,
+        completed_request_count: 2,
+        expected_sample_count: 3,
+        completed_sample_count: 2,
+        outputs: Vec::new(),
+    };
+    assert_eq!(
+        serde_json::to_value(GenerationHistoryPageDto {
+            items: vec![batch],
+            total: 1,
+            offset: 0,
+            limit: 8,
+        })
+        .unwrap(),
+        json!({
+            "items": [{
+                "batch_id": "batch-1",
+                "status": "partially_succeeded",
+                "title": "1girl",
+                "last_error": "request 2 failed",
+                "created_at_ms": 10,
+                "updated_at_ms": 20,
+                "completed_at_ms": 20,
+                "request_count": 2,
+                "completed_request_count": 2,
+                "expected_sample_count": 3,
+                "completed_sample_count": 2,
+                "outputs": []
+            }],
+            "total": 1,
+            "offset": 0,
+            "limit": 8
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(GenerationHistoryQueryDto {
+            offset: 8,
+            limit: 8,
+            status: Some(GenerationBatchHistoryStatusDto::PartiallySucceeded),
+        })
+        .unwrap(),
+        json!({ "offset": 8, "limit": 8, "status": "partially_succeeded" })
+    );
+}
+
+#[test]
+fn generation_batch_commands_status_and_zip_dtos_have_stable_shapes() {
+    assert_eq!(
+        serde_json::to_value(RerunGenerationHistoryBatchRequestDto {
+            source_batch_id: "batch-1".to_owned(),
+            batch_id: "batch-2".to_owned(),
+            job_ids: vec!["job-3".to_owned(), "job-4".to_owned()],
+        })
+        .unwrap(),
+        json!({
+            "source_batch_id": "batch-1",
+            "batch_id": "batch-2",
+            "job_ids": ["job-3", "job-4"]
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(DeleteGenerationHistoryBatchesRequestDto {
+            batch_ids: vec!["batch-1".to_owned()],
+        })
+        .unwrap(),
+        json!({ "batch_ids": ["batch-1"] })
+    );
+    assert_eq!(
+        serde_json::to_value(DeleteGenerationHistoryBatchesResponseDto {
+            deleted_requests: 2,
+        })
+        .unwrap(),
+        json!({ "deleted_requests": 2 })
+    );
+    assert_eq!(
+        serde_json::to_value(SaveResourceImagesZipRequestDto {
+            entries: vec![SaveResourceImagesZipEntryDto {
+                resource: ResourceRefDto {
+                    id: "resource:sample".to_owned(),
+                    variant_id: None,
+                },
+                file_name: "request-01_sample-01".to_owned(),
+            }],
+            suggested_file_name: Some("batch-1".to_owned()),
+        })
+        .unwrap(),
+        json!({
+            "entries": [{
+                "resource": { "id": "resource:sample" },
+                "file_name": "request-01_sample-01"
+            }],
+            "suggested_file_name": "batch-1"
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(GenerationStatusDto {
+            batch_id: Some("batch-1".to_owned()),
+            batch_status: Some("running".to_owned()),
+            current_job_id: Some("job-2".to_owned()),
+            job_status: Some("running".to_owned()),
+            requests: vec![GenerationRequestStatusDto {
+                job_id: "job-2".to_owned(),
+                request_index: 1,
+                expected_samples: 4,
+                status: "running".to_owned(),
+            }],
+        })
+        .unwrap(),
+        json!({
+            "batch_id": "batch-1",
+            "batch_status": "running",
+            "current_job_id": "job-2",
+            "job_status": "running",
+            "requests": [{
+                "job_id": "job-2",
+                "request_index": 1,
+                "expected_samples": 4,
+                "status": "running"
+            }]
+        })
     );
 }
 

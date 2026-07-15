@@ -1,30 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { resourceApi, uniqueImportedImageResources } from "../../../platform/atelier";
-import type { ResourceRefDto, RunHistoryItemDto, RunHistoryOutputDto } from "../../../types";
+import type { ResourceRefDto, SaveResourceImagesZipEntryDto } from "../../../types";
 import { setDirectorHandoffInput } from "../../director/state/director-handoff-store";
 import { navigateToDirector } from "../../director/state/navigate-to-director";
 import {
+  useDeleteGenerationBatchesMutation,
   useDeleteRunHistoryMutation,
   useEnsureVibeEncodingFromResourceMutation,
   useExportVibeDocumentMutation,
   useGalleryImageReferenceMutation,
   useImportVibeDocumentsMutation,
   usePickImageResourcesMutation,
+  useRerunGenerationBatchMutation,
   useRerunGenerationMutation,
   useReleaseImportedImagesMutation,
   useSaveResourceImageMutation,
+  useSaveResourceImagesZipMutation,
 } from "../data/useGenerationActions";
 import { formatGenerationError } from "../generation-page-utils";
 import { createGenerationRunIds, type GenerationDraft } from "../model/generation-draft";
-import type { GenerationPreview } from "./generation-event-store";
+import type {
+  GenerationBatchView,
+  GenerationRequestUnit,
+  GenerationSampleSlot,
+} from "../model/generation-preview-model";
 
 type SetError = (error: string | null) => void;
 type GenerationPageActionsOptions = {
   draft: GenerationDraft | null;
-  activePreview: GenerationPreview | null;
-  selectedHistoryItem: RunHistoryItemDto | null;
-  selectHistoryItem: (itemId: string | null) => void;
+  batch: GenerationBatchView | null;
+  selectedRequest: GenerationRequestUnit | null;
+  selectedSample: GenerationSampleSlot | null;
+  onBatchDeleted: () => void;
+  onRequestDeleted: () => void;
 };
 
 export function useGenerationPageActions(options: GenerationPageActionsOptions) {
@@ -35,98 +44,112 @@ export function useGenerationPageActions(options: GenerationPageActionsOptions) 
 }
 
 function useGenerationHistoryActions({
-  activePreview,
-  selectedHistoryItem,
-  selectHistoryItem,
+  batch,
+  selectedRequest,
+  selectedSample,
+  onBatchDeleted,
+  onRequestDeleted,
   setError,
 }: Omit<GenerationPageActionsOptions, "draft"> & { setError: SetError }) {
   const rerunMutation = useRerunGenerationMutation();
+  const rerunBatchMutation = useRerunGenerationBatchMutation();
   const deleteMutation = useDeleteRunHistoryMutation();
+  const deleteBatchMutation = useDeleteGenerationBatchesMutation();
   const saveMutation = useSaveResourceImageMutation();
+  const zipMutation = useSaveResourceImagesZipMutation();
   const referenceMutation = useGalleryImageReferenceMutation();
 
-  const handleRerunSelected = useCallback(() => {
-    if (!selectedHistoryItem || rerunMutation.isPending) return;
+  const handleRerunRequest = useCallback(() => {
+    if (!selectedRequest?.runId || rerunMutation.isPending) return;
     const ids = createGenerationRunIds(1);
     const jobId = ids.jobIds[0];
     if (!jobId) return;
     setError(null);
     void rerunMutation
-      .mutateAsync({ run_id: selectedHistoryItem.run_id, batch_id: ids.batchId, job_id: jobId })
+      .mutateAsync({ run_id: selectedRequest.runId, batch_id: ids.batchId, job_id: jobId })
       .catch((cause: unknown) => setError(formatGenerationError(cause)));
-  }, [rerunMutation, selectedHistoryItem, setError]);
+  }, [rerunMutation, selectedRequest?.runId, setError]);
 
-  const handleDeleteSelected = useCallback(() => {
-    if (!selectedHistoryItem || deleteMutation.isPending) return;
+  const handleRerunBatch = useCallback(() => {
+    if (!batch?.requests.length || rerunBatchMutation.isPending) return;
+    const ids = createGenerationRunIds(batch.requests.length);
+    setError(null);
+    void rerunBatchMutation
+      .mutateAsync({
+        source_batch_id: batch.batchId,
+        batch_id: ids.batchId,
+        job_ids: ids.jobIds,
+      })
+      .catch((cause: unknown) => setError(formatGenerationError(cause)));
+  }, [batch, rerunBatchMutation, setError]);
+
+  const handleDeleteRequest = useCallback(() => {
+    if (!selectedRequest?.runId || deleteMutation.isPending) return;
     setError(null);
     void deleteMutation
-      .mutateAsync([selectedHistoryItem.run_id])
-      .then(() => selectHistoryItem(null))
+      .mutateAsync([selectedRequest.runId])
+      .then(onRequestDeleted)
       .catch((cause: unknown) => setError(formatGenerationError(cause)));
-  }, [deleteMutation, selectHistoryItem, selectedHistoryItem, setError]);
+  }, [deleteMutation, onRequestDeleted, selectedRequest?.runId, setError]);
 
-  const exportOutput = useCallback(
-    (output: RunHistoryOutputDto | null, suggestedName: string) => {
-      if (!output || saveMutation.isPending) return;
-      setError(null);
-      void saveMutation
-        .mutateAsync({ resource: output.resource, suggested_file_name: suggestedName })
-        .catch((cause: unknown) => setError(formatGenerationError(cause)));
-    },
-    [saveMutation, setError],
-  );
-  const handleExportSelected = useCallback(() => {
-    exportOutput(
-      preferredHistoryOutput(selectedHistoryItem),
-      selectedHistoryItem ? `${selectedHistoryItem.run_id}-sample` : "generation",
-    );
-  }, [exportOutput, selectedHistoryItem]);
+  const handleDeleteBatch = useCallback(() => {
+    if (!batch || deleteBatchMutation.isPending) return;
+    setError(null);
+    void deleteBatchMutation
+      .mutateAsync([batch.batchId])
+      .then(onBatchDeleted)
+      .catch((cause: unknown) => setError(formatGenerationError(cause)));
+  }, [batch, deleteBatchMutation, onBatchDeleted, setError]);
 
-  const sendOutputToDirector = useCallback(
-    (output: RunHistoryOutputDto | null) => {
-      if (!output?.item_id || referenceMutation.isPending) return;
-      setError(null);
-      void referenceMutation
-        .mutateAsync({ item_id: output.item_id, target: "director" })
-        .then((reference) => handoffToDirector(reference.resource))
-        .catch((cause: unknown) => setError(formatGenerationError(cause)));
-    },
-    [referenceMutation, setError],
-  );
-  const handleSendSelectedToDirector = useCallback(() => {
-    sendOutputToDirector(preferredHistoryOutput(selectedHistoryItem));
-  }, [selectedHistoryItem, sendOutputToDirector]);
-
-  const handleSavePreview = useCallback(() => {
-    if (activePreview?.kind !== "resource") return;
+  const handleSaveSample = useCallback(() => {
+    if (!selectedSample?.resource || !selectedRequest) return;
     setError(null);
     void saveMutation
       .mutateAsync({
-        resource: activePreview.resource,
-        suggested_file_name: `${activePreview.jobId}-sample-${activePreview.sampleIndex}`,
+        resource: selectedSample.resource,
+        suggested_file_name: stableSampleName(selectedRequest, selectedSample),
       })
       .catch((cause: unknown) => setError(formatGenerationError(cause)));
-  }, [activePreview, saveMutation, setError]);
-  const handleSendPreviewToDirector = useCallback(() => {
-    if (activePreview?.kind !== "resource" || !activePreview.galleryItemId) return;
+  }, [saveMutation, selectedRequest, selectedSample, setError]);
+
+  const handleSendSampleToDirector = useCallback(() => {
+    if (!selectedSample?.resource || !selectedSample.galleryItemId) return;
     setError(null);
     void referenceMutation
-      .mutateAsync({ item_id: activePreview.galleryItemId, target: "director" })
+      .mutateAsync({ item_id: selectedSample.galleryItemId, target: "director" })
       .then((reference) => handoffToDirector(reference.resource))
       .catch((cause: unknown) => setError(formatGenerationError(cause)));
-  }, [activePreview, referenceMutation, setError]);
+  }, [referenceMutation, selectedSample, setError]);
+
+  const handleExportRequest = useCallback(() => {
+    if (!selectedRequest || zipMutation.isPending) return;
+    exportZip(
+      zipMutation,
+      generationZipEntries([selectedRequest]),
+      `request-${padIndex(selectedRequest.requestIndex)}`,
+      setError,
+    );
+  }, [selectedRequest, setError, zipMutation]);
+
+  const handleExportBatch = useCallback(() => {
+    if (!batch || zipMutation.isPending) return;
+    exportZip(zipMutation, generationZipEntries(batch.requests), batch.batchId, setError);
+  }, [batch, setError, zipMutation]);
 
   return {
-    handleDeleteSelected,
-    handleExportSelected,
-    handleRerunSelected,
-    handleSavePreview,
-    handleSendPreviewToDirector,
-    handleSendSelectedToDirector,
-    deletePending: deleteMutation.isPending,
+    handleDeleteBatch,
+    handleDeleteRequest,
+    handleExportBatch,
+    handleExportRequest,
+    handleRerunBatch,
+    handleRerunRequest,
+    handleSaveSample,
+    handleSendSampleToDirector,
+    deletePending: deleteMutation.isPending || deleteBatchMutation.isPending,
     exportPending: saveMutation.isPending,
+    zipPending: zipMutation.isPending,
     handoffPending: referenceMutation.isPending,
-    rerunPending: rerunMutation.isPending,
+    rerunPending: rerunMutation.isPending || rerunBatchMutation.isPending,
   };
 }
 
@@ -217,14 +240,40 @@ function useGenerationInputActions({
   };
 }
 
-function preferredHistoryOutput(item: RunHistoryItemDto | null): RunHistoryOutputDto | null {
-  if (!item) return null;
-  return (
-    item.outputs.find((output) => output.asset_role === "original") ??
-    item.outputs.find((output) => output.asset_role === "primary") ??
-    item.outputs[0] ??
-    null
+export function generationZipEntries(
+  requests: ReadonlyArray<GenerationRequestUnit>,
+): SaveResourceImagesZipEntryDto[] {
+  return requests.flatMap((request) =>
+    request.samples.flatMap((sample) =>
+      sample.resource
+        ? [{ resource: sample.resource, file_name: stableSampleName(request, sample) }]
+        : [],
+    ),
   );
+}
+
+function stableSampleName(
+  request: Pick<GenerationRequestUnit, "requestIndex">,
+  sample: Pick<GenerationSampleSlot, "sampleIndex">,
+): string {
+  return `request-${padIndex(request.requestIndex)}_sample-${padIndex(sample.sampleIndex)}`;
+}
+
+function padIndex(index: number): string {
+  return String(index + 1).padStart(2, "0");
+}
+
+function exportZip(
+  mutation: ReturnType<typeof useSaveResourceImagesZipMutation>,
+  entries: SaveResourceImagesZipEntryDto[],
+  suggestedName: string,
+  setError: SetError,
+): void {
+  if (entries.length === 0) return;
+  setError(null);
+  void mutation
+    .mutateAsync({ entries, suggested_file_name: suggestedName })
+    .catch((cause: unknown) => setError(formatGenerationError(cause)));
 }
 
 function generationDraftInputResources(draft: GenerationDraft): ResourceRefDto[] {

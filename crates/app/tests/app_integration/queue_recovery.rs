@@ -41,6 +41,7 @@ fn generation_queue_recovers_as_paused_after_workspace_reopen() {
                 .generation()
                 .status(Some("job-1"))
                 .await
+                .unwrap()
                 .batch_status,
             Some("paused".to_owned())
         );

@@ -73,6 +73,19 @@ pub struct SaveResourceImageRequestDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct SaveResourceImagesZipEntryDto {
+    pub resource: ResourceRefDto,
+    pub file_name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct SaveResourceImagesZipRequestDto {
+    pub entries: Vec<SaveResourceImagesZipEntryDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggested_file_name: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ResourceImageDto {
     pub image_base64: String,
     #[serde(skip_serializing_if = "Option::is_none")]

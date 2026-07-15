@@ -7,18 +7,19 @@ use super::{
     CompileCharacterPromptRequest, CompileGenerationPromptRequest, ControlNetConfig,
     ControlNetConfigDto, ControlNetInput, GalleryQuery, GallerySourceKind, GenerateImageRequest,
     GenerateImageRequestDto, GenerateImageStreamRequest, GenerateImageStreamRequestDto,
-    GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationStatusDto,
-    GenerationWorkRequest, GenerationWorkRequestDto, ImageInputDto, ImageSize, Img2ImgRequest,
-    Img2ImgRequestDto, JobId, JobQueueRepository, NovelAiClientFactory, PromptPresetId,
-    QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
-    SecretStore, SecretsErrorKind, SubmitGenerationBatch, SubmitGenerationBatchJob,
-    SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
-    WorkspaceSession, character_reference_type_to_domain, characters_to_domain,
-    generation_status_to_dto, generation_work_title, image_format_to_domain, image_model_to_domain,
-    noise_schedule_to_domain, plan_context_to_domain, queue_directive_to_dto,
-    resource_ref_from_dto, resource_variant_kind_as_str, run_history_status_from_job_status,
-    sampler_to_domain, stream_mode_to_domain, sync_generation_history_from_queue_snapshot,
-    uc_preset_to_domain, upsert_generation_history_record, visual_asset_role_as_str,
+    GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationHistoryPosition,
+    GenerationHistoryUpdate, GenerationStatusDto, GenerationWorkRequest, GenerationWorkRequestDto,
+    ImageInputDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId, JobQueueRepository,
+    NovelAiClientFactory, PromptPresetId, QueueDirectiveDto, RunHistoryRecord,
+    RunHistoryRepository, RunHistoryStatus, RunOutputRecord, SecretStore, SecretsErrorKind,
+    SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationBatchJobDto,
+    SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, WorkspaceSession,
+    character_reference_type_to_domain, characters_to_domain, generation_status_to_dto,
+    generation_work_title, image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
+    plan_context_to_domain, queue_directive_to_dto, resource_ref_from_dto,
+    resource_variant_kind_as_str, run_history_status_from_job_status, sampler_to_domain,
+    stream_mode_to_domain, sync_generation_history_from_queue_snapshot, uc_preset_to_domain,
+    upsert_generation_history_record, visual_asset_role_as_str,
 };
 pub struct GenerationUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -68,10 +69,20 @@ where
             request.jobs.iter().map(|job| job.job_id.as_str()),
         )
         .await?;
-        let titles = request
+        let history_positions = request
             .jobs
             .iter()
-            .map(|job| (job.job_id.clone(), generation_work_title(&job.work)))
+            .enumerate()
+            .map(|(index, job)| {
+                (
+                    job.job_id.clone(),
+                    generation_work_title(&job.work),
+                    GenerationHistoryPosition {
+                        request_index: u32::try_from(index).unwrap_or(u32::MAX),
+                        expected_samples: generation_work_sample_count(&job.work),
+                    },
+                )
+            })
             .collect::<Vec<_>>();
         let work = self.submit_batch_request_to_domain(request).await?;
         let mut kernel = self.app.inner.kernel.lock().await;
@@ -83,14 +94,17 @@ where
         let snapshot = kernel.queue_snapshot();
         drop(kernel);
         self.persist_queue_snapshot(&directive, &snapshot).await?;
-        for (job_id, title) in titles {
+        for (job_id, title, position) in history_positions {
             self.upsert_generation_history(
                 &batch_id,
                 &job_id,
-                RunHistoryStatus::Queued,
-                title,
-                None,
-                None,
+                GenerationHistoryUpdate {
+                    status: RunHistoryStatus::Queued,
+                    title,
+                    origin_run_id: None,
+                    last_error: None,
+                    position: Some(position),
+                },
             )
             .await?;
         }
@@ -177,12 +191,26 @@ where
         Ok(directive)
     }
 
-    pub async fn status(&self, job_id: Option<&str>) -> GenerationStatusDto {
-        let kernel = self.app.inner.kernel.lock().await;
-        generation_status_to_dto(
-            kernel.batch_status(),
-            job_id.and_then(|id| kernel.job_status(&JobId::new(id))),
-        )
+    pub async fn status(&self, job_id: Option<&str>) -> AppResult<GenerationStatusDto> {
+        let snapshot = self
+            .app
+            .inner
+            .kernel
+            .lock()
+            .await
+            .queue_snapshot()
+            .active_batch;
+        let history = if let Some(active) = &snapshot {
+            self.app
+                .inner
+                .run_history
+                .list_run_history_by_batch(active.batch.batch_id.as_str())
+                .await
+                .map_err(|error| AppError::new("run_history", error.to_string()))?
+        } else {
+            Vec::new()
+        };
+        Ok(generation_status_to_dto(snapshot, &history, job_id))
     }
 
     /// Estimates `NovelAI` Anlas cost after applying prompt preset bindings.
@@ -462,21 +490,10 @@ where
         &self,
         batch_id: &str,
         job_id: &str,
-        status: RunHistoryStatus,
-        title: Option<String>,
-        origin_run_id: Option<String>,
-        last_error: Option<String>,
+        update: GenerationHistoryUpdate,
     ) -> AppResult<RunHistoryRecord> {
-        upsert_generation_history_record(
-            &self.app.inner.run_history,
-            batch_id,
-            job_id,
-            status,
-            title,
-            origin_run_id,
-            last_error,
-        )
-        .await
+        upsert_generation_history_record(&self.app.inner.run_history, batch_id, job_id, update)
+            .await
     }
 
     async fn update_generation_history_status(
@@ -498,10 +515,13 @@ where
         self.upsert_generation_history(
             existing.batch_id.as_deref().unwrap_or(""),
             job_id,
-            status,
-            existing.title,
-            existing.origin_run_id,
-            last_error,
+            GenerationHistoryUpdate {
+                status,
+                title: existing.title,
+                origin_run_id: existing.origin_run_id,
+                last_error,
+                position: None,
+            },
         )
         .await?;
         Ok(())
@@ -541,6 +561,7 @@ where
                         .run_history
                         .upsert_run_output(RunOutputRecord {
                             run_id: job_id.to_owned(),
+                            sample_index: item.metadata.sample_index,
                             artifact_id: item.artifact_id.as_str().to_owned(),
                             item_id: Some(item.id.as_str().to_owned()),
                             resource_id: asset.resource.id.as_str().to_owned(),
@@ -566,4 +587,12 @@ where
         }
         Ok(())
     }
+}
+
+fn generation_work_sample_count(work: &GenerationWorkRequestDto) -> u32 {
+    let count = match work {
+        GenerationWorkRequestDto::Image(request) => request.n_samples,
+        GenerationWorkRequestDto::Stream(request) => request.base.n_samples,
+    };
+    count.max(1)
 }

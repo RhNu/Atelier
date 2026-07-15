@@ -6,12 +6,14 @@ use atelier_app_api::gallery::{
     GallerySourceKindDto, VisualAssetDto,
 };
 use atelier_app_api::generation::{
-    GenerationPlanContextDto, GenerationStatusDto, ImageFormatDto, ImageModelDto, ImageSizeDto,
-    NoiseScheduleDto, QueueDelayDto, QueueDirectiveDto, SamplerDto, StreamModeDto, UcPresetDto,
+    GenerationPlanContextDto, GenerationRequestStatusDto, GenerationStatusDto, ImageFormatDto,
+    ImageModelDto, ImageSizeDto, NoiseScheduleDto, QueueDelayDto, QueueDirectiveDto, SamplerDto,
+    StreamModeDto, UcPresetDto,
 };
 use atelier_app_api::history::{
-    RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto,
-    RunHistoryQueryDto, RunHistoryStatusDto,
+    GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto, GenerationHistoryPageDto,
+    GenerationHistoryQueryDto, RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto,
+    RunHistoryPageDto, RunHistoryQueryDto, RunHistoryStatusDto,
 };
 use atelier_app_api::prompt::{
     CompiledPromptDto, PromptChunkDto, PromptFunctionTraceEntryDto, PromptLexiconCatalogDto,
@@ -39,8 +41,9 @@ use atelier_generation::{
     UcPreset,
 };
 use atelier_jobs::{
-    BatchStatus, QueueDelay, QueueDirective, RunHistoryKind, RunHistoryQuery, RunHistoryRecord,
-    RunHistoryStatus, RunOutputRecord,
+    ActiveJobBatchSnapshot, BatchStatus, GenerationBatchHistoryQuery, GenerationBatchHistoryRecord,
+    GenerationBatchHistoryStatus, QueueDelay, QueueDirective, RunHistoryKind, RunHistoryQuery,
+    RunHistoryRecord, RunHistoryStatus, RunOutputRecord,
 };
 use atelier_kernel::{EnsuredVibeEncoding, ExportedVibeDocument, ImportedVibeDocuments};
 use atelier_prompt_lexicon::{

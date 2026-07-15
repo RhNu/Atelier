@@ -13,12 +13,19 @@ import type {
   AppEventDto,
   CompileGenerationPromptRequestDto,
   CompiledGenerationPromptDto,
+  DeleteGenerationHistoryBatchesRequestDto,
+  DeleteGenerationHistoryBatchesResponseDto,
   DeleteRunHistoryItemsRequestDto,
   DeleteRunHistoryItemsResponseDto,
   GalleryImageReferenceRequestDto,
   GalleryImageReferenceDto,
   GlobalSettingsDto,
   GenerationDraftDto,
+  GenerationHistoryBatchDetailDto,
+  GenerationHistoryBatchDto,
+  GenerationHistoryBatchRequestDto,
+  GenerationHistoryPageDto,
+  GenerationHistoryQueryDto,
   GenerationAnlasEstimateDto,
   GenerationEstimateRequestDto,
   GenerationStatusDto,
@@ -41,9 +48,13 @@ import type {
   ResourceRefDto,
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryItemResponseDto,
+  RerunGenerationHistoryBatchRequestDto,
+  RerunGenerationHistoryBatchResponseDto,
   RunHistoryPageDto,
   RunHistoryQueryDto,
+  RunHistoryOutputDto,
   SaveResourceImageRequestDto,
+  SaveResourceImagesZipRequestDto,
   SaveGenerationDraftRequestDto,
   SubmitGenerationBatchRequestDto,
   SubscriptionSummaryDto,
@@ -77,6 +88,24 @@ const mocks = vi.hoisted(() => ({
         (
           request: RerunGenerationHistoryItemRequestDto,
         ) => Promise<RerunGenerationHistoryItemResponseDto>
+      >(),
+    listGenerationBatches:
+      vi.fn<(request: GenerationHistoryQueryDto) => Promise<GenerationHistoryPageDto>>(),
+    getGenerationBatch:
+      vi.fn<
+        (request: GenerationHistoryBatchRequestDto) => Promise<GenerationHistoryBatchDetailDto>
+      >(),
+    deleteGenerationBatches:
+      vi.fn<
+        (
+          request: DeleteGenerationHistoryBatchesRequestDto,
+        ) => Promise<DeleteGenerationHistoryBatchesResponseDto>
+      >(),
+    rerunGenerationBatch:
+      vi.fn<
+        (
+          request: RerunGenerationHistoryBatchRequestDto,
+        ) => Promise<RerunGenerationHistoryBatchResponseDto>
       >(),
   },
   promptApi: {
@@ -119,6 +148,12 @@ const mocks = vi.hoisted(() => ({
       >(),
     saveResourceImage:
       vi.fn<(request: SaveResourceImageRequestDto) => Promise<{ path: string } | null>>(),
+    saveResourceImagesZip:
+      vi.fn<
+        (
+          request: SaveResourceImagesZipRequestDto,
+        ) => Promise<{ path: string; exported: number } | null>
+      >(),
     pickAndImportVibeDocuments:
       vi.fn<(options?: { extensions?: string[] }) => Promise<ImportedVibeDocumentsDto>>(),
   },
@@ -151,6 +186,8 @@ vi.mock("../platform/atelier", () => ({
     history: {
       root: () => ["history"],
       list: (query: RunHistoryQueryDto) => ["history", "list", query],
+      generationBatches: (query: GenerationHistoryQueryDto) => ["history", "batches", query],
+      generationBatch: (batchId: string | null) => ["history", "batch", batchId],
     },
     settings: {
       workspace: () => ["settings", "workspace"],
@@ -231,7 +268,8 @@ function appEvent(kind: AppEventDto["kind"], sequence = 1): AppEventDto {
 function setup(options?: {
   status?: GenerationStatusDto;
   statusError?: Error;
-  history?: RunHistoryPageDto;
+  history?: GenerationHistoryPageDto;
+  historyDetail?: GenerationHistoryBatchDetailDto;
   vibeDocuments?: VibeDocumentPageDto;
   settingsError?: Error;
   storedDraft?: GenerationDraftDto;
@@ -258,7 +296,13 @@ function setup(options?: {
     mocks.generationApi.status.mockRejectedValue(options.statusError);
   } else {
     mocks.generationApi.status.mockResolvedValue(
-      options?.status ?? { batch_status: null, job_status: null },
+      options?.status ?? {
+        batch_id: null,
+        batch_status: null,
+        current_job_id: null,
+        job_status: null,
+        requests: [],
+      },
     );
   }
   mocks.generationApi.submitBatch.mockResolvedValue({ kind: "start_job", job_id: "job-submitted" });
@@ -280,15 +324,21 @@ function setup(options?: {
   mocks.generationApi.pause.mockResolvedValue({ kind: "paused" });
   mocks.generationApi.resume.mockResolvedValue({ kind: "start_job", job_id: "job-submitted" });
   mocks.generationApi.stop.mockResolvedValue({ kind: "idle" });
-  mocks.historyApi.list.mockResolvedValue(
-    options?.history ?? {
-      items: [],
-      offset: 0,
-      limit: 8,
-      total: 0,
-    },
+  mocks.historyApi.list.mockResolvedValue({
+    items: [],
+    offset: 0,
+    limit: 8,
+    total: 0,
+  });
+  mocks.historyApi.listGenerationBatches.mockResolvedValue(
+    options?.history ?? { items: [], offset: 0, limit: 8, total: 0 },
   );
+  mocks.historyApi.getGenerationBatch.mockImplementation(async ({ batch_id }) => {
+    if (options?.historyDetail) return options.historyDetail;
+    return emptyBatchDetail(batch_id);
+  });
   mocks.historyApi.deleteItems.mockResolvedValue({ deleted: 1 });
+  mocks.historyApi.deleteGenerationBatches.mockResolvedValue({ deleted_requests: 1 });
   mocks.historyApi.rerunGeneration.mockResolvedValue({
     directive: { kind: "start_job", job_id: "job-rerun" },
     item: {
@@ -307,6 +357,14 @@ function setup(options?: {
       outputs: [],
     },
   });
+  mocks.historyApi.rerunGenerationBatch.mockImplementation(async (request) => ({
+    directive: { kind: "start_job", job_id: request.job_ids[0] ?? "job-rerun" },
+    batch: {
+      ...emptyBatchDetail(request.batch_id).batch,
+      request_count: request.job_ids.length,
+      expected_sample_count: request.job_ids.length,
+    },
+  }));
   mocks.promptApi.compileGenerationPreview.mockResolvedValue({
     prompt: {
       expanded_prompt: "expanded prompt",
@@ -403,6 +461,10 @@ function setup(options?: {
   });
   mocks.desktopApi.pickAndImportImageResources.mockResolvedValue([]);
   mocks.desktopApi.saveResourceImage.mockResolvedValue({ path: "C:\\exports\\job-1.png" });
+  mocks.desktopApi.saveResourceImagesZip.mockResolvedValue({
+    path: "C:\\exports\\batch.zip",
+    exported: 1,
+  });
   mocks.desktopApi.pickAndImportVibeDocuments.mockResolvedValue({ entries: [] });
   mocks.vibeApi.listDocuments.mockResolvedValue(
     options?.vibeDocuments ?? {
@@ -439,6 +501,76 @@ function setup(options?: {
         <GeneratePage />
       </QueryClientProvider>,
     ),
+  };
+}
+
+function emptyBatchDetail(batchId: string): GenerationHistoryBatchDetailDto {
+  return {
+    batch: {
+      batch_id: batchId,
+      status: "queued",
+      title: null,
+      last_error: null,
+      created_at_ms: 1,
+      updated_at_ms: 1,
+      completed_at_ms: null,
+      request_count: 0,
+      completed_request_count: 0,
+      expected_sample_count: 0,
+      completed_sample_count: 0,
+      outputs: [],
+    },
+    requests: [],
+  };
+}
+
+function generationBatchFixture(): {
+  page: GenerationHistoryPageDto;
+  detail: GenerationHistoryBatchDetailDto;
+} {
+  const output: RunHistoryOutputDto = {
+    sample_index: 0,
+    artifact_id: "artifact-1",
+    item_id: "gallery-1",
+    resource: { id: "resource:generated:job-1:0", variant_id: null },
+    asset_role: "primary",
+    variant_kind: null,
+  };
+  const batch: GenerationHistoryBatchDto = {
+    batch_id: "batch-1",
+    status: "succeeded",
+    title: "1girl",
+    last_error: null,
+    created_at_ms: 1,
+    updated_at_ms: 2,
+    completed_at_ms: 2,
+    request_count: 1,
+    completed_request_count: 1,
+    expected_sample_count: 1,
+    completed_sample_count: 1,
+    outputs: [output],
+  };
+  return {
+    page: { items: [batch], offset: 0, limit: 8, total: 1 },
+    detail: {
+      batch,
+      requests: [
+        {
+          run_id: "job-1",
+          job_id: "job-1",
+          origin_run_id: null,
+          request_index: 0,
+          expected_samples: 1,
+          status: "succeeded",
+          title: "1girl",
+          last_error: null,
+          created_at_ms: 1,
+          updated_at_ms: 2,
+          completed_at_ms: 2,
+          outputs: [output],
+        },
+      ],
+    },
   };
 }
 
@@ -508,7 +640,7 @@ describe("GeneratePage", () => {
     setup({ statusError: new Error("Queue offline") });
 
     expect(
-      await screen.findByText("Generation status unavailable: Queue offline", undefined, {
+      await screen.findByText("Queue offline", undefined, {
         timeout: 4_000,
       }),
     ).toBeInTheDocument();
@@ -933,41 +1065,24 @@ describe("GeneratePage", () => {
 });
 
 describe("GeneratePage queue and preview behavior", () => {
-  it("updates queue controls, stream preview, final preview, and history rail", async () => {
+  it("updates queue controls, one stable sample slot, final preview, and batch history", async () => {
+    const fixture = generationBatchFixture();
     const { user } = setup({
       status: {
+        batch_id: "batch-1",
         batch_status: "running",
+        current_job_id: "job-1",
         job_status: "running",
+        requests: [{ job_id: "job-1", request_index: 0, expected_samples: 1, status: "running" }],
       },
-      history: {
-        items: [
-          {
-            run_id: "job-1",
-            kind: "generation",
-            status: "succeeded",
-            batch_id: "batch-1",
-            job_id: "job-1",
-            origin_run_id: null,
-            title: "1girl",
-            last_error: null,
-            created_at_ms: 1,
-            updated_at_ms: 2,
-            completed_at_ms: 2,
-            recoverable: false,
-            outputs: [
-              {
-                artifact_id: "artifact-1",
-                item_id: "gallery-1",
-                resource: { id: "resource:generated:job-1:0", variant_id: null },
-                asset_role: "primary",
-                variant_kind: null,
-              },
-            ],
-          },
-        ],
-        offset: 0,
-        limit: 8,
-        total: 1,
+      history: fixture.page,
+      historyDetail: {
+        ...fixture.detail,
+        requests: fixture.detail.requests.map((request) => ({
+          ...request,
+          status: "running",
+          outputs: [],
+        })),
       },
     });
 
@@ -996,9 +1111,12 @@ describe("GeneratePage queue and preview behavior", () => {
       );
     });
 
-    expect(await screen.findByAltText("Active generation preview")).toHaveAttribute(
-      "src",
-      "data:image/png;base64,stream-frame",
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByAltText(/Request 1 sample 1|Generation sample 1/u)
+          .some((image) => image.getAttribute("src") === "data:image/png;base64,stream-frame"),
+      ).toBe(true),
     );
 
     act(() => {
@@ -1014,76 +1132,62 @@ describe("GeneratePage queue and preview behavior", () => {
       );
     });
 
-    expect(await screen.findByAltText("Final generation preview")).toHaveAttribute(
-      "src",
-      "data:image/png;base64,final-image",
+    await waitFor(() =>
+      expect(
+        screen
+          .getAllByAltText(/Request 1 sample 1|Generation sample 1/u)
+          .some((image) => image.getAttribute("src") === "data:image/png;base64,final-image"),
+      ).toBe(true),
     );
     const historyRail = screen.getByRole("complementary", { name: "Generation history" });
     expect(within(historyRail).getByText("1girl")).toBeInTheDocument();
     expect(within(historyRail).getByText(/succeeded/)).toBeInTheDocument();
   });
 
-  it("runs selected history rerun, export, director handoff, and delete actions", async () => {
+  it("runs batch, request, and sample-level history actions", async () => {
+    const fixture = generationBatchFixture();
     const { user } = setup({
-      history: {
-        items: [
-          {
-            run_id: "job-1",
-            kind: "generation",
-            status: "succeeded",
-            batch_id: "batch-1",
-            job_id: "job-1",
-            origin_run_id: null,
-            title: "1girl",
-            last_error: null,
-            created_at_ms: 1,
-            updated_at_ms: 2,
-            completed_at_ms: 2,
-            recoverable: false,
-            outputs: [
-              {
-                artifact_id: "artifact-1",
-                item_id: "gallery-1",
-                resource: { id: "resource:generated:job-1:0", variant_id: null },
-                asset_role: "primary",
-                variant_kind: null,
-              },
-            ],
-          },
-        ],
-        offset: 0,
-        limit: 8,
-        total: 1,
-      },
+      history: fixture.page,
+      historyDetail: fixture.detail,
     });
 
     const historyRail = await screen.findByRole("complementary", {
       name: "Generation history",
     });
     await user.click(within(historyRail).getByText("1girl"));
+    await user.click(within(historyRail).getByRole("button", { name: "Rerun selected batch" }));
     await user.click(
-      within(historyRail).getByRole("button", { name: "Rerun selected history item" }),
-    );
-    await user.click(
-      within(historyRail).getByRole("button", { name: "Export selected history output" }),
-    );
-    await user.click(
-      within(historyRail).getByRole("button", {
-        name: "Send selected history output to Director",
-      }),
-    );
-    await user.click(
-      within(historyRail).getByRole("button", { name: "Delete selected history item" }),
+      within(historyRail).getByRole("button", { name: "Export selected batch as ZIP" }),
     );
 
-    expect(mocks.historyApi.rerunGeneration).toHaveBeenCalledWith({
-      run_id: "job-1",
+    await user.click(await screen.findByRole("button", { name: "Focus sample 1" }));
+    await user.click(screen.getByRole("button", { name: "Save selected sample" }));
+    await user.click(screen.getByRole("button", { name: "Send selected sample to Director" }));
+    await user.click(screen.getByRole("button", { name: "Export request as ZIP" }));
+    await user.click(screen.getByRole("button", { name: "Rerun request" }));
+    await user.click(screen.getByRole("button", { name: "Delete request history" }));
+
+    expect(mocks.historyApi.rerunGenerationBatch).toHaveBeenCalledWith({
+      source_batch_id: "batch-1",
       batch_id: "generation-00000000-0000-4000-8000-0000000000aa",
-      job_id: "job-00000000-0000-4000-8000-0000000000bb",
+      job_ids: ["job-00000000-0000-4000-8000-0000000000bb"],
     });
+    expect(mocks.desktopApi.saveResourceImagesZip).toHaveBeenCalledWith({
+      entries: [
+        {
+          resource: { id: "resource:generated:job-1:0", variant_id: null },
+          file_name: "request-01_sample-01",
+        },
+      ],
+      suggested_file_name: "batch-1",
+    });
+    const requestRerun = mocks.historyApi.rerunGeneration.mock.calls[0]?.[0];
+    expect(requestRerun?.run_id).toBe("job-1");
+    expect(requestRerun?.batch_id).toMatch(/^generation-/u);
+    expect(requestRerun?.job_id).toMatch(/^job-/u);
     expect(mocks.desktopApi.saveResourceImage).toHaveBeenCalledWith({
       resource: { id: "resource:generated:job-1:0", variant_id: null },
-      suggested_file_name: "job-1-sample",
+      suggested_file_name: "request-01_sample-01",
     });
     expect(mocks.galleryApi.imageReference).toHaveBeenCalledWith({
       item_id: "gallery-1",
@@ -1095,8 +1199,11 @@ describe("GeneratePage queue and preview behavior", () => {
   it("surfaces queue command and final image failures", async () => {
     const { user } = setup({
       status: {
+        batch_id: "batch-1",
         batch_status: "running",
+        current_job_id: "job-1",
         job_status: "running",
+        requests: [{ job_id: "job-1", request_index: 0, expected_samples: 1, status: "running" }],
       },
     });
     mocks.generationApi.pause.mockRejectedValueOnce(new Error("Pause command failed"));
@@ -1119,10 +1226,12 @@ describe("GeneratePage queue and preview behavior", () => {
     });
 
     expect(
-      await screen.findByText("Final image unavailable: resource missing", undefined, {
-        timeout: 4_000,
-      }),
-    ).toBeInTheDocument();
+      (
+        await screen.findAllByText("Image unavailable: resource missing", undefined, {
+          timeout: 4_000,
+        })
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("compiles positive and negative prompt previews", async () => {

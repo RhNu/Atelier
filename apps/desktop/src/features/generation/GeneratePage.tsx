@@ -1,7 +1,7 @@
 /* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { CompiledGenerationPromptDto, RunHistoryStatusDto } from "../../types";
+import type { CompiledGenerationPromptDto, GenerationBatchHistoryStatusDto } from "../../types";
 import { AdvancedGenerationInputs } from "./components/AdvancedGenerationInputs";
 import {
   GenerationLoadingState,
@@ -28,14 +28,17 @@ import {
   usePauseGenerationMutation,
   usePromptPresetsQuery,
   useRefreshActiveSubscriptionMutation,
-  useResourceImageQuery,
   useResumeGenerationMutation,
   useSaveGenerationDraftMutation,
   useStopGenerationMutation,
   useSubmitGenerationMutation,
 } from "./data/useGenerationActions";
 import { useGenerationGlobalSettingsQuery } from "./data/useGenerationGlobalSettingsQuery";
-import { useGenerationStatusQuery, useRunHistoryQuery } from "./data/useGenerationStatusQuery";
+import {
+  useGenerationHistoryBatchQuery,
+  useGenerationHistoryQuery,
+  useGenerationStatusQuery,
+} from "./data/useGenerationStatusQuery";
 import { formatGenerationError as formatError } from "./generation-page-utils";
 import {
   buildSubmitGenerationBatchRequest,
@@ -43,6 +46,7 @@ import {
   createGenerationDraft,
   resetGenerationParameters,
 } from "./model/generation-draft";
+import { buildGenerationBatchView, selectDefaultRequest } from "./model/generation-preview-model";
 import { useGenerationEventStore } from "./state/generation-event-store";
 import { useGenerationDraft } from "./state/useGenerationDraft";
 import { useGenerationPageActions } from "./state/useGenerationPageActions";
@@ -99,25 +103,30 @@ export function GeneratePage() {
   });
   const isOpus = accountQuery.data?.is_opus ?? false;
   const estimateQuery = useGenerationEstimateQuery(draft, isOpus);
-  const activePreview = useGenerationEventStore((state) => state.activePreview);
-  const filmstrip = useGenerationEventStore((state) => state.filmstrip);
-  const selectPreview = useGenerationEventStore((state) => state.selectPreview);
+  const liveBatchId = useGenerationEventStore((state) => state.liveBatchId);
+  const storedViewBatchId = useGenerationEventStore((state) => state.viewBatchId);
+  const latestJobId = useGenerationEventStore((state) => state.latestJobId);
+  const selectedJobId = useGenerationEventStore((state) => state.selectedJobId);
+  const focusedSampleIndex = useGenerationEventStore((state) => state.focusedSampleIndex);
+  const focusMode = useGenerationEventStore((state) => state.focusMode);
+  const previews = useGenerationEventStore((state) => state.previews);
   const lastError = useGenerationEventStore((state) => state.lastError);
-  const selectedHistoryItemId = useGenerationEventStore((state) => state.selectedHistoryItemId);
-  const selectHistoryItem = useGenerationEventStore((state) => state.selectHistoryItem);
+  const syncActiveBatch = useGenerationEventStore((state) => state.syncActiveBatch);
+  const selectBatch = useGenerationEventStore((state) => state.selectBatch);
+  const selectRequest = useGenerationEventStore((state) => state.selectRequest);
+  const focusSample = useGenerationEventStore((state) => state.focusSample);
+  const showRequestGrid = useGenerationEventStore((state) => state.showRequestGrid);
+  const resumeFollow = useGenerationEventStore((state) => state.resumeFollow);
   const promptPanelRef = useRef<GenerationPromptPanelHandle>(null);
-  const [historyStatusFilter, setHistoryStatusFilter] = useState<"all" | RunHistoryStatusDto>(
-    "all",
-  );
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<
+    "all" | GenerationBatchHistoryStatusDto
+  >("all");
   const [historyOffset, setHistoryOffset] = useState(0);
-  const historyQuery = useRunHistoryQuery({
+  const historyQuery = useGenerationHistoryQuery({
     offset: historyOffset,
     limit: HISTORY_PAGE_LIMIT,
-    kind: "generation",
     status: historyStatusFilter === "all" ? null : historyStatusFilter,
   });
-  const finalResource = activePreview?.kind === "resource" ? activePreview.resource : null;
-  const finalImageQuery = useResourceImageQuery(finalResource);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [queueError, setQueueError] = useState<string | null>(null);
@@ -126,14 +135,43 @@ export function GeneratePage() {
   const [compiledPreview, setCompiledPreview] = useState<CompiledGenerationPromptDto | null>(null);
 
   const status = statusQuery.data;
-  const historyItems = historyQuery.data?.items ?? EMPTY_ITEMS;
-  const selectedHistoryItem =
-    historyItems.find((item) => item.run_id === selectedHistoryItemId) ?? null;
+  const effectiveLiveBatchId = liveBatchId ?? status?.batch_id ?? null;
+  const viewBatchId = storedViewBatchId ?? effectiveLiveBatchId;
+  const detailQuery = useGenerationHistoryBatchQuery(viewBatchId);
+  const batchView = useMemo(
+    () =>
+      buildGenerationBatchView({
+        batchId: viewBatchId,
+        detail: detailQuery.data,
+        status,
+        previews,
+      }),
+    [detailQuery.data, previews, status, viewBatchId],
+  );
+  const selectedRequest = useMemo(
+    () =>
+      selectDefaultRequest(batchView, selectedJobId, latestJobId ?? status?.current_job_id ?? null),
+    [batchView, latestJobId, selectedJobId, status?.current_job_id],
+  );
+  const selectedSample =
+    focusedSampleIndex === null
+      ? null
+      : (selectedRequest?.samples.find((sample) => sample.sampleIndex === focusedSampleIndex) ??
+        null);
+  const historyBatches = historyQuery.data?.items ?? EMPTY_ITEMS;
+  const isViewingLive = Boolean(viewBatchId && viewBatchId === effectiveLiveBatchId);
+
+  useEffect(() => {
+    syncActiveBatch(status?.batch_id ?? null, status?.current_job_id ?? null);
+  }, [status?.batch_id, status?.current_job_id, syncActiveBatch]);
+
   const generationActions = useGenerationPageActions({
     draft,
-    activePreview,
-    selectedHistoryItem,
-    selectHistoryItem,
+    batch: batchView,
+    selectedRequest,
+    selectedSample,
+    onBatchDeleted: resumeFollow,
+    onRequestDeleted: showRequestGrid,
   });
   const batchStatus = status?.batch_status ?? null;
   const canPause = batchStatus === "running" || batchStatus === "waiting";
@@ -294,39 +332,47 @@ export function GeneratePage() {
         }
         preview={
           <GenerationPreviewStage
-            preview={activePreview}
-            finalImage={finalImageQuery.data}
-            finalImagePending={finalImageQuery.isPending && Boolean(finalResource)}
-            finalImageError={finalImageQuery.isError ? formatError(finalImageQuery.error) : null}
-            status={status}
+            batch={batchView}
+            selectedRequest={selectedRequest}
+            focusedSampleIndex={focusedSampleIndex}
+            focusMode={focusMode}
+            isViewingLive={isViewingLive}
+            liveBatchAvailable={Boolean(effectiveLiveBatchId)}
             statusError={statusQuery.isError ? formatError(statusQuery.error) : null}
             lastError={lastError?.message ?? null}
-            filmstrip={filmstrip}
             savePending={generationActions.exportPending}
+            zipPending={generationActions.zipPending}
             handoffPending={generationActions.handoffPending}
+            rerunPending={generationActions.rerunPending}
+            deletePending={generationActions.deletePending}
             compilePending={compileMutation.isPending}
             queueControls={queueControls}
-            onSelectPreview={selectPreview}
-            onSavePreview={generationActions.handleSavePreview}
-            onSendPreviewToDirector={generationActions.handleSendPreviewToDirector}
+            onSelectRequest={selectRequest}
+            onFocusSample={focusSample}
+            onShowRequestGrid={showRequestGrid}
+            onResumeLive={resumeFollow}
+            onSaveSample={generationActions.handleSaveSample}
+            onSendSampleToDirector={generationActions.handleSendSampleToDirector}
+            onExportRequest={generationActions.handleExportRequest}
+            onRerunRequest={generationActions.handleRerunRequest}
+            onDeleteRequest={generationActions.handleDeleteRequest}
             onCompilePrompt={handleCompile}
           />
         }
         history={
           <GenerationHistoryRail
-            items={historyItems}
+            batches={historyBatches}
             pending={historyQuery.isPending}
             error={historyQuery.isError ? formatError(historyQuery.error) : null}
-            selectedItemId={selectedHistoryItemId}
+            selectedBatchId={viewBatchId}
             statusFilter={historyStatusFilter}
             offset={historyQuery.data?.offset ?? historyOffset}
             limit={historyQuery.data?.limit ?? HISTORY_PAGE_LIMIT}
             total={historyQuery.data?.total ?? 0}
             rerunPending={generationActions.rerunPending}
             deletePending={generationActions.deletePending}
-            exportPending={generationActions.exportPending}
-            handoffPending={generationActions.handoffPending}
-            onSelect={selectHistoryItem}
+            exportPending={generationActions.zipPending}
+            onSelect={selectBatch}
             onStatusFilterChange={(next) => {
               setHistoryStatusFilter(next);
               setHistoryOffset(0);
@@ -335,10 +381,9 @@ export function GeneratePage() {
               setHistoryOffset((value) => Math.max(0, value - HISTORY_PAGE_LIMIT))
             }
             onNextPage={() => setHistoryOffset((value) => value + HISTORY_PAGE_LIMIT)}
-            onRerunSelected={generationActions.handleRerunSelected}
-            onDeleteSelected={generationActions.handleDeleteSelected}
-            onExportSelected={generationActions.handleExportSelected}
-            onSendSelectedToDirector={generationActions.handleSendSelectedToDirector}
+            onRerunSelected={generationActions.handleRerunBatch}
+            onDeleteSelected={generationActions.handleDeleteBatch}
+            onExportSelected={generationActions.handleExportBatch}
           />
         }
       />

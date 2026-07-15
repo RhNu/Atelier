@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import type {
   ApiKeyRecordDto,
   AppBootstrapDto,
@@ -13,6 +14,8 @@ import type {
   DeleteGalleryItemsResponseDto,
   DeleteRunHistoryItemsRequestDto,
   DeleteRunHistoryItemsResponseDto,
+  DeleteGenerationHistoryBatchesRequestDto,
+  DeleteGenerationHistoryBatchesResponseDto,
   DeletePromptChunkRequestDto,
   DeletePromptChunkResponseDto,
   DeletePromptPresetRequestDto,
@@ -33,6 +36,10 @@ import type {
   GenerationAnlasEstimateDto,
   GenerationEstimateRequestDto,
   GenerationStatusQueryDto,
+  GenerationHistoryBatchDetailDto,
+  GenerationHistoryBatchRequestDto,
+  GenerationHistoryPageDto,
+  GenerationHistoryQueryDto,
   GetPromptChunkRequestDto,
   GetResourceImageRequestDto,
   GetVibeDocumentRequestDto,
@@ -55,10 +62,13 @@ import type {
   QueueDirectiveDto,
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryItemResponseDto,
+  RerunGenerationHistoryBatchRequestDto,
+  RerunGenerationHistoryBatchResponseDto,
   ResourceImageDto,
   ReleaseImportedImageResourcesRequestDto,
   ReleaseImportedImageResourcesResponseDto,
   SaveResourceImageRequestDto,
+  SaveResourceImagesZipRequestDto,
   SaveGenerationDraftRequestDto,
   ResetWorkspaceSettingsResponseDto,
   RunDirectorToolRequestDto,
@@ -127,6 +137,11 @@ export const desktopApi = {
     ),
   saveResourceImage: (request: SaveResourceImageRequestDto) =>
     invokeAtelierCommand<{ path: string } | null>(atelierCommands.saveResourceImage, { request }),
+  saveResourceImagesZip: (request: SaveResourceImagesZipRequestDto) =>
+    invokeAtelierCommand<{ path: string; exported: number } | null>(
+      atelierCommands.saveResourceImagesZip,
+      { request },
+    ),
   openPath: (path: string) => invokeAtelierCommand<void>(atelierCommands.openPath, { path }),
   revealPath: (path: string) => invokeAtelierCommand<void>(atelierCommands.revealPath, { path }),
 };
@@ -252,6 +267,27 @@ export const historyApi = {
   rerunGeneration: (request: RerunGenerationHistoryItemRequestDto) =>
     invokeAtelierCommand<RerunGenerationHistoryItemResponseDto>(
       atelierCommands.rerunGenerationHistoryItem,
+      { request },
+    ),
+  listGenerationBatches: (request: GenerationHistoryQueryDto) =>
+    invokeAtelierCommand<GenerationHistoryPageDto>(atelierCommands.queryGenerationHistory, {
+      request,
+    }),
+  getGenerationBatch: (request: GenerationHistoryBatchRequestDto) =>
+    invokeAtelierCommand<GenerationHistoryBatchDetailDto>(
+      atelierCommands.getGenerationHistoryBatch,
+      {
+        request,
+      },
+    ),
+  deleteGenerationBatches: (request: DeleteGenerationHistoryBatchesRequestDto) =>
+    invokeAtelierCommand<DeleteGenerationHistoryBatchesResponseDto>(
+      atelierCommands.deleteGenerationHistoryBatches,
+      { request },
+    ),
+  rerunGenerationBatch: (request: RerunGenerationHistoryBatchRequestDto) =>
+    invokeAtelierCommand<RerunGenerationHistoryBatchResponseDto>(
+      atelierCommands.rerunGenerationHistoryBatch,
       { request },
     ),
 };

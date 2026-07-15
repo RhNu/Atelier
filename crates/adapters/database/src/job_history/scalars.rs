@@ -1,6 +1,6 @@
 use super::{
-    BatchStatus, Duration, JobKind, JobQueueError, JobResult, JobStatus, RunHistoryKind,
-    RunHistoryRecord, RunHistoryStatus, SystemTime, UNIX_EPOCH,
+    BatchStatus, Duration, GenerationBatchHistoryStatus, JobKind, JobQueueError, JobResult,
+    JobStatus, RunHistoryKind, RunHistoryRecord, RunHistoryStatus, SystemTime, UNIX_EPOCH,
 };
 
 pub(super) fn run_history_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RunHistoryRecord> {
@@ -12,16 +12,22 @@ pub(super) fn run_history_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<
         batch_id: row.get(3)?,
         job_id: row.get(4)?,
         origin_run_id: row.get(5)?,
-        submitted_payload_ref: row.get(6)?,
-        prepared_payload_ref: row.get(7)?,
-        title: row.get(8)?,
-        last_error: row.get(9)?,
-        created_at_ms: u64::try_from(row.get::<_, i64>(10)?).unwrap_or(0),
-        updated_at_ms: u64::try_from(row.get::<_, i64>(11)?).unwrap_or(0),
+        request_index: row
+            .get::<_, Option<i64>>(6)?
+            .map(|value| u32::try_from(value).unwrap_or(0)),
+        expected_samples: row
+            .get::<_, Option<i64>>(7)?
+            .map(|value| u32::try_from(value).unwrap_or(1).max(1)),
+        submitted_payload_ref: row.get(8)?,
+        prepared_payload_ref: row.get(9)?,
+        title: row.get(10)?,
+        last_error: row.get(11)?,
+        created_at_ms: u64::try_from(row.get::<_, i64>(12)?).unwrap_or(0),
+        updated_at_ms: u64::try_from(row.get::<_, i64>(13)?).unwrap_or(0),
         completed_at_ms: row
-            .get::<_, Option<i64>>(12)?
+            .get::<_, Option<i64>>(14)?
             .map(|value| u64::try_from(value).unwrap_or(0)),
-        recoverable: row.get::<_, i64>(13)? != 0,
+        recoverable: row.get::<_, i64>(15)? != 0,
     })
 }
 
@@ -150,6 +156,41 @@ pub(super) fn run_history_status_from_str(value: &str) -> JobResult<RunHistorySt
         "stopped" => Ok(RunHistoryStatus::Stopped),
         _ => Err(JobQueueError::invalid_state(format!(
             "unknown run status `{value}`"
+        ))),
+    }
+}
+
+pub(super) const fn generation_batch_history_status_as_str(
+    value: GenerationBatchHistoryStatus,
+) -> &'static str {
+    match value {
+        GenerationBatchHistoryStatus::Queued => "queued",
+        GenerationBatchHistoryStatus::Preparing => "preparing",
+        GenerationBatchHistoryStatus::Running => "running",
+        GenerationBatchHistoryStatus::Waiting => "waiting",
+        GenerationBatchHistoryStatus::Paused => "paused",
+        GenerationBatchHistoryStatus::Succeeded => "succeeded",
+        GenerationBatchHistoryStatus::PartiallySucceeded => "partially_succeeded",
+        GenerationBatchHistoryStatus::Failed => "failed",
+        GenerationBatchHistoryStatus::Stopped => "stopped",
+    }
+}
+
+pub(super) fn generation_batch_history_status_from_str(
+    value: &str,
+) -> JobResult<GenerationBatchHistoryStatus> {
+    match value {
+        "queued" => Ok(GenerationBatchHistoryStatus::Queued),
+        "preparing" => Ok(GenerationBatchHistoryStatus::Preparing),
+        "running" => Ok(GenerationBatchHistoryStatus::Running),
+        "waiting" => Ok(GenerationBatchHistoryStatus::Waiting),
+        "paused" => Ok(GenerationBatchHistoryStatus::Paused),
+        "succeeded" => Ok(GenerationBatchHistoryStatus::Succeeded),
+        "partially_succeeded" => Ok(GenerationBatchHistoryStatus::PartiallySucceeded),
+        "failed" => Ok(GenerationBatchHistoryStatus::Failed),
+        "stopped" => Ok(GenerationBatchHistoryStatus::Stopped),
+        _ => Err(JobQueueError::invalid_state(format!(
+            "unknown generation batch history status `{value}`"
         ))),
     }
 }

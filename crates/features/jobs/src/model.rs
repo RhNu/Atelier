@@ -224,6 +224,50 @@ pub enum RunHistoryStatus {
     Stopped,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum GenerationBatchHistoryStatus {
+    Queued,
+    Preparing,
+    Running,
+    Waiting,
+    Paused,
+    Succeeded,
+    PartiallySucceeded,
+    Failed,
+    Stopped,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct GenerationBatchHistoryQuery {
+    pub offset: usize,
+    pub limit: usize,
+    pub status: Option<GenerationBatchHistoryStatus>,
+}
+
+impl Default for GenerationBatchHistoryQuery {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            limit: 50,
+            status: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GenerationBatchHistoryRecord {
+    pub batch_id: String,
+    pub status: GenerationBatchHistoryStatus,
+    pub title: Option<String>,
+    pub last_error: Option<String>,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+    pub completed_at_ms: Option<u64>,
+    pub request_count: usize,
+    pub completed_request_count: usize,
+    pub expected_sample_count: u32,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunHistoryRecord {
     pub run_id: String,
@@ -232,6 +276,8 @@ pub struct RunHistoryRecord {
     pub batch_id: Option<String>,
     pub job_id: Option<String>,
     pub origin_run_id: Option<String>,
+    pub request_index: Option<u32>,
+    pub expected_samples: Option<u32>,
     pub submitted_payload_ref: Option<String>,
     pub prepared_payload_ref: Option<String>,
     pub title: Option<String>,
@@ -245,6 +291,7 @@ pub struct RunHistoryRecord {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunOutputRecord {
     pub run_id: String,
+    pub sample_index: Option<u32>,
     pub artifact_id: String,
     pub item_id: Option<String>,
     pub resource_id: String,

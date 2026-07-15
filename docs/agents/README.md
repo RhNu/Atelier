@@ -29,6 +29,7 @@ For task-specific context, read only the relevant decision records:
 - `frontend-workbench-foundation.md`: desktop frontend shell, generated app-api TypeScript contracts, Tailwind theme tokens, and `nait` visual reference boundary.
 - `global-settings-workspace-restore.md`: user-level settings persistence, last-workspace restore behavior, and app/workspace runtime scope separation.
 - `generate-workbench-draft.md`: Generate sidebar workbench layout, workspace draft persistence, and draft resource ownership.
+- `generation-preview-batch-history.md`: batch/request/sample preview hierarchy, follow/pin selection, batch-level History, and ZIP export boundaries.
 
 ## Current Consensus
 

@@ -1,4 +1,5 @@
 import {
+  generationPreviewKey,
   recordGenerationEvent,
   resetGenerationEventState,
   useGenerationEventStore,
@@ -9,101 +10,62 @@ function event(kind: AppEventDto["kind"], sequence = 1): AppEventDto {
   return { sequence, kind };
 }
 
+function streamChunk(
+  batchId: string,
+  jobId: string,
+  sampleIndex: number,
+  image: string,
+  sequence: number,
+): AppEventDto {
+  return event(
+    {
+      kind: "generation_stream_chunk",
+      batch_id: batchId,
+      job_id: jobId,
+      event_type: "intermediate",
+      sample_index: sampleIndex,
+      step_index: sequence,
+      generation_id: sequence,
+      sigma: null,
+      image,
+    },
+    sequence,
+  );
+}
+
 describe("generation event store", () => {
-  beforeEach(() => {
-    resetGenerationEventState();
-  });
+  beforeEach(() => resetGenerationEventState());
 
-  it("tracks stream chunks as data URLs for the active preview", () => {
-    recordGenerationEvent(
-      event({
-        kind: "generation_stream_chunk",
-        batch_id: "batch-1",
-        job_id: "job-1",
-        event_type: "intermediate",
-        sample_index: 0,
-        step_index: 4,
-        generation_id: 10,
-        sigma: null,
-        image: "base64-frame",
-      }),
-    );
+  it("replaces consecutive chunks for one sample without adding preview entries", () => {
+    recordGenerationEvent(streamChunk("batch-1", "job-1", 0, "frame-1", 1));
+    recordGenerationEvent(streamChunk("batch-1", "job-1", 0, "frame-2", 2));
 
-    expect(useGenerationEventStore.getState().activePreview).toEqual({
+    const state = useGenerationEventStore.getState();
+    expect(Object.keys(state.previews)).toEqual([generationPreviewKey("batch-1", "job-1", 0)]);
+    expect(state.previews[generationPreviewKey("batch-1", "job-1", 0)]).toMatchObject({
       kind: "stream",
-      batchId: "batch-1",
-      jobId: "job-1",
-      sampleIndex: 0,
-      stepIndex: 4,
-      generationId: 10,
-      eventType: "intermediate",
-      src: "data:image/png;base64,base64-frame",
+      src: "data:image/png;base64,frame-2",
+      sequence: 2,
     });
   });
 
-  it("promotes persisted samples to final resource previews and records terminal failures", () => {
-    recordGenerationEvent(
-      event({
-        kind: "sample_persisted",
-        batch_id: "batch-1",
-        job_id: "job-1",
-        sample_index: 1,
-        resource: { id: "resource:generated:job-1:1", variant_id: null },
-        artifact_id: "artifact-1",
-      }),
-    );
-    recordGenerationEvent(
-      event(
-        {
-          kind: "gallery_indexed",
-          batch_id: "batch-1",
-          job_id: "job-1",
-          sample_index: 1,
-          artifact_id: "artifact-1",
-          item_id: "gallery-1",
-        },
-        2,
-      ),
-    );
-    recordGenerationEvent(
-      event(
-        {
-          kind: "job_failed",
-          batch_id: "batch-1",
-          job_id: "job-1",
-          message: "NovelAI unavailable",
-        },
-        3,
-      ),
-    );
+  it("updates different request and sample slots independently", () => {
+    recordGenerationEvent(streamChunk("batch-1", "job-1", 0, "a", 1));
+    recordGenerationEvent(streamChunk("batch-1", "job-1", 1, "b", 2));
+    recordGenerationEvent(streamChunk("batch-1", "job-2", 0, "c", 3));
 
-    expect(useGenerationEventStore.getState().activePreview).toEqual({
-      kind: "resource",
-      batchId: "batch-1",
-      jobId: "job-1",
-      sampleIndex: 1,
-      artifactId: "artifact-1",
-      galleryItemId: "gallery-1",
-      resource: { id: "resource:generated:job-1:1", variant_id: null },
+    const previews = useGenerationEventStore.getState().previews;
+    expect(Object.keys(previews)).toHaveLength(3);
+    expect(previews[generationPreviewKey("batch-1", "job-1", 1)]).toMatchObject({
+      src: "data:image/png;base64,b",
     });
-    expect(useGenerationEventStore.getState().lastError).toEqual({
-      batchId: "batch-1",
-      jobId: "job-1",
-      message: "NovelAI unavailable",
+    expect(previews[generationPreviewKey("batch-1", "job-2", 0)]).toMatchObject({
+      src: "data:image/png;base64,c",
     });
   });
 
-  it("associates gallery ids with the matching persisted sample only", () => {
-    recordGenerationEvent(
-      event({
-        kind: "sample_persisted",
-        batch_id: "batch-1",
-        job_id: "job-1",
-        sample_index: 0,
-        resource: { id: "resource:generated:job-1:0", variant_id: null },
-        artifact_id: "artifact-0",
-      }),
-    );
+  it("replaces streaming base64 with the final resource and attaches its gallery item", () => {
+    recordGenerationEvent(streamChunk("batch-1", "job-1", 1, "large-frame", 1));
     recordGenerationEvent(
       event(
         {
@@ -123,70 +85,78 @@ describe("generation event store", () => {
           kind: "gallery_indexed",
           batch_id: "batch-1",
           job_id: "job-1",
-          sample_index: 0,
-          artifact_id: "artifact-0",
-          item_id: "gallery-0",
+          sample_index: 1,
+          artifact_id: "artifact-1",
+          item_id: "gallery-1",
         },
         3,
       ),
     );
 
-    expect(useGenerationEventStore.getState().filmstrip).toMatchObject([
-      { kind: "resource", sampleIndex: 0, artifactId: "artifact-0", galleryItemId: "gallery-0" },
-      { kind: "resource", sampleIndex: 1, artifactId: "artifact-1", galleryItemId: null },
-    ]);
+    const preview =
+      useGenerationEventStore.getState().previews[generationPreviewKey("batch-1", "job-1", 1)];
+    expect(preview).toEqual({
+      kind: "resource",
+      batchId: "batch-1",
+      jobId: "job-1",
+      sampleIndex: 1,
+      artifactId: "artifact-1",
+      galleryItemId: "gallery-1",
+      resource: { id: "resource:generated:job-1:1", variant_id: null },
+      sequence: 3,
+    });
+    expect(JSON.stringify(preview)).not.toContain("large-frame");
   });
 
-  it("clears stale job errors when generation continues or succeeds", () => {
-    recordGenerationEvent(
-      event({
-        kind: "job_failed",
-        batch_id: "batch-1",
-        job_id: "job-1",
-        message: "NovelAI unavailable",
-      }),
-    );
-    expect(useGenerationEventStore.getState().lastError?.message).toBe("NovelAI unavailable");
+  it("follows the latest request until the user pins a request, then resumes explicitly", () => {
+    recordGenerationEvent(streamChunk("batch-1", "job-1", 0, "a", 1));
+    expect(useGenerationEventStore.getState()).toMatchObject({
+      viewBatchId: "batch-1",
+      selectedJobId: "job-1",
+      focusMode: "follow",
+    });
 
-    recordGenerationEvent(
-      event(
-        {
-          kind: "generation_stream_chunk",
-          batch_id: "batch-1",
-          job_id: "job-1",
-          event_type: "intermediate",
-          sample_index: 0,
-          step_index: 1,
-          generation_id: 11,
-          sigma: null,
-          image: "new-frame",
-        },
-        2,
-      ),
-    );
-    expect(useGenerationEventStore.getState().lastError).toBeNull();
+    useGenerationEventStore.getState().selectRequest("job-1");
+    recordGenerationEvent(streamChunk("batch-1", "job-2", 0, "b", 2));
+    expect(useGenerationEventStore.getState()).toMatchObject({
+      selectedJobId: "job-1",
+      latestJobId: "job-2",
+      focusMode: "pin",
+    });
 
-    recordGenerationEvent(
-      event(
-        {
-          kind: "job_failed",
-          batch_id: "batch-1",
-          job_id: "job-1",
-          message: "Retry failed",
-        },
-        3,
-      ),
-    );
-    recordGenerationEvent(
-      event(
-        {
-          kind: "job_succeeded",
-          batch_id: "batch-1",
-          job_id: "job-1",
-        },
-        4,
-      ),
-    );
-    expect(useGenerationEventStore.getState().lastError).toBeNull();
+    useGenerationEventStore.getState().resumeFollow();
+    expect(useGenerationEventStore.getState()).toMatchObject({
+      viewBatchId: "batch-1",
+      selectedJobId: "job-2",
+      focusMode: "follow",
+    });
+  });
+
+  it("keeps a selected history batch pinned while live events continue", () => {
+    useGenerationEventStore.getState().selectBatch("history-batch");
+    recordGenerationEvent(streamChunk("live-batch", "live-job", 0, "frame", 1));
+
+    expect(useGenerationEventStore.getState()).toMatchObject({
+      liveBatchId: "live-batch",
+      viewBatchId: "history-batch",
+      latestJobId: "live-job",
+      selectedJobId: null,
+      focusMode: "pin",
+    });
+    expect(
+      useGenerationEventStore.getState().previews[
+        generationPreviewKey("live-batch", "live-job", 0)
+      ],
+    ).toBeDefined();
+  });
+
+  it("keeps the preview map bounded to the configured 8 by 4 slots", () => {
+    for (let index = 0; index < 40; index += 1) {
+      recordGenerationEvent(streamChunk("batch-1", `job-${index}`, 0, String(index), index + 1));
+    }
+    const previews = useGenerationEventStore.getState().previews;
+    expect(Object.keys(previews)).toHaveLength(32);
+    expect(previews[generationPreviewKey("batch-1", "job-0", 0)]).toBeUndefined();
+    expect(previews[generationPreviewKey("batch-1", "job-39", 0)]).toBeDefined();
   });
 });

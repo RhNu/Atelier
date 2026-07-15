@@ -182,6 +182,169 @@ fn run_history_exposes_generation_outputs_and_reruns_as_new_jobs() {
 }
 
 #[test]
+fn generation_batch_history_preserves_request_order_and_reruns_atomically() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let app = test_app_with_image(&temp, valid_png_bytes(2, 1)).await;
+        app.generation()
+            .submit_batch(submit_batch_request(
+                "batch-1",
+                &[("job-1", "first", 2), ("job-2", "second", 3)],
+            ))
+            .await
+            .unwrap();
+        app.generation().run_job("job-1").await.unwrap();
+        app.generation().delay_elapsed().await.unwrap();
+        app.generation().run_job("job-2").await.unwrap();
+
+        let page = app
+            .history()
+            .query_generation(GenerationHistoryQueryDto::default())
+            .await
+            .unwrap();
+        assert_eq!(page.total, 1);
+        assert_eq!(page.items[0].request_count, 2);
+        assert_eq!(page.items[0].expected_sample_count, 5);
+        let detail = app
+            .history()
+            .get_generation_batch(GenerationHistoryBatchRequestDto {
+                batch_id: "batch-1".to_owned(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            detail
+                .requests
+                .iter()
+                .map(|request| (request.job_id.as_str(), request.request_index))
+                .collect::<Vec<_>>(),
+            vec![("job-1", 0), ("job-2", 1)]
+        );
+        assert_eq!(
+            detail
+                .requests
+                .iter()
+                .map(|request| request.expected_samples)
+                .collect::<Vec<_>>(),
+            vec![2, 3]
+        );
+
+        let rerun = app
+            .history()
+            .rerun_generation_batch(RerunGenerationHistoryBatchRequestDto {
+                source_batch_id: "batch-1".to_owned(),
+                batch_id: "batch-2".to_owned(),
+                job_ids: vec!["job-3".to_owned(), "job-4".to_owned()],
+            })
+            .await
+            .unwrap();
+        assert_eq!(rerun.batch.request_count, 2);
+        let rerun_detail = app
+            .history()
+            .get_generation_batch(GenerationHistoryBatchRequestDto {
+                batch_id: "batch-2".to_owned(),
+            })
+            .await
+            .unwrap();
+        assert_rerun_request_lineage(&rerun_detail);
+        let deleted = app
+            .history()
+            .delete_generation_batches(DeleteGenerationHistoryBatchesRequestDto {
+                batch_ids: vec!["batch-1".to_owned()],
+            })
+            .await
+            .unwrap();
+        assert_eq!(deleted.deleted_requests, 2);
+        assert!(
+            app.history()
+                .get_generation_batch(GenerationHistoryBatchRequestDto {
+                    batch_id: "batch-1".to_owned(),
+                })
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            app.gallery()
+                .query(GalleryQueryDto::default())
+                .await
+                .unwrap()
+                .total,
+            2
+        );
+    });
+}
+
+fn assert_rerun_request_lineage(detail: &GenerationHistoryBatchDetailDto) {
+    assert_eq!(
+        detail
+            .requests
+            .iter()
+            .map(|request| {
+                (
+                    request.job_id.as_str(),
+                    request.origin_run_id.as_deref(),
+                    request.request_index,
+                    request.expected_samples,
+                )
+            })
+            .collect::<Vec<_>>(),
+        vec![
+            ("job-3", Some("job-1"), 0, 2),
+            ("job-4", Some("job-2"), 1, 3),
+        ]
+    );
+}
+
+#[test]
+fn generation_batch_rerun_does_not_submit_when_any_payload_is_missing() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let app = test_app_with_image(&temp, valid_png_bytes(2, 1)).await;
+        app.generation()
+            .submit_batch(submit_batch_request(
+                "batch-1",
+                &[("job-1", "first", 1), ("job-2", "second", 1)],
+            ))
+            .await
+            .unwrap();
+        app.generation().run_job("job-1").await.unwrap();
+        app.generation().delay_elapsed().await.unwrap();
+        app.generation().run_job("job-2").await.unwrap();
+
+        let database_path = workspace_database_path(&WorkspaceRoot::new(temp.path().to_path_buf()));
+        rusqlite::Connection::open(database_path)
+            .unwrap()
+            .execute(
+                "DELETE FROM generation_payloads WHERE payload_kind = 'submitted' AND payload_ref = ?1",
+                ["generation-submitted:job-2"],
+            )
+            .unwrap();
+        let error = app
+            .history()
+            .rerun_generation_batch(RerunGenerationHistoryBatchRequestDto {
+                source_batch_id: "batch-1".to_owned(),
+                batch_id: "batch-2".to_owned(),
+                job_ids: vec!["job-3".to_owned(), "job-4".to_owned()],
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(error.code(), "history_not_found");
+        assert_eq!(
+            app.generation().status(None).await.unwrap().batch_id,
+            Some("batch-1".to_owned())
+        );
+        assert!(
+            app.history()
+                .get_generation_batch(GenerationHistoryBatchRequestDto {
+                    batch_id: "batch-2".to_owned(),
+                })
+                .await
+                .is_err()
+        );
+    });
+}
+
+#[test]
 fn generation_submit_rejects_durable_history_ids() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
@@ -276,7 +439,12 @@ fn run_history_records_director_outputs_without_queueing() {
         assert_eq!(history.items[0].run_id, "run-1");
         assert_eq!(history.items[0].outputs[0].asset_role, "original");
         assert_eq!(
-            app.generation().status(None).await.batch_status.as_deref(),
+            app.generation()
+                .status(None)
+                .await
+                .unwrap()
+                .batch_status
+                .as_deref(),
             None
         );
     });

@@ -66,7 +66,8 @@ mod history;
 mod resource;
 
 pub use history::{
-    HistoryUseCases, sync_generation_history_from_queue_snapshot, upsert_generation_history_record,
+    GenerationHistoryPosition, GenerationHistoryUpdate, HistoryUseCases,
+    sync_generation_history_from_queue_snapshot, upsert_generation_history_record,
 };
 pub use resource::ResourceUseCases;
 

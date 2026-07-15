@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
 use crate::{
-    JobBatch, JobEvent, JobQueueSnapshot, JobResult, RunHistoryQuery, RunHistoryRecord,
-    RunOutputRecord,
+    GenerationBatchHistoryQuery, GenerationBatchHistoryRecord, JobBatch, JobEvent,
+    JobQueueSnapshot, JobResult, RunHistoryQuery, RunHistoryRecord, RunOutputRecord,
 };
 
 #[async_trait]
@@ -38,7 +38,21 @@ pub trait RunHistoryRepository: Send + Sync {
 
     async fn run_history_batch_exists(&self, batch_id: &str) -> JobResult<bool>;
 
+    async fn query_generation_batches(
+        &self,
+        query: GenerationBatchHistoryQuery,
+    ) -> JobResult<Vec<GenerationBatchHistoryRecord>>;
+
+    async fn count_generation_batches(
+        &self,
+        query: GenerationBatchHistoryQuery,
+    ) -> JobResult<usize>;
+
+    async fn list_run_history_by_batch(&self, batch_id: &str) -> JobResult<Vec<RunHistoryRecord>>;
+
     async fn delete_run_history_items(&self, run_ids: &[String]) -> JobResult<usize>;
+
+    async fn delete_generation_batches(&self, batch_ids: &[String]) -> JobResult<usize>;
 
     async fn upsert_run_output(&self, output: RunOutputRecord) -> JobResult<()>;
 
