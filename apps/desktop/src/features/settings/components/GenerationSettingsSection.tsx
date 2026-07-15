@@ -1,8 +1,9 @@
 import { RotateCcw, Save } from "lucide-react";
 import { useCallback } from "react";
 
-import { AppButton, AppPanel } from "../../../components/ui";
-import type { GenerationDefaultsDto, WorkspaceSettingsDto } from "../../../types";
+import { AppButton, AppPanel } from "@/components/ui";
+import type { GenerationDefaultsDto, WorkspaceSettingsDto } from "@/types";
+
 import {
   modelSelectOptions,
   noiseScheduleSelectOptions,

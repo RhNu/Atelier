@@ -1,7 +1,8 @@
 /* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { CompiledGenerationPromptDto, GenerationBatchHistoryStatusDto } from "../../types";
+import type { CompiledGenerationPromptDto, GenerationBatchHistoryStatusDto } from "@/types";
+
 import { AdvancedGenerationInputs } from "./components/AdvancedGenerationInputs";
 import {
   GenerationLoadingState,

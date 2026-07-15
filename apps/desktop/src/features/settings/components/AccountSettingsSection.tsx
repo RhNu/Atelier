@@ -1,5 +1,6 @@
-import { AppButton, AppPanel, EmptyState } from "../../../components/ui";
-import type { ApiKeyRecordDto } from "../../../types";
+import { AppButton, AppPanel, EmptyState } from "@/components/ui";
+import type { ApiKeyRecordDto } from "@/types";
+
 import { useAccountSettingsController } from "../state/useAccountSettingsController";
 import { ActiveSubscriptionPanel } from "./ActiveSubscriptionPanel";
 import { ApiKeyRow, type ApiKeyEditState, type ApiKeyProbeState } from "./ApiKeyRow";

@@ -1,7 +1,8 @@
 import type { ImgHTMLAttributes } from "react";
 
-import { ResourceImage } from "../../../components/ui";
-import type { ResourceRefDto } from "../../../types";
+import { ResourceImage } from "@/components/ui";
+import type { ResourceRefDto } from "@/types";
+
 import { useResourceImageQuery } from "../data/useGenerationActions";
 import { formatGenerationError } from "../generation-page-utils";
 

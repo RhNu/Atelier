@@ -1,4 +1,5 @@
-import type { CharacterReferenceTypeDto } from "../../../types";
+import type { CharacterReferenceTypeDto } from "@/types";
+
 import type { GenerationDraft } from "../model/generation-draft";
 
 export const REFERENCE_TYPE_OPTIONS = [

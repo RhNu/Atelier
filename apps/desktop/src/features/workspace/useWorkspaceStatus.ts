@@ -7,8 +7,9 @@ import {
   globalSettingsApi,
   queryKeys,
   workspaceApi,
-} from "../../platform/atelier";
-import type { AppBootstrapDto, WorkspaceRestoreFailureDto, WorkspaceStatusDto } from "../../types";
+} from "@/platform/atelier";
+import type { AppBootstrapDto, WorkspaceRestoreFailureDto, WorkspaceStatusDto } from "@/types";
+
 import { resetGenerationEventState } from "../generation/state/generation-event-store";
 
 export type WorkspaceStatusView = {

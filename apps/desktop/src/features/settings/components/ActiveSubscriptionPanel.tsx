@@ -1,7 +1,8 @@
 import { RefreshCw } from "lucide-react";
 
-import { AppButton, AppPanel } from "../../../components/ui";
-import type { SubscriptionSummaryDto } from "../../../types";
+import { AppButton, AppPanel } from "@/components/ui";
+import type { SubscriptionSummaryDto } from "@/types";
+
 import { Metric, SectionHeader } from "./SettingsControls";
 
 export function ActiveSubscriptionPanel({

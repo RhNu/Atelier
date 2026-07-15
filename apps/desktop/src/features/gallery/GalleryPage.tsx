@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AppButton, AppPanel } from "../../components/ui";
-import type { GalleryQueryDto } from "../../types";
+import { AppButton, AppPanel } from "@/components/ui";
+import type { GalleryQueryDto } from "@/types";
+
 import { GalleryDeleteConfirmation } from "./components/GalleryDeleteConfirmation";
 import { GalleryFilters } from "./components/GalleryFilters";
 import { GalleryGrid } from "./components/GalleryGrid";

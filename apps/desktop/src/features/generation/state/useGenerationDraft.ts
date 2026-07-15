@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { GenerationDraftDto, WorkspaceSettingsDto } from "../../../types";
+import type { GenerationDraftDto, WorkspaceSettingsDto } from "@/types";
+
 import {
   createGenerationDraft,
   generationDraftFromDto,

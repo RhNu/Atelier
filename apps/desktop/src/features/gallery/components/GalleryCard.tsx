@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 
-import { SafetyBadge } from "../../../components/ui";
-import type { GalleryItemDto } from "../../../types";
+import { SafetyBadge } from "@/components/ui";
+import type { GalleryItemDto } from "@/types";
+
 import { effectiveSafetyLabel, preferredThumbnailResource } from "../gallery-utils";
 import { GalleryItemImage } from "./GalleryItemImage";
 

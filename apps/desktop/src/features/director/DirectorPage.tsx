@@ -1,8 +1,9 @@
 /* eslint-disable max-lines-per-function */
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 
-import { desktopApi, resourceApi, uniqueImportedImageResources } from "../../platform/atelier";
-import type { DirectorToolDto, DirectorToolResultDto } from "../../types";
+import { desktopApi, resourceApi, uniqueImportedImageResources } from "@/platform/atelier";
+import type { DirectorToolDto, DirectorToolResultDto } from "@/types";
+
 import { formatError } from "../gallery/gallery-utils";
 import {
   DirectorInputPanel,

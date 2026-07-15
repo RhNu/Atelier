@@ -1,8 +1,9 @@
 /* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises */
 import { ImagePlus, Pencil, Trash2 } from "lucide-react";
 
-import { AppIconButton, AppRangeField } from "../../../components/ui";
-import type { ResourceRefDto } from "../../../types";
+import { AppIconButton, AppRangeField } from "@/components/ui";
+import type { ResourceRefDto } from "@/types";
+
 import type { GenerationDraft } from "../model/generation-draft";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import {

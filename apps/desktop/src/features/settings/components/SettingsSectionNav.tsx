@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useCallback } from "react";
 
-import { AppPanel } from "../../../components/ui";
+import { AppPanel } from "@/components/ui";
 
 export type SettingsSection = "workspace" | "account" | "generation" | "images" | "frontend";
 

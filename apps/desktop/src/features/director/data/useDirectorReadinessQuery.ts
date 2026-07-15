@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { accountApi, queryKeys } from "../../../platform/atelier";
+import { accountApi, queryKeys } from "@/platform/atelier";
 
 export function useDirectorReadinessQuery() {
   return useQuery({

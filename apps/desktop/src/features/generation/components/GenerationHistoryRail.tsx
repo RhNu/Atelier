@@ -1,8 +1,9 @@
 import { ChevronLeft, ChevronRight, Download, ImageIcon, RotateCcw, Trash2 } from "lucide-react";
 import { useCallback, type ChangeEvent } from "react";
 
-import { AppIconButton, AppPanel } from "../../../components/ui";
-import type { GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto } from "../../../types";
+import { AppIconButton, AppPanel } from "@/components/ui";
+import type { GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto } from "@/types";
+
 import { GenerationResourceImage } from "./GenerationResourceImage";
 
 const HISTORY_STATUS_OPTIONS: Array<{

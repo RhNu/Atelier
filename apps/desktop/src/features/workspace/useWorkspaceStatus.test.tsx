@@ -3,14 +3,15 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
-import { createAtelierQueryClient } from "../../app/query-client";
+import { createAtelierQueryClient } from "@/app/query-client";
 import type {
   AppBootstrapDto,
   CloseWorkspaceResponseDto,
   GlobalSettingsDto,
   OpenWorkspaceRequestDto,
   WorkspaceStatusDto,
-} from "../../types";
+} from "@/types";
+
 import {
   recordGenerationEvent,
   resetGenerationEventState,
@@ -48,7 +49,7 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../platform/atelier", () => ({
+vi.mock("@/platform/atelier", () => ({
   AtelierCommandError: mocks.AtelierCommandError,
   clearWorkspaceScopedQueryCache: mocks.clearWorkspaceScopedQueryCache,
   desktopApi: mocks.desktopApi,

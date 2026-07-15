@@ -92,7 +92,8 @@ import type {
   VibeDocumentPageDto,
   WorkspaceSettingsDto,
   WorkspaceStatusDto,
-} from "../../types";
+} from "@/types";
+
 import { atelierCommands } from "./commands";
 import { invokeAtelierCommand } from "./tauri-client";
 

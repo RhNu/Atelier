@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { generationApi, historyApi, queryKeys } from "../../../platform/atelier";
-import type { GenerationHistoryQueryDto, RunHistoryQueryDto } from "../../../types";
+import { generationApi, historyApi, queryKeys } from "@/platform/atelier";
+import type { GenerationHistoryQueryDto, RunHistoryQueryDto } from "@/types";
 
 const latestHistoryQuery: RunHistoryQueryDto = {
   offset: 0,

@@ -1,6 +1,7 @@
 import { Pause, Play, Square } from "lucide-react";
 
-import { AppIconButton, EmptyState } from "../../../components/ui";
+import { AppIconButton, EmptyState } from "@/components/ui";
+
 import { formatGenerationError } from "../generation-page-utils";
 
 type QueueControlsProps = {

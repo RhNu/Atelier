@@ -1,8 +1,9 @@
 import { Check, PencilLine, Power, RefreshCw, Trash2, X } from "lucide-react";
 import { useCallback } from "react";
 
-import { AppButton } from "../../../components/ui";
-import type { ApiKeyRecordDto, SubscriptionSummaryDto } from "../../../types";
+import { AppButton } from "@/components/ui";
+import type { ApiKeyRecordDto, SubscriptionSummaryDto } from "@/types";
+
 import { TextField } from "./SettingsControls";
 
 export type ApiKeyEditState = {

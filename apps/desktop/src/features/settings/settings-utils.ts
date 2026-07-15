@@ -1,4 +1,4 @@
-import type { GlobalSettingsDto, WorkspaceSettingsDto } from "../../types";
+import type { GlobalSettingsDto, WorkspaceSettingsDto } from "@/types";
 
 export function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Command failed";

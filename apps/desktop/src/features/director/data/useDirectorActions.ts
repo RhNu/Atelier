@@ -8,14 +8,14 @@ import {
   resourceApi,
   uniqueImportedImageResources,
   resourceImageToDataUrl,
-} from "../../../platform/atelier";
+} from "@/platform/atelier";
 import type {
   ImageResourceKindDto,
   ResourceRefDto,
   RunDirectorToolRequestDto,
   SaveResourceImageRequestDto,
   SetGallerySafetyOverrideRequestDto,
-} from "../../../types";
+} from "@/types";
 
 export function useDirectorImageQuery(resource: ResourceRefDto | null) {
   return useQuery({

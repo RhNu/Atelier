@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
-import type { ApiKeyRecordDto, SubscriptionSummaryDto } from "../../../types";
+import type { ApiKeyRecordDto, SubscriptionSummaryDto } from "@/types";
+
 import type { ApiKeyEditState, ApiKeyProbeState } from "../components/ApiKeyRow";
 import {
   useApiKeysQuery,

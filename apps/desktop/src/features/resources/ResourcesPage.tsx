@@ -1,8 +1,9 @@
 import { Plus } from "lucide-react";
 import { useCallback, useState } from "react";
 
-import { AppButton, AppTabs } from "../../components/ui";
-import type { PromptChunkDto, PromptPresetDto, VibeDocumentEntryDto } from "../../types";
+import { AppButton, AppTabs } from "@/components/ui";
+import type { PromptChunkDto, PromptPresetDto, VibeDocumentEntryDto } from "@/types";
+
 import { ChunkWorkspace } from "./components/ChunkWorkspace";
 import { PresetWorkspace } from "./components/PresetWorkspace";
 import { SearchField } from "./components/ResourceEditorPrimitives";

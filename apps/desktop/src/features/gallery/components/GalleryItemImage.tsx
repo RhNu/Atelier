@@ -1,5 +1,6 @@
-import { ResourceImage } from "../../../components/ui";
-import type { GalleryItemDto, ResourceRefDto } from "../../../types";
+import { ResourceImage } from "@/components/ui";
+import type { GalleryItemDto, ResourceRefDto } from "@/types";
+
 import { useGalleryImageQuery } from "../data/useGalleryPageQuery";
 import { effectiveSafetyLabel } from "../gallery-utils";
 

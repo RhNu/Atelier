@@ -2,7 +2,8 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
-import { AppIconButton } from "../../../components/ui";
+import { AppIconButton } from "@/components/ui";
+
 import type { GenerationCharacterDraft, GenerationDraft } from "../model/generation-draft";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import { createLocalId, patchCharacter } from "./advanced-generation-model";

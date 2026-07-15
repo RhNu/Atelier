@@ -3,7 +3,7 @@ import type {
   GallerySafetyOverrideDto,
   ImageInputDto,
   ResourceRefDto,
-} from "../../types";
+} from "@/types";
 
 export type DirectorInput =
   | { kind: "resource"; resource: ResourceRefDto; label: string }

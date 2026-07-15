@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { queryKeys, settingsApi } from "../../../platform/atelier";
-import type { UpdateWorkspaceSettingsRequestDto } from "../../../types";
+import { queryKeys, settingsApi } from "@/platform/atelier";
+import type { UpdateWorkspaceSettingsRequestDto } from "@/types";
 
 export function useWorkspaceSettingsQuery() {
   return useQuery({

@@ -2,9 +2,10 @@
 import { Plus, Save, Search, Trash2 } from "lucide-react";
 import { Children, type ReactNode } from "react";
 
-import { AppButton, AppPanel, EmptyState, ResourceImage } from "../../../components/ui";
-import { resourceImageToDataUrl } from "../../../platform/atelier";
-import type { CompiledPromptDto, ResourceRefDto } from "../../../types";
+import { AppButton, AppPanel, EmptyState, ResourceImage } from "@/components/ui";
+import { resourceImageToDataUrl } from "@/platform/atelier";
+import type { CompiledPromptDto, ResourceRefDto } from "@/types";
+
 import { useResourceImageQuery } from "../data/useResourcesData";
 
 export function SearchField({

@@ -17,7 +17,7 @@ import type {
   SubmitGenerationBatchRequestDto,
   UcPresetDto,
   WorkspaceSettingsDto,
-} from "../../../types";
+} from "@/types";
 
 export type GenerationSeedMode = "random" | "fixed";
 export type GenerationCharacterPositionMode = "global" | "manual";

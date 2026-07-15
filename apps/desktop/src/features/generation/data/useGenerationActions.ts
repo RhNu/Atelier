@@ -12,7 +12,7 @@ import {
   resourceApi,
   settingsApi,
   vibeApi,
-} from "../../../platform/atelier";
+} from "@/platform/atelier";
 import type {
   CompileGenerationPromptRequestDto,
   GalleryImageReferenceRequestDto,
@@ -29,7 +29,8 @@ import type {
   SaveResourceImagesZipRequestDto,
   SubmitGenerationBatchRequestDto,
   VibeModelDto,
-} from "../../../types";
+} from "@/types";
+
 import type { GenerationDraft } from "../model/generation-draft";
 import {
   buildGenerationEstimateCacheKey,

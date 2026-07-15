@@ -1,5 +1,5 @@
-import { AppButton, AppModal } from "../../../components/ui";
-import type { GalleryItemDto } from "../../../types";
+import { AppButton, AppModal } from "@/components/ui";
+import type { GalleryItemDto } from "@/types";
 
 export function GalleryDeleteConfirmation({
   targetId,

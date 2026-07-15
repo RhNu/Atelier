@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { globalSettingsApi, queryKeys } from "../../../platform/atelier";
-import type { UpdateGlobalSettingsRequestDto } from "../../../types";
+import { globalSettingsApi, queryKeys } from "@/platform/atelier";
+import type { UpdateGlobalSettingsRequestDto } from "@/types";
 
 export function useGlobalSettingsQuery() {
   return useQuery({

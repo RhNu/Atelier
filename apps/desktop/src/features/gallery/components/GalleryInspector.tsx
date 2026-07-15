@@ -2,15 +2,9 @@ import { Clapperboard, Download, Maximize2, ShieldCheck, Trash2 } from "lucide-r
 import type { ChangeEvent } from "react";
 import { useCallback, useState } from "react";
 
-import {
-  AppButton,
-  AppModal,
-  AppPanel,
-  AppSelect,
-  EmptyState,
-  SafetyBadge,
-} from "../../../components/ui";
-import type { GalleryItemDto } from "../../../types";
+import { AppButton, AppModal, AppPanel, AppSelect, EmptyState, SafetyBadge } from "@/components/ui";
+import type { GalleryItemDto } from "@/types";
+
 import {
   effectiveSafetyLabel,
   formatScore,

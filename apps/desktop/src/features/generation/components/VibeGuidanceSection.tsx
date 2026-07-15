@@ -2,8 +2,9 @@
 import { Download, ImagePlus, Library, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
-import { AppIconButton, AppRangeField } from "../../../components/ui";
-import type { ResourceRefDto, VibeDocumentEntryDto } from "../../../types";
+import { AppIconButton, AppRangeField } from "@/components/ui";
+import type { ResourceRefDto, VibeDocumentEntryDto } from "@/types";
+
 import type { GenerationDraft } from "../model/generation-draft";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import { createLocalId } from "./advanced-generation-model";

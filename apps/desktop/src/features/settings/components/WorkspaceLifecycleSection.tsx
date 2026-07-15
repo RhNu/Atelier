@@ -1,7 +1,8 @@
 import { FolderOpen } from "lucide-react";
 
-import { AppButton, AppPanel } from "../../../components/ui";
-import type { WorkspaceStatusDto } from "../../../types";
+import { AppButton, AppPanel } from "@/components/ui";
+import type { WorkspaceStatusDto } from "@/types";
+
 import { SectionHeader } from "./SettingsControls";
 
 export function WorkspaceLifecycleSection({

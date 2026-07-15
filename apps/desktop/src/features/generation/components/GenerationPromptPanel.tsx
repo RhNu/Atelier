@@ -11,8 +11,9 @@ import {
   type KeyboardEvent,
 } from "react";
 
-import { AppSelect, AppTabs } from "../../../components/ui";
-import type { PromptPresetDto } from "../../../types";
+import { AppSelect, AppTabs } from "@/components/ui";
+import type { PromptPresetDto } from "@/types";
+
 import type { GenerationDraft } from "../model/generation-draft";
 import {
   generationModelOptions,

@@ -1,4 +1,4 @@
-import type { VibeDocumentEntryDto } from "../../../types";
+import type { VibeDocumentEntryDto } from "@/types";
 
 export function findVibeEncodingForModel(entry: VibeDocumentEntryDto, model: string) {
   const index = entry.available_encoding_configs.findIndex((config) => config.model === model);

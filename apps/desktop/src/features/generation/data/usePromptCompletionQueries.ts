@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { promptApi, queryKeys } from "../../../platform/atelier";
-import type { PromptChunkDto, PromptLexiconEntryDto } from "../../../types";
+import { promptApi, queryKeys } from "@/platform/atelier";
+import type { PromptChunkDto, PromptLexiconEntryDto } from "@/types";
 
 type PromptCompletionQueryContext = {
   mode: "tag" | "chunk";

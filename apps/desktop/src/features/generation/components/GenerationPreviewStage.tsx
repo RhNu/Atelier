@@ -22,13 +22,8 @@ import {
   type ReactNode,
 } from "react";
 
-import {
-  AppButton,
-  AppIconButton,
-  AppModal,
-  AppPanel,
-  ResourceImage,
-} from "../../../components/ui";
+import { AppButton, AppIconButton, AppModal, AppPanel, ResourceImage } from "@/components/ui";
+
 import type {
   GenerationBatchView,
   GenerationRequestUnit,

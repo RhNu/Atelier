@@ -1,7 +1,8 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
-import type { AppEventDto } from "../../types";
+import type { AppEventDto } from "@/types";
+
 import { eventsApi } from "./client";
 import { queryKeys } from "./query-keys";
 

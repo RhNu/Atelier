@@ -5,7 +5,7 @@ import type {
   GallerySourceKindDto,
   ResourceRefDto,
   VisualAssetDto,
-} from "../../types";
+} from "@/types";
 
 export const PAGE_LIMIT = 24;
 

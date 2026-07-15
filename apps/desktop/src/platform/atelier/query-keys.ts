@@ -7,7 +7,7 @@ import type {
   PromptLexiconSearchQueryDto,
   ResourceRefDto,
   RunHistoryQueryDto,
-} from "../../types";
+} from "@/types";
 
 type GalleryQueryKeyInput = Pick<GalleryQueryDto, "limit" | "offset"> &
   Partial<Omit<GalleryQueryDto, "limit" | "offset">>;

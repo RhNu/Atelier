@@ -4,7 +4,7 @@ import type {
   NoiseScheduleDto,
   SamplerDto,
   UcPresetDto,
-} from "../../../types";
+} from "@/types";
 
 export const generationModelOptions: ReadonlyArray<ImageModelDto> = [
   "nai-diffusion-4-5-full",

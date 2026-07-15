@@ -10,6 +10,8 @@
     "build": "pnpm --dir apps/desktop build",
     "fmt": "pnpm --dir apps/desktop fmt",
     "fmt:check": "pnpm --dir apps/desktop fmt:check",
+    "imports:alias": "pnpm --dir apps/desktop imports:alias",
+    "imports:alias:check": "pnpm --dir apps/desktop imports:alias:check",
     "lint": "pnpm --dir apps/desktop lint",
     "test": "pnpm --dir apps/desktop test",
     "typecheck": "pnpm --dir apps/desktop typecheck",

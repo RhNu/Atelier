@@ -2,8 +2,9 @@
 import { Download, FilePlus2, Import, Pencil, Save, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { AppButton, AppModal, AppPanel, EmptyState } from "../../../components/ui";
-import type { VibeDocumentEntryDto } from "../../../types";
+import { AppButton, AppModal, AppPanel, EmptyState } from "@/components/ui";
+import type { VibeDocumentEntryDto } from "@/types";
+
 import {
   useEnsureVibeEncodingFromSourceMutation,
   useExportVibeDocumentMutation,

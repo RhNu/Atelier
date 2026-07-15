@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { promptApi, queryKeys } from "../../../platform/atelier";
-import type { PromptLexiconListQueryDto } from "../../../types";
+import { promptApi, queryKeys } from "@/platform/atelier";
+import type { PromptLexiconListQueryDto } from "@/types";
 
 export const LEXICON_BROWSE_LIMIT = 80;
 export const LEXICON_SEARCH_LIMIT = 60;

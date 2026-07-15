@@ -1,5 +1,5 @@
-import { AppModal } from "../../../components/ui";
-import type { CompiledGenerationPromptDto, CompiledPromptDto } from "../../../types";
+import { AppModal } from "@/components/ui";
+import type { CompiledGenerationPromptDto, CompiledPromptDto } from "@/types";
 
 export function GenerationPromptCompileDialog({
   open,

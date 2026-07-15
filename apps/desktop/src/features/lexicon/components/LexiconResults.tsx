@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { AppButton, AppPanel, EmptyState } from "../../../components/ui";
-import type { PromptLexiconPageDto } from "../../../types";
+import { AppButton, AppPanel, EmptyState } from "@/components/ui";
+import type { PromptLexiconPageDto } from "@/types";
 
 type LexiconResultsProps = {
   title: string;

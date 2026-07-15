@@ -1,8 +1,8 @@
 import { ChevronDown, Settings2 } from "lucide-react";
 import { useCallback, useState, type ReactNode, type SyntheticEvent } from "react";
 
-import { AppHelpMarker } from "../../../components/ui";
-import type { ResourceRefDto } from "../../../types";
+import { AppHelpMarker } from "@/components/ui";
+import type { ResourceRefDto } from "@/types";
 
 export function GuidanceSection({
   title,

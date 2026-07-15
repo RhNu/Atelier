@@ -1,5 +1,6 @@
-import { resourceImageToDataUrl } from "../../../platform/atelier";
-import type { ResourceRefDto } from "../../../types";
+import { resourceImageToDataUrl } from "@/platform/atelier";
+import type { ResourceRefDto } from "@/types";
+
 import { useResourceImageQuery } from "../data/useGenerationActions";
 
 export function GenerationResourceThumbnail({

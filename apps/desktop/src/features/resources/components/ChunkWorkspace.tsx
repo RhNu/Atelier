@@ -2,8 +2,9 @@
 import { Eye } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { AppButton, AppModal } from "../../../components/ui";
-import type { CompiledPromptDto, PromptChunkDto } from "../../../types";
+import { AppButton, AppModal } from "@/components/ui";
+import type { CompiledPromptDto, PromptChunkDto } from "@/types";
+
 import {
   useCompilePromptPreviewMutation,
   useDeletePromptChunkMutation,

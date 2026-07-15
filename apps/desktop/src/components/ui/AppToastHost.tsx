@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useCallback } from "react";
 
-import { useToastStore, type ToastItem as Toast, type ToastLevel } from "../../stores/toast-store";
+import { useToastStore, type ToastItem as Toast, type ToastLevel } from "@/stores/toast-store";
 
 const levelClasses: Record<ToastLevel, string> = {
   info: "border-app-border bg-app-panel text-app-text",

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { ResourceRefDto } from "../../../types";
+import type { ResourceRefDto } from "@/types";
 
 type DirectorHandoffState = {
   pendingInput: ResourceRefDto | null;

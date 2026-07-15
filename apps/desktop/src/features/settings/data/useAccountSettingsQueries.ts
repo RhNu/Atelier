@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { accountApi, queryKeys } from "../../../platform/atelier";
+import { accountApi, queryKeys } from "@/platform/atelier";
 import type {
   CreateApiKeyRequestDto,
   DeleteApiKeyRequestDto,
   ProbeApiKeyRequestDto,
   SetActiveApiKeyRequestDto,
   UpdateApiKeyRequestDto,
-} from "../../../types";
+} from "@/types";
 
 function useRefreshAccountKeys() {
   const queryClient = useQueryClient();

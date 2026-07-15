@@ -1,8 +1,8 @@
 import { Search } from "lucide-react";
 import { useCallback, type ChangeEvent } from "react";
 
-import { AppPanel, AppTabs, EmptyState } from "../../../components/ui";
-import type { PromptLexiconCatalogDto } from "../../../types";
+import { AppPanel, AppTabs, EmptyState } from "@/components/ui";
+import type { PromptLexiconCatalogDto } from "@/types";
 
 export type LexiconCategorySelection = {
   category: string | null;

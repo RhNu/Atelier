@@ -7,7 +7,7 @@ import {
   resourceApi,
   settingsApi,
   vibeApi,
-} from "../../../platform/atelier";
+} from "@/platform/atelier";
 import type {
   CompilePromptRequestDto,
   DeletePromptChunkRequestDto,
@@ -22,7 +22,7 @@ import type {
   UpsertPromptChunkRequestDto,
   UpsertPromptPresetRequestDto,
   VibeModelDto,
-} from "../../../types";
+} from "@/types";
 
 type EnsureVibeEncodingFromSourceRequest = {
   vibeId: string;

@@ -1,5 +1,6 @@
-import { EmptyState } from "../../../components/ui";
-import type { GalleryItemDto } from "../../../types";
+import { EmptyState } from "@/components/ui";
+import type { GalleryItemDto } from "@/types";
+
 import { formatError } from "../gallery-utils";
 import { GalleryCard } from "./GalleryCard";
 

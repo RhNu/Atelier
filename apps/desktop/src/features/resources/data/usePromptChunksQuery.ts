@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { promptApi, queryKeys } from "../../../platform/atelier";
+import { promptApi, queryKeys } from "@/platform/atelier";
 
 const promptChunkQuery = {
   offset: 0,

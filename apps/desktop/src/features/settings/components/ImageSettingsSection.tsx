@@ -1,8 +1,9 @@
 import { Save } from "lucide-react";
 import { useCallback } from "react";
 
-import { AppButton, AppPanel } from "../../../components/ui";
-import type { WorkspaceSettingsDto } from "../../../types";
+import { AppButton, AppPanel } from "@/components/ui";
+import type { WorkspaceSettingsDto } from "@/types";
+
 import { isPositiveInteger } from "../settings-utils";
 import { NumberField, SectionHeader } from "./SettingsControls";
 

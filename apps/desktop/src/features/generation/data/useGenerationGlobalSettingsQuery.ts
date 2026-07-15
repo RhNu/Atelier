@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { globalSettingsApi, queryKeys } from "../../../platform/atelier";
+import { globalSettingsApi, queryKeys } from "@/platform/atelier";
 
 export function useGenerationGlobalSettingsQuery() {
   return useQuery({

@@ -1,6 +1,6 @@
 import { useCallback, useId, type ChangeEvent } from "react";
 
-import { AppSelect } from "../../../components/ui";
+import { AppSelect } from "@/components/ui";
 
 export type SelectOption = {
   value: string;

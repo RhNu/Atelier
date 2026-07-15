@@ -1,4 +1,4 @@
-import type { ResourceImageDto } from "../../types";
+import type { ResourceImageDto } from "@/types";
 
 const objectUrls = new Set<string>();
 

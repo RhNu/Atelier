@@ -1,4 +1,4 @@
-import type { ResourceRefDto } from "../../types";
+import type { ResourceRefDto } from "@/types";
 
 export function isImportedImageResource(
   resource: ResourceRefDto | null,

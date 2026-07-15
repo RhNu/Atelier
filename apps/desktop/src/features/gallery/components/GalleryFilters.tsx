@@ -1,7 +1,8 @@
 import type { ChangeEvent } from "react";
 import { useCallback } from "react";
 
-import { AppButton, AppSelect } from "../../../components/ui";
+import { AppButton, AppSelect } from "@/components/ui";
+
 import type { SafetyFilter, SourceFilter } from "../gallery-utils";
 import {
   artifactOptions,

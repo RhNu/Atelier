@@ -21,8 +21,9 @@ import {
   AppTabs,
   EmptyState,
   ResourceImage,
-} from "../../../components/ui";
-import type { DirectorToolDto, DirectorToolResultDto } from "../../../types";
+} from "@/components/ui";
+import type { DirectorToolDto, DirectorToolResultDto } from "@/types";
+
 import { DIRECTOR_TOOLS, type DirectorInput } from "../director-model";
 
 const TOOL_TABS = DIRECTOR_TOOLS.map((tool) => ({ value: tool.value, label: tool.label }));

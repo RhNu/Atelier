@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { AppPanel, EmptyState } from "../../components/ui";
-import type { GlobalSettingsDto, WorkspaceSettingsDto } from "../../types";
+import { AppPanel, EmptyState } from "@/components/ui";
+import type { GlobalSettingsDto, WorkspaceSettingsDto } from "@/types";
+
 import { useWorkspaceStatus } from "../workspace/useWorkspaceStatus";
 import { AccountSettingsSection } from "./components/AccountSettingsSection";
 import { FrontendSettingsSection } from "./components/FrontendSettingsSection";

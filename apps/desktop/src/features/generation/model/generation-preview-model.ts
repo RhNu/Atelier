@@ -4,7 +4,8 @@ import type {
   GenerationStatusDto,
   ResourceRefDto,
   RunHistoryOutputDto,
-} from "../../../types";
+} from "@/types";
+
 import { generationPreviewKey, type GenerationPreview } from "../state/generation-event-store";
 
 export type GenerationSampleState =

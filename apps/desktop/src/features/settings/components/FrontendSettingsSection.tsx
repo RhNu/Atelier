@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 
-import { AppButton, AppPanel } from "../../../components/ui";
-import type { GlobalSettingsDto } from "../../../types";
+import { AppButton, AppPanel } from "@/components/ui";
+import type { GlobalSettingsDto } from "@/types";
+
 import { CheckboxField, SectionHeader } from "./SettingsControls";
 
 type FrontendSettingsSectionProps = {

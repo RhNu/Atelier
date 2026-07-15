@@ -4,7 +4,7 @@ import type {
   PromptPresetKindDto,
   UpsertPromptChunkRequestDto,
   UpsertPromptPresetRequestDto,
-} from "../../types";
+} from "@/types";
 
 export type ResourceTab = "chunks" | "main-presets" | "character-presets" | "vibe";
 export type ChunkDraft = UpsertPromptChunkRequestDto;

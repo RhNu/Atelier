@@ -1,6 +1,7 @@
 import { useCallback, useDeferredValue, useState, type ChangeEvent } from "react";
 
-import type { PromptLexiconListQueryDto } from "../../types";
+import type { PromptLexiconListQueryDto } from "@/types";
+
 import { LexiconResults } from "./components/LexiconResults";
 import { LexiconSidebar, type LexiconCategorySelection } from "./components/LexiconSidebar";
 import {

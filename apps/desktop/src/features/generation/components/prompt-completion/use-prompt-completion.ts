@@ -13,8 +13,9 @@ import {
   type RefObject,
 } from "react";
 
-import type { PromptChunkDto, PromptLexiconEntryDto } from "../../../../types";
-import { usePromptCompletionQueries } from "../../data/usePromptCompletionQueries";
+import { usePromptCompletionQueries } from "@/features/generation/data/usePromptCompletionQueries";
+import type { PromptChunkDto, PromptLexiconEntryDto } from "@/types";
+
 import {
   applyPromptCompletion,
   getPromptCompletionContext,

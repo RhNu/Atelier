@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { AppEventDto, ResourceRefDto } from "../../../types";
+import type { AppEventDto, ResourceRefDto } from "@/types";
 
 export type StreamGenerationPreview = {
   kind: "stream";

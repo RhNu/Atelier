@@ -1,4 +1,4 @@
-import type { GallerySafetyLabelDto } from "../../types";
+import type { GallerySafetyLabelDto } from "@/types";
 
 type SafetyBadgeProps = {
   label?: GallerySafetyLabelDto | "unknown" | null;

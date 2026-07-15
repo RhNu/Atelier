@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { resourceApi, uniqueImportedImageResources } from "../../../platform/atelier";
-import type { ResourceRefDto, SaveResourceImagesZipEntryDto } from "../../../types";
-import { setDirectorHandoffInput } from "../../director/state/director-handoff-store";
-import { navigateToDirector } from "../../director/state/navigate-to-director";
+import { setDirectorHandoffInput } from "@/features/director/state/director-handoff-store";
+import { navigateToDirector } from "@/features/director/state/navigate-to-director";
+import { resourceApi, uniqueImportedImageResources } from "@/platform/atelier";
+import type { ResourceRefDto, SaveResourceImagesZipEntryDto } from "@/types";
+
 import {
   useDeleteGenerationBatchesMutation,
   useDeleteRunHistoryMutation,

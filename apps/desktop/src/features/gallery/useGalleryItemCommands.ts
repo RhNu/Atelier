@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
-import type { GalleryItemDto } from "../../types";
+import type { GalleryItemDto } from "@/types";
+
 import { setDirectorHandoffInput } from "../director/state/director-handoff-store";
 import { navigateToDirector } from "../director/state/navigate-to-director";
 import {

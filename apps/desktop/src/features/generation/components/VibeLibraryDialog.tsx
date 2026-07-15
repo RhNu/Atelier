@@ -2,8 +2,9 @@
 import { ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { AppButton, AppModal } from "../../../components/ui";
-import type { ImageModelDto, VibeDocumentEntryDto } from "../../../types";
+import { AppButton, AppModal } from "@/components/ui";
+import type { ImageModelDto, VibeDocumentEntryDto } from "@/types";
+
 import { useVibeDocumentsQuery } from "../data/useGenerationActions";
 import { GenerationResourceThumbnail } from "./GenerationResourceThumbnail";
 import { findVibeEncodingForModel } from "./vibe-guidance-model";

@@ -1,7 +1,8 @@
 /* eslint-disable max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
 import { useCallback, useMemo, useState } from "react";
 
-import type { CharacterReferenceTypeDto, PromptPresetDto, ResourceRefDto } from "../../../types";
+import type { CharacterReferenceTypeDto, PromptPresetDto, ResourceRefDto } from "@/types";
+
 import type { EnsuredVibeEncodingFromResource } from "../data/useGenerationActions";
 import type { GenerationDraft } from "../model/generation-draft";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";

@@ -7,7 +7,7 @@ import {
   queryKeys,
   resourceApi,
   resourceImageToDataUrl,
-} from "../../../platform/atelier";
+} from "@/platform/atelier";
 import type {
   DeleteGalleryItemsRequestDto,
   GalleryQueryDto,
@@ -15,7 +15,7 @@ import type {
   ResourceRefDto,
   SaveResourceImageRequestDto,
   SetGallerySafetyOverrideRequestDto,
-} from "../../../types";
+} from "@/types";
 
 export function useGalleryPageQuery(query: GalleryQueryDto) {
   return useQuery({

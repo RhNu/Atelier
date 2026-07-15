@@ -2,7 +2,8 @@
 import { ChevronDown, ChevronUp, RefreshCw, RotateCcw, WandSparkles } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
-import { AppButton, AppRangeField, AppSelect } from "../../../components/ui";
+import { AppButton, AppRangeField, AppSelect } from "@/components/ui";
+
 import type { GenerationDraft } from "../model/generation-draft";
 import {
   generationImageFormatOptions,

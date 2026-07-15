@@ -1,7 +1,8 @@
 import { Loader2 } from "lucide-react";
 import { useCallback, type ChangeEvent, type ReactNode } from "react";
 
-import { AppSelect } from "../../../components/ui";
+import { AppSelect } from "@/components/ui";
+
 import { parseNumberInput } from "../settings-utils";
 
 export function SectionHeader({
