@@ -1,5 +1,6 @@
 //! `NovelAI` generation feature domain.
 
+mod draft;
 mod error;
 mod estimate;
 mod model;
@@ -7,6 +8,12 @@ mod normalize;
 mod ports;
 mod request_plan;
 
+pub use draft::{
+    GenerationDraftCharacter, GenerationDraftCharacterPositionMode, GenerationDraftError,
+    GenerationDraftErrorKind, GenerationDraftI2i, GenerationDraftPreciseReference,
+    GenerationDraftRepository, GenerationDraftResult, GenerationDraftSeedMode,
+    GenerationDraftService, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
+};
 pub use error::{
     ClientApiErrorContext, ClientApiErrorReason, ClientDecodeContext, ClientDecodeTarget,
     ClientInvalidRequestContext, ClientInvalidRequestKind, ClientMetadataContext,

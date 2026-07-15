@@ -19,11 +19,24 @@ export function FrontendSettingsSection({
   saving,
   commandError,
 }: FrontendSettingsSectionProps) {
+  const updateDeveloperMode = useCallback(
+    (developerMode: boolean) => {
+      updateDraft({
+        ...draft,
+        frontend: {
+          ...draft.frontend,
+          developer_mode: developerMode,
+        },
+      });
+    },
+    [draft, updateDraft],
+  );
   const updateBlurSensitiveImages = useCallback(
     (blurSensitiveImages: boolean) => {
       updateDraft({
         ...draft,
         frontend: {
+          ...draft.frontend,
           gallery: {
             ...draft.frontend.gallery,
             blur_sensitive_images: blurSensitiveImages,
@@ -55,6 +68,11 @@ export function FrontendSettingsSection({
         </p>
       ) : null}
       <div className="grid gap-3 p-3 md:grid-cols-2">
+        <CheckboxField
+          label="Developer mode"
+          checked={draft.frontend.developer_mode}
+          onChange={updateDeveloperMode}
+        />
         <CheckboxField
           label="Blur NSFW images"
           checked={draft.frontend.gallery.blur_sensitive_images}

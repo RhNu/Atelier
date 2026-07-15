@@ -17,9 +17,10 @@ use atelier_app_api::{
         SetGallerySafetyOverrideRequestDto,
     },
     generation::{
-        GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationStatusDto,
-        GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
-        SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
+        GenerationAnlasEstimateDto, GenerationDraftDto, GenerationEstimateRequestDto,
+        GenerationStatusDto, GenerationStatusQueryDto, QueueDirectiveDto,
+        RunGenerationJobRequestDto, SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto,
+        SubmitGenerationRequestDto,
     },
     history::{
         DeleteRunHistoryItemsRequestDto, DeleteRunHistoryItemsResponseDto,
@@ -271,6 +272,26 @@ pub async fn reset_workspace_settings(
     state: State<'_, DesktopState>,
 ) -> CommandResult<ResetWorkspaceSettingsResponseDto> {
     state.host.reset_workspace_settings().await
+}
+
+#[tauri::command]
+pub async fn get_generation_draft(
+    state: State<'_, DesktopState>,
+) -> CommandResult<Option<GenerationDraftDto>> {
+    state.host.get_generation_draft().await
+}
+
+#[tauri::command]
+pub async fn save_generation_draft(
+    state: State<'_, DesktopState>,
+    request: SaveGenerationDraftRequestDto,
+) -> CommandResult<GenerationDraftDto> {
+    state.host.save_generation_draft(request).await
+}
+
+#[tauri::command]
+pub async fn clear_generation_draft(state: State<'_, DesktopState>) -> CommandResult<()> {
+    state.host.clear_generation_draft().await
 }
 
 #[tauri::command]

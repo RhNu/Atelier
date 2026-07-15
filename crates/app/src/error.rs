@@ -84,6 +84,12 @@ impl From<atelier_gallery::GalleryError> for AppError {
     }
 }
 
+impl From<atelier_generation::GenerationDraftError> for AppError {
+    fn from(error: atelier_generation::GenerationDraftError) -> Self {
+        Self::new(error.kind.to_string(), error.to_string())
+    }
+}
+
 impl From<atelier_workspace::WorkspaceError> for AppError {
     fn from(error: atelier_workspace::WorkspaceError) -> Self {
         Self::new(error.kind.to_string(), error.to_string())

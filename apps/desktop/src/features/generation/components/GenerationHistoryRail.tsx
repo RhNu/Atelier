@@ -85,7 +85,7 @@ export function GenerationHistoryRail({
     <AppPanel
       as="aside"
       aria-label="Generation history"
-      className="flex min-h-0 flex-col overflow-hidden"
+      className="flex h-full min-h-0 flex-col overflow-hidden"
     >
       <header className="grid gap-3 border-b border-app-border px-4 py-3">
         <div className="flex items-center justify-between">

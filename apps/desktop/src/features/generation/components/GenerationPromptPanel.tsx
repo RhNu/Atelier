@@ -1,44 +1,59 @@
-import { Eye, WandSparkles } from "lucide-react";
-import { useCallback, useMemo, type ChangeEvent } from "react";
+/* eslint-disable react-perf/jsx-no-new-function-as-prop */
+import { Settings2 } from "lucide-react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 
-import { AppButton, AppPanel, AppSelect } from "../../../components/ui";
-import type {
-  CompiledGenerationPromptDto,
-  CompiledPromptDto,
-  PromptPresetDto,
-} from "../../../types";
+import { AppSelect, AppTabs } from "../../../components/ui";
+import type { PromptPresetDto } from "../../../types";
 import type { GenerationDraft } from "../model/generation-draft";
+import {
+  generationModelOptions,
+  generationUcPresetOptions,
+  toImageModel,
+  toUcPreset,
+  toSelectOptions,
+} from "../model/generation-options";
+import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import { PromptCompletionTextarea } from "./prompt-completion";
+
+type PromptTab = "positive" | "negative";
+
+export type GenerationPromptPanelHandle = {
+  focusPositive: () => void;
+};
 
 type GenerationPromptPanelProps = {
   draft: GenerationDraft;
-  submitError: string | null;
-  validationError: string | null;
-  compileError: string | null;
-  compilePending: boolean;
-  submitPending: boolean;
-  compiledPreview: CompiledGenerationPromptDto | null;
   mainPresets: ReadonlyArray<PromptPresetDto>;
   mainPresetsPending: boolean;
-  onPatch: (patch: Partial<GenerationDraft>) => void;
-  onSubmit: () => void;
-  onCompile: () => void;
+  onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
+  onFlush: () => void;
 };
 
-export function GenerationPromptPanel({
-  draft,
-  submitError,
-  validationError,
-  compileError,
-  compilePending,
-  submitPending,
-  compiledPreview,
-  mainPresets,
-  mainPresetsPending,
-  onPatch,
-  onSubmit,
-  onCompile,
-}: GenerationPromptPanelProps) {
+const MODEL_OPTIONS = toSelectOptions(generationModelOptions);
+const UC_PRESET_OPTIONS = toSelectOptions(generationUcPresetOptions);
+const PROMPT_TABS = [
+  { value: "positive", label: "Positive" },
+  { value: "negative", label: "Undesired Content" },
+] as const;
+
+export const GenerationPromptPanel = forwardRef<
+  GenerationPromptPanelHandle,
+  GenerationPromptPanelProps
+>(function GenerationPromptPanel(
+  { draft, mainPresets, mainPresetsPending, onPatch, onFlush },
+  forwardedRef,
+) {
+  const [activeTab, setActiveTab] = useState<PromptTab>("positive");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mainPresetOptions = useMemo(
     () => [
       {
@@ -47,127 +62,126 @@ export function GenerationPromptPanel({
       },
       ...mainPresets
         .filter((preset) => preset.enabled)
-        .map((preset) => ({
-          value: preset.preset_id,
-          label: preset.name,
-        })),
+        .map((preset) => ({ value: preset.preset_id, label: preset.name })),
     ],
     [mainPresets, mainPresetsPending],
   );
+
+  const focusPositive = useCallback(() => {
+    setActiveTab("positive");
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
+  }, []);
+  useImperativeHandle(forwardedRef, () => ({ focusPositive }), [focusPositive]);
+
   const handlePromptChange = useCallback(
-    (prompt: string) => {
-      onPatch({ prompt });
+    (value: string) => {
+      if (activeTab === "positive") {
+        onPatch({ prompt: value });
+      } else {
+        onPatch({ negativePrompt: value });
+      }
     },
-    [onPatch],
+    [activeTab, onPatch],
   );
-  const handleNegativePromptChange = useCallback(
-    (negativePrompt: string) => {
-      onPatch({ negativePrompt });
-    },
-    [onPatch],
-  );
-  const handleMainPresetChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      onPatch({ mainPresetId: event.target.value || null });
-    },
-    [onPatch],
-  );
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value === "negative" ? "negative" : "positive");
+  }, []);
+  const handleEditorKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.ctrlKey && event.key === "Tab") {
+      event.preventDefault();
+      setActiveTab((current) => (current === "positive" ? "negative" : "positive"));
+    }
+  }, []);
 
   return (
-    <AppPanel className="flex min-h-0 flex-col overflow-hidden">
-      <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">Prompt Stack</h2>
-        <AppButton variant="ghost" onClick={onCompile} disabled={compilePending}>
-          <Eye aria-hidden="true" className="size-4" />
-          Compile prompt preview
-        </AppButton>
-      </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3">
-        <label
-          htmlFor="generation-main-preset"
-          className="grid gap-2 text-xs font-semibold text-app-muted uppercase"
-        >
-          Main preset
-          <AppSelect
-            id="generation-main-preset"
-            aria-label="Main preset"
-            value={draft.mainPresetId ?? ""}
-            options={mainPresetOptions}
-            onChange={handleMainPresetChange}
-          />
-        </label>
-        <label
-          htmlFor="generation-positive-prompt"
-          className="grid gap-2 text-xs font-semibold text-app-muted uppercase"
-        >
-          Positive prompt
-          <PromptCompletionTextarea
-            id="generation-positive-prompt"
-            aria-label="Positive prompt"
-            value={draft.prompt}
-            onChange={handlePromptChange}
-            className="min-h-44 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
-          />
-        </label>
-        <label
-          htmlFor="generation-negative-prompt"
-          className="grid gap-2 text-xs font-semibold text-app-muted uppercase"
-        >
-          Undesired content
-          <PromptCompletionTextarea
-            id="generation-negative-prompt"
-            aria-label="Undesired content"
-            value={draft.negativePrompt}
-            onChange={handleNegativePromptChange}
-            className="min-h-24 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
-          />
-        </label>
-        {validationError ? <p className="text-sm text-amber-200">{validationError}</p> : null}
-        {submitError ? <p className="text-sm text-rose-100">{submitError}</p> : null}
-        {compileError ? <p className="text-sm text-rose-100">{compileError}</p> : null}
-        <CompiledPromptPreview title="Positive preview" preview={compiledPreview?.prompt ?? null} />
-        <CompiledPromptPreview
-          title="Negative preview"
-          preview={compiledPreview?.negative_prompt ?? null}
+    <section className="space-y-4 border-b border-app-border p-4">
+      <label
+        htmlFor="generation-model"
+        className="grid gap-1.5 text-xs font-semibold text-app-muted uppercase"
+      >
+        Model
+        <AppSelect
+          id="generation-model"
+          aria-label="Model"
+          value={draft.model}
+          options={MODEL_OPTIONS}
+          onChange={(event) => onPatch({ model: toImageModel(event.target.value) })}
+          onBlur={onFlush}
         />
-        {compiledPreview?.characters.map((character, index) => (
-          <CompiledPromptPreview
-            key={`character-${index}`}
-            title={`Character ${index + 1} preview`}
-            preview={character.prompt}
+      </label>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <AppTabs
+            label="Prompt type"
+            value={activeTab}
+            tabs={PROMPT_TABS}
+            onChange={handleTabChange}
           />
-        ))}
+          <details className="group relative">
+            <summary
+              aria-label="Prompt options"
+              className="grid size-8 cursor-pointer list-none place-items-center border border-transparent text-app-muted hover:border-app-border hover:bg-app-surface hover:text-app-text"
+            >
+              <Settings2 aria-hidden="true" className="size-4" />
+            </summary>
+            <div className="absolute top-10 right-0 z-30 w-64 space-y-4 border border-app-border bg-app-panel p-3 shadow-app-panel">
+              <label className="flex items-center justify-between gap-3 text-sm text-app-text">
+                Quality tags
+                <input
+                  aria-label="Quality tags"
+                  type="checkbox"
+                  checked={draft.quality}
+                  onChange={(event) => onPatch({ quality: event.target.checked })}
+                  onBlur={onFlush}
+                />
+              </label>
+              <label
+                htmlFor="generation-uc-preset"
+                className="grid gap-1 text-xs font-semibold text-app-muted uppercase"
+              >
+                UC preset
+                <AppSelect
+                  id="generation-uc-preset"
+                  aria-label="UC preset"
+                  value={draft.ucPreset}
+                  options={UC_PRESET_OPTIONS}
+                  onChange={(event) => onPatch({ ucPreset: toUcPreset(event.target.value) })}
+                  onBlur={onFlush}
+                />
+              </label>
+            </div>
+          </details>
+        </div>
+        <PromptCompletionTextarea
+          ref={textareaRef}
+          id="generation-prompt-editor"
+          aria-label={activeTab === "positive" ? "Positive prompt" : "Undesired content"}
+          value={activeTab === "positive" ? draft.prompt : draft.negativePrompt}
+          onChange={handlePromptChange}
+          onKeyDown={handleEditorKeyDown}
+          onBlur={onFlush}
+          className="min-h-44 resize-y border border-app-border bg-black/20 p-3 text-sm text-app-text outline-none focus:border-brand-400"
+        />
+        <p className="text-[11px] text-app-muted">Ctrl+Tab switches prompt tabs.</p>
       </div>
-      <footer className="border-t border-app-border p-3">
-        <AppButton className="w-full" onClick={onSubmit} disabled={submitPending}>
-          <WandSparkles aria-hidden="true" className="size-4" />
-          {submitPending ? "Queueing generation" : "Queue generation"}
-        </AppButton>
-      </footer>
-    </AppPanel>
-  );
-}
 
-function CompiledPromptPreview({
-  title,
-  preview,
-}: {
-  title: string;
-  preview: CompiledPromptDto | null;
-}) {
-  if (!preview) {
-    return null;
-  }
-
-  return (
-    <article className="border border-app-border bg-app-surface/70 p-3">
-      <h3 className="text-xs font-semibold text-app-muted uppercase">{title}</h3>
-      <p className="mt-2 text-sm leading-6 whitespace-pre-wrap text-app-text">
-        {preview.expanded_prompt || "Empty"}
-      </p>
-      <p className="mt-2 text-xs text-app-muted">
-        {preview.trace.function_calls.length} function calls
-      </p>
-    </article>
+      <label
+        htmlFor="generation-main-preset"
+        className="grid gap-1.5 text-xs font-semibold text-app-muted uppercase"
+      >
+        Main preset
+        <AppSelect
+          id="generation-main-preset"
+          aria-label="Main preset"
+          value={draft.mainPresetId ?? ""}
+          options={mainPresetOptions}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+            onPatch({ mainPresetId: event.target.value || null })
+          }
+          onBlur={onFlush}
+        />
+      </label>
+    </section>
   );
-}
+});

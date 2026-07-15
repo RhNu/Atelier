@@ -28,6 +28,7 @@ import type {
   GalleryPageDto,
   GalleryQueryDto,
   GlobalSettingsDto,
+  GenerationDraftDto,
   GenerationStatusDto,
   GenerationAnlasEstimateDto,
   GenerationEstimateRequestDto,
@@ -58,6 +59,7 @@ import type {
   ReleaseImportedImageResourcesRequestDto,
   ReleaseImportedImageResourcesResponseDto,
   SaveResourceImageRequestDto,
+  SaveGenerationDraftRequestDto,
   ResetWorkspaceSettingsResponseDto,
   RunDirectorToolRequestDto,
   DirectorToolResultDto,
@@ -216,6 +218,11 @@ export const settingsApi = {
 };
 
 export const generationApi = {
+  getDraft: () =>
+    invokeAtelierCommand<GenerationDraftDto | null>(atelierCommands.getGenerationDraft),
+  saveDraft: (request: SaveGenerationDraftRequestDto) =>
+    invokeAtelierCommand<GenerationDraftDto>(atelierCommands.saveGenerationDraft, { request }),
+  clearDraft: () => invokeAtelierCommand<void>(atelierCommands.clearGenerationDraft),
   submit: (request: SubmitGenerationRequestDto) =>
     invokeAtelierCommand<QueueDirectiveDto>(atelierCommands.submitGeneration, { request }),
   submitBatch: (request: SubmitGenerationBatchRequestDto) =>

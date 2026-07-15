@@ -1,15 +1,10 @@
 /* eslint-disable max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
 import { useCallback, useMemo, useState } from "react";
 
-import { AppPanel } from "../../../components/ui";
-import type {
-  CharacterReferenceTypeDto,
-  PromptPresetDto,
-  ResourceRefDto,
-  VibeDocumentEntryDto,
-} from "../../../types";
+import type { CharacterReferenceTypeDto, PromptPresetDto, ResourceRefDto } from "../../../types";
 import type { EnsuredVibeEncodingFromResource } from "../data/useGenerationActions";
 import type { GenerationDraft } from "../model/generation-draft";
+import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import { createLocalId } from "./advanced-generation-model";
 import { CharacterGuidanceSection } from "./CharacterGuidanceSection";
 import { ImageToImageSection, PreciseReferenceSection } from "./ImageGuidanceSections";
@@ -17,11 +12,9 @@ import { VibeGuidanceSection } from "./VibeGuidanceSection";
 
 type AdvancedGenerationInputsProps = {
   draft: GenerationDraft;
-  onPatch: (patch: Partial<GenerationDraft>) => void;
+  onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
+  onFlush: () => void;
   characterPresets: ReadonlyArray<PromptPresetDto>;
-  vibeDocuments: ReadonlyArray<VibeDocumentEntryDto>;
-  vibePending: boolean;
-  vibeError: string | null;
   vibeImportPending: boolean;
   vibeExportPending: boolean;
   imageImportPending: boolean;
@@ -31,6 +24,7 @@ type AdvancedGenerationInputsProps = {
   onReleaseImageResources: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
   onImportVibeDocuments: () => void;
   onExportVibeDocument: (vibeId: string) => void;
+  developerMode: boolean;
 };
 
 const DEFAULT_REFERENCE_TYPE: CharacterReferenceTypeDto = "character";
@@ -38,10 +32,8 @@ const DEFAULT_REFERENCE_TYPE: CharacterReferenceTypeDto = "character";
 export function AdvancedGenerationInputs({
   draft,
   onPatch,
+  onFlush,
   characterPresets,
-  vibeDocuments,
-  vibePending,
-  vibeError,
   vibeImportPending,
   vibeExportPending,
   imageImportPending,
@@ -51,6 +43,7 @@ export function AdvancedGenerationInputs({
   onReleaseImageResources,
   onImportVibeDocuments,
   onExportVibeDocument,
+  developerMode,
 }: AdvancedGenerationInputsProps) {
   const [error, setError] = useState<string | null>(null);
   const characterPresetOptions = useMemo(
@@ -71,13 +64,6 @@ export function AdvancedGenerationInputs({
     },
     [draft.i2i, onPatch],
   );
-  const updateVibe = useCallback(
-    (patch: Partial<GenerationDraft["vibe"]>) => {
-      onPatch({ vibe: { ...draft.vibe, ...patch } });
-    },
-    [draft.vibe, onPatch],
-  );
-
   async function releaseImages(resources: ReadonlyArray<ResourceRefDto | null>) {
     try {
       await onReleaseImageResources(resources);
@@ -93,14 +79,17 @@ export function AdvancedGenerationInputs({
       await releaseImages(unused);
       if (resource) {
         const replaced = draft.i2i?.image ?? null;
-        onPatch({
-          i2i: {
-            image: resource,
-            mask: draft.i2i?.mask ?? null,
-            strength: draft.i2i?.strength ?? 0.7,
-            noise: draft.i2i?.noise ?? 0,
+        onPatch(
+          {
+            i2i: {
+              image: resource,
+              mask: draft.i2i?.mask ?? null,
+              strength: draft.i2i?.strength ?? 0.7,
+              noise: draft.i2i?.noise ?? 0,
+            },
           },
-        });
+          { persist: "immediate" },
+        );
         await releaseImages([replaced]);
       }
     } catch (err) {
@@ -128,20 +117,22 @@ export function AdvancedGenerationInputs({
     try {
       const resources = await onPickImageResources("reference_image");
       if (resources.length) {
-        onPatch({
-          preciseReferences: [
-            ...draft.preciseReferences,
-            ...resources.map((resource) => ({
-              id: createLocalId("ref"),
-              image: resource,
-              referenceType: DEFAULT_REFERENCE_TYPE,
-              fidelity: 0.5,
-              strength: 0.6,
-              displayName: resource.id,
-            })),
-          ],
-          vibe: { ...draft.vibe, enabled: false },
-        });
+        onPatch(
+          {
+            preciseReferences: [
+              ...draft.preciseReferences,
+              ...resources.map((resource, index) => ({
+                id: createLocalId("ref"),
+                image: resource,
+                referenceType: DEFAULT_REFERENCE_TYPE,
+                fidelity: 0.5,
+                strength: 0.6,
+                displayName: `Reference ${draft.preciseReferences.length + index + 1}`,
+              })),
+            ],
+          },
+          { persist: "immediate" },
+        );
       }
     } catch (err) {
       setError(formatError(err));
@@ -153,26 +144,28 @@ export function AdvancedGenerationInputs({
     try {
       const ensured = await onPickVibeEncoding();
       if (ensured) {
-        onPatch({
-          vibe: {
-            ...draft.vibe,
-            enabled: true,
-            slots: [
-              ...draft.vibe.slots,
-              {
-                id: createLocalId("vibe"),
-                encoding: ensured.encoding,
-                vibeId: null,
-                informationExtracted: 1,
-                strength: 1,
-                displayName: ensured.displayName,
-                sourceImage: null,
-                sourceSha256: ensured.sourceSha256,
-              },
-            ],
+        onPatch(
+          {
+            vibe: {
+              ...draft.vibe,
+              slots: [
+                ...draft.vibe.slots,
+                {
+                  id: createLocalId("vibe"),
+                  encoding: ensured.encoding,
+                  vibeId: null,
+                  informationExtracted: 1,
+                  strength: 1,
+                  displayName: "Uploaded Vibe",
+                  sourceImage: null,
+                  sourceSha256: ensured.sourceSha256,
+                },
+              ],
+            },
+            preciseReferences: [],
           },
-          preciseReferences: [],
-        });
+          { persist: "immediate" },
+        );
         await releaseImages(draft.preciseReferences.map((reference) => reference.image));
       }
     } catch (err) {
@@ -181,11 +174,11 @@ export function AdvancedGenerationInputs({
   }
 
   return (
-    <AppPanel className="min-h-0 overflow-auto">
-      <header className="border-b border-app-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">Image Guidance</h2>
+    <section className="space-y-3 border-b border-app-border p-4">
+      <header>
+        <h2 className="text-xs font-bold text-app-muted uppercase">Image guidance</h2>
       </header>
-      <div className="grid gap-4 p-3 text-sm text-app-text">
+      <div className="grid gap-3 text-sm text-app-text">
         {error ? <p className="text-rose-100">{error}</p> : null}
         <ImageToImageSection
           draft={draft}
@@ -195,15 +188,14 @@ export function AdvancedGenerationInputs({
           pickMaskImage={pickMaskImage}
           imageImportPending={imageImportPending}
           releaseImages={releaseImages}
+          onFlush={onFlush}
+          developerMode={developerMode}
         />
         {draft.preciseReferences.length === 0 ? (
           <VibeGuidanceSection
             draft={draft}
             onPatch={onPatch}
-            updateVibe={updateVibe}
-            vibeDocuments={vibeDocuments}
-            vibePending={vibePending}
-            vibeError={vibeError}
+            onFlush={onFlush}
             vibeImportPending={vibeImportPending}
             vibeExportPending={vibeExportPending}
             vibeEnsurePending={vibeEnsurePending}
@@ -211,6 +203,7 @@ export function AdvancedGenerationInputs({
             onImportVibeDocuments={onImportVibeDocuments}
             onExportVibeDocument={onExportVibeDocument}
             releaseImages={releaseImages}
+            developerMode={developerMode}
           />
         ) : null}
         <PreciseReferenceSection
@@ -219,6 +212,8 @@ export function AdvancedGenerationInputs({
           pickPreciseReference={pickPreciseReference}
           imageImportPending={imageImportPending}
           releaseImages={releaseImages}
+          onFlush={onFlush}
+          developerMode={developerMode}
         />
         <CharacterGuidanceSection
           draft={draft}
@@ -226,7 +221,7 @@ export function AdvancedGenerationInputs({
           characterPresetOptions={characterPresetOptions}
         />
       </div>
-    </AppPanel>
+    </section>
   );
 }
 

@@ -1,8 +1,8 @@
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::{
-    GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationStatusDto,
-    GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
-    SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
+    GenerationAnlasEstimateDto, GenerationDraftDto, GenerationEstimateRequestDto,
+    GenerationStatusDto, GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
 };
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
@@ -15,6 +15,38 @@ where
     F: NovelAiClientFactory + Clone + Send + Sync,
     E: EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
 {
+    /// Returns the persisted generation workbench draft for the current workspace.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or the draft cannot be decoded.
+    pub async fn get_generation_draft(&self) -> CommandResult<Option<GenerationDraftDto>> {
+        Self::command_result(self.current_session()?.generation().get_draft().await)
+    }
+
+    /// Validates and persists the generation workbench draft for the current workspace.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open, validation fails, or persistence fails.
+    pub async fn save_generation_draft(
+        &self,
+        request: SaveGenerationDraftRequestDto,
+    ) -> CommandResult<GenerationDraftDto> {
+        Self::command_result(
+            self.current_session()?
+                .generation()
+                .save_draft(request)
+                .await,
+        )
+    }
+
+    /// Clears the persisted generation workbench draft for the current workspace.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or draft resource cleanup fails.
+    pub async fn clear_generation_draft(&self) -> CommandResult<()> {
+        Self::command_result(self.current_session()?.generation().clear_draft().await)
+    }
+
     /// Submits generation work without running the queued job.
     ///
     /// # Errors

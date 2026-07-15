@@ -137,18 +137,22 @@ impl StoredGlobalSettings {
 
 #[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
 struct StoredGlobalFrontendSettings {
+    #[serde(default)]
+    developer_mode: bool,
     gallery: StoredGlobalGallerySettings,
 }
 
 impl StoredGlobalFrontendSettings {
     const fn from_domain(settings: GlobalFrontendSettings) -> Self {
         Self {
+            developer_mode: settings.developer_mode,
             gallery: StoredGlobalGallerySettings::from_domain(settings.gallery),
         }
     }
 
     const fn into_domain(self) -> GlobalFrontendSettings {
         GlobalFrontendSettings {
+            developer_mode: self.developer_mode,
             gallery: self.gallery.into_domain(),
         }
     }

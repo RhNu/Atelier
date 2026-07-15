@@ -3,9 +3,10 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use atelier_adapter_database::{
     DatabaseApiKeyRegistryStore, DatabaseArtifactRepository, DatabaseConnection,
-    DatabaseGalleryIndex, DatabaseGenerationPayloadStore, DatabaseJobQueueRepository,
-    DatabasePromptResourceRepository, DatabaseResourceCatalogRepository,
-    DatabaseRunHistoryRepository, DatabaseSettingsRepository, DatabaseVibeRepository,
+    DatabaseGalleryIndex, DatabaseGenerationDraftRepository, DatabaseGenerationPayloadStore,
+    DatabaseJobQueueRepository, DatabasePromptResourceRepository,
+    DatabaseResourceCatalogRepository, DatabaseRunHistoryRepository, DatabaseSettingsRepository,
+    DatabaseVibeRepository,
 };
 use atelier_adapter_image_codec::ImageMetadataBlobStore;
 use atelier_adapter_keyring::KeyringSecretStore;
@@ -63,6 +64,8 @@ pub struct AppInner<S, F, E> {
     pub api_keys: AppApiKeyService<S, F>,
     pub active_subscription: StdMutex<Option<SubscriptionSummaryDto>>,
     pub settings: WorkspaceSettingsService<DatabaseSettingsRepository>,
+    pub generation_drafts:
+        atelier_generation::GenerationDraftService<DatabaseGenerationDraftRepository>,
     pub settings_state: SharedWorkspaceSettings,
     pub prompt_chunks: PromptChunkService<DatabasePromptResourceRepository>,
     pub prompt_presets: PromptPresetService<DatabasePromptResourceRepository>,
@@ -196,6 +199,9 @@ where
         let prompt_repository = DatabasePromptResourceRepository::new(connection.clone());
         let settings_repository = DatabaseSettingsRepository::new(connection.clone());
         let settings = WorkspaceSettingsService::new(settings_repository);
+        let generation_drafts = atelier_generation::GenerationDraftService::new(
+            DatabaseGenerationDraftRepository::new(connection.clone()),
+        );
         let settings_state = SharedWorkspaceSettings::new(settings.get_workspace_settings().await?);
         let blob_store = FileSystemResourceBlobStore::new(root.clone(), layout);
         let resource_reader =
@@ -257,6 +263,7 @@ where
                 api_keys,
                 active_subscription: StdMutex::new(None),
                 settings,
+                generation_drafts,
                 settings_state,
                 prompt_chunks: PromptChunkService::new(prompt_repository.clone()),
                 prompt_presets: PromptPresetService::new(prompt_repository),

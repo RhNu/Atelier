@@ -28,6 +28,7 @@ For task-specific context, read only the relevant decision records:
 - `safety-onnx-adapter.md`: host-provided OpenNSFW ONNX model/runtime loading, scanner injection, and license/source boundary.
 - `frontend-workbench-foundation.md`: desktop frontend shell, generated app-api TypeScript contracts, Tailwind theme tokens, and `nait` visual reference boundary.
 - `global-settings-workspace-restore.md`: user-level settings persistence, last-workspace restore behavior, and app/workspace runtime scope separation.
+- `generate-workbench-draft.md`: Generate sidebar workbench layout, workspace draft persistence, and draft resource ownership.
 
 ## Current Consensus
 

@@ -77,6 +77,8 @@ pub struct GlobalSettingsDto {
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GlobalFrontendSettingsDto {
+    #[serde(default)]
+    pub developer_mode: bool,
     pub gallery: GlobalGallerySettingsDto,
 }
 

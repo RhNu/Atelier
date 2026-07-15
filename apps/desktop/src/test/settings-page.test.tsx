@@ -105,6 +105,7 @@ const defaultSettings: WorkspaceSettingsDto = {
 const defaultGlobalSettings: GlobalSettingsDto = {
   last_workspace: "D:/atelier",
   frontend: {
+    developer_mode: false,
     gallery: {
       blur_sensitive_images: false,
     },
@@ -198,6 +199,7 @@ describe("SettingsPage", () => {
     await user.click(within(sectionNav).getByRole("button", { name: "Interface" }));
 
     expect(screen.getByRole("heading", { name: "Frontend Preferences" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Developer mode")).toBeInTheDocument();
     expect(screen.getByLabelText("Blur NSFW images")).toBeInTheDocument();
   });
 
@@ -366,14 +368,16 @@ describe("SettingsPage", () => {
     expect(mocks.settingsApi.reset).toHaveBeenCalledTimes(1);
   });
 
-  it("saves frontend gallery preferences through global settings", async () => {
+  it("saves frontend preferences through global settings", async () => {
     const { user } = setup();
 
     await user.click(await screen.findByRole("button", { name: "Interface" }));
+    await user.click(screen.getByLabelText("Developer mode"));
     await user.click(screen.getByLabelText("Blur NSFW images"));
     await user.click(screen.getByRole("button", { name: "Save frontend preferences" }));
 
     const request = lastGlobalSettingsUpdate();
+    expect(request.frontend.developer_mode).toBe(true);
     expect(request.frontend.gallery.blur_sensitive_images).toBe(true);
     expect(mocks.settingsApi.update).not.toHaveBeenCalled();
   });

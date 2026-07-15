@@ -18,8 +18,10 @@ use atelier_app_api::gallery::{
     SetGallerySafetyOverrideRequestDto,
 };
 use atelier_app_api::generation::{
-    GenerateImageRequestDto, GenerationPlanContextDto, GenerationStatusQueryDto,
-    GenerationWorkRequestDto, ImageModelDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    GenerateImageRequestDto, GenerationDraftCharacterPositionModeDto, GenerationDraftDto,
+    GenerationDraftSeedModeDto, GenerationDraftVibeDto, GenerationDraftVibeSlotDto,
+    GenerationPlanContextDto, GenerationStatusQueryDto, GenerationWorkRequestDto, ImageModelDto,
+    QueueDirectiveDto, RunGenerationJobRequestDto, SaveGenerationDraftRequestDto,
     SubmitGenerationRequestDto,
 };
 use atelier_app_api::history::RunHistoryQueryDto;

@@ -281,6 +281,7 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
     let settings = GlobalSettingsDto {
         last_workspace: Some("D:/atelier".into()),
         frontend: GlobalFrontendSettingsDto {
+            developer_mode: true,
             gallery: GlobalGallerySettingsDto {
                 blur_sensitive_images: true,
             },
@@ -291,7 +292,10 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
         serde_json::to_value(&settings).unwrap(),
         json!({
             "last_workspace": "D:/atelier",
-            "frontend": { "gallery": { "blur_sensitive_images": true } }
+            "frontend": {
+                "developer_mode": true,
+                "gallery": { "blur_sensitive_images": true }
+            }
         })
     );
     assert_eq!(
@@ -299,6 +303,11 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
             frontend: settings.frontend,
         })
         .unwrap(),
-        json!({ "frontend": { "gallery": { "blur_sensitive_images": true } } })
+        json!({
+            "frontend": {
+                "developer_mode": true,
+                "gallery": { "blur_sensitive_images": true }
+            }
+        })
     );
 }

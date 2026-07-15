@@ -17,6 +17,8 @@ import type {
   DeleteRunHistoryItemsResponseDto,
   GalleryImageReferenceRequestDto,
   GalleryImageReferenceDto,
+  GlobalSettingsDto,
+  GenerationDraftDto,
   GenerationAnlasEstimateDto,
   GenerationEstimateRequestDto,
   GenerationStatusDto,
@@ -42,6 +44,7 @@ import type {
   RunHistoryPageDto,
   RunHistoryQueryDto,
   SaveResourceImageRequestDto,
+  SaveGenerationDraftRequestDto,
   SubmitGenerationBatchRequestDto,
   SubscriptionSummaryDto,
   EnsureVibeEncodingRequestDto,
@@ -52,6 +55,9 @@ import type {
 
 const mocks = vi.hoisted(() => ({
   generationApi: {
+    getDraft: vi.fn<() => Promise<GenerationDraftDto | null>>(),
+    saveDraft: vi.fn<(request: SaveGenerationDraftRequestDto) => Promise<GenerationDraftDto>>(),
+    clearDraft: vi.fn<() => Promise<void>>(),
     submitBatch: vi.fn<(request: SubmitGenerationBatchRequestDto) => Promise<QueueDirectiveDto>>(),
     estimate:
       vi.fn<(request: GenerationEstimateRequestDto) => Promise<GenerationAnlasEstimateDto>>(),
@@ -92,12 +98,16 @@ const mocks = vi.hoisted(() => ({
   settingsApi: {
     get: vi.fn<() => Promise<WorkspaceSettingsDto>>(),
   },
+  globalSettingsApi: {
+    get: vi.fn<() => Promise<GlobalSettingsDto>>(),
+  },
   galleryApi: {
     imageReference:
       vi.fn<(request: GalleryImageReferenceRequestDto) => Promise<GalleryImageReferenceDto>>(),
   },
   accountApi: {
     cachedActiveSubscription: vi.fn<() => Promise<SubscriptionSummaryDto | null>>(),
+    probeActive: vi.fn<() => Promise<SubscriptionSummaryDto>>(),
   },
   desktopApi: {
     pickAndImportImageResources:
@@ -126,6 +136,7 @@ vi.mock("../platform/atelier", () => ({
   promptApi: mocks.promptApi,
   resourceApi: mocks.resourceApi,
   settingsApi: mocks.settingsApi,
+  globalSettingsApi: mocks.globalSettingsApi,
   galleryApi: mocks.galleryApi,
   accountApi: mocks.accountApi,
   desktopApi: mocks.desktopApi,
@@ -133,6 +144,7 @@ vi.mock("../platform/atelier", () => ({
   queryKeys: {
     generation: {
       root: () => ["generation"],
+      draft: () => ["generation", "draft"],
       status: (jobId?: string | null) => ["generation", "status", jobId ?? null],
       estimate: (request: unknown) => ["generation", "estimate", request],
     },
@@ -142,6 +154,9 @@ vi.mock("../platform/atelier", () => ({
     },
     settings: {
       workspace: () => ["settings", "workspace"],
+    },
+    app: {
+      globalSettings: () => ["app", "global-settings"],
     },
     prompt: {
       root: () => ["prompt"],
@@ -174,6 +189,8 @@ vi.mock("../platform/atelier", () => ({
       (resource): resource is ResourceRefDto =>
         resource?.variant_id === null && resource.id.startsWith("resource:import:"),
     ),
+  resourceImageToDataUrl: (image: ResourceImageDto) =>
+    `data:${image.mime_type ?? "image/png"};base64,${image.image_base64}`,
 }));
 
 const defaultSettings: WorkspaceSettingsDto = {
@@ -199,6 +216,14 @@ const defaultSettings: WorkspaceSettingsDto = {
   },
 };
 
+const defaultGlobalSettings: GlobalSettingsDto = {
+  last_workspace: "D:/atelier",
+  frontend: {
+    developer_mode: false,
+    gallery: { blur_sensitive_images: false },
+  },
+};
+
 function appEvent(kind: AppEventDto["kind"], sequence = 1): AppEventDto {
   return { sequence, kind };
 }
@@ -209,8 +234,11 @@ function setup(options?: {
   history?: RunHistoryPageDto;
   vibeDocuments?: VibeDocumentPageDto;
   settingsError?: Error;
+  storedDraft?: GenerationDraftDto;
+  draftError?: Error;
   mainPresets?: PromptPresetPageDto;
   characterPresets?: PromptPresetPageDto;
+  developerMode?: boolean;
 }) {
   if (options?.settingsError) {
     mocks.settingsApi.get.mockRejectedValue(options.settingsError);
@@ -219,6 +247,13 @@ function setup(options?: {
       structuredClone(defaultSettings) as WorkspaceSettingsDto,
     );
   }
+  mocks.globalSettingsApi.get.mockResolvedValue({
+    ...defaultGlobalSettings,
+    frontend: {
+      ...defaultGlobalSettings.frontend,
+      developer_mode: options?.developerMode ?? false,
+    },
+  });
   if (options?.statusError) {
     mocks.generationApi.status.mockRejectedValue(options.statusError);
   } else {
@@ -227,6 +262,13 @@ function setup(options?: {
     );
   }
   mocks.generationApi.submitBatch.mockResolvedValue({ kind: "start_job", job_id: "job-submitted" });
+  if (options?.draftError) {
+    mocks.generationApi.getDraft.mockRejectedValue(options.draftError);
+  } else {
+    mocks.generationApi.getDraft.mockResolvedValue(options?.storedDraft ?? null);
+  }
+  mocks.generationApi.saveDraft.mockImplementation(async (request) => request.draft);
+  mocks.generationApi.clearDraft.mockResolvedValue();
   mocks.generationApi.estimate.mockResolvedValue({
     per_sample_cost: 3,
     per_request_cost: 3,
@@ -382,6 +424,13 @@ function setup(options?: {
     tier_name: "Tablet",
     expires_at_ms: null,
   });
+  mocks.accountApi.probeActive.mockResolvedValue({
+    anlas_balance: 100,
+    is_opus: false,
+    tier: 1,
+    tier_name: "Tablet",
+    expires_at_ms: null,
+  });
 
   return {
     user: userEvent.setup(),
@@ -402,9 +451,41 @@ function emptyPresetPage(): PromptPresetPageDto {
   };
 }
 
+function storedDraft(overrides: Partial<GenerationDraftDto> = {}): GenerationDraftDto {
+  return {
+    main_preset_id: null,
+    prompt: "restored prompt",
+    negative_prompt: "restored negative",
+    model: defaultSettings.generation.model,
+    size: { ...defaultSettings.generation.size },
+    quality: defaultSettings.generation.quality,
+    uc_preset: defaultSettings.generation.uc_preset,
+    steps: defaultSettings.generation.steps,
+    scale: defaultSettings.generation.scale,
+    sampler: defaultSettings.generation.sampler,
+    noise_schedule: defaultSettings.generation.noise_schedule,
+    seed_mode: "random",
+    seed: defaultSettings.generation.seed,
+    n_samples: defaultSettings.generation.n_samples,
+    request_count: 1,
+    cfg_rescale: defaultSettings.generation.cfg_rescale,
+    variety_boost: defaultSettings.generation.variety_boost,
+    image_format: defaultSettings.generation.image_format,
+    strict_mode: defaultSettings.generation.strict_mode,
+    stream_enabled: true,
+    i2i: null,
+    vibe: { enabled: false, strength: 1, slots: [] },
+    precise_references: [],
+    characters: [],
+    character_position_mode: "global",
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.clearAllMocks();
+  window.localStorage.clear();
   vi.spyOn(crypto, "randomUUID")
     .mockReturnValueOnce("00000000-0000-4000-8000-0000000000aa")
     .mockReturnValueOnce("00000000-0000-4000-8000-0000000000bb");
@@ -434,24 +515,113 @@ describe("GeneratePage", () => {
   });
 
   it("hydrates the generation draft from workspace settings", async () => {
-    setup();
+    const { user } = setup();
 
     expect(await screen.findByDisplayValue("832")).toBeInTheDocument();
     expect(screen.getByDisplayValue("1216")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("23")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("5")).toBeInTheDocument();
     expect(screen.getByLabelText("Model")).toHaveValue("nai-diffusion-4-5-full");
+    expect(screen.getByTestId("generation-settings-sidebar")).toHaveStyle({ width: "420px" });
+    await user.click(screen.getByRole("button", { name: /Steps 23/u }));
+    expect(screen.getByLabelText("Steps")).toHaveValue("23");
+    expect(screen.getByLabelText("Scale")).toHaveValue("5");
     expect(screen.getByLabelText("Sampler")).toHaveValue("k_euler_ancestral");
+  });
+
+  it("keeps empty guidance sections compact and reveals character positions only when useful", async () => {
+    const { user } = setup();
+
+    expect(await screen.findByRole("button", { name: "Add I2I source" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Remove I2I source" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /I2I mask/u })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Vibe strength")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Use AI character positioning")).not.toBeInTheDocument();
+    expect(screen.queryByText(/64–1600px/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Add source images, Vibe encodings/u)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add character prompt" }));
+    expect(screen.queryByLabelText("Use AI character positioning")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add character prompt" }));
+    const aiPositioning = await screen.findByLabelText("Use AI character positioning");
+    expect(aiPositioning).toBeChecked();
+    await user.click(aiPositioning);
+    expect(
+      await screen.findByRole("grid", { name: "Character position grid" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Enable character 1")).toBeInTheDocument();
+  });
+
+  it("uses bounded sliders only after an I2I source exists", async () => {
+    const { user } = setup();
+    mocks.desktopApi.pickAndImportImageResources.mockResolvedValueOnce([
+      { resource: { id: "resource:import:source:1", variant_id: null } },
+    ]);
+
+    await user.click(await screen.findByRole("button", { name: "Add I2I source" }));
+    const strength = await screen.findByRole("slider", { name: "Strength" });
+    const noise = screen.getByRole("slider", { name: "Noise" });
+    expect(strength).toHaveAttribute("min", "0.01");
+    expect(strength).toHaveAttribute("max", "0.99");
+    expect(strength).toHaveAttribute("step", "0.01");
+    expect(noise).toHaveAttribute("min", "0");
+    expect(noise).toHaveAttribute("max", "0.99");
+    expect(screen.getByRole("button", { name: "Add I2I mask" })).toBeInTheDocument();
+  });
+
+  it("shows resource references only in developer mode", async () => {
+    const normal = setup();
+    mocks.desktopApi.pickAndImportImageResources.mockResolvedValueOnce([
+      { resource: { id: "resource:import:normal:1", variant_id: null } },
+    ]);
+    await normal.user.click(await screen.findByRole("button", { name: "Add I2I source" }));
+    expect(screen.queryByText(/resource:import:normal:1/u)).not.toBeInTheDocument();
+    normal.unmount();
+
+    const developer = setup({ developerMode: true });
+    mocks.desktopApi.pickAndImportImageResources.mockResolvedValueOnce([
+      { resource: { id: "resource:import:developer:1", variant_id: null } },
+    ]);
+    await developer.user.click(await screen.findByRole("button", { name: "Add I2I source" }));
+    expect(await screen.findByText(/resource:import:developer:1/u)).toBeInTheDocument();
+  });
+
+  it("hydrates a persisted workspace draft and auto-saves the latest prompt", async () => {
+    const { user } = setup({ storedDraft: storedDraft() });
+
+    const prompt = await screen.findByLabelText("Positive prompt");
+    expect(prompt).toHaveValue("restored prompt");
+    await user.type(prompt, ", detailed eyes");
+
+    await waitFor(() => expect(mocks.generationApi.saveDraft).toHaveBeenCalled(), {
+      timeout: 2_000,
+    });
+    const savedRequest = mocks.generationApi.saveDraft.mock.lastCall?.[0];
+    expect(savedRequest?.draft.prompt).toBe("restored prompt, detailed eyes");
+  });
+
+  it("surfaces non-blocking draft save failures and retries the latest draft", async () => {
+    const { user } = setup({ storedDraft: storedDraft() });
+    mocks.generationApi.saveDraft
+      .mockRejectedValueOnce(new Error("draft database busy"))
+      .mockImplementation(async (request) => request.draft);
+
+    await user.type(await screen.findByLabelText("Positive prompt"), ", retry me");
+    expect(await screen.findByText("draft database busy")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry save" }));
+
+    await waitFor(() => expect(mocks.generationApi.saveDraft.mock.calls.length).toBeGreaterThan(1));
+    const retriedRequest = mocks.generationApi.saveDraft.mock.lastCall?.[0];
+    expect(retriedRequest?.draft.prompt).toBe("restored prompt, retry me");
   });
 
   it("submits batch stream generation work from the current draft", async () => {
     const { user } = setup();
 
     await user.type(await screen.findByLabelText("Positive prompt"), "1girl, atelier lighting");
+    await user.click(screen.getByRole("tab", { name: "Undesired Content" }));
     await user.type(screen.getByLabelText("Undesired content"), "low quality");
-    await user.clear(screen.getByLabelText("Steps"));
-    await user.type(screen.getByLabelText("Steps"), "28");
-    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+    await user.click(screen.getByRole("button", { name: /Steps 23/u }));
+    fireEvent.change(screen.getByLabelText("Steps"), { target: { value: "28" } });
+    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
     const request = mocks.generationApi.submitBatch.mock.calls[0]?.[0];
@@ -480,9 +650,9 @@ describe("GeneratePage", () => {
         },
       ],
     });
-    expect(screen.getByRole("button", { name: "Add source" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Add Vibe slot" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Add reference" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Add I2I source" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Add Vibe from image" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Add precise reference" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Add character prompt" })).toBeEnabled();
   });
 
@@ -491,9 +661,9 @@ describe("GeneratePage", () => {
     mocks.generationApi.submitBatch.mockReturnValue(new Promise(() => {}));
 
     await user.type(await screen.findByLabelText("Positive prompt"), "1girl");
-    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
-    const pendingButton = await screen.findByRole("button", { name: "Queueing generation" });
+    const pendingButton = await screen.findByRole("button", { name: /^Queueing generation/u });
     expect(pendingButton).toBeDisabled();
 
     await user.click(pendingButton);
@@ -504,12 +674,12 @@ describe("GeneratePage", () => {
     mocks.generationApi.submitBatch.mockRejectedValueOnce(new Error("NovelAI key missing"));
     const { user } = setup();
 
-    await user.click(await screen.findByRole("button", { name: "Queue generation" }));
+    await user.click(await screen.findByRole("button", { name: /^Generate 1 images/u }));
     expect(mocks.generationApi.submitBatch).not.toHaveBeenCalled();
     expect(screen.getByText("Positive prompt is required.")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Positive prompt"), "1girl");
-    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     expect(await screen.findByText("NovelAI key missing")).toBeInTheDocument();
     expect(screen.getByLabelText("Positive prompt")).toHaveValue("1girl");
@@ -547,7 +717,7 @@ describe("GeneratePage", () => {
     });
 
     await user.selectOptions(await screen.findByLabelText("Main preset"), "preset-main");
-    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
     expect(mocks.generationApi.submitBatch.mock.calls[0]?.[0].jobs[0]?.work).toMatchObject({
@@ -567,9 +737,9 @@ describe("GeneratePage", () => {
       { resource: { id: "source-image", variant_id: null } },
     ]);
 
-    await user.click(await screen.findByRole("button", { name: "Add source" }));
+    await user.click(await screen.findByRole("button", { name: "Add I2I source" }));
     await user.type(screen.getByLabelText("Positive prompt"), "1girl");
-    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
     expect(mocks.desktopApi.pickAndImportImageResources).toHaveBeenCalledWith("source_image", {
@@ -599,14 +769,14 @@ describe("GeneratePage", () => {
       { resource: unused },
     ]);
 
-    await user.click(await screen.findByRole("button", { name: "Add source" }));
+    await user.click(await screen.findByRole("button", { name: "Add I2I source" }));
     await waitFor(() =>
       expect(mocks.resourceApi.releaseImportedImages).toHaveBeenCalledWith({
         resources: [unused],
       }),
     );
 
-    await user.click(screen.getByRole("button", { name: "Clear" }));
+    await user.click(screen.getByRole("button", { name: "Remove I2I source" }));
     await waitFor(() =>
       expect(mocks.resourceApi.releaseImportedImages).toHaveBeenCalledWith({
         resources: [source],
@@ -619,18 +789,18 @@ describe("GeneratePage", () => {
     const reference = { id: "resource:import:reference:1", variant_id: null };
     mocks.desktopApi.pickAndImportImageResources.mockResolvedValueOnce([{ resource: reference }]);
 
-    await user.click(await screen.findByRole("button", { name: "Add reference" }));
+    await user.click(await screen.findByRole("button", { name: "Add precise reference" }));
 
     await waitFor(() =>
       expect(mocks.desktopApi.pickAndImportImageResources).toHaveBeenCalledWith("reference_image", {
         extensions: [],
       }),
     );
-    expect(screen.queryByRole("button", { name: "Add Vibe slot" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Precise Reference takes priority/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add Vibe from image" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Precise reference help" })).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Positive prompt"), "1girl");
-    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
     expect(mocks.generationApi.submitBatch.mock.calls[0]?.[0].jobs[0]?.work).toMatchObject({
@@ -681,9 +851,15 @@ describe("GeneratePage", () => {
         limit: 32,
       },
     });
-    await user.selectOptions(await screen.findByLabelText("Vibe library"), "vibe-1");
+    await user.click(await screen.findByRole("button", { name: "Choose from Vibe library" }));
+    const dialog = await screen.findByRole("dialog", { name: "Vibe library" });
+    expect(await within(dialog).findByAltText("Style A")).toHaveAttribute(
+      "src",
+      "data:image/png;base64,final-image",
+    );
+    await user.click(within(dialog).getByRole("button", { name: /Style A/u }));
     await user.type(screen.getByLabelText("Positive prompt"), "1girl");
-    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
     expect(mocks.generationApi.submitBatch.mock.calls[0]?.[0].jobs[0]?.work).toMatchObject({
@@ -717,10 +893,10 @@ describe("GeneratePage", () => {
       created: true,
     });
 
-    await user.click(await screen.findByRole("button", { name: "Add Vibe slot" }));
+    await user.click(await screen.findByRole("button", { name: "Add Vibe from image" }));
     await waitFor(() => expect(mocks.vibeApi.ensureEncoding).toHaveBeenCalledTimes(1));
     await user.type(screen.getByLabelText("Positive prompt"), "1girl");
-    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
     expect(mocks.desktopApi.pickAndImportImageResources).toHaveBeenCalledWith("control_net_image", {
@@ -948,8 +1124,9 @@ describe("GeneratePage queue and preview behavior", () => {
     const { user } = setup();
 
     await user.type(await screen.findByLabelText("Positive prompt"), "@chunk(hero)");
+    await user.click(screen.getByRole("tab", { name: "Undesired Content" }));
     await user.type(screen.getByLabelText("Undesired content"), "bad anatomy");
-    await user.click(screen.getByRole("button", { name: "Compile prompt preview" }));
+    await user.click(screen.getByRole("button", { name: "Compile" }));
 
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
     expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith({
@@ -968,7 +1145,7 @@ describe("GeneratePage queue and preview behavior", () => {
 
     await user.type(await screen.findByLabelText("Positive prompt"), "cine");
     await user.click(await screen.findByRole("option", { name: /cinematic_lighting/u }));
-    await user.click(screen.getByRole("button", { name: "Queue generation" }));
+    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
     expect(mocks.generationApi.submitBatch.mock.calls[0]?.[0].jobs[0]?.work).toMatchObject({
@@ -983,11 +1160,13 @@ describe("GeneratePage queue and preview behavior", () => {
   it("uses Ctrl+Space to insert a prompt chunk into undesired content before compile", async () => {
     const { user } = setup();
 
-    await user.click(await screen.findByLabelText("Undesired content"));
+    await user.click(await screen.findByRole("tab", { name: "Undesired Content" }));
+    await user.click(screen.getByLabelText("Undesired content"));
     await user.keyboard("{Control>} {/Control}");
     await user.click(await screen.findByRole("option", { name: /lighting/u }));
+    await user.click(screen.getByRole("tab", { name: "Positive" }));
     await user.type(screen.getByLabelText("Positive prompt"), "1girl");
-    await user.click(screen.getByRole("button", { name: "Compile prompt preview" }));
+    await user.click(screen.getByRole("button", { name: "Compile" }));
 
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
     expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith(
@@ -1009,7 +1188,7 @@ describe("GeneratePage queue and preview behavior", () => {
     await screen.findByRole("option", { name: /lighting/u });
     await user.keyboard("{Tab}");
     await user.type(screen.getByLabelText("Positive prompt"), "1girl");
-    await user.click(screen.getByRole("button", { name: "Compile prompt preview" }));
+    await user.click(screen.getByRole("button", { name: "Compile" }));
 
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
     expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith(
@@ -1018,7 +1197,7 @@ describe("GeneratePage queue and preview behavior", () => {
           {
             preset_id: null,
             prompt: "cinematic_lighting,",
-            negative_prompt: "@chunk(lighting), ",
+            negative_prompt: "@chunk(lighting),",
             enabled: true,
           },
         ],

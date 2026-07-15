@@ -19,7 +19,7 @@ use crate::error::{DatabaseError, DatabaseResult};
 mod payload;
 mod plan;
 mod prompt;
-mod scalars;
+pub mod scalars;
 mod work;
 
 pub use payload::{PreparedGenerationPayloadDto, SubmittedGenerationPayloadDto};

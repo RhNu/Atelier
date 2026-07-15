@@ -1,202 +1,181 @@
-import { useCallback } from "react";
+/* eslint-disable react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
+import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 
-import { AppPanel } from "../../../components/ui";
 import type { GenerationDraft } from "../model/generation-draft";
-import {
-  generationImageFormatOptions,
-  generationModelOptions,
-  generationNoiseScheduleOptions,
-  generationSamplerOptions,
-  generationUcPresetOptions,
-  toSelectOptions,
-} from "../model/generation-options";
-import { BooleanField, NumberField, SelectField, type SelectOption } from "./GenerationFormFields";
-import { useGenerationParamHandlers } from "./useGenerationParamHandlers";
+import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 
 type GenerationParamsPanelProps = {
   draft: GenerationDraft;
-  onPatch: (patch: Partial<GenerationDraft>) => void;
-  onPatchSize: (patch: Partial<GenerationDraft["size"]>) => void;
+  onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
+  onPatchSize: (
+    patch: Partial<GenerationDraft["size"]>,
+    options?: GenerationDraftPatchOptions,
+  ) => void;
+  onFlush: () => void;
 };
 
-const MODEL_OPTIONS = toSelectOptions(generationModelOptions);
-const SAMPLER_OPTIONS = toSelectOptions(generationSamplerOptions);
-const NOISE_SCHEDULE_OPTIONS = toSelectOptions(generationNoiseScheduleOptions);
-const UC_PRESET_OPTIONS = toSelectOptions(generationUcPresetOptions);
-const IMAGE_FORMAT_OPTIONS: ReadonlyArray<SelectOption> = [
-  { value: "default", label: "NovelAI default" },
-  ...toSelectOptions(generationImageFormatOptions),
-];
-const SEED_MODE_OPTIONS: ReadonlyArray<SelectOption> = [
-  { value: "random", label: "Random" },
-  { value: "fixed", label: "Fixed" },
-];
-const SIZE_PRESETS: ReadonlyArray<{ label: string; width: number; height: number }> = [
-  { label: "Portrait", width: 832, height: 1216 },
-  { label: "Landscape", width: 1216, height: 832 },
-  { label: "Square", width: 1024, height: 1024 },
-  { label: "Large portrait", width: 1024, height: 1536 },
-  { label: "Large landscape", width: 1536, height: 1024 },
-  { label: "Small portrait", width: 512, height: 768 },
-  { label: "Small landscape", width: 768, height: 512 },
-  { label: "Small square", width: 640, height: 640 },
+type SizePreset = {
+  value: string;
+  group: "Normal" | "Large" | "Small";
+  label: string;
+  width: number;
+  height: number;
+};
+
+const SIZE_PRESETS: ReadonlyArray<SizePreset> = [
+  { value: "normal-portrait", group: "Normal", label: "Portrait", width: 832, height: 1216 },
+  { value: "normal-landscape", group: "Normal", label: "Landscape", width: 1216, height: 832 },
+  { value: "normal-square", group: "Normal", label: "Square", width: 1024, height: 1024 },
+  { value: "large-portrait", group: "Large", label: "Portrait", width: 1024, height: 1536 },
+  { value: "large-landscape", group: "Large", label: "Landscape", width: 1536, height: 1024 },
+  { value: "small-portrait", group: "Small", label: "Portrait", width: 512, height: 768 },
+  { value: "small-landscape", group: "Small", label: "Landscape", width: 768, height: 512 },
+  { value: "small-square", group: "Small", label: "Square", width: 640, height: 640 },
 ];
 
-export function GenerationParamsPanel({ draft, onPatch, onPatchSize }: GenerationParamsPanelProps) {
-  const handlers = useGenerationParamHandlers({ onPatch, onPatchSize });
+export function GenerationParamsPanel({
+  draft,
+  onPatch,
+  onPatchSize,
+  onFlush,
+}: GenerationParamsPanelProps) {
+  const matchedPreset = useMemo(
+    () =>
+      SIZE_PRESETS.find(
+        (preset) => preset.width === draft.size.width && preset.height === draft.size.height,
+      )?.value ?? "custom",
+    [draft.size.height, draft.size.width],
+  );
+  const [forceCustom, setForceCustom] = useState(false);
+  const selectedPreset = forceCustom ? "custom" : matchedPreset;
+
+  const handlePresetChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const preset = SIZE_PRESETS.find((item) => item.value === event.target.value);
+      if (!preset) {
+        setForceCustom(true);
+        return;
+      }
+      setForceCustom(false);
+      onPatchSize({ width: preset.width, height: preset.height }, { persist: "immediate" });
+    },
+    [onPatchSize],
+  );
 
   return (
-    <AppPanel className="min-h-0 overflow-hidden">
-      <header className="border-b border-app-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">Generation Parameters</h2>
+    <section className="space-y-4 border-b border-app-border p-4">
+      <header>
+        <h2 className="text-xs font-bold text-app-muted uppercase">Image settings</h2>
       </header>
-      <div className="grid gap-3 p-3">
-        <SelectField
-          label="Model"
-          value={draft.model}
-          options={MODEL_OPTIONS}
-          onChange={handlers.handleModelChange}
-        />
-        <div className="grid grid-cols-2 gap-2">
-          {SIZE_PRESETS.map((preset) => (
-            <SizePresetButton key={preset.label} preset={preset} onPatchSize={onPatchSize} />
+
+      <div className="flex gap-2">
+        <select
+          aria-label="Size preset"
+          value={selectedPreset}
+          onChange={handlePresetChange}
+          className="h-9 min-w-0 flex-1 border border-app-border bg-app-surface px-3 text-sm text-app-text outline-none focus:border-brand-400"
+        >
+          {["Normal", "Large", "Small"].map((group) => (
+            <optgroup key={group} label={group}>
+              {SIZE_PRESETS.filter((preset) => preset.group === group).map((preset) => (
+                <option key={preset.value} value={preset.value}>
+                  {preset.label} ({preset.width}×{preset.height})
+                </option>
+              ))}
+            </optgroup>
           ))}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField
-            label="Width"
+          <optgroup label="Custom">
+            <option value="custom">Custom</option>
+          </optgroup>
+        </select>
+        <div className="flex min-w-0 flex-1 items-center border border-app-border bg-black/20 px-2">
+          <input
+            aria-label="Width"
+            type="number"
+            min={64}
+            max={1600}
+            step={64}
             value={draft.size.width}
-            min={64}
-            step={64}
-            onChange={handlers.handleWidthChange}
+            className="min-w-0 flex-1 bg-transparent text-center text-sm outline-none"
+            onChange={(event) => {
+              setForceCustom(true);
+              onPatchSize({ width: Number(event.target.value) });
+            }}
+            onBlur={onFlush}
           />
-          <NumberField
-            label="Height"
+          <span className="text-app-muted">×</span>
+          <input
+            aria-label="Height"
+            type="number"
+            min={64}
+            max={1600}
+            step={64}
             value={draft.size.height}
-            min={64}
-            step={64}
-            onChange={handlers.handleHeightChange}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField
-            label="Steps"
-            value={draft.steps}
-            min={1}
-            max={50}
-            onChange={handlers.handleStepsChange}
-          />
-          <NumberField
-            label="Scale"
-            value={draft.scale}
-            min={0}
-            max={10}
-            step={0.1}
-            onChange={handlers.handleScaleChange}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <SelectField
-            label="Seed mode"
-            value={draft.seedMode}
-            options={SEED_MODE_OPTIONS}
-            onChange={handlers.handleSeedModeChange}
-          />
-          <NumberField label="Seed" value={draft.seed} onChange={handlers.handleSeedChange} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField
-            label="Samples"
-            value={draft.nSamples}
-            min={1}
-            max={4}
-            onChange={handlers.handleSamplesChange}
-          />
-          <NumberField
-            label="Requests"
-            value={draft.requestCount}
-            min={1}
-            max={8}
-            onChange={handlers.handleRequestCountChange}
-          />
-        </div>
-        <SelectField
-          label="Sampler"
-          value={draft.sampler}
-          options={SAMPLER_OPTIONS}
-          onChange={handlers.handleSamplerChange}
-        />
-        <SelectField
-          label="Noise schedule"
-          value={draft.noiseSchedule}
-          options={NOISE_SCHEDULE_OPTIONS}
-          onChange={handlers.handleNoiseScheduleChange}
-        />
-        <SelectField
-          label="UC preset"
-          value={draft.ucPreset}
-          options={UC_PRESET_OPTIONS}
-          onChange={handlers.handleUcPresetChange}
-        />
-        <SelectField
-          label="Output format"
-          value={draft.imageFormat ?? "default"}
-          options={IMAGE_FORMAT_OPTIONS}
-          onChange={handlers.handleImageFormatChange}
-        />
-        <NumberField
-          label="CFG rescale"
-          value={draft.cfgRescale}
-          min={0}
-          max={1}
-          step={0.01}
-          onChange={handlers.handleCfgRescaleChange}
-        />
-        <div className="grid grid-cols-2 gap-2 text-sm text-app-text">
-          <BooleanField
-            label="Quality tags"
-            checked={draft.quality}
-            onChange={handlers.handleQualityChange}
-          />
-          <BooleanField
-            label="Variety boost"
-            checked={draft.varietyBoost}
-            onChange={handlers.handleVarietyBoostChange}
-          />
-          <BooleanField
-            label="Strict mode"
-            checked={draft.strictMode}
-            onChange={handlers.handleStrictModeChange}
-          />
-          <BooleanField
-            label="Streaming preview"
-            checked={draft.streamEnabled}
-            onChange={handlers.handleStreamEnabledChange}
+            className="min-w-0 flex-1 bg-transparent text-center text-sm outline-none"
+            onChange={(event) => {
+              setForceCustom(true);
+              onPatchSize({ height: Number(event.target.value) });
+            }}
+            onBlur={onFlush}
           />
         </div>
       </div>
-    </AppPanel>
+
+      <CountSelector
+        label="Requests"
+        value={draft.requestCount}
+        values={[1, 2, 3, 4, 5, 6, 7, 8]}
+        onChange={(requestCount) => onPatch({ requestCount }, { persist: "immediate" })}
+      />
+      <CountSelector
+        label="Samples per request"
+        value={draft.nSamples}
+        values={[1, 2, 3, 4]}
+        onChange={(nSamples) => onPatch({ nSamples }, { persist: "immediate" })}
+      />
+    </section>
   );
 }
 
-function SizePresetButton({
-  preset,
-  onPatchSize,
+function CountSelector({
+  label,
+  value,
+  values,
+  onChange,
 }: {
-  preset: { label: string; width: number; height: number };
-  onPatchSize: (patch: Partial<GenerationDraft["size"]>) => void;
+  label: string;
+  value: number;
+  values: ReadonlyArray<number>;
+  onChange: (value: number) => void;
 }) {
-  const handleClick = useCallback(() => {
-    onPatchSize({ width: preset.width, height: preset.height });
-  }, [onPatchSize, preset.height, preset.width]);
-
   return (
-    <button
-      type="button"
-      className="border border-app-border bg-app-surface/70 px-2 py-1 text-left text-xs text-app-text hover:border-brand-400"
-      onClick={handleClick}
-    >
-      {preset.label}
-    </button>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-semibold text-app-muted uppercase">{label}</span>
+        <span className="font-semibold text-app-text">{value}</span>
+      </div>
+      <div
+        className="grid overflow-hidden border border-app-border bg-black/20"
+        style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}
+      >
+        {values.map((item) => (
+          <button
+            key={item}
+            type="button"
+            aria-label={`${label} ${item}`}
+            aria-pressed={value === item}
+            className={[
+              "h-9 border-r border-app-border text-sm font-semibold last:border-r-0",
+              value === item
+                ? "bg-brand-500/20 text-brand-100"
+                : "text-app-muted hover:bg-app-surface hover:text-app-text",
+            ].join(" ")}
+            onClick={() => onChange(item)}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -69,6 +69,7 @@ vi.mock("../platform/atelier", () => ({
 const defaultSettings: GlobalSettingsDto = {
   last_workspace: "D:/atelier",
   frontend: {
+    developer_mode: false,
     gallery: {
       blur_sensitive_images: false,
     },

@@ -1,7 +1,9 @@
 export { AppButton } from "./AppButton";
+export { AppHelpMarker } from "./AppHelpMarker";
 export { AppIconButton } from "./AppIconButton";
 export { AppModal } from "./AppModal";
 export { AppPanel } from "./AppPanel";
+export { AppRangeField } from "./AppRangeField";
 export { AppSelect } from "./AppSelect";
 export { AppTabs } from "./AppTabs";
 export { AppToastHost } from "./AppToastHost";

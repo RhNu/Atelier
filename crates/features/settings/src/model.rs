@@ -114,6 +114,7 @@ pub struct GlobalSettings {
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct GlobalFrontendSettings {
+    pub developer_mode: bool,
     pub gallery: GlobalGallerySettings,
 }
 

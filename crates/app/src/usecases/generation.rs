@@ -20,7 +20,6 @@ use super::{
     sampler_to_domain, stream_mode_to_domain, sync_generation_history_from_queue_snapshot,
     uc_preset_to_domain, upsert_generation_history_record, visual_asset_role_as_str,
 };
-
 pub struct GenerationUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }

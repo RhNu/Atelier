@@ -31,6 +31,7 @@ import type { GenerationDraft } from "../model/generation-draft";
 import {
   buildGenerationEstimateCacheKey,
   buildGenerationEstimateRequest,
+  generationDraftToDto,
 } from "../model/generation-draft";
 
 type PickImageResourcesRequest = {
@@ -46,7 +47,6 @@ type EnsureVibeEncodingFromResourceRequest = {
 
 export type EnsuredVibeEncodingFromResource = {
   encoding: ResourceRefDto;
-  displayName: string;
   sourceSha256: string;
 };
 
@@ -57,12 +57,47 @@ export function useGenerationSettingsQuery() {
   });
 }
 
+export function useGenerationDraftQuery() {
+  return useQuery({
+    queryKey: queryKeys.generation.draft(),
+    queryFn: () => generationApi.getDraft(),
+    retry: false,
+  });
+}
+
+export function useSaveGenerationDraftMutation() {
+  return useMutation({
+    mutationFn: (draft: GenerationDraft) =>
+      generationApi.saveDraft({ draft: generationDraftToDto(draft) }),
+  });
+}
+
+export function useClearGenerationDraftMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => generationApi.clearDraft(),
+    onSuccess: () => {
+      queryClient.setQueryData(queryKeys.generation.draft(), null);
+    },
+  });
+}
+
 export function useCachedActiveSubscriptionQuery() {
   return useQuery({
     queryKey: queryKeys.account.activeProbe(),
     queryFn: () => accountApi.cachedActiveSubscription(),
     retry: false,
     refetchOnWindowFocus: false,
+  });
+}
+
+export function useRefreshActiveSubscriptionMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => accountApi.probeActive(),
+    onSuccess: (subscription) => {
+      queryClient.setQueryData(queryKeys.account.activeProbe(), subscription);
+    },
   });
 }
 
@@ -112,7 +147,6 @@ export function useEnsureVibeEncodingFromResourceMutation() {
       });
       return {
         encoding: ensured.resource,
-        displayName: resource.id,
         sourceSha256,
       };
     },
@@ -231,10 +265,11 @@ export function useReleaseImportedImagesMutation() {
   });
 }
 
-export function useVibeDocumentsQuery(query: ListVibeDocumentsRequestDto) {
+export function useVibeDocumentsQuery(query: ListVibeDocumentsRequestDto, enabled = true) {
   return useQuery({
     queryKey: queryKeys.vibe.list(query),
     queryFn: () => vibeApi.listDocuments(query),
+    enabled,
   });
 }
 

@@ -34,6 +34,7 @@ pub const fn global_frontend_settings_to_domain(
     value: GlobalFrontendSettingsDto,
 ) -> GlobalFrontendSettings {
     GlobalFrontendSettings {
+        developer_mode: value.developer_mode,
         gallery: GlobalGallerySettings {
             blur_sensitive_images: value.gallery.blur_sensitive_images,
         },
@@ -44,6 +45,7 @@ const fn global_frontend_settings_to_dto(
     value: GlobalFrontendSettings,
 ) -> GlobalFrontendSettingsDto {
     GlobalFrontendSettingsDto {
+        developer_mode: value.developer_mode,
         gallery: GlobalGallerySettingsDto {
             blur_sensitive_images: value.gallery.blur_sensitive_images,
         },

@@ -729,6 +729,7 @@ name = "atelier-generation"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "atelier-resource-catalog",
  "futures-core",
  "thiserror 2.0.18",
 ]

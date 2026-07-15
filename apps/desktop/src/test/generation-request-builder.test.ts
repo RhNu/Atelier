@@ -2,6 +2,8 @@
 import {
   buildSubmitGenerationBatchRequest,
   createGenerationDraft,
+  generationDraftFromDto,
+  generationDraftToDto,
 } from "../features/generation/model/generation-draft";
 import type { WorkspaceSettingsDto } from "../types";
 
@@ -54,11 +56,47 @@ describe("generation request builder", () => {
       strictMode: false,
       streamEnabled: true,
       i2i: null,
-      vibe: { enabled: false, strength: 1, slots: [] },
+      vibe: { strength: 1, slots: [] },
       preciseReferences: [],
       characters: [],
       characterPositionMode: "global",
     });
+  });
+
+  it("derives Vibe activation from slots and Precise Reference precedence", () => {
+    const draft = createGenerationDraft(settings);
+    draft.vibe.slots.push({
+      id: "slot-a",
+      encoding: { id: "vibe-encoding", variant_id: null },
+      vibeId: null,
+      informationExtracted: 0.7,
+      strength: 0.5,
+      displayName: "Style",
+      sourceImage: null,
+      sourceSha256: null,
+    });
+
+    const dto = generationDraftToDto(draft);
+    expect(dto.vibe.enabled).toBe(true);
+    dto.vibe.enabled = false;
+    const restored = generationDraftFromDto(dto);
+    const restoredRequest = buildSubmitGenerationBatchRequest(restored, {
+      batchId: "batch-vibe",
+      jobIds: ["job-vibe"],
+    });
+    expect(restoredRequest.jobs[0]?.work).toMatchObject({
+      request: { base: { controlnet: { images: [{ encoding: { id: "vibe-encoding" } }] } } },
+    });
+
+    draft.preciseReferences.push({
+      id: "ref-a",
+      image: { id: "reference-image", variant_id: null },
+      referenceType: "character",
+      fidelity: 0.5,
+      strength: 0.6,
+      displayName: "Reference 1",
+    });
+    expect(generationDraftToDto(draft).vibe.enabled).toBe(false);
   });
 
   it("builds a stream generation batch and keeps fixed seed stable across jobs", () => {
@@ -137,7 +175,6 @@ describe("generation request builder", () => {
         noise: 0.12,
       },
       vibe: {
-        enabled: true,
         strength: 0.9,
         slots: [
           {
@@ -158,7 +195,7 @@ describe("generation request builder", () => {
           prompt: "hero",
           negativePrompt: "flat",
           enabled: true,
-          position: { x: 0.2, y: 0.8 },
+          position: { x: 0.5, y: 0.5 },
         },
       ],
       characterPositionMode: "manual" as const,
@@ -194,10 +231,10 @@ describe("generation request builder", () => {
           prompt: "hero",
           negative_prompt: "flat",
           enabled: true,
-          position: { x: 0.2, y: 0.8 },
+          position: { x: 0.5, y: 0.5 },
         },
       ],
-      use_coords: true,
+      use_coords: null,
     });
   });
 
@@ -278,7 +315,6 @@ describe("generation request builder", () => {
       ...createGenerationDraft(settings),
       prompt: "1girl",
       vibe: {
-        enabled: true,
         strength: 1,
         slots: [
           {

@@ -1,5 +1,5 @@
-/* eslint-disable jsx-a11y/prefer-tag-over-role */
-import { useId } from "react";
+/* eslint-disable jsx-a11y/prefer-tag-over-role, react-perf/jsx-no-new-function-as-prop */
+import { forwardRef, useId, type FocusEventHandler, type KeyboardEventHandler } from "react";
 
 import { CompletionList } from "./completion-list";
 import { usePromptCompletionController } from "./use-prompt-completion";
@@ -10,15 +10,17 @@ type PromptCompletionTextareaProps = {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  onBlur?: FocusEventHandler<HTMLTextAreaElement>;
+  onKeyDown?: KeyboardEventHandler<HTMLTextAreaElement>;
 };
 
-export function PromptCompletionTextarea({
-  id,
-  "aria-label": ariaLabel,
-  value,
-  onChange,
-  className,
-}: PromptCompletionTextareaProps) {
+export const PromptCompletionTextarea = forwardRef<
+  HTMLTextAreaElement,
+  PromptCompletionTextareaProps
+>(function PromptCompletionTextarea(
+  { id, "aria-label": ariaLabel, value, onChange, className, onBlur, onKeyDown },
+  forwardedRef,
+) {
   const fallbackListboxId = useId();
   const listboxId = `${id ?? fallbackListboxId}-prompt-completions`;
   const completion = usePromptCompletionController({ value, onChange });
@@ -31,7 +33,14 @@ export function PromptCompletionTextarea({
     <div className="relative">
       <textarea
         id={id}
-        ref={completion.textareaRef}
+        ref={(node) => {
+          completion.textareaRef.current = node;
+          if (typeof forwardedRef === "function") {
+            forwardedRef(node);
+          } else if (forwardedRef) {
+            forwardedRef.current = node;
+          }
+        }}
         role="combobox"
         aria-label={ariaLabel}
         aria-autocomplete="list"
@@ -41,9 +50,17 @@ export function PromptCompletionTextarea({
         aria-activedescendant={activeOptionId}
         value={value}
         onChange={completion.handleChange}
-        onKeyDown={completion.handleKeyDown}
+        onKeyDown={(event) => {
+          completion.handleKeyDown(event);
+          if (!event.defaultPrevented) {
+            onKeyDown?.(event);
+          }
+        }}
         onClick={completion.handleClick}
-        onBlur={completion.handleBlur}
+        onBlur={(event) => {
+          completion.handleBlur(event);
+          onBlur?.(event);
+        }}
         className={["w-full", className ?? ""].join(" ")}
       />
       {completion.open ? (
@@ -58,4 +75,4 @@ export function PromptCompletionTextarea({
       ) : null}
     </div>
   );
-}
+});

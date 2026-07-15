@@ -144,6 +144,110 @@ pub struct CharacterDto {
     pub enabled: bool,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationDraftSeedModeDto {
+    Random,
+    Fixed,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationDraftCharacterPositionModeDto {
+    Global,
+    Manual,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationDraftI2iDto {
+    pub image: ResourceRefDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mask: Option<ResourceRefDto>,
+    pub strength: f32,
+    pub noise: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationDraftVibeSlotDto {
+    pub id: String,
+    pub encoding: ResourceRefDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vibe_id: Option<String>,
+    pub information_extracted: f32,
+    pub strength: f32,
+    pub display_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_image: Option<ResourceRefDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_sha256: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationDraftVibeDto {
+    pub enabled: bool,
+    pub strength: f32,
+    pub slots: Vec<GenerationDraftVibeSlotDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationDraftPreciseReferenceDto {
+    pub id: String,
+    pub image: ResourceRefDto,
+    pub reference_type: CharacterReferenceTypeDto,
+    pub fidelity: f32,
+    pub strength: f32,
+    pub display_name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationDraftCharacterDto {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preset_id: Option<String>,
+    pub prompt: String,
+    pub negative_prompt: String,
+    pub enabled: bool,
+    pub position: CharacterPositionDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct GenerationDraftDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub main_preset_id: Option<String>,
+    pub prompt: String,
+    pub negative_prompt: String,
+    pub model: ImageModelDto,
+    pub size: ImageSizeDto,
+    pub quality: bool,
+    pub uc_preset: UcPresetDto,
+    pub steps: u32,
+    pub scale: f32,
+    pub sampler: SamplerDto,
+    pub noise_schedule: NoiseScheduleDto,
+    pub seed_mode: GenerationDraftSeedModeDto,
+    pub seed: i64,
+    pub n_samples: u32,
+    pub request_count: u32,
+    pub cfg_rescale: f32,
+    pub variety_boost: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_format: Option<ImageFormatDto>,
+    pub strict_mode: bool,
+    pub stream_enabled: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub i2i: Option<GenerationDraftI2iDto>,
+    pub vibe: GenerationDraftVibeDto,
+    pub precise_references: Vec<GenerationDraftPreciseReferenceDto>,
+    pub characters: Vec<GenerationDraftCharacterDto>,
+    pub character_position_mode: GenerationDraftCharacterPositionModeDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct SaveGenerationDraftRequestDto {
+    pub draft: GenerationDraftDto,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct GenerateImageRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1,21 +1,25 @@
-/* eslint-disable react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises */
-import { Plus, Trash2 } from "lucide-react";
+/* eslint-disable react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises */
+import { Download, ImagePlus, Library, Trash2, Upload } from "lucide-react";
+import { useState } from "react";
 
-import { AppButton } from "../../../components/ui";
+import { AppIconButton, AppRangeField } from "../../../components/ui";
 import type { ResourceRefDto, VibeDocumentEntryDto } from "../../../types";
 import type { GenerationDraft } from "../model/generation-draft";
+import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import { createLocalId } from "./advanced-generation-model";
-import { BooleanField, NumberField, SelectField } from "./GenerationFormFields";
-import { GuidancePanelTitle } from "./GuidancePanelTitle";
+import { GenerationResourceThumbnail } from "./GenerationResourceThumbnail";
+import {
+  GuidanceDeveloperMetadata,
+  GuidanceSection,
+  GuidanceSettingsDisclosure,
+} from "./GuidanceSection";
 import { findVibeEncodingForModel } from "./vibe-guidance-model";
+import { VibeLibraryDialog } from "./VibeLibraryDialog";
 
 export function VibeGuidanceSection({
   draft,
   onPatch,
-  updateVibe,
-  vibeDocuments,
-  vibePending,
-  vibeError,
+  onFlush,
   vibeImportPending,
   vibeExportPending,
   vibeEnsurePending,
@@ -23,13 +27,11 @@ export function VibeGuidanceSection({
   onImportVibeDocuments,
   onExportVibeDocument,
   releaseImages,
+  developerMode,
 }: {
   draft: GenerationDraft;
-  onPatch: (patch: Partial<GenerationDraft>) => void;
-  updateVibe: (patch: Partial<GenerationDraft["vibe"]>) => void;
-  vibeDocuments: ReadonlyArray<VibeDocumentEntryDto>;
-  vibePending: boolean;
-  vibeError: string | null;
+  onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
+  onFlush: () => void;
   vibeImportPending: boolean;
   vibeExportPending: boolean;
   vibeEnsurePending: boolean;
@@ -37,102 +39,125 @@ export function VibeGuidanceSection({
   onImportVibeDocuments: () => void;
   onExportVibeDocument: (vibeId: string) => void;
   releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
+  developerMode: boolean;
 }) {
-  return (
-    <section className="grid gap-2">
-      <GuidancePanelTitle title="Vibe transfer" resource={draft.vibe.slots[0]?.encoding ?? null} />
-      <div className="flex flex-wrap gap-2">
-        <AppButton variant="secondary" onClick={pickVibeEncoding} disabled={vibeEnsurePending}>
-          <Plus aria-hidden="true" className="size-4" />
-          Add Vibe slot
-        </AppButton>
-        <AppButton variant="ghost" onClick={onImportVibeDocuments} disabled={vibeImportPending}>
-          <Plus aria-hidden="true" className="size-4" />
-          Import Vibe file
-        </AppButton>
-        <AppButton
-          variant="ghost"
-          onClick={() => {
-            const resources = draft.vibe.slots.map((slot) => slot.sourceImage);
-            updateVibe({ slots: [], enabled: false });
-            void releaseImages(resources);
-          }}
-          disabled={draft.vibe.slots.length === 0}
-        >
-          <Trash2 aria-hidden="true" className="size-4" />
-          Clear stack
-        </AppButton>
-      </div>
-      <BooleanField
-        label="Enable Vibe transfer"
-        checked={draft.vibe.enabled}
-        onChange={(enabled) => updateVibe({ enabled })}
-      />
-      <NumberField
-        label="Vibe strength"
-        value={draft.vibe.strength}
-        min={0}
-        max={1}
-        step={0.01}
-        onChange={(strength) => updateVibe({ strength })}
-      />
-      {vibeError ? <p className="text-xs text-rose-100">{vibeError}</p> : null}
-      <SelectField
-        label="Vibe library"
-        value=""
-        options={[
-          {
-            value: "",
-            label: vibePending ? "Loading Vibes" : "Choose imported Vibe",
-          },
-          ...vibeDocuments
-            .filter((entry) => findVibeEncodingForModel(entry, draft.model) !== null)
-            .map((entry) => ({
-              value: entry.vibe_id,
-              label: entry.display_name,
-            })),
-        ]}
-        onChange={(vibeId) => {
-          const entry = vibeDocuments.find((item) => item.vibe_id === vibeId);
-          const selected = entry ? findVibeEncodingForModel(entry, draft.model) : null;
-          if (!entry || !selected) {
-            return;
-          }
-          onPatch({
-            vibe: {
-              ...draft.vibe,
-              enabled: true,
-              slots: [
-                ...draft.vibe.slots,
-                {
-                  id: createLocalId("vibe"),
-                  encoding: selected.encoding,
-                  vibeId: entry.vibe_id,
-                  informationExtracted: selected.config.information_extracted,
-                  strength: 1,
-                  displayName: entry.display_name,
-                  sourceImage: entry.source_image,
-                  sourceSha256: null,
-                },
-              ],
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const slots = draft.vibe.slots;
+
+  function updateVibe(patch: Partial<GenerationDraft["vibe"]>) {
+    onPatch({ vibe: { ...draft.vibe, ...patch } });
+  }
+
+  function selectLibraryEntry(entry: VibeDocumentEntryDto) {
+    const selected = findVibeEncodingForModel(entry, draft.model);
+    if (!selected) {
+      return;
+    }
+    onPatch(
+      {
+        vibe: {
+          ...draft.vibe,
+          slots: [
+            ...slots,
+            {
+              id: createLocalId("vibe"),
+              encoding: selected.encoding,
+              vibeId: entry.vibe_id,
+              informationExtracted: selected.config.information_extracted,
+              strength: 1,
+              displayName: entry.display_name,
+              sourceImage: entry.source_image,
+              sourceSha256: null,
             },
-            preciseReferences: [],
-          });
-          void releaseImages(draft.preciseReferences.map((reference) => reference.image));
-        }}
+          ],
+        },
+        preciseReferences: [],
+      },
+      { persist: "immediate" },
+    );
+    void releaseImages(draft.preciseReferences.map((reference) => reference.image));
+  }
+
+  return (
+    <>
+      <GuidanceSection
+        title="Vibe transfer"
+        actions={
+          <>
+            <AppIconButton
+              icon={ImagePlus}
+              label="Add Vibe from image"
+              size="sm"
+              onClick={pickVibeEncoding}
+              disabled={vibeEnsurePending}
+            />
+            <AppIconButton
+              icon={Library}
+              label="Choose from Vibe library"
+              size="sm"
+              onClick={() => setLibraryOpen(true)}
+            />
+            <AppIconButton
+              icon={Upload}
+              label="Import Vibe file"
+              size="sm"
+              onClick={onImportVibeDocuments}
+              disabled={vibeImportPending}
+            />
+            {slots.length > 0 ? (
+              <AppIconButton
+                icon={Trash2}
+                label="Clear Vibe stack"
+                size="sm"
+                variant="danger"
+                onClick={() => {
+                  const resources = slots.map((slot) => slot.sourceImage);
+                  onPatch({ vibe: { ...draft.vibe, slots: [] } }, { persist: "immediate" });
+                  void releaseImages(resources);
+                }}
+              />
+            ) : null}
+          </>
+        }
+      >
+        {slots.length > 0 ? (
+          <>
+            <AppRangeField
+              label="Vibe strength"
+              value={draft.vibe.strength}
+              valueText={draft.vibe.strength.toFixed(1)}
+              min={0}
+              max={1}
+              step={0.1}
+              onChange={(strength) => updateVibe({ strength })}
+              onCommit={onFlush}
+            />
+            <div className="grid gap-2">
+              {slots.map((slot) => (
+                <VibeSlot
+                  key={slot.id}
+                  draft={draft}
+                  slot={slot}
+                  updateVibe={updateVibe}
+                  onFlush={onFlush}
+                  vibeExportPending={vibeExportPending}
+                  onExportVibeDocument={onExportVibeDocument}
+                  releaseImages={releaseImages}
+                  developerMode={developerMode}
+                />
+              ))}
+            </div>
+          </>
+        ) : null}
+      </GuidanceSection>
+
+      <VibeLibraryDialog
+        open={libraryOpen}
+        model={draft.model}
+        onClose={() => setLibraryOpen(false)}
+        onSelect={selectLibraryEntry}
       />
-      {draft.vibe.slots.map((slot) => (
-        <VibeSlot
-          key={slot.id}
-          draft={draft}
-          slot={slot}
-          updateVibe={updateVibe}
-          vibeExportPending={vibeExportPending}
-          onExportVibeDocument={onExportVibeDocument}
-          releaseImages={releaseImages}
-        />
-      ))}
-    </section>
+    </>
   );
 }
 
@@ -140,46 +165,57 @@ function VibeSlot({
   draft,
   slot,
   updateVibe,
+  onFlush,
   vibeExportPending,
   onExportVibeDocument,
   releaseImages,
+  developerMode,
 }: {
   draft: GenerationDraft;
   slot: GenerationDraft["vibe"]["slots"][number];
   updateVibe: (patch: Partial<GenerationDraft["vibe"]>) => void;
+  onFlush: () => void;
   vibeExportPending: boolean;
   onExportVibeDocument: (vibeId: string) => void;
   releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
+  developerMode: boolean;
 }) {
   return (
-    <div className="grid gap-2 border border-app-border bg-black/20 p-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-xs text-app-muted">{slot.displayName}</span>
-        <button
-          type="button"
-          aria-label={`Remove ${slot.displayName}`}
-          className="text-app-muted hover:text-rose-100"
+    <article className="grid gap-2 border border-app-border bg-app-bg/70 p-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <GenerationResourceThumbnail
+          resource={slot.sourceImage}
+          alt={slot.displayName}
+          className="size-12"
+        />
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-app-text">
+          {slot.displayName}
+        </span>
+        {slot.vibeId ? (
+          <AppIconButton
+            icon={Download}
+            label={`Export ${slot.displayName}`}
+            size="sm"
+            disabled={vibeExportPending}
+            onClick={() => slot.vibeId && onExportVibeDocument(slot.vibeId)}
+          />
+        ) : null}
+        <AppIconButton
+          icon={Trash2}
+          label={`Remove ${slot.displayName}`}
+          size="sm"
+          variant="danger"
           onClick={() => {
             updateVibe({ slots: draft.vibe.slots.filter((item) => item.id !== slot.id) });
             void releaseImages([slot.sourceImage]);
           }}
-        >
-          <Trash2 aria-hidden="true" className="size-4" />
-        </button>
+        />
       </div>
-      {slot.vibeId ? (
-        <AppButton
-          variant="ghost"
-          onClick={() => slot.vibeId && onExportVibeDocument(slot.vibeId)}
-          disabled={vibeExportPending}
-        >
-          Export Vibe
-        </AppButton>
-      ) : null}
-      <div className="grid grid-cols-2 gap-2">
-        <NumberField
+      <GuidanceSettingsDisclosure>
+        <AppRangeField
           label="Info extracted"
           value={slot.informationExtracted}
+          valueText={slot.informationExtracted.toFixed(2)}
           min={0.01}
           max={1}
           step={0.01}
@@ -190,10 +226,12 @@ function VibeSlot({
               ),
             })
           }
+          onCommit={onFlush}
         />
-        <NumberField
+        <AppRangeField
           label="Slot strength"
           value={slot.strength}
+          valueText={slot.strength.toFixed(2)}
           min={0}
           max={1}
           step={0.01}
@@ -204,8 +242,14 @@ function VibeSlot({
               ),
             })
           }
+          onCommit={onFlush}
         />
-      </div>
-    </div>
+        <GuidanceDeveloperMetadata
+          enabled={developerMode}
+          resource={slot.encoding}
+          vibeId={slot.vibeId}
+        />
+      </GuidanceSettingsDisclosure>
+    </article>
   );
 }

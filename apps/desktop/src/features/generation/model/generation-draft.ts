@@ -1,9 +1,11 @@
+/* eslint-disable max-lines */
 import type {
   CharacterReferenceTypeDto,
   CharacterDto,
   GenerateImageRequestDto,
   GenerationPlanContextDto,
   GenerationEstimateRequestDto,
+  GenerationDraftDto,
   GenerationWorkRequestDto,
   ImageFormatDto,
   ImageInputDto,
@@ -79,7 +81,6 @@ export type GenerationDraft = {
   streamEnabled: boolean;
   i2i: GenerationI2iDraft | null;
   vibe: {
-    enabled: boolean;
     strength: number;
     slots: GenerationVibeSlotDraft[];
   };
@@ -122,10 +123,164 @@ export function createGenerationDraft(settings: WorkspaceSettingsDto): Generatio
     strictMode: defaults.strict_mode,
     streamEnabled: true,
     i2i: null,
-    vibe: { enabled: false, strength: 1, slots: [] },
+    vibe: { strength: 1, slots: [] },
     preciseReferences: [],
     characters: [],
     characterPositionMode: "global",
+  };
+}
+
+export function generationDraftFromDto(value: GenerationDraftDto): GenerationDraft {
+  return {
+    mainPresetId: value.main_preset_id ?? null,
+    prompt: value.prompt,
+    negativePrompt: value.negative_prompt,
+    model: value.model,
+    size: { ...value.size },
+    quality: value.quality,
+    ucPreset: value.uc_preset,
+    steps: value.steps,
+    scale: value.scale,
+    sampler: value.sampler,
+    noiseSchedule: value.noise_schedule,
+    seedMode: value.seed_mode,
+    seed: value.seed,
+    nSamples: value.n_samples,
+    requestCount: value.request_count,
+    cfgRescale: value.cfg_rescale,
+    varietyBoost: value.variety_boost,
+    imageFormat: value.image_format ?? null,
+    strictMode: value.strict_mode,
+    streamEnabled: value.stream_enabled,
+    i2i: value.i2i
+      ? {
+          image: value.i2i.image,
+          mask: value.i2i.mask ?? null,
+          strength: value.i2i.strength,
+          noise: value.i2i.noise,
+        }
+      : null,
+    vibe: {
+      strength: value.vibe.strength,
+      slots: value.vibe.slots.map((slot) => ({
+        id: slot.id,
+        encoding: slot.encoding,
+        vibeId: slot.vibe_id ?? null,
+        informationExtracted: slot.information_extracted,
+        strength: slot.strength,
+        displayName: slot.display_name,
+        sourceImage: slot.source_image ?? null,
+        sourceSha256: slot.source_sha256 ?? null,
+      })),
+    },
+    preciseReferences: value.precise_references.map((reference) => ({
+      id: reference.id,
+      image: reference.image,
+      referenceType: reference.reference_type,
+      fidelity: reference.fidelity,
+      strength: reference.strength,
+      displayName: reference.display_name,
+    })),
+    characters: value.characters.map((character) => ({
+      id: character.id,
+      presetId: character.preset_id ?? null,
+      prompt: character.prompt,
+      negativePrompt: character.negative_prompt,
+      enabled: character.enabled,
+      position: { ...character.position },
+    })),
+    characterPositionMode: value.character_position_mode,
+  };
+}
+
+export function generationDraftToDto(value: GenerationDraft): GenerationDraftDto {
+  return {
+    main_preset_id: value.mainPresetId,
+    prompt: value.prompt,
+    negative_prompt: value.negativePrompt,
+    model: value.model,
+    size: { ...value.size },
+    quality: value.quality,
+    uc_preset: value.ucPreset,
+    steps: value.steps,
+    scale: value.scale,
+    sampler: value.sampler,
+    noise_schedule: value.noiseSchedule,
+    seed_mode: value.seedMode,
+    seed: value.seed,
+    n_samples: value.nSamples,
+    request_count: value.requestCount,
+    cfg_rescale: value.cfgRescale,
+    variety_boost: value.varietyBoost,
+    image_format: value.imageFormat,
+    strict_mode: value.strictMode,
+    stream_enabled: value.streamEnabled,
+    i2i: value.i2i
+      ? {
+          image: value.i2i.image,
+          mask: value.i2i.mask,
+          strength: value.i2i.strength,
+          noise: value.i2i.noise,
+        }
+      : null,
+    vibe: {
+      enabled: isVibeActive(value),
+      strength: value.vibe.strength,
+      slots: value.vibe.slots.map((slot) => ({
+        id: slot.id,
+        encoding: slot.encoding,
+        vibe_id: slot.vibeId ?? null,
+        information_extracted: slot.informationExtracted,
+        strength: slot.strength,
+        display_name: slot.displayName,
+        source_image: slot.sourceImage,
+        source_sha256: slot.sourceSha256,
+      })),
+    },
+    precise_references: value.preciseReferences.map((reference) => ({
+      id: reference.id,
+      image: reference.image,
+      reference_type: reference.referenceType,
+      fidelity: reference.fidelity,
+      strength: reference.strength,
+      display_name: reference.displayName,
+    })),
+    characters: value.characters.map((character) => ({
+      id: character.id,
+      preset_id: character.presetId,
+      prompt: character.prompt,
+      negative_prompt: character.negativePrompt,
+      enabled: character.enabled,
+      position: { ...character.position },
+    })),
+    character_position_mode: value.characterPositionMode,
+  };
+}
+
+export function resetGenerationParameters(
+  draft: GenerationDraft,
+  settings: WorkspaceSettingsDto,
+): GenerationDraft {
+  const reset = createGenerationDraft(settings);
+  return {
+    ...draft,
+    model: reset.model,
+    size: reset.size,
+    quality: reset.quality,
+    ucPreset: reset.ucPreset,
+    steps: reset.steps,
+    scale: reset.scale,
+    sampler: reset.sampler,
+    noiseSchedule: reset.noiseSchedule,
+    seedMode: reset.seedMode,
+    seed: reset.seed,
+    nSamples: reset.nSamples,
+    requestCount: reset.requestCount,
+    cfgRescale: reset.cfgRescale,
+    varietyBoost: reset.varietyBoost,
+    imageFormat: reset.imageFormat,
+    strictMode: reset.strictMode,
+    streamEnabled: reset.streamEnabled,
   };
 }
 
@@ -251,34 +406,35 @@ function buildBaseGenerateRequest(draft: GenerationDraft): GenerateImageRequestD
     controlnet: preciseReferences ? null : buildControlNet(draft),
     character_references: preciseReferences,
     characters,
-    use_coords: characters ? draft.characterPositionMode === "manual" : null,
+    use_coords:
+      characters && characters.length >= 2 ? draft.characterPositionMode === "manual" : null,
     image_format: draft.imageFormat,
   };
 }
 
 function buildCharacters(draft: GenerationDraft): CharacterDto[] | null {
-  const characters = draft.characters
-    .filter(
-      (character) =>
-        character.enabled && (character.prompt.trim().length > 0 || Boolean(character.presetId)),
-    )
-    .map((character) => ({
-      preset_id: character.presetId,
-      prompt: character.prompt,
-      negative_prompt: normalizeOptionalText(character.negativePrompt),
-      position:
-        draft.characterPositionMode === "manual" ? { ...character.position } : { x: 0.5, y: 0.5 },
-      enabled: true,
-    }));
+  const eligibleCharacters = draft.characters.filter(
+    (character) =>
+      character.enabled && (character.prompt.trim().length > 0 || Boolean(character.presetId)),
+  );
+  const useManualPositions =
+    eligibleCharacters.length >= 2 && draft.characterPositionMode === "manual";
+  const characters = eligibleCharacters.map((character) => ({
+    preset_id: character.presetId,
+    prompt: character.prompt,
+    negative_prompt: normalizeOptionalText(character.negativePrompt),
+    position: useManualPositions ? { ...character.position } : { x: 0.5, y: 0.5 },
+    enabled: true,
+  }));
   return characters.length ? characters : null;
 }
 
 function buildPendingVibeEncodeCount(draft: GenerationDraft): number {
-  return draft.vibe.enabled ? draft.vibe.slots.filter((slot) => !slot.encoding).length : 0;
+  return isVibeActive(draft) ? draft.vibe.slots.filter((slot) => !slot.encoding).length : 0;
 }
 
 function buildControlNet(draft: GenerationDraft): GenerateImageRequestDto["controlnet"] {
-  const images = draft.vibe.enabled
+  const images = isVibeActive(draft)
     ? draft.vibe.slots
         .filter((slot) => Boolean(slot.encoding))
         .map((slot) => ({
@@ -289,6 +445,10 @@ function buildControlNet(draft: GenerationDraft): GenerateImageRequestDto["contr
     : [];
 
   return images.length ? { images, strength: draft.vibe.strength } : null;
+}
+
+export function isVibeActive(draft: GenerationDraft): boolean {
+  return draft.preciseReferences.length === 0 && draft.vibe.slots.length > 0;
 }
 
 function buildPreciseReferences(

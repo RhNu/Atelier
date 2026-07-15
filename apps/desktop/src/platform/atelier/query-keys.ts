@@ -40,6 +40,7 @@ export const queryKeys = {
   },
   generation: {
     root: () => ["workspace", "generation"] as const,
+    draft: () => ["workspace", "generation", "draft"] as const,
     status: (jobId?: string | null) =>
       ["workspace", "generation", "status", jobId ?? null] as const,
     estimate: (request: unknown) => ["workspace", "generation", "estimate", request] as const,

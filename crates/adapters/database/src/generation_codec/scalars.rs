@@ -3,11 +3,11 @@ use super::{
     StreamMode, UcPreset, decode_error,
 };
 
-pub(super) const fn image_model_as_str(value: ImageModel) -> &'static str {
+pub const fn image_model_as_str(value: ImageModel) -> &'static str {
     value.as_str()
 }
 
-pub(super) fn image_model_from_str(value: &str) -> DatabaseResult<ImageModel> {
+pub fn image_model_from_str(value: &str) -> DatabaseResult<ImageModel> {
     match value {
         "nai-diffusion-4-5-full" => Ok(ImageModel::NaiDiffusion45Full),
         "nai-diffusion-4-5-curated" => Ok(ImageModel::NaiDiffusion45Curated),
@@ -19,7 +19,7 @@ pub(super) fn image_model_from_str(value: &str) -> DatabaseResult<ImageModel> {
     }
 }
 
-pub(super) const fn sampler_as_str(value: Sampler) -> &'static str {
+pub const fn sampler_as_str(value: Sampler) -> &'static str {
     match value {
         Sampler::KEuler => "k_euler",
         Sampler::KEulerAncestral => "k_euler_ancestral",
@@ -32,7 +32,7 @@ pub(super) const fn sampler_as_str(value: Sampler) -> &'static str {
     }
 }
 
-pub(super) fn sampler_from_str(value: &str) -> DatabaseResult<Sampler> {
+pub fn sampler_from_str(value: &str) -> DatabaseResult<Sampler> {
     match value {
         "k_euler" => Ok(Sampler::KEuler),
         "k_euler_ancestral" => Ok(Sampler::KEulerAncestral),
@@ -46,7 +46,7 @@ pub(super) fn sampler_from_str(value: &str) -> DatabaseResult<Sampler> {
     }
 }
 
-pub(super) const fn noise_schedule_as_str(value: NoiseSchedule) -> &'static str {
+pub const fn noise_schedule_as_str(value: NoiseSchedule) -> &'static str {
     match value {
         NoiseSchedule::Karras => "karras",
         NoiseSchedule::Exponential => "exponential",
@@ -54,7 +54,7 @@ pub(super) const fn noise_schedule_as_str(value: NoiseSchedule) -> &'static str 
     }
 }
 
-pub(super) fn noise_schedule_from_str(value: &str) -> DatabaseResult<NoiseSchedule> {
+pub fn noise_schedule_from_str(value: &str) -> DatabaseResult<NoiseSchedule> {
     match value {
         "karras" => Ok(NoiseSchedule::Karras),
         "exponential" => Ok(NoiseSchedule::Exponential),
@@ -63,7 +63,7 @@ pub(super) fn noise_schedule_from_str(value: &str) -> DatabaseResult<NoiseSchedu
     }
 }
 
-pub(super) const fn uc_preset_as_str(value: UcPreset) -> &'static str {
+pub const fn uc_preset_as_str(value: UcPreset) -> &'static str {
     match value {
         UcPreset::Heavy => "heavy",
         UcPreset::Light => "light",
@@ -73,7 +73,7 @@ pub(super) const fn uc_preset_as_str(value: UcPreset) -> &'static str {
     }
 }
 
-pub(super) fn uc_preset_from_str(value: &str) -> DatabaseResult<UcPreset> {
+pub fn uc_preset_from_str(value: &str) -> DatabaseResult<UcPreset> {
     match value {
         "heavy" => Ok(UcPreset::Heavy),
         "light" => Ok(UcPreset::Light),
@@ -84,14 +84,14 @@ pub(super) fn uc_preset_from_str(value: &str) -> DatabaseResult<UcPreset> {
     }
 }
 
-pub(super) const fn image_format_as_str(value: ImageFormat) -> &'static str {
+pub const fn image_format_as_str(value: ImageFormat) -> &'static str {
     match value {
         ImageFormat::Png => "png",
         ImageFormat::Webp => "webp",
     }
 }
 
-pub(super) fn image_format_from_str(value: &str) -> DatabaseResult<ImageFormat> {
+pub fn image_format_from_str(value: &str) -> DatabaseResult<ImageFormat> {
     match value {
         "png" => Ok(ImageFormat::Png),
         "webp" => Ok(ImageFormat::Webp),
@@ -99,20 +99,20 @@ pub(super) fn image_format_from_str(value: &str) -> DatabaseResult<ImageFormat> 
     }
 }
 
-pub(super) const fn stream_mode_as_str(value: StreamMode) -> &'static str {
+pub const fn stream_mode_as_str(value: StreamMode) -> &'static str {
     match value {
         StreamMode::Sse => "sse",
     }
 }
 
-pub(super) fn stream_mode_from_str(value: &str) -> DatabaseResult<StreamMode> {
+pub fn stream_mode_from_str(value: &str) -> DatabaseResult<StreamMode> {
     match value {
         "sse" => Ok(StreamMode::Sse),
         _ => Err(decode_error("stream mode", value)),
     }
 }
 
-pub(super) const fn character_reference_type_as_str(value: CharacterReferenceType) -> &'static str {
+pub const fn character_reference_type_as_str(value: CharacterReferenceType) -> &'static str {
     match value {
         CharacterReferenceType::Character => "character",
         CharacterReferenceType::Style => "style",
@@ -120,9 +120,7 @@ pub(super) const fn character_reference_type_as_str(value: CharacterReferenceTyp
     }
 }
 
-pub(super) fn character_reference_type_from_str(
-    value: &str,
-) -> DatabaseResult<CharacterReferenceType> {
+pub fn character_reference_type_from_str(value: &str) -> DatabaseResult<CharacterReferenceType> {
     match value {
         "character" => Ok(CharacterReferenceType::Character),
         "style" => Ok(CharacterReferenceType::Style),

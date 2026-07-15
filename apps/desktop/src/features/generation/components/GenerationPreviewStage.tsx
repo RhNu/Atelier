@@ -1,5 +1,5 @@
-import { ImageIcon, Save, Wand2 } from "lucide-react";
-import { useCallback } from "react";
+import { ImageIcon, Save, Sparkles, Wand2 } from "lucide-react";
+import { useCallback, type ReactNode } from "react";
 
 import { AppButton, AppPanel, ResourceImage } from "../../../components/ui";
 import type { GenerationStatusDto, ResourceImageDto } from "../../../types";
@@ -16,9 +16,12 @@ type GenerationPreviewStageProps = {
   filmstrip: ReadonlyArray<GenerationPreview>;
   savePending: boolean;
   handoffPending: boolean;
+  compilePending: boolean;
+  queueControls: ReactNode;
   onSelectPreview: (preview: GenerationPreview) => void;
   onSavePreview: () => void;
   onSendPreviewToDirector: () => void;
+  onCompilePrompt: () => void;
 };
 
 export function GenerationPreviewStage({
@@ -32,9 +35,12 @@ export function GenerationPreviewStage({
   filmstrip,
   savePending,
   handoffPending,
+  compilePending,
+  queueControls,
   onSelectPreview,
   onSavePreview,
   onSendPreviewToDirector,
+  onCompilePrompt,
 }: GenerationPreviewStageProps) {
   const src = previewSrc(preview, finalImage);
   const alt =
@@ -49,7 +55,7 @@ export function GenerationPreviewStage({
     : `${status?.batch_status ?? "idle"} / ${status?.job_status ?? "idle"}`;
 
   return (
-    <AppPanel className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto_auto] overflow-hidden">
+    <AppPanel className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto_auto] overflow-hidden">
       <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
         <div>
           <p className="text-xs font-semibold text-brand-200 uppercase">Preview</p>
@@ -58,6 +64,11 @@ export function GenerationPreviewStage({
           </h2>
         </div>
         <div className="flex items-center gap-2">
+          <AppButton variant="ghost" onClick={onCompilePrompt} disabled={compilePending}>
+            <Sparkles aria-hidden="true" className="size-4" />
+            Compile
+          </AppButton>
+          {queueControls}
           <AppButton
             variant="secondary"
             onClick={onSavePreview}

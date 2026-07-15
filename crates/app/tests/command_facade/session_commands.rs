@@ -278,6 +278,100 @@ fn reopening_closed_workspace_cleans_stale_imported_images() {
 }
 
 #[test]
+fn generation_draft_promotes_resources_survives_reopen_and_clears_owners() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let host = test_host();
+        open_workspace(&host, &temp).await;
+        let imported = host
+            .import_image_resource(ImportImageResourceRequestDto {
+                kind: ImageResourceKindDto::ControlNetImage,
+                image_base64: "AQID".to_owned(),
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap()
+            .resource;
+        let defaults = host.get_workspace_settings().await.unwrap().generation;
+        let draft = GenerationDraftDto {
+            main_preset_id: None,
+            prompt: "1girl".to_owned(),
+            negative_prompt: String::new(),
+            model: defaults.model,
+            size: defaults.size,
+            quality: defaults.quality,
+            uc_preset: defaults.uc_preset,
+            steps: defaults.steps,
+            scale: defaults.scale,
+            sampler: defaults.sampler,
+            noise_schedule: defaults.noise_schedule,
+            seed_mode: GenerationDraftSeedModeDto::Random,
+            seed: defaults.seed,
+            n_samples: defaults.n_samples,
+            request_count: 1,
+            cfg_rescale: defaults.cfg_rescale,
+            variety_boost: defaults.variety_boost,
+            image_format: defaults.image_format,
+            strict_mode: defaults.strict_mode,
+            stream_enabled: true,
+            i2i: None,
+            vibe: GenerationDraftVibeDto {
+                enabled: true,
+                strength: 1.0,
+                slots: vec![GenerationDraftVibeSlotDto {
+                    id: "vibe-slot".to_owned(),
+                    encoding: imported.clone(),
+                    vibe_id: None,
+                    information_extracted: 1.0,
+                    strength: 1.0,
+                    display_name: "Imported source".to_owned(),
+                    source_image: Some(imported.clone()),
+                    source_sha256: None,
+                }],
+            },
+            precise_references: Vec::new(),
+            characters: Vec::new(),
+            character_position_mode: GenerationDraftCharacterPositionModeDto::Global,
+        };
+
+        assert_eq!(
+            host.save_generation_draft(SaveGenerationDraftRequestDto {
+                draft: draft.clone(),
+            })
+            .await
+            .unwrap(),
+            draft
+        );
+        assert_eq!(
+            host.release_imported_image_resources(ReleaseImportedImageResourcesRequestDto {
+                resources: vec![imported.clone()],
+            })
+            .await
+            .unwrap()
+            .released,
+            0
+        );
+
+        host.close_workspace().unwrap();
+        open_workspace(&host, &temp).await;
+        assert_eq!(host.get_generation_draft().await.unwrap(), Some(draft));
+        host.get_resource_image(GetResourceImageRequestDto {
+            resource: imported.clone(),
+        })
+        .await
+        .unwrap();
+
+        host.clear_generation_draft().await.unwrap();
+        assert_eq!(host.get_generation_draft().await.unwrap(), None);
+        assert!(
+            host.get_resource_image(GetResourceImageRequestDto { resource: imported })
+                .await
+                .is_err()
+        );
+    });
+}
+
+#[test]
 fn director_command_is_available_through_facade() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
@@ -365,11 +459,13 @@ fn global_settings_preserve_last_workspace_and_update_frontend_independently() {
 
         let settings = host.get_global_settings().await.unwrap();
         assert_eq!(settings.last_workspace.as_deref(), Some(temp.path()));
+        assert!(!settings.frontend.developer_mode);
         assert!(!settings.frontend.gallery.blur_sensitive_images);
 
         let updated = host
             .update_global_settings(UpdateGlobalSettingsRequestDto {
                 frontend: GlobalFrontendSettingsDto {
+                    developer_mode: true,
                     gallery: GlobalGallerySettingsDto {
                         blur_sensitive_images: true,
                     },
@@ -378,11 +474,13 @@ fn global_settings_preserve_last_workspace_and_update_frontend_independently() {
             .await
             .unwrap();
         assert_eq!(updated.last_workspace.as_deref(), Some(temp.path()));
+        assert!(updated.frontend.developer_mode);
         assert!(updated.frontend.gallery.blur_sensitive_images);
 
         host.close_workspace().unwrap();
         let bootstrap = host.bootstrap_app().await.unwrap();
         assert_eq!(bootstrap.workspace.unwrap().root, temp.path());
+        assert!(bootstrap.global_settings.frontend.developer_mode);
         assert!(
             bootstrap
                 .global_settings

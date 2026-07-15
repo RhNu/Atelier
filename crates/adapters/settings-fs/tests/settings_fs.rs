@@ -19,6 +19,7 @@ fn missing_file_returns_defaults_and_round_trips_settings() {
         let settings = GlobalSettings {
             last_workspace: Some(temp.path().join("workspace")),
             frontend: GlobalFrontendSettings {
+                developer_mode: true,
                 gallery: GlobalGallerySettings {
                     blur_sensitive_images: true,
                 },
@@ -38,6 +39,31 @@ fn missing_file_returns_defaults_and_round_trips_settings() {
             .await
             .unwrap();
         assert_eq!(repository.get_global_settings().await.unwrap(), updated);
+    });
+}
+
+#[test]
+fn missing_developer_mode_defaults_to_false_without_quarantining_settings() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("global-settings.json");
+        std::fs::write(
+            &path,
+            r#"{
+  "schema_version": 1,
+  "last_workspace": null,
+  "frontend": {
+    "gallery": { "blur_sensitive_images": true }
+  }
+}"#,
+        )
+        .unwrap();
+        let repository = FileSystemGlobalSettingsRepository::new(&path);
+
+        let settings = repository.get_global_settings().await.unwrap();
+        assert!(!settings.frontend.developer_mode);
+        assert!(settings.frontend.gallery.blur_sensitive_images);
+        assert!(path.exists());
     });
 }
 
