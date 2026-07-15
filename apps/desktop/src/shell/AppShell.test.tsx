@@ -46,7 +46,7 @@ describe("AppShell", () => {
 
     expect(screen.getByRole("navigation", { name: "Workspace sections" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Generate" })).toBeInTheDocument();
-    expect(screen.getByText("D:/atelier")).toBeInTheDocument();
+    expect(screen.queryByText("D:/atelier")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Collapse panels" })).not.toBeInTheDocument();
   });
 

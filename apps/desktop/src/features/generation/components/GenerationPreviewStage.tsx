@@ -50,13 +50,11 @@ export function GenerationPreviewStage({
     finalImageError,
     statusError,
   });
-  const statusLabel = statusError
-    ? "status unavailable"
-    : `${status?.batch_status ?? "idle"} / ${status?.job_status ?? "idle"}`;
+  const activityLabel = getActivityLabel(status);
 
   return (
-    <AppPanel className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto_auto] overflow-hidden">
-      <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
+    <AppPanel className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
+      <header className="flex items-center justify-between gap-3 border-b border-app-border px-3 py-2">
         <div>
           <p className="text-xs font-semibold text-brand-200 uppercase">Preview</p>
           <h2 className="text-base font-semibold text-white">
@@ -64,6 +62,21 @@ export function GenerationPreviewStage({
           </h2>
         </div>
         <div className="flex items-center gap-2">
+          {lastError ? (
+            <span className="max-w-48 truncate text-xs text-rose-100" title={lastError}>
+              {lastError}
+            </span>
+          ) : null}
+          {activityLabel ? (
+            <span className="border border-brand-400/40 bg-brand-500/10 px-2 py-1 text-xs text-brand-100">
+              {activityLabel}
+            </span>
+          ) : null}
+          {filmstrip.length ? (
+            <span className="text-xs text-app-muted">
+              {filmstrip.length} {filmstrip.length === 1 ? "preview" : "previews"}
+            </span>
+          ) : null}
           <AppButton variant="ghost" onClick={onCompilePrompt} disabled={compilePending}>
             <Sparkles aria-hidden="true" className="size-4" />
             Compile
@@ -85,12 +98,9 @@ export function GenerationPreviewStage({
             <Wand2 aria-hidden="true" className="size-4" />
             Director
           </AppButton>
-          <div className="border border-app-border bg-app-surface px-3 py-2 font-mono text-sm text-app-text">
-            {statusLabel}
-          </div>
         </div>
       </header>
-      <div className="min-h-0 bg-black/30 p-4">
+      <div className="min-h-0 bg-black/30 p-2">
         {src ? (
           <ResourceImage src={src} alt={alt} className="h-full min-h-[360px] w-full" />
         ) : (
@@ -113,15 +123,6 @@ export function GenerationPreviewStage({
           ))}
         </div>
       ) : null}
-      <footer className="grid grid-cols-3 border-t border-app-border text-sm">
-        <StatusCell label="Batch" value={status?.batch_status ?? "idle"} warning={statusError} />
-        <StatusCell label="Job" value={status?.job_status ?? "idle"} />
-        <StatusCell
-          label="Preview"
-          value={preview ? `${preview.kind} ${preview.jobId}` : "empty"}
-          warning={finalImageError ?? lastError}
-        />
-      </footer>
     </AppPanel>
   );
 }
@@ -158,9 +159,7 @@ function FilmstripButton({
         />
       ) : (
         <span className="flex h-full w-full items-center justify-center px-1 text-center">
-          Job {item.jobId}
-          <br />
-          Sample {item.sampleIndex + 1}
+          Preview {index + 1}
         </span>
       )}
     </button>
@@ -208,24 +207,18 @@ function getPreviewFallback({
   return "No active preview";
 }
 
-function StatusCell({
-  label,
-  value,
-  warning,
-}: {
-  label: string;
-  value: string;
-  warning?: string | null;
-}) {
-  return (
-    <div className="border-r border-app-border p-3 last:border-r-0">
-      <p className="text-xs text-app-muted uppercase">{label}</p>
-      <p className="mt-1 truncate font-semibold text-app-text" title={value}>
-        {value}
-      </p>
-      {warning ? <p className="mt-1 truncate text-xs text-rose-100">{warning}</p> : null}
-    </div>
-  );
+function getActivityLabel(status: GenerationStatusDto | undefined): string | null {
+  const statuses = [status?.batch_status, status?.job_status].map((value) => value?.toLowerCase());
+  if (statuses.includes("running")) {
+    return "Generating";
+  }
+  if (statuses.includes("waiting")) {
+    return "Queued";
+  }
+  if (statuses.includes("paused")) {
+    return "Paused";
+  }
+  return null;
 }
 
 function previewSrc(

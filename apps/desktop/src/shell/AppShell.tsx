@@ -162,12 +162,7 @@ export function AppShell({
             })}
           </nav>
 
-          <div className="grid min-h-0 grid-rows-[36px_minmax(0,1fr)]">
-            <div className="flex min-w-0 items-center border-b border-app-border bg-app-panel/80 px-3 text-xs text-app-muted">
-              <p className="truncate">{workspaceStatus.root}</p>
-            </div>
-            <main className="min-h-0 overflow-hidden">{children}</main>
-          </div>
+          <main className="min-h-0 min-w-0 overflow-hidden">{children}</main>
         </div>
       )}
 

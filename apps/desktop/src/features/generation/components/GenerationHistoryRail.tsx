@@ -10,7 +10,7 @@ import {
 import type { ChangeEvent } from "react";
 import { useCallback } from "react";
 
-import { AppIconButton, AppPanel, EmptyState } from "../../../components/ui";
+import { AppIconButton, AppPanel } from "../../../components/ui";
 import type { RunHistoryItemDto, RunHistoryStatusDto } from "../../../types";
 
 const HISTORY_STATUS_OPTIONS: Array<{ value: "all" | RunHistoryStatusDto; label: string }> = [
@@ -87,7 +87,7 @@ export function GenerationHistoryRail({
       aria-label="Generation history"
       className="flex h-full min-h-0 flex-col overflow-hidden"
     >
-      <header className="grid gap-3 border-b border-app-border px-4 py-3">
+      <header className="grid gap-2 border-b border-app-border px-3 py-2">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">History</h2>
           <div className="flex items-center gap-1">
@@ -117,26 +117,30 @@ export function GenerationHistoryRail({
             />
           </div>
         </div>
-        <label className="grid gap-1 text-xs text-app-muted">
-          Status
-          <select
-            value={statusFilter}
-            onChange={handleStatusChange}
-            className="border border-app-border bg-app-surface px-2 py-1 text-sm text-app-text outline-none focus:border-brand-400"
-          >
-            {HISTORY_STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <label className="sr-only" htmlFor="generation-history-filter">
+          Filter history
         </label>
+        <select
+          id="generation-history-filter"
+          aria-label="Filter history"
+          value={statusFilter}
+          onChange={handleStatusChange}
+          className="h-8 w-24 border border-app-border bg-app-surface px-2 text-sm text-app-text outline-none focus:border-brand-400"
+        >
+          {HISTORY_STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </header>
-      <div className="min-h-0 flex-1 overflow-auto p-2">
-        {pending ? <p className="p-3 text-sm text-app-muted">Loading history</p> : null}
-        {error ? <p className="p-3 text-sm text-rose-100">{error}</p> : null}
-        {!pending && !error && items.length === 0 ? <EmptyState title="No runs" /> : null}
-        <div className="grid gap-2">
+      <div className="min-h-0 flex-1 overflow-auto p-1">
+        {pending ? <p className="p-2 text-sm text-app-muted">Loading history</p> : null}
+        {error ? <p className="p-2 text-sm text-rose-100">{error}</p> : null}
+        {!pending && !error && items.length === 0 ? (
+          <p className="p-4 text-center text-sm text-app-muted">No runs</p>
+        ) : null}
+        <div className="grid gap-1">
           {items.map((item) => (
             <GenerationHistoryItem
               key={item.run_id}
@@ -147,10 +151,8 @@ export function GenerationHistoryRail({
           ))}
         </div>
       </div>
-      <footer className="flex items-center justify-between border-t border-app-border p-2 text-xs text-app-muted">
-        <span>
-          {total === 0 ? "0" : `${offset + 1}-${Math.min(offset + limit, total)}`} / {total}
-        </span>
+      <footer className="flex items-center justify-between border-t border-app-border p-1 text-xs text-app-muted">
+        <span>{formatHistoryRange(offset, limit, total)}</span>
         <div className="flex items-center gap-1">
           <AppIconButton
             icon={ChevronLeft}
@@ -192,7 +194,7 @@ function GenerationHistoryItem({
       type="button"
       onClick={handleSelect}
       className={[
-        "border bg-app-surface/75 p-3 text-left transition-colors",
+        "border bg-app-surface/75 p-2 text-left transition-colors",
         selected ? "border-brand-400/70" : "border-app-border hover:border-brand-400/60",
       ].join(" ")}
     >
@@ -202,19 +204,23 @@ function GenerationHistoryItem({
         </span>
         <span className="min-w-0">
           <span className="block truncate text-sm font-semibold text-app-text">
-            {item.title ?? item.run_id}
+            {item.title ?? (item.kind === "director" ? "Director result" : "Generation run")}
           </span>
           <span className="mt-1 block text-xs text-app-muted">
-            {item.status} · {item.batch_id ?? "batchless"}
+            {item.status} · {item.outputs.length} {item.outputs.length === 1 ? "output" : "outputs"}
           </span>
         </span>
       </span>
       {item.last_error ? (
         <span className="mt-2 block truncate text-xs text-rose-100">{item.last_error}</span>
       ) : null}
-      <span className="mt-2 block text-xs text-app-muted">
-        {item.job_id ?? item.run_id} · {item.outputs.length} outputs
-      </span>
     </button>
   );
+}
+
+function formatHistoryRange(offset: number, limit: number, total: number): string {
+  if (total === 0) {
+    return "0 runs";
+  }
+  return `${offset + 1}-${Math.min(offset + limit, total)} of ${total}`;
 }

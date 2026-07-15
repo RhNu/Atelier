@@ -15,7 +15,7 @@ const MIN_SIDEBAR_WIDTH = 360;
 const MAX_SIDEBAR_WIDTH = 520;
 const MIN_PREVIEW_WIDTH = 320;
 const HISTORY_WIDTH = 280;
-const RESIZER_WIDTH = 8;
+const RESIZER_WIDTH = 6;
 
 export function GenerationWorkbenchLayout({
   sidebar,
@@ -143,12 +143,12 @@ export function GenerationWorkbenchLayout({
         aria-valuemax={Math.round(maximumWidth)}
         aria-valuenow={Math.round(clampedWidth)}
         tabIndex={0}
-        className="relative m-0 w-2 shrink-0 cursor-col-resize border-0 bg-app-bg outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-app-border hover:after:bg-brand-400 focus:bg-brand-500/20"
+        className="relative m-0 w-1.5 shrink-0 cursor-col-resize border-0 bg-app-panel outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-app-border hover:after:bg-brand-400 focus:bg-brand-500/20"
         onPointerDown={handlePointerDown}
         onKeyDown={handleResizeKeyDown}
       />
-      <div className="min-h-0 min-w-0 flex-1 p-3 pr-0">{preview}</div>
-      <div className="w-[280px] shrink-0 p-3">{history}</div>
+      <div className="min-h-0 min-w-0 flex-1">{preview}</div>
+      <div className="min-h-0 w-[280px] shrink-0">{history}</div>
     </div>
   );
 }
