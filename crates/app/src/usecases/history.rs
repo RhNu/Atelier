@@ -1,18 +1,16 @@
-use atelier_adapter_database::DatabaseRunHistoryRepository;
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::QueueDirectiveDto;
 use atelier_app_api::history::{
     DeleteGenerationHistoryBatchesRequestDto, DeleteGenerationHistoryBatchesResponseDto,
     DeleteRunHistoryItemsRequestDto, DeleteRunHistoryItemsResponseDto,
     GenerationHistoryBatchDetailDto, GenerationHistoryBatchRequestDto, GenerationHistoryPageDto,
-    GenerationHistoryQueryDto, GenerationHistoryRequestDto, RerunGenerationHistoryBatchRequestDto,
+    GenerationHistoryQueryDto, RerunGenerationHistoryBatchRequestDto,
     RerunGenerationHistoryBatchResponseDto, RerunGenerationHistoryItemRequestDto,
     RerunGenerationHistoryItemResponseDto, RunHistoryPageDto, RunHistoryQueryDto,
 };
 use atelier_jobs::{
-    BatchId, BatchStatus, GenerationBatchHistoryRecord, GenerationBatchHistoryStatus, JobId,
-    JobKind, JobPayloadRef, JobQueueSnapshot, JobRecord, JobStatus, RunHistoryKind,
-    RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
+    BatchId, JobId, JobPayloadRef, JobQueueSnapshot, RunHistoryKind, RunHistoryRecord,
+    RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
 };
 use atelier_kernel::{
     GenerationPayloadStore, SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationWork,
@@ -20,14 +18,25 @@ use atelier_kernel::{
 };
 use atelier_secrets::{SecretStore, SecretsErrorKind};
 use std::collections::BTreeSet;
-use std::time::{SystemTime, UNIX_EPOCH};
+
+mod persistence;
+mod projection;
+
+pub use persistence::{
+    GenerationHistoryPosition, GenerationHistoryUpdate,
+    generation_history_records_from_queue_snapshot, upsert_generation_history_record,
+};
+
+use persistence::ensure_generation_history_target_is_new;
+use projection::{
+    aggregate_generation_batch, generation_history_request_to_dto, preferred_run_outputs,
+};
 
 use crate::app::WorkspaceSession;
 use crate::mapping::{
     generation_history_batch_to_dto, generation_history_page_to_dto,
     generation_history_query_to_domain, queue_directive_to_dto, run_history_item_to_dto,
-    run_history_page_to_dto, run_history_query_to_domain, run_history_status_to_dto,
-    run_output_to_dto,
+    run_history_page_to_dto, run_history_query_to_domain, run_output_to_dto,
 };
 use crate::{AppError, AppResult};
 
@@ -500,375 +509,6 @@ where
     }
 }
 
-fn generation_history_request_to_dto(
-    record: &RunHistoryRecord,
-    fallback_index: usize,
-    outputs: Vec<RunOutputRecord>,
-) -> GenerationHistoryRequestDto {
-    GenerationHistoryRequestDto {
-        run_id: record.run_id.clone(),
-        job_id: record
-            .job_id
-            .clone()
-            .unwrap_or_else(|| record.run_id.clone()),
-        origin_run_id: record.origin_run_id.clone(),
-        request_index: record
-            .request_index
-            .unwrap_or_else(|| u32::try_from(fallback_index).unwrap_or(u32::MAX)),
-        expected_samples: record.expected_samples.unwrap_or(1).max(1),
-        status: run_history_status_to_dto(record.status),
-        title: record.title.clone(),
-        last_error: record.last_error.clone(),
-        created_at_ms: record.created_at_ms,
-        updated_at_ms: record.updated_at_ms,
-        completed_at_ms: record.completed_at_ms,
-        outputs: outputs.into_iter().map(run_output_to_dto).collect(),
-    }
-}
-
-fn preferred_run_outputs(outputs: Vec<RunOutputRecord>) -> Vec<RunOutputRecord> {
-    let mut seen_artifacts = BTreeSet::new();
-    let mut seen_samples = BTreeSet::new();
-    let mut next_sample = 0_u32;
-    let mut preferred = Vec::new();
-    for mut output in outputs {
-        if !seen_artifacts.insert(output.artifact_id.clone()) {
-            continue;
-        }
-        let sample_index = output.sample_index.unwrap_or_else(|| {
-            while seen_samples.contains(&next_sample) {
-                next_sample = next_sample.saturating_add(1);
-            }
-            next_sample
-        });
-        if !seen_samples.insert(sample_index) {
-            continue;
-        }
-        output.sample_index = Some(sample_index);
-        next_sample = next_sample.max(sample_index.saturating_add(1));
-        preferred.push(output);
-    }
-    preferred.sort_by_key(|output| output.sample_index.unwrap_or(u32::MAX));
-    preferred
-}
-
-fn aggregate_generation_batch(
-    batch_id: &str,
-    records: &[RunHistoryRecord],
-) -> GenerationBatchHistoryRecord {
-    let request_count = records.len();
-    let completed_request_count = records
-        .iter()
-        .filter(|record| status_is_terminal(record.status))
-        .count();
-    let expected_sample_count = records.iter().fold(0_u32, |total, record| {
-        total.saturating_add(record.expected_samples.unwrap_or(1).max(1))
-    });
-    GenerationBatchHistoryRecord {
-        batch_id: batch_id.to_owned(),
-        status: aggregate_generation_batch_status(records),
-        title: records.first().and_then(|record| record.title.clone()),
-        last_error: records
-            .iter()
-            .filter(|record| record.last_error.is_some())
-            .max_by_key(|record| record.updated_at_ms)
-            .and_then(|record| record.last_error.clone()),
-        created_at_ms: records
-            .iter()
-            .map(|record| record.created_at_ms)
-            .min()
-            .unwrap_or(0),
-        updated_at_ms: records
-            .iter()
-            .map(|record| record.updated_at_ms)
-            .max()
-            .unwrap_or(0),
-        completed_at_ms: (completed_request_count == request_count)
-            .then(|| {
-                records
-                    .iter()
-                    .filter_map(|record| record.completed_at_ms)
-                    .max()
-            })
-            .flatten(),
-        request_count,
-        completed_request_count,
-        expected_sample_count,
-    }
-}
-
-fn aggregate_generation_batch_status(records: &[RunHistoryRecord]) -> GenerationBatchHistoryStatus {
-    for (status, aggregate) in [
-        (
-            RunHistoryStatus::Paused,
-            GenerationBatchHistoryStatus::Paused,
-        ),
-        (
-            RunHistoryStatus::Running,
-            GenerationBatchHistoryStatus::Running,
-        ),
-        (
-            RunHistoryStatus::Preparing,
-            GenerationBatchHistoryStatus::Preparing,
-        ),
-        (
-            RunHistoryStatus::Waiting,
-            GenerationBatchHistoryStatus::Waiting,
-        ),
-        (
-            RunHistoryStatus::Queued,
-            GenerationBatchHistoryStatus::Queued,
-        ),
-    ] {
-        if records.iter().any(|record| record.status == status) {
-            return aggregate;
-        }
-    }
-    let succeeded = records
-        .iter()
-        .filter(|record| record.status == RunHistoryStatus::Succeeded)
-        .count();
-    if !records.is_empty() && succeeded == records.len() {
-        return GenerationBatchHistoryStatus::Succeeded;
-    }
-    if succeeded > 0 {
-        return GenerationBatchHistoryStatus::PartiallySucceeded;
-    }
-    if records
-        .iter()
-        .any(|record| record.status == RunHistoryStatus::Failed)
-    {
-        return GenerationBatchHistoryStatus::Failed;
-    }
-    GenerationBatchHistoryStatus::Stopped
-}
-
 fn history_error(error: impl std::fmt::Display) -> AppError {
     AppError::new("run_history", error.to_string())
-}
-
-pub async fn ensure_generation_history_target_is_new(
-    repository: &DatabaseRunHistoryRepository,
-    batch_id: &str,
-    job_id: &str,
-) -> AppResult<()> {
-    if repository
-        .get_run_history(job_id)
-        .await
-        .map_err(|error| AppError::new("run_history", error.to_string()))?
-        .is_some()
-    {
-        return Err(AppError::new(
-            "invalid_request",
-            "generation job_id already exists in run history",
-        ));
-    }
-    if repository
-        .run_history_batch_exists(batch_id)
-        .await
-        .map_err(|error| AppError::new("run_history", error.to_string()))?
-    {
-        return Err(AppError::new(
-            "invalid_request",
-            "generation batch_id already exists in run history",
-        ));
-    }
-    Ok(())
-}
-
-pub async fn upsert_generation_history_record(
-    repository: &DatabaseRunHistoryRepository,
-    batch_id: &str,
-    job_id: &str,
-    update: GenerationHistoryUpdate,
-) -> AppResult<RunHistoryRecord> {
-    let now = unix_timestamp_ms();
-    let existing = repository
-        .get_run_history(job_id)
-        .await
-        .map_err(|error| AppError::new("run_history", error.to_string()))?;
-    let created_at_ms = existing.as_ref().map_or(now, |record| record.created_at_ms);
-    let record = RunHistoryRecord {
-        run_id: job_id.to_owned(),
-        kind: RunHistoryKind::Generation,
-        status: update.status,
-        batch_id: Some(batch_id.to_owned()),
-        job_id: Some(job_id.to_owned()),
-        origin_run_id: update.origin_run_id.or_else(|| {
-            existing
-                .as_ref()
-                .and_then(|record| record.origin_run_id.clone())
-        }),
-        request_index: update
-            .position
-            .map(|value| value.request_index)
-            .or_else(|| existing.as_ref().and_then(|record| record.request_index)),
-        expected_samples: update
-            .position
-            .map(|value| value.expected_samples.max(1))
-            .or_else(|| existing.as_ref().and_then(|record| record.expected_samples)),
-        submitted_payload_ref: Some(format!("generation-submitted:{job_id}")),
-        prepared_payload_ref: existing
-            .as_ref()
-            .and_then(|record| record.prepared_payload_ref.clone()),
-        title: update
-            .title
-            .or_else(|| existing.as_ref().and_then(|record| record.title.clone())),
-        last_error: update.last_error,
-        created_at_ms,
-        updated_at_ms: now,
-        completed_at_ms: status_is_terminal(update.status).then_some(now),
-        recoverable: update.status == RunHistoryStatus::Paused,
-    };
-    repository
-        .upsert_run_history(record.clone())
-        .await
-        .map_err(|error| AppError::new("run_history", error.to_string()))?;
-    Ok(record)
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct GenerationHistoryPosition {
-    pub request_index: u32,
-    pub expected_samples: u32,
-}
-
-pub struct GenerationHistoryUpdate {
-    pub status: RunHistoryStatus,
-    pub title: Option<String>,
-    pub origin_run_id: Option<String>,
-    pub last_error: Option<String>,
-    pub position: Option<GenerationHistoryPosition>,
-}
-
-pub async fn generation_history_records_from_queue_snapshot(
-    repository: &DatabaseRunHistoryRepository,
-    snapshot: &JobQueueSnapshot,
-) -> AppResult<Vec<RunHistoryRecord>> {
-    let Some(active_batch) = &snapshot.active_batch else {
-        return Ok(Vec::new());
-    };
-    let paused_job_id = if active_batch.batch.status == BatchStatus::Paused {
-        active_batch.current_job.as_ref().or_else(|| {
-            active_batch
-                .batch
-                .jobs
-                .iter()
-                .find(|job| !job.status.is_terminal())
-                .map(|job| &job.job_id)
-        })
-    } else {
-        None
-    };
-    let mut records = Vec::new();
-    for (request_index, job) in active_batch.batch.jobs.iter().enumerate() {
-        if job.kind != JobKind::GenerateImage {
-            continue;
-        }
-        let status = if paused_job_id.is_some_and(|job_id| job_id == &job.job_id) {
-            RunHistoryStatus::Paused
-        } else {
-            run_history_status_from_job_status(job.status)
-        };
-        records.push(
-            build_generation_history_from_job(
-                repository,
-                active_batch.batch.batch_id.as_str(),
-                job,
-                status,
-                u32::try_from(request_index).unwrap_or(u32::MAX),
-            )
-            .await?,
-        );
-    }
-    Ok(records)
-}
-
-async fn build_generation_history_from_job(
-    repository: &DatabaseRunHistoryRepository,
-    batch_id: &str,
-    job: &JobRecord,
-    status: RunHistoryStatus,
-    request_index: u32,
-) -> AppResult<RunHistoryRecord> {
-    let now = unix_timestamp_ms();
-    let existing = repository
-        .get_run_history(job.job_id.as_str())
-        .await
-        .map_err(|error| AppError::new("run_history", error.to_string()))?;
-    let record = RunHistoryRecord {
-        run_id: job.job_id.as_str().to_owned(),
-        kind: RunHistoryKind::Generation,
-        status,
-        batch_id: Some(batch_id.to_owned()),
-        job_id: Some(job.job_id.as_str().to_owned()),
-        origin_run_id: existing
-            .as_ref()
-            .and_then(|record| record.origin_run_id.clone()),
-        request_index: existing
-            .as_ref()
-            .and_then(|record| record.request_index)
-            .or(Some(request_index)),
-        expected_samples: existing
-            .as_ref()
-            .and_then(|record| record.expected_samples)
-            .or(Some(1)),
-        submitted_payload_ref: Some(job.payload_ref.as_str().to_owned()),
-        prepared_payload_ref: job
-            .prepared_payload_ref
-            .as_ref()
-            .map(|id| id.as_str().to_owned())
-            .or_else(|| {
-                existing
-                    .as_ref()
-                    .and_then(|record| record.prepared_payload_ref.clone())
-            }),
-        title: existing.as_ref().and_then(|record| record.title.clone()),
-        last_error: existing
-            .as_ref()
-            .and_then(|record| record.last_error.clone()),
-        created_at_ms: existing.as_ref().map_or(now, |record| record.created_at_ms),
-        updated_at_ms: now,
-        completed_at_ms: if status_is_terminal(status) {
-            existing
-                .as_ref()
-                .and_then(|record| record.completed_at_ms)
-                .or(Some(now))
-        } else {
-            None
-        },
-        recoverable: status == RunHistoryStatus::Paused,
-    };
-    Ok(record)
-}
-
-const fn run_history_status_from_job_status(status: JobStatus) -> RunHistoryStatus {
-    match status {
-        JobStatus::Queued => RunHistoryStatus::Queued,
-        JobStatus::Preparing => RunHistoryStatus::Preparing,
-        JobStatus::Running => RunHistoryStatus::Running,
-        JobStatus::WaitingRetry => RunHistoryStatus::Waiting,
-        JobStatus::Blocked => RunHistoryStatus::Paused,
-        JobStatus::Succeeded => RunHistoryStatus::Succeeded,
-        JobStatus::Failed => RunHistoryStatus::Failed,
-        JobStatus::Skipped => RunHistoryStatus::Skipped,
-    }
-}
-
-const fn status_is_terminal(status: RunHistoryStatus) -> bool {
-    matches!(
-        status,
-        RunHistoryStatus::Succeeded
-            | RunHistoryStatus::Failed
-            | RunHistoryStatus::Skipped
-            | RunHistoryStatus::Stopped
-    )
-}
-
-fn unix_timestamp_ms() -> u64 {
-    let millis = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
-    u64::try_from(millis).unwrap_or(u64::MAX)
 }
