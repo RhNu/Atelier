@@ -12,6 +12,7 @@ use super::{
     prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
     upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain,
 };
+use atelier_prompt::{FunctionRegistry, PromptDiagnosticKind, PromptSyntaxProfile, parse_prompt};
 
 pub struct PromptUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -155,6 +156,7 @@ where
         &self,
         request: CompilePromptRequestDto,
     ) -> AppResult<CompiledPromptDto> {
+        validate_prompt_syntax(&request.prompt)?;
         self.app
             .inner
             .prompt_compiler
@@ -171,6 +173,7 @@ where
         &self,
         request: CompileGenerationPromptRequestDto,
     ) -> AppResult<CompiledGenerationPromptDto> {
+        validate_generation_prompt_syntax(&request)?;
         let enabled_flags = request
             .characters
             .iter()
@@ -291,4 +294,41 @@ where
             limit,
         ))
     }
+}
+
+fn validate_prompt_syntax(prompt: &str) -> AppResult<()> {
+    let diagnostics = parse_prompt(prompt).diagnostics_with_functions(
+        &PromptSyntaxProfile::novelai_v45(),
+        &FunctionRegistry::atelier_defaults(),
+    );
+    if let Some(diagnostic) = diagnostics.into_iter().find(|item| {
+        !matches!(
+            item.kind,
+            PromptDiagnosticKind::UnclosedStrengthening
+                | PromptDiagnosticKind::UnclosedWeakening
+                | PromptDiagnosticKind::UnclosedNumericEmphasis
+                | PromptDiagnosticKind::UnclosedRandomizer
+                | PromptDiagnosticKind::UnclosedFunctionCall
+        )
+    }) {
+        return Err(AppError::new(
+            "prompt_syntax",
+            format!("{} at byte {}", diagnostic.message, diagnostic.span.start),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_generation_prompt_syntax(request: &CompileGenerationPromptRequestDto) -> AppResult<()> {
+    validate_prompt_syntax(&request.prompt)?;
+    if let Some(negative_prompt) = &request.negative_prompt {
+        validate_prompt_syntax(negative_prompt)?;
+    }
+    for character in &request.characters {
+        validate_prompt_syntax(&character.prompt)?;
+        if let Some(negative_prompt) = &character.negative_prompt {
+            validate_prompt_syntax(negative_prompt)?;
+        }
+    }
+    Ok(())
 }

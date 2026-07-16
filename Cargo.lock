@@ -639,6 +639,7 @@ dependencies = [
  "atelier-jobs",
  "atelier-kernel",
  "atelier-precise-reference",
+ "atelier-prompt",
  "atelier-prompt-lexicon",
  "atelier-prompt-resources",
  "atelier-resource-catalog",
@@ -785,6 +786,8 @@ version = "0.1.0"
 dependencies = [
  "logos",
  "rowan",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

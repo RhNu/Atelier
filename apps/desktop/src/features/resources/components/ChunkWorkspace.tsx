@@ -25,6 +25,7 @@ import {
   CompiledPreview,
   EditorActions,
   EditorPanel,
+  PromptTextArea,
   ResourceList,
   ResourceListButton,
   TextArea,
@@ -162,10 +163,10 @@ export function ChunkWorkspace({
                 value={draft.key}
                 onChange={(key) => setDraft({ ...draft, key })}
               />
-              <TextArea
+              <PromptTextArea
                 label={t("content")}
                 value={draft.content}
-                minRows="min-h-48"
+                minHeight={192}
                 onChange={(content) => setDraft({ ...draft, content })}
               />
               <AppButton variant="secondary" onClick={compile} disabled={compileMutation.isPending}>

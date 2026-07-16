@@ -23,6 +23,7 @@ atelier-jobs = { workspace = true }
 atelier-kernel = { workspace = true }
 atelier-precise-reference = { workspace = true }
 atelier-prompt-lexicon = { workspace = true }
+atelier-prompt = { workspace = true }
 atelier-prompt-resources = { workspace = true }
 atelier-resource-catalog = { workspace = true }
 atelier-safety = { workspace = true }

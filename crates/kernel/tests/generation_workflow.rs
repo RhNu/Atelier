@@ -25,7 +25,7 @@ fn submit_generation_work_only_enqueues_payload() {
         let job_id = JobId::new("job-1");
 
         let directive = runtime
-            .submit_generation_work(image_work("batch-1", job_id.clone(), "@chunk(hero)"))
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "$chunk(hero)"))
             .await
             .unwrap();
 
@@ -151,7 +151,7 @@ fn image_generation_compiles_plans_persists_and_indexes_samples() {
         let job_id = JobId::new("job-1");
 
         runtime
-            .submit_generation_work(image_work("batch-1", job_id.clone(), "@chunk(hero)"))
+            .submit_generation_work(image_work("batch-1", job_id.clone(), "$chunk(hero)"))
             .await
             .unwrap();
         let directive = runtime.run_scheduled_generation_job(&job_id).await.unwrap();
@@ -200,10 +200,10 @@ fn image_generation_compiles_plans_persists_and_indexes_samples() {
 fn generation_workflow_compiles_negative_and_character_prompt_scopes() {
     block_on(async {
         let ports = MemoryKernelPorts::default()
-            .with_compiled_prompt("@chunk(main)", "expanded main")
-            .with_compiled_prompt("@chunk(uc)", "expanded uc")
-            .with_compiled_prompt("@chunk(hero)", "expanded hero")
-            .with_compiled_prompt("@chunk(hero_uc)", "expanded hero uc")
+            .with_compiled_prompt("$chunk(main)", "expanded main")
+            .with_compiled_prompt("$chunk(uc)", "expanded uc")
+            .with_compiled_prompt("$chunk(hero)", "expanded hero")
+            .with_compiled_prompt("$chunk(hero_uc)", "expanded hero uc")
             .with_generated_images(vec![GeneratedImage {
                 bytes: vec![1],
                 mime_type: None,
@@ -217,11 +217,11 @@ fn generation_workflow_compiles_negative_and_character_prompt_scopes() {
                 batch_id: BatchId::new("batch-compile-scopes"),
                 job_id: job_id.clone(),
                 request: GenerationWorkRequest::Image(GenerateImageRequest {
-                    prompt: "@chunk(main)".to_owned(),
-                    negative_prompt: Some("@chunk(uc)".to_owned()),
+                    prompt: "$chunk(main)".to_owned(),
+                    negative_prompt: Some("$chunk(uc)".to_owned()),
                     characters: Some(vec![atelier_generation::Character {
-                        prompt: "@chunk(hero)".to_owned(),
-                        negative_prompt: Some("@chunk(hero_uc)".to_owned()),
+                        prompt: "$chunk(hero)".to_owned(),
+                        negative_prompt: Some("$chunk(hero_uc)".to_owned()),
                         position: CharacterPosition::default(),
                         enabled: true,
                     }]),

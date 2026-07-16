@@ -29,7 +29,7 @@ impl PromptChunkKey {
     /// # Errors
     /// Returns an error when the key is not a single prompt identifier.
     pub fn parse(value: &str) -> Result<Self, PromptResourceError> {
-        let source = format!("@chunk({value})");
+        let source = format!("$chunk({value})");
         let parsed = parse_prompt(&source);
         let ast = parsed.ast();
         let Some(call) = ast.extension_calls().first() else {

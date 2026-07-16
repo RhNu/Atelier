@@ -24,7 +24,7 @@ fn open_workspace_initializes_lexicon_and_generation_is_explicitly_driven() {
 
         let missing_key = app
             .generation()
-            .submit(submit_request("batch-1", "job-1", "@chunk(hero)"))
+            .submit(submit_request("batch-1", "job-1", "$chunk(hero)"))
             .await
             .unwrap_err();
         assert_eq!(missing_key.code(), "missing_active_key");
@@ -52,7 +52,7 @@ fn open_workspace_initializes_lexicon_and_generation_is_explicitly_driven() {
 
         let directive = app
             .generation()
-            .submit(submit_request("batch-1", "job-1", "@chunk(hero)"))
+            .submit(submit_request("batch-1", "job-1", "$chunk(hero)"))
             .await
             .unwrap();
         assert_eq!(
@@ -117,7 +117,7 @@ fn valid_generated_images_get_best_effort_gallery_variants() {
             .unwrap();
 
         app.generation()
-            .submit(submit_request("batch-1", "job-1", "@chunk(hero)"))
+            .submit(submit_request("batch-1", "job-1", "$chunk(hero)"))
             .await
             .unwrap();
         app.generation().run_job("job-1").await.unwrap();
@@ -191,7 +191,7 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
                 description: None,
                 order: 0,
                 enabled: true,
-                before: "@chunk(lighting)".to_owned(),
+                before: "$chunk(lighting)".to_owned(),
                 after: "sharp focus".to_owned(),
                 replace: String::new(),
                 uc_before: "bad anatomy".to_owned(),
@@ -340,7 +340,7 @@ fn valid_streamed_images_get_best_effort_gallery_variants() {
             .unwrap();
 
         app.generation()
-            .submit(stream_submit_request("batch-1", "job-1", "@chunk(hero)"))
+            .submit(stream_submit_request("batch-1", "job-1", "$chunk(hero)"))
             .await
             .unwrap();
         app.generation().run_job("job-1").await.unwrap();
@@ -391,7 +391,7 @@ fn updated_variant_settings_drive_generated_variant_dimensions() {
             .unwrap();
 
         app.generation()
-            .submit(submit_request("batch-1", "job-1", "@chunk(hero)"))
+            .submit(submit_request("batch-1", "job-1", "$chunk(hero)"))
             .await
             .unwrap();
         app.generation().run_job("job-1").await.unwrap();

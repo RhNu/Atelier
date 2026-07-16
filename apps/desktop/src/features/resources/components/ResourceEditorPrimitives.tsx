@@ -4,6 +4,7 @@ import { Children, type ChangeEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel, AppSelect, EmptyState, ResourceImage } from "@/components/ui";
+import { NaiPromptEditor } from "@/features/prompt-editor";
 import { resourceImageToDataUrl } from "@/platform/atelier";
 import type { CompiledPromptDto, ResourceRefDto } from "@/types";
 
@@ -276,6 +277,31 @@ export function TextArea({
           minRows,
           "resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400",
         ].join(" ")}
+      />
+    </label>
+  );
+}
+
+export function PromptTextArea({
+  label,
+  value,
+  minHeight = 160,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  minHeight?: number;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
+      {label}
+      <NaiPromptEditor
+        aria-label={label}
+        value={value}
+        onChange={onChange}
+        profile="novelai_v45"
+        minHeight={minHeight}
       />
     </label>
   );

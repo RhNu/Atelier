@@ -1240,14 +1240,14 @@ describe("GeneratePage queue and preview behavior", () => {
   it("compiles positive and negative prompt previews", async () => {
     const { user } = setup();
 
-    await user.type(await screen.findByLabelText("Positive prompt"), "@chunk(hero)");
+    await user.type(await screen.findByLabelText("Positive prompt"), "$chunk(hero)");
     await user.click(screen.getByRole("tab", { name: "Undesired Content" }));
     await user.type(screen.getByLabelText("Undesired Content"), "bad anatomy");
     await user.click(screen.getByRole("button", { name: "Compile" }));
 
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
     expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith({
-      prompt: "@chunk(hero)",
+      prompt: "$chunk(hero)",
       main_preset_id: null,
       negative_prompt: "bad anatomy",
       characters: [],
@@ -1289,7 +1289,7 @@ describe("GeneratePage queue and preview behavior", () => {
     expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "1girl",
-        negative_prompt: "@chunk(lighting), ",
+        negative_prompt: "$chunk(lighting), ",
       }),
     );
   });
@@ -1301,7 +1301,7 @@ describe("GeneratePage queue and preview behavior", () => {
     await user.type(await screen.findByLabelText("Character 1 prompt"), "cine");
     await screen.findByRole("option", { name: /cinematic_lighting/u });
     await user.keyboard("{Enter}");
-    await user.type(screen.getByLabelText("Character 1 negative prompt"), "@chunk(li");
+    await user.type(screen.getByLabelText("Character 1 negative prompt"), "$chunk(li");
     await screen.findByRole("option", { name: /lighting/u });
     await user.keyboard("{Tab}");
     await user.type(screen.getByLabelText("Positive prompt"), "1girl");
@@ -1314,7 +1314,7 @@ describe("GeneratePage queue and preview behavior", () => {
           {
             preset_id: null,
             prompt: "cinematic_lighting,",
-            negative_prompt: "@chunk(lighting),",
+            negative_prompt: "$chunk(lighting),",
             enabled: true,
           },
         ],
@@ -1341,6 +1341,6 @@ describe("GeneratePage queue and preview behavior", () => {
     await user.keyboard("{ArrowDown}");
     await user.keyboard("{Enter}");
 
-    expect(prompt).toHaveValue("@chunk(hero), ");
+    expect(prompt).toHaveValue("$chunk(hero), ");
   });
 });

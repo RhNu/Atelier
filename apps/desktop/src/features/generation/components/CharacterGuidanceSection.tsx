@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppIconButton } from "@/components/ui";
+import { NaiPromptEditor, promptProfileForModel } from "@/features/prompt-editor";
 
 import type { GenerationCharacterDraft, GenerationDraft } from "../model/generation-draft";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
@@ -11,7 +12,6 @@ import { createLocalId, patchCharacter } from "./advanced-generation-model";
 import { CharacterPositionGrid } from "./CharacterPositionGrid";
 import { SelectField } from "./GenerationFormFields";
 import { GuidanceSection, GuidanceSettingsDisclosure } from "./GuidanceSection";
-import { PromptCompletionTextarea } from "./prompt-completion";
 
 type PatchDraft = (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
 
@@ -210,19 +210,23 @@ function CharacterCard({
           patchCharacter(draft, onPatch, character.id, { presetId: presetId || null })
         }
       />
-      <PromptCompletionTextarea
+      <NaiPromptEditor
         aria-label={t("characterPrompt", { index: index + 1 })}
         value={character.prompt}
         onChange={(prompt) => patchCharacter(draft, onPatch, character.id, { prompt })}
-        className="min-h-16 resize-none border border-app-border bg-black/20 p-2 text-sm text-app-text outline-none focus:border-brand-400"
+        profile={promptProfileForModel(draft.model)}
+        minHeight={72}
+        showStatus={false}
       />
-      <PromptCompletionTextarea
+      <NaiPromptEditor
         aria-label={t("characterNegativePrompt", { index: index + 1 })}
         value={character.negativePrompt}
         onChange={(negativePrompt) =>
           patchCharacter(draft, onPatch, character.id, { negativePrompt })
         }
-        className="min-h-14 resize-none border border-app-border bg-black/20 p-2 text-sm text-app-text outline-none focus:border-brand-400"
+        profile={promptProfileForModel(draft.model)}
+        minHeight={64}
+        showStatus={false}
       />
     </article>
   );

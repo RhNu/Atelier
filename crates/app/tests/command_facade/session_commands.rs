@@ -145,7 +145,7 @@ fn prompt_preset_commands_share_session() {
                 description: None,
                 order: 0,
                 enabled: true,
-                before: "@chunk(hero)".to_owned(),
+                before: "$chunk(hero)".to_owned(),
                 after: "sharp focus".to_owned(),
                 replace: String::new(),
                 uc_before: String::new(),
@@ -184,7 +184,7 @@ fn generation_prompt_compile_respects_requested_depth() {
 
         let error = host
             .compile_generation_prompt_preview(CompileGenerationPromptRequestDto {
-                prompt: "@chunk(hero)".to_owned(),
+                prompt: "$chunk(hero)".to_owned(),
                 main_preset_id: None,
                 negative_prompt: None,
                 characters: Vec::new(),

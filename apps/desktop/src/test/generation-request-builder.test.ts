@@ -277,7 +277,7 @@ describe("generation request builder", () => {
     const draft = {
       ...createGenerationDraft(settings),
       mainPresetId: "main-preset",
-      prompt: "@chunk(hero), 1girl",
+      prompt: "$chunk(hero), 1girl",
       characters: [
         {
           id: "char-preset",
@@ -298,7 +298,7 @@ describe("generation request builder", () => {
     const base = request.jobs[0]?.work.kind === "stream" ? request.jobs[0].work.request.base : null;
     expect(base).toMatchObject({
       main_preset_id: "main-preset",
-      prompt: "@chunk(hero), 1girl",
+      prompt: "$chunk(hero), 1girl",
       characters: [
         {
           preset_id: "character-preset",
@@ -306,7 +306,7 @@ describe("generation request builder", () => {
         },
       ],
     });
-    expect(draft.prompt).toBe("@chunk(hero), 1girl");
+    expect(draft.prompt).toBe("$chunk(hero), 1girl");
     expect(draft.characters[0]?.prompt).toBe("hero");
   });
 

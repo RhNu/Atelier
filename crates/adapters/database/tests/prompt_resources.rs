@@ -18,7 +18,7 @@ fn prompt_repository_crud_rewrites_references_and_blocks_referenced_delete() {
             .await
             .unwrap();
         let scene = service
-            .upsert_chunk(request(None, "scene", "@chunk(hero), forest"))
+            .upsert_chunk(request(None, "scene", "$chunk(hero), forest"))
             .await
             .unwrap();
 
@@ -35,7 +35,7 @@ fn prompt_repository_crud_rewrites_references_and_blocks_referenced_delete() {
                 .unwrap()
                 .unwrap()
                 .content,
-            "@chunk(main_hero), forest"
+            "$chunk(main_hero), forest"
         );
         let delete_error = service.delete_chunk(&renamed.id).await.unwrap_err();
         assert_eq!(delete_error.kind(), PromptResourceErrorKind::Conflict);
@@ -59,7 +59,7 @@ fn prompt_repository_persists_presets_and_rewrites_preset_chunk_references() {
             .await
             .unwrap();
         let mut main_preset_request = preset_request(None, PromptPresetKind::Main, "Main", 5);
-        main_preset_request.before = "@chunk(old-key)".to_owned();
+        main_preset_request.before = "$chunk(old-key)".to_owned();
         let preset = preset_service
             .upsert_preset(main_preset_request)
             .await
@@ -84,7 +84,7 @@ fn prompt_repository_persists_presets_and_rewrites_preset_chunk_references() {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(rewritten.before, "@chunk(new-key)");
+        assert_eq!(rewritten.before, "$chunk(new-key)");
         let delete_error = chunk_service.delete_chunk(&renamed.id).await.unwrap_err();
         assert_eq!(delete_error.kind(), PromptResourceErrorKind::Conflict);
         assert_eq!(

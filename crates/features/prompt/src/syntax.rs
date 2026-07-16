@@ -41,7 +41,7 @@ pub enum PromptTokenKind {
     DoublePipe,
     Colon,
     DoubleColon,
-    At,
+    Dollar,
     Equals,
     Error,
 }
@@ -98,7 +98,7 @@ pub enum PromptSyntaxKind {
     DoublePipe,
     Colon,
     DoubleColon,
-    At,
+    Dollar,
     Equals,
     Error,
 }
@@ -131,7 +131,7 @@ impl PromptSyntaxKind {
             22 => Self::DoublePipe,
             23 => Self::Colon,
             24 => Self::DoubleColon,
-            25 => Self::At,
+            25 => Self::Dollar,
             26 => Self::Equals,
             _ => Self::Error,
         }
@@ -231,8 +231,8 @@ enum LexToken {
     Pipe,
     #[token(":")]
     Colon,
-    #[token("@")]
-    At,
+    #[token("$")]
+    Dollar,
     #[token("=")]
     Equals,
     #[regex(r#""([^"\\]|\\.)*""#)]
@@ -247,7 +247,12 @@ enum LexToken {
     Identifier,
     #[regex(r#"\\."#)]
     Escaped,
-    #[regex(r#"[^{}\[\](),|@=:\s"]+"#, priority = 1)]
+    #[regex(
+        r"-?[0-9]+(\.[0-9]+)?[\p{XID_Start}_][\p{XID_Continue}_-]*",
+        priority = 4
+    )]
+    NumericText,
+    #[regex(r#"[^{}\[\](),|@$=:\s"]+"#, priority = 1)]
     Text,
 }
 
@@ -280,7 +285,7 @@ const fn token_kind(token: LexToken) -> PromptTokenKind {
         LexToken::Comma => PromptTokenKind::Comma,
         LexToken::Pipe => PromptTokenKind::Pipe,
         LexToken::Colon => PromptTokenKind::Colon,
-        LexToken::At => PromptTokenKind::At,
+        LexToken::Dollar => PromptTokenKind::Dollar,
         LexToken::Equals => PromptTokenKind::Equals,
         LexToken::String => PromptTokenKind::String,
         LexToken::UnterminatedString => PromptTokenKind::UnterminatedString,
@@ -288,7 +293,7 @@ const fn token_kind(token: LexToken) -> PromptTokenKind {
         LexToken::Number => PromptTokenKind::Number,
         LexToken::Identifier => PromptTokenKind::Identifier,
         LexToken::Escaped => PromptTokenKind::Escaped,
-        LexToken::Text => PromptTokenKind::Text,
+        LexToken::NumericText | LexToken::Text => PromptTokenKind::Text,
     }
 }
 
@@ -398,7 +403,7 @@ impl CstParser<'_> {
     }
 
     fn starts_extension_call(&self) -> bool {
-        self.current_kind() == Some(PromptTokenKind::At)
+        self.current_kind() == Some(PromptTokenKind::Dollar)
             && self.peek_kind(1) == Some(PromptTokenKind::Identifier)
             && self.peek_kind(2) == Some(PromptTokenKind::LParen)
     }
@@ -449,7 +454,7 @@ const fn token_syntax_kind(kind: PromptTokenKind) -> PromptSyntaxKind {
         PromptTokenKind::DoublePipe => PromptSyntaxKind::DoublePipe,
         PromptTokenKind::Colon => PromptSyntaxKind::Colon,
         PromptTokenKind::DoubleColon => PromptSyntaxKind::DoubleColon,
-        PromptTokenKind::At => PromptSyntaxKind::At,
+        PromptTokenKind::Dollar => PromptSyntaxKind::Dollar,
         PromptTokenKind::Equals => PromptSyntaxKind::Equals,
         PromptTokenKind::Error => PromptSyntaxKind::Error,
     }

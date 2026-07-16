@@ -1,0 +1,54 @@
+{
+  "schema": "atelier-prompt-syntax-corpus",
+  "version": 1,
+  "cases": [
+    {
+      "name": "nested weights and extension",
+      "profile": "novelai_v45",
+      "text": "{{masterpiece}}, [lowres], 1.25::cinematic lighting::, $chunk(hero)",
+      "diagnostics": []
+    },
+    {
+      "name": "randomizer",
+      "profile": "novelai_v45",
+      "text": "||red hair|blue hair|silver hair||",
+      "diagnostics": []
+    },
+    {
+      "name": "empty randomizer option",
+      "profile": "novelai_v45",
+      "text": "||red| |blue||",
+      "diagnostics": ["empty_randomizer_option"]
+    },
+    {
+      "name": "unclosed blocks",
+      "profile": "novelai_v45",
+      "text": "{portrait, [blue eyes",
+      "diagnostics": ["unclosed_strengthening", "unclosed_weakening"]
+    },
+    {
+      "name": "unmatched close",
+      "profile": "novelai_v45",
+      "text": "portrait }, bad anatomy ]",
+      "diagnostics": ["unmatched_strengthening_close", "unmatched_weakening_close"]
+    },
+    {
+      "name": "v3 numeric gate",
+      "profile": "novelai_v3",
+      "text": "1.2::portrait::",
+      "diagnostics": ["unsupported_capability"]
+    },
+    {
+      "name": "v4 negative gate",
+      "profile": "novelai_v4",
+      "text": "-0.5::artifact::",
+      "diagnostics": ["unsupported_capability"]
+    },
+    {
+      "name": "unicode extension argument",
+      "profile": "novelai_v45",
+      "text": "masterpiece, $chunk(背景-简单背景), 1girl",
+      "diagnostics": []
+    }
+  ]
+}

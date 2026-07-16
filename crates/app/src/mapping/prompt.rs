@@ -10,6 +10,206 @@ use super::{
     UpsertPromptPresetRequest, UpsertPromptPresetRequestDto, resource_ref_from_dto,
     resource_ref_to_dto,
 };
+use atelier_app_api::prompt::{
+    PromptAnalysisDto, PromptDiagnosticDto, PromptDiagnosticSeverityDto, PromptHighlightSpanDto,
+    PromptSyntaxNodeDto, PromptSyntaxProfileDto, PromptTextRangeDto, PromptTokenDto,
+};
+use atelier_prompt::{
+    FunctionRegistry, PromptDiagnosticKind, PromptSpan, PromptSyntaxProfile, PromptTokenKind,
+    parse_prompt,
+};
+
+pub fn analyze_prompt_to_dto(
+    text: String,
+    profile_dto: PromptSyntaxProfileDto,
+) -> PromptAnalysisDto {
+    let profile = syntax_profile_to_domain(profile_dto);
+    let parsed = parse_prompt(&text);
+    let ast = parsed.ast();
+    let diagnostics =
+        parsed.diagnostics_with_functions(&profile, &FunctionRegistry::atelier_defaults());
+
+    let mut nodes = Vec::new();
+    let mut highlights = Vec::new();
+    for span in ast.strengthening() {
+        nodes.push(node("strengthening", *span, None));
+        highlights.push(highlight("strengthening", *span, Some(1050)));
+    }
+    for span in ast.weakening() {
+        nodes.push(node("weakening", *span, None));
+        highlights.push(highlight("weakening", *span, Some(952)));
+    }
+    for item in ast.numeric_emphasis() {
+        nodes.push(node(
+            "numeric_emphasis",
+            item.span,
+            Some(item.weight.clone()),
+        ));
+        let weight_milli = parse_weight_milli(&item.weight);
+        highlights.push(highlight("numeric_emphasis", item.span, weight_milli));
+    }
+    for item in ast.randomizers() {
+        nodes.push(node("randomizer", item.span, None));
+        highlights.push(highlight("randomizer", item.span, None));
+    }
+    for item in ast.pipes() {
+        nodes.push(node("pipe", item.span, None));
+        highlights.push(highlight("pipe", item.span, None));
+    }
+    for item in ast.extension_calls() {
+        nodes.push(node("extension_call", item.span, Some(item.name.clone())));
+        highlights.push(highlight("extension_call", item.span, None));
+    }
+
+    PromptAnalysisDto {
+        source_text: text,
+        profile: profile_dto,
+        tokens: parsed
+            .tokens()
+            .iter()
+            .map(|token| PromptTokenDto {
+                kind: token_kind_name(token.kind).to_owned(),
+                text: token.text.clone(),
+                range: range(token.span),
+            })
+            .collect(),
+        nodes,
+        highlights,
+        diagnostics: diagnostics
+            .into_iter()
+            .map(|diagnostic| PromptDiagnosticDto {
+                code: diagnostic_code(diagnostic.kind).to_owned(),
+                severity: diagnostic_severity(diagnostic.kind),
+                message: diagnostic.message,
+                hint: diagnostic_hint(diagnostic.kind).map(str::to_owned),
+                range: range(diagnostic.span),
+            })
+            .collect(),
+    }
+}
+
+fn syntax_profile_to_domain(value: PromptSyntaxProfileDto) -> PromptSyntaxProfile {
+    match value {
+        PromptSyntaxProfileDto::NovelaiV3 => PromptSyntaxProfile::novelai_v3(),
+        PromptSyntaxProfileDto::NovelaiV4 => PromptSyntaxProfile::novelai_v4(),
+        PromptSyntaxProfileDto::NovelaiV45 => PromptSyntaxProfile::novelai_v45(),
+    }
+}
+
+fn node(kind: &str, span: PromptSpan, detail: Option<String>) -> PromptSyntaxNodeDto {
+    PromptSyntaxNodeDto {
+        kind: kind.to_owned(),
+        range: range(span),
+        detail,
+    }
+}
+
+fn highlight(
+    kind: &str,
+    span: PromptSpan,
+    effective_weight_milli: Option<i32>,
+) -> PromptHighlightSpanDto {
+    PromptHighlightSpanDto {
+        kind: kind.to_owned(),
+        range: range(span),
+        effective_weight_milli,
+    }
+}
+
+fn parse_weight_milli(value: &str) -> Option<i32> {
+    let (negative, unsigned) = value
+        .strip_prefix('-')
+        .map_or((false, value), |rest| (true, rest));
+    let (whole, fraction) = unsigned.split_once('.').unwrap_or((unsigned, ""));
+    let whole = whole.parse::<i32>().ok()?;
+    let fraction = format!("{fraction:0<3}")
+        .chars()
+        .take(3)
+        .collect::<String>()
+        .parse::<i32>()
+        .ok()?;
+    let milli = whole.checked_mul(1000)?.checked_add(fraction)?;
+    Some(if negative { -milli } else { milli })
+}
+
+const fn range(span: PromptSpan) -> PromptTextRangeDto {
+    PromptTextRangeDto {
+        start_byte: span.start,
+        end_byte: span.end,
+    }
+}
+
+const fn token_kind_name(kind: PromptTokenKind) -> &'static str {
+    match kind {
+        PromptTokenKind::Whitespace => "whitespace",
+        PromptTokenKind::Text => "text",
+        PromptTokenKind::Identifier => "identifier",
+        PromptTokenKind::Number => "number",
+        PromptTokenKind::InvalidNumber => "invalid_number",
+        PromptTokenKind::String => "string",
+        PromptTokenKind::UnterminatedString => "unterminated_string",
+        PromptTokenKind::Escaped => "escaped",
+        PromptTokenKind::LBrace => "l_brace",
+        PromptTokenKind::RBrace => "r_brace",
+        PromptTokenKind::LBracket => "l_bracket",
+        PromptTokenKind::RBracket => "r_bracket",
+        PromptTokenKind::LParen => "l_paren",
+        PromptTokenKind::RParen => "r_paren",
+        PromptTokenKind::Comma => "comma",
+        PromptTokenKind::Pipe => "pipe",
+        PromptTokenKind::DoublePipe => "double_pipe",
+        PromptTokenKind::Colon => "colon",
+        PromptTokenKind::DoubleColon => "double_colon",
+        PromptTokenKind::Dollar => "dollar",
+        PromptTokenKind::Equals => "equals",
+        PromptTokenKind::Error => "error",
+    }
+}
+
+const fn diagnostic_severity(kind: PromptDiagnosticKind) -> PromptDiagnosticSeverityDto {
+    match kind {
+        PromptDiagnosticKind::UnclosedStrengthening
+        | PromptDiagnosticKind::UnclosedWeakening
+        | PromptDiagnosticKind::UnclosedNumericEmphasis
+        | PromptDiagnosticKind::UnclosedRandomizer
+        | PromptDiagnosticKind::UnclosedFunctionCall => PromptDiagnosticSeverityDto::Warning,
+        _ => PromptDiagnosticSeverityDto::Error,
+    }
+}
+
+const fn diagnostic_code(kind: PromptDiagnosticKind) -> &'static str {
+    match kind {
+        PromptDiagnosticKind::UnclosedStrengthening => "unclosed_strengthening",
+        PromptDiagnosticKind::UnclosedWeakening => "unclosed_weakening",
+        PromptDiagnosticKind::UnmatchedStrengtheningClose => "unmatched_strengthening_close",
+        PromptDiagnosticKind::UnmatchedWeakeningClose => "unmatched_weakening_close",
+        PromptDiagnosticKind::UnclosedNumericEmphasis => "unclosed_numeric_emphasis",
+        PromptDiagnosticKind::UnclosedRandomizer => "unclosed_randomizer",
+        PromptDiagnosticKind::EmptyRandomizerOption => "empty_randomizer_option",
+        PromptDiagnosticKind::UnclosedFunctionCall => "unclosed_function_call",
+        PromptDiagnosticKind::InvalidNumericWeight => "invalid_numeric_weight",
+        PromptDiagnosticKind::UnterminatedString => "unterminated_string",
+        PromptDiagnosticKind::UnsupportedCapability => "unsupported_capability",
+        PromptDiagnosticKind::AmbiguousPipe => "ambiguous_pipe",
+        PromptDiagnosticKind::UnknownFunction => "unknown_function",
+        PromptDiagnosticKind::InvalidFunctionArity => "invalid_function_arity",
+        PromptDiagnosticKind::InvalidFunctionArgument => "invalid_function_argument",
+    }
+}
+
+const fn diagnostic_hint(kind: PromptDiagnosticKind) -> Option<&'static str> {
+    match kind {
+        PromptDiagnosticKind::UnclosedStrengthening => Some("close the block with `}` or `::`"),
+        PromptDiagnosticKind::UnclosedWeakening => Some("close the block with `]` or `::`"),
+        PromptDiagnosticKind::UnclosedNumericEmphasis => Some("close numeric emphasis with `::`"),
+        PromptDiagnosticKind::UnclosedRandomizer => Some("close the randomizer with `||`"),
+        PromptDiagnosticKind::UnclosedFunctionCall => Some("close the extension call with `)`"),
+        PromptDiagnosticKind::EmptyRandomizerOption => {
+            Some("add text between adjacent pipe separators")
+        }
+        _ => None,
+    }
+}
 
 pub fn prompt_chunk_to_dto(chunk: &PromptChunk) -> PromptChunkDto {
     PromptChunkDto {

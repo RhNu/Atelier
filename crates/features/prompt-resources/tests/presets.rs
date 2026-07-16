@@ -81,7 +81,7 @@ fn compiler_applies_presets_and_expands_chunks_inside_preset_fields() {
 
         let preset_service = PromptPresetService::new(repository.clone());
         let mut main_request = preset_request(None, PromptPresetKind::Main, "Main", 0);
-        main_request.before = "@chunk(lighting)".to_owned();
+        main_request.before = "$chunk(lighting)".to_owned();
         main_request.after = "sharp focus".to_owned();
         main_request.uc_before = "bad anatomy".to_owned();
         main_request.quality_override = Some("qualityTagsV4".to_owned());
@@ -147,7 +147,7 @@ fn chunk_rename_rewrites_preset_fields() {
             .unwrap();
         let preset_service = PromptPresetService::new(repository.clone());
         let mut request = preset_request(None, PromptPresetKind::Main, "Uses chunk", 0);
-        request.before = "@chunk(old-key)".to_owned();
+        request.before = "$chunk(old-key)".to_owned();
         let preset = preset_service.upsert_preset(request).await.unwrap();
 
         chunk_service
@@ -167,7 +167,7 @@ fn chunk_rename_rewrites_preset_fields() {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(rewritten.before, "@chunk(new-key)");
+        assert_eq!(rewritten.before, "$chunk(new-key)");
     });
 }
 
@@ -189,7 +189,7 @@ fn preset_references_block_chunk_delete() {
             .await
             .unwrap();
         let mut request = preset_request(None, PromptPresetKind::Main, "Main", 0);
-        request.before = "@chunk(lighting)".to_owned();
+        request.before = "$chunk(lighting)".to_owned();
         preset_service.upsert_preset(request).await.unwrap();
 
         let error = chunk_service.delete_chunk(&chunk.id).await.unwrap_err();

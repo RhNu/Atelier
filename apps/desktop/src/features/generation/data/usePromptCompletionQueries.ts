@@ -4,7 +4,7 @@ import { promptApi, queryKeys } from "@/platform/atelier";
 import type { PromptChunkDto, PromptLexiconEntryDto } from "@/types";
 
 type PromptCompletionQueryContext = {
-  mode: "tag" | "chunk";
+  mode: "tag" | "function" | "chunk";
   query: string;
   manual: boolean;
 } | null;

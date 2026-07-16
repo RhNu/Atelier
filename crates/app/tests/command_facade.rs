@@ -157,7 +157,7 @@ async fn upsert_scene_chunk(
     host.upsert_prompt_chunk(UpsertPromptChunkRequestDto {
         chunk_id: None,
         key: "scene".to_owned(),
-        content: "@chunk(hero), blue sky".to_owned(),
+        content: "$chunk(hero), blue sky".to_owned(),
         category: None,
         description: None,
         preview: None,
@@ -193,7 +193,7 @@ fn submit_request(batch_id: &str, job_id: &str) -> SubmitGenerationRequestDto {
         batch_id: batch_id.to_owned(),
         job_id: job_id.to_owned(),
         work: GenerationWorkRequestDto::Image(GenerateImageRequestDto {
-            prompt: "@chunk(hero)".to_owned(),
+            prompt: "$chunk(hero)".to_owned(),
             model: ImageModelDto::NaiDiffusion45Full,
             ..GenerateImageRequestDto::default()
         }),

@@ -490,12 +490,12 @@ fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
 fn generation_prompt_compile_preview_accepts_all_prompt_scopes() {
     let request = CompileGenerationPromptRequestDto {
         main_preset_id: Some("preset-main".to_owned()),
-        prompt: "@chunk(main)".to_owned(),
-        negative_prompt: Some("@chunk(negative)".to_owned()),
+        prompt: "$chunk(main)".to_owned(),
+        negative_prompt: Some("$chunk(negative)".to_owned()),
         characters: vec![CompileGenerationCharacterPromptDto {
             preset_id: Some("preset-character".to_owned()),
-            prompt: "@chunk(hero)".to_owned(),
-            negative_prompt: Some("@chunk(hero_negative)".to_owned()),
+            prompt: "$chunk(hero)".to_owned(),
+            negative_prompt: Some("$chunk(hero_negative)".to_owned()),
             enabled: true,
         }],
         max_depth: 8,
@@ -505,12 +505,12 @@ fn generation_prompt_compile_preview_accepts_all_prompt_scopes() {
         serde_json::to_value(request).unwrap(),
         json!({
             "main_preset_id": "preset-main",
-            "prompt": "@chunk(main)",
-            "negative_prompt": "@chunk(negative)",
+            "prompt": "$chunk(main)",
+            "negative_prompt": "$chunk(negative)",
             "characters": [{
                 "preset_id": "preset-character",
-                "prompt": "@chunk(hero)",
-                "negative_prompt": "@chunk(hero_negative)",
+                "prompt": "$chunk(hero)",
+                "negative_prompt": "$chunk(hero_negative)",
                 "enabled": true
             }],
             "max_depth": 8

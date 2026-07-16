@@ -5,7 +5,7 @@ use atelier_prompt::{
 
 #[test]
 fn parses_and_validates_atelier_extension_calls() {
-    let parsed = parse_prompt(r#"@chunk("face"), @preset(name="v4")"#);
+    let parsed = parse_prompt(r#"$chunk("face"), $preset(name="v4")"#);
     let ast = parsed.ast();
 
     assert_eq!(ast.extension_calls().len(), 2);
@@ -35,7 +35,7 @@ fn parses_and_validates_atelier_extension_calls() {
 
 #[test]
 fn reports_extension_function_signature_errors() {
-    let parsed = parse_prompt(r#"@unknown("x"), @chunk(), @chunk(other = "v4")"#);
+    let parsed = parse_prompt(r#"$unknown("x"), $chunk(), $chunk(other = "v4")"#);
     let diagnostics = parsed.diagnostics_with_functions(
         &PromptSyntaxProfile::novelai_v45(),
         &FunctionRegistry::atelier_defaults(),
@@ -60,7 +60,7 @@ fn reports_extension_function_signature_errors() {
 
 #[test]
 fn named_function_arguments_allow_surrounding_whitespace() {
-    let parsed = parse_prompt(r#"@preset(name = "v4")"#);
+    let parsed = parse_prompt(r#"$preset(name = "v4")"#);
     let ast = parsed.ast();
 
     assert_eq!(
@@ -88,7 +88,7 @@ fn named_function_arguments_allow_surrounding_whitespace() {
 
 #[test]
 fn atelier_defaults_only_accept_chunk_function() {
-    let parsed = parse_prompt(r"@preset(v4), @chunk(face), @chunk(name = face)");
+    let parsed = parse_prompt(r"$preset(v4), $chunk(face), $chunk(name = face)");
     let diagnostics = parsed.diagnostics_with_functions(
         &PromptSyntaxProfile::novelai_v45(),
         &FunctionRegistry::atelier_defaults(),
@@ -105,7 +105,7 @@ fn atelier_defaults_only_accept_chunk_function() {
 
 #[test]
 fn conservative_formatter_round_trips_without_reordering_prompt_text() {
-    let source = "1girl,{blue eyes},  ||red|blue||, @chunk(\"face\")";
+    let source = "1girl,{blue eyes},  ||red|blue||, $chunk(\"face\")";
 
     assert_eq!(
         format_prompt(source, &FormatterOptions::conservative()),

@@ -5,7 +5,7 @@ use atelier_prompt::{
 #[test]
 fn parses_v4_prompt_syntax_losslessly() {
     let source =
-        r#"1girl, {blue eyes}, [lowres], 1.5::rain, night::, ||red|blue||, @chunk("face")"#;
+        r#"1girl, {blue eyes}, [lowres], 1.5::rain, night::, ||red|blue||, $chunk("face")"#;
 
     let parsed = parse_prompt(source);
     let ast = parsed.ast();
@@ -39,8 +39,17 @@ fn parses_v4_prompt_syntax_losslessly() {
 }
 
 #[test]
+fn keeps_numeric_prefix_tags_out_of_numeric_weight_tokens() {
+    let parsed = parse_prompt("1girl, 1.5::cinematic::, $chunk(hero)");
+
+    assert_eq!(parsed.tokens()[0].kind, PromptTokenKind::Text);
+    assert_eq!(parsed.ast().numeric_emphasis().len(), 1);
+    assert_eq!(parsed.ast().extension_calls()[0].name, "chunk");
+}
+
+#[test]
 fn incomplete_extension_call_reports_diagnostic_without_panicking() {
-    let parsed = parse_prompt("@chunk(");
+    let parsed = parse_prompt("$chunk(");
     let diagnostics = parsed.diagnostics(&PromptSyntaxProfile::novelai_v45());
 
     assert!(
@@ -70,7 +79,7 @@ fn unclosed_randomizer_keeps_internal_pipes_out_of_top_level_pipe_gate() {
 
 #[test]
 fn extension_call_arguments_do_not_leak_pipes_to_profile_gate() {
-    let parsed = parse_prompt("@fn(a|b)");
+    let parsed = parse_prompt("$fn(a|b)");
     let profile = PromptSyntaxProfile::new("no-pipe", vec![PromptCapability::Randomizer]);
     let diagnostics = parsed.diagnostics(&profile);
 
@@ -84,7 +93,7 @@ fn extension_call_arguments_do_not_leak_pipes_to_profile_gate() {
 
 #[test]
 fn extension_call_arguments_do_not_leak_native_prompt_syntax() {
-    let parsed = parse_prompt("@fn({x}, 1.5::y::)");
+    let parsed = parse_prompt("$fn({x}, 1.5::y::)");
     let diagnostics = parsed.diagnostics(&PromptSyntaxProfile::novelai_v3());
 
     assert!(parsed.ast().strengthening().is_empty());
@@ -97,7 +106,7 @@ fn extension_call_arguments_do_not_leak_native_prompt_syntax() {
 
 #[test]
 fn extension_call_arguments_do_not_leak_delimiter_diagnostics() {
-    let parsed = parse_prompt("@fn({x)");
+    let parsed = parse_prompt("$fn({x)");
     let diagnostics = parsed.diagnostics(&PromptSyntaxProfile::novelai_v45());
 
     assert!(
@@ -109,7 +118,7 @@ fn extension_call_arguments_do_not_leak_delimiter_diagnostics() {
 
 #[test]
 fn extension_call_unterminated_string_reports_once() {
-    let parsed = parse_prompt("@fn(\"x)");
+    let parsed = parse_prompt("$fn(\"x)");
     let diagnostics = parsed.diagnostics(&PromptSyntaxProfile::novelai_v45());
     let unterminated_count = diagnostics
         .iter()
@@ -121,7 +130,7 @@ fn extension_call_unterminated_string_reports_once() {
 
 #[test]
 fn extension_call_cst_does_not_parse_native_prompt_nodes_inside_arguments() {
-    let parsed = parse_prompt("@fn(1.5::x::)");
+    let parsed = parse_prompt("$fn(1.5::x::)");
 
     assert!(
         parsed
@@ -133,7 +142,7 @@ fn extension_call_cst_does_not_parse_native_prompt_nodes_inside_arguments() {
 
 #[test]
 fn numeric_emphasis_close_search_ignores_extension_call_arguments() {
-    let parsed = parse_prompt("1.5::a @fn(::)");
+    let parsed = parse_prompt("1.5::a $fn(::)");
     let diagnostics = parsed.diagnostics(&PromptSyntaxProfile::novelai_v45());
 
     assert!(!parsed.ast().numeric_emphasis()[0].closed);
@@ -146,11 +155,11 @@ fn numeric_emphasis_close_search_ignores_extension_call_arguments() {
 
 #[test]
 fn randomizer_options_do_not_split_on_pipes_inside_extension_calls() {
-    let parsed = parse_prompt("||@fn(a|b)|x||");
+    let parsed = parse_prompt("||$fn(a|b)|x||");
 
     assert_eq!(
         parsed.ast().randomizers()[0].options,
-        vec!["@fn(a|b)".to_owned(), "x".to_owned()]
+        vec!["$fn(a|b)".to_owned(), "x".to_owned()]
     );
 }
 
@@ -198,7 +207,7 @@ fn reports_profile_specific_capability_diagnostics() {
 
 #[test]
 fn reports_unclosed_and_invalid_syntax_without_losing_text() {
-    let source = r#"{{rain, 1..2::bad, ||red|blue, @chunk("face)"#;
+    let source = r#"{{rain, 1..2::bad, ||red|blue, $chunk("face)"#;
     let parsed = parse_prompt(source);
     let diagnostics = parsed.diagnostics(&PromptSyntaxProfile::novelai_v45());
 

@@ -19,6 +19,7 @@ import type { PromptChunkDto, PromptLexiconEntryDto } from "@/types";
 import {
   applyPromptCompletion,
   getPromptCompletionContext,
+  promptFunctionCompletionItems,
   type PromptCompletionContext,
   type PromptCompletionItem,
 } from "./prompt-completion-utils";
@@ -63,6 +64,7 @@ export function usePromptCompletionController({
     () =>
       orderCompletionItems({
         context,
+        functionItems: promptFunctionCompletionItems(context),
         tagItems: queryResults.tags.map(tagEntryToItem),
         chunkItems: chunkItemsForQuery(queryResults.chunks, context),
       }),
@@ -96,7 +98,7 @@ export function usePromptCompletionController({
 
   const refreshContext = useCallback((textarea: HTMLTextAreaElement, manual = false) => {
     const nextContext = getPromptCompletionContext(textarea.value, textarea.selectionStart, manual);
-    const shouldOpen = manual || nextContext.query.trim().length > 0;
+    const shouldOpen = manual || nextContext.mode !== "tag" || nextContext.query.trim().length > 0;
     setContext(shouldOpen ? nextContext : null);
     setActiveCompletionIndex(0, activeIndexRef, setActiveIndex);
   }, []);
@@ -236,15 +238,21 @@ function useDebouncedValue(value: string, delayMs: number): string {
 
 function orderCompletionItems({
   context,
+  functionItems,
   tagItems,
   chunkItems,
 }: {
   context: PromptCompletionContext | null;
+  functionItems: PromptCompletionItem[];
   tagItems: PromptCompletionItem[];
   chunkItems: PromptCompletionItem[];
 }): PromptCompletionItem[] {
   if (!context) {
     return [];
+  }
+
+  if (context.mode === "function") {
+    return functionItems;
   }
 
   if (context.mode === "chunk" || context.manual) {

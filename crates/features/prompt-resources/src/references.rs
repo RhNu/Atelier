@@ -27,7 +27,7 @@ pub fn rewrite_chunk_references(
             continue;
         }
         output.push_str(&text[cursor..call.span.start]);
-        output.push_str("@chunk(");
+        output.push_str("$chunk(");
         output.push_str(new_key.as_str());
         output.push(')');
         cursor = call.span.end;

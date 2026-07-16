@@ -8,11 +8,15 @@ import {
   useRef,
   useState,
   type ChangeEvent,
-  type KeyboardEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppSelect, AppTabs } from "@/components/ui";
+import {
+  NaiPromptEditor,
+  promptProfileForModel,
+  type NaiPromptEditorHandle,
+} from "@/features/prompt-editor";
 import type { PromptPresetDto } from "@/types";
 
 import type { GenerationDraft } from "../model/generation-draft";
@@ -24,7 +28,6 @@ import {
   toSelectOptions,
 } from "../model/generation-options";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
-import { PromptCompletionTextarea } from "./prompt-completion";
 
 type PromptTab = "positive" | "negative";
 
@@ -58,7 +61,7 @@ export const GenerationPromptPanel = forwardRef<
     ],
     [t],
   );
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<NaiPromptEditorHandle>(null);
   const mainPresetOptions = useMemo(
     () => [
       {
@@ -91,7 +94,7 @@ export const GenerationPromptPanel = forwardRef<
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value === "negative" ? "negative" : "positive");
   }, []);
-  const handleEditorKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleEditorKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.ctrlKey && event.key === "Tab") {
       event.preventDefault();
       setActiveTab((current) => (current === "positive" ? "negative" : "positive"));
@@ -158,15 +161,16 @@ export const GenerationPromptPanel = forwardRef<
             </div>
           </details>
         </div>
-        <PromptCompletionTextarea
+        <NaiPromptEditor
           ref={textareaRef}
           id="generation-prompt-editor"
           aria-label={activeTab === "positive" ? t("positivePrompt") : t("undesiredContent")}
           value={activeTab === "positive" ? draft.prompt : draft.negativePrompt}
           onChange={handlePromptChange}
+          profile={promptProfileForModel(draft.model)}
           onKeyDown={handleEditorKeyDown}
           onBlur={onFlush}
-          className="min-h-44 resize-y border border-app-border bg-black/20 p-3 text-sm text-app-text outline-none focus:border-brand-400"
+          minHeight={176}
         />
         <p className="text-[11px] text-app-muted">{t("promptTabsHint")}</p>
       </div>

@@ -69,16 +69,16 @@ fn chunk_rename_rewrites_existing_chunk_references() {
         let repository = MemoryPromptResourceRepository::default();
         let service = PromptChunkService::new(repository);
         let base = service
-            .upsert_chunk(request(None, "old-key", "@chunk(old-key)"))
+            .upsert_chunk(request(None, "old-key", "$chunk(old-key)"))
             .await
             .unwrap();
         let dependent = service
-            .upsert_chunk(request(None, "scene", "1girl, @chunk(old-key)"))
+            .upsert_chunk(request(None, "scene", "1girl, $chunk(old-key)"))
             .await
             .unwrap();
 
         service
-            .upsert_chunk(request(Some(base.id.clone()), "new-key", "@chunk(old-key)"))
+            .upsert_chunk(request(Some(base.id.clone()), "new-key", "$chunk(old-key)"))
             .await
             .unwrap();
 
@@ -87,9 +87,9 @@ fn chunk_rename_rewrites_existing_chunk_references() {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(rewritten.content, "1girl, @chunk(new-key)");
+        assert_eq!(rewritten.content, "1girl, $chunk(new-key)");
         let renamed = service.get_chunk_by_id(&base.id).await.unwrap().unwrap();
-        assert_eq!(renamed.content, "@chunk(old-key)");
+        assert_eq!(renamed.content, "$chunk(old-key)");
     });
 }
 
@@ -103,7 +103,7 @@ fn chunk_delete_is_blocked_when_referenced() {
             .await
             .unwrap();
         let dependent = service
-            .upsert_chunk(request(None, "scene", "@chunk(base)"))
+            .upsert_chunk(request(None, "scene", "$chunk(base)"))
             .await
             .unwrap();
 

@@ -7,8 +7,11 @@ use crate::syntax::{ParsedPrompt, PromptSpan, PromptToken, PromptTokenKind};
 pub enum PromptDiagnosticKind {
     UnclosedStrengthening,
     UnclosedWeakening,
+    UnmatchedStrengtheningClose,
+    UnmatchedWeakeningClose,
     UnclosedNumericEmphasis,
     UnclosedRandomizer,
+    EmptyRandomizerOption,
     UnclosedFunctionCall,
     InvalidNumericWeight,
     UnterminatedString,
@@ -75,6 +78,24 @@ fn diagnose_delimiters(
         PromptTokenKind::RBrace,
         PromptDiagnosticKind::UnclosedStrengthening,
         "strengthening block is not closed",
+        protected_ranges,
+        diagnostics,
+    );
+    diagnose_unmatched_closers(
+        tokens,
+        PromptTokenKind::LBrace,
+        PromptTokenKind::RBrace,
+        PromptDiagnosticKind::UnmatchedStrengtheningClose,
+        "strengthening close delimiter has no matching opener",
+        protected_ranges,
+        diagnostics,
+    );
+    diagnose_unmatched_closers(
+        tokens,
+        PromptTokenKind::LBracket,
+        PromptTokenKind::RBracket,
+        PromptDiagnosticKind::UnmatchedWeakeningClose,
+        "weakening close delimiter has no matching opener",
         protected_ranges,
         diagnostics,
     );
@@ -176,6 +197,43 @@ fn diagnose_randomizers(
                 randomizer.span,
                 "prompt randomizer is not closed",
             ));
+        }
+        if randomizer
+            .options
+            .iter()
+            .any(|option| option.trim().is_empty())
+        {
+            diagnostics.push(PromptDiagnostic::new(
+                PromptDiagnosticKind::EmptyRandomizerOption,
+                randomizer.span,
+                "prompt randomizer contains an empty option",
+            ));
+        }
+    }
+}
+
+fn diagnose_unmatched_closers(
+    tokens: &[PromptToken],
+    open: PromptTokenKind,
+    close: PromptTokenKind,
+    kind: PromptDiagnosticKind,
+    message: &str,
+    protected_ranges: &[(usize, usize, bool)],
+    diagnostics: &mut Vec<PromptDiagnostic>,
+) {
+    let mut depth = 0usize;
+    for (index, token) in tokens.iter().enumerate() {
+        if crate::ast::is_inside_range(index, protected_ranges) {
+            continue;
+        }
+        if token.kind == open {
+            depth += 1;
+        } else if token.kind == close {
+            if depth == 0 {
+                diagnostics.push(PromptDiagnostic::new(kind, token.span, message));
+            } else {
+                depth -= 1;
+            }
         }
     }
 }

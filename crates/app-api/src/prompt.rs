@@ -3,6 +3,77 @@ use ts_rs::TS;
 
 use crate::resource::ResourceRefDto;
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PromptSyntaxProfileDto {
+    NovelaiV3,
+    NovelaiV4,
+    NovelaiV45,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct AnalyzePromptRequestDto {
+    pub text: String,
+    pub profile: PromptSyntaxProfileDto,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptTextRangeDto {
+    pub start_byte: usize,
+    pub end_byte: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptTokenDto {
+    pub kind: String,
+    pub text: String,
+    pub range: PromptTextRangeDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptSyntaxNodeDto {
+    pub kind: String,
+    pub range: PromptTextRangeDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptHighlightSpanDto {
+    pub kind: String,
+    pub range: PromptTextRangeDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effective_weight_milli: Option<i32>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PromptDiagnosticSeverityDto {
+    Info,
+    Warning,
+    Error,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptDiagnosticDto {
+    pub code: String,
+    pub severity: PromptDiagnosticSeverityDto,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+    pub range: PromptTextRangeDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptAnalysisDto {
+    pub source_text: String,
+    pub profile: PromptSyntaxProfileDto,
+    pub tokens: Vec<PromptTokenDto>,
+    pub nodes: Vec<PromptSyntaxNodeDto>,
+    pub highlights: Vec<PromptHighlightSpanDto>,
+    pub diagnostics: Vec<PromptDiagnosticDto>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptChunkDto {
     pub chunk_id: String,

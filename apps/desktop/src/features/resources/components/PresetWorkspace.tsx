@@ -29,10 +29,10 @@ import {
   EditorActions,
   EditorPanel,
   NumberInput,
+  PromptTextArea,
   ResourceList,
   ResourceListButton,
   SelectField,
-  TextArea,
   TextInput,
 } from "./ResourceEditorPrimitives";
 import { ResourcePreviewEditor } from "./ResourcePreviewEditor";
@@ -267,24 +267,21 @@ function PresetFields({
             }
           />
           {positiveMode === "replace" ? (
-            <TextArea
+            <PromptTextArea
               label={t("replace")}
               value={draft.replace}
-              minRows="min-h-40"
               onChange={(replace) => setDraft({ ...draft, replace })}
             />
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              <TextArea
+              <PromptTextArea
                 label={t("before")}
                 value={draft.before}
-                minRows="min-h-40"
                 onChange={(before) => setDraft({ ...draft, before })}
               />
-              <TextArea
+              <PromptTextArea
                 label={t("after")}
                 value={draft.after}
-                minRows="min-h-40"
                 onChange={(after) => setDraft({ ...draft, after })}
               />
             </div>
@@ -314,24 +311,21 @@ function PresetFields({
             }
           />
           {ucMode === "replace" ? (
-            <TextArea
+            <PromptTextArea
               label={t("ucReplace")}
               value={draft.uc_replace}
-              minRows="min-h-40"
               onChange={(uc_replace) => setDraft({ ...draft, uc_replace })}
             />
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              <TextArea
+              <PromptTextArea
                 label={t("ucBefore")}
                 value={draft.uc_before}
-                minRows="min-h-40"
                 onChange={(uc_before) => setDraft({ ...draft, uc_before })}
               />
-              <TextArea
+              <PromptTextArea
                 label={t("ucAfter")}
                 value={draft.uc_after}
-                minRows="min-h-40"
                 onChange={(uc_after) => setDraft({ ...draft, uc_after })}
               />
             </div>

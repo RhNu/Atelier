@@ -139,7 +139,7 @@ export function parseTab(value: string): ResourceTab {
 export function tabSummary(tab: ResourceTab): string {
   switch (tab) {
     case "chunks":
-      return "Reusable @chunk(...) prompt fragments";
+      return "Reusable $chunk(...) prompt fragments";
     case "main-presets":
       return "Global prompt presets and generation overrides";
     case "character-presets":

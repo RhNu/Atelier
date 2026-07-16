@@ -258,7 +258,7 @@ pub fn extension_call_ranges(tokens: &[PromptToken]) -> Vec<(usize, usize, bool)
     let mut ranges = Vec::new();
     let mut index = 0;
     while index + 2 < tokens.len() {
-        if tokens[index].kind != PromptTokenKind::At
+        if tokens[index].kind != PromptTokenKind::Dollar
             || tokens[index + 1].kind != PromptTokenKind::Identifier
             || tokens[index + 2].kind != PromptTokenKind::LParen
         {
@@ -281,7 +281,7 @@ fn extension_calls(tokens: &[PromptToken]) -> Vec<ExtensionCall> {
     let mut calls = Vec::new();
     let mut index = 0;
     while index + 2 < tokens.len() {
-        if tokens[index].kind != PromptTokenKind::At
+        if tokens[index].kind != PromptTokenKind::Dollar
             || tokens[index + 1].kind != PromptTokenKind::Identifier
             || tokens[index + 2].kind != PromptTokenKind::LParen
         {
