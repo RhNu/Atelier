@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { i18n } from "@/i18n";
+
 import { AppShell } from "./AppShell";
 
 const openWorkspaceStatus = { root: "D:/atelier", schema_version: 4, locked: true };
@@ -13,8 +15,8 @@ describe("AppShell", () => {
   it("shows a workspace gate when no workspace is open", () => {
     render(<AppShell workspaceStatus={null} workspacePending={false} />);
 
-    expect(screen.getByRole("heading", { name: "Open an Atelier workspace" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: i18n.t("shell:openTitle") })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: i18n.t("shell:openWorkspace") })).toBeInTheDocument();
   });
 
   it("shows a recoverable error when the last workspace cannot be restored", async () => {
@@ -31,12 +33,10 @@ describe("AppShell", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Couldn’t reopen your last workspace" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: i18n.t("shell:reopenFailed") })).toBeInTheDocument();
     expect(screen.getByText("D:/missing-atelier")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Retry" }));
-    await user.click(screen.getByRole("button", { name: "Choose another workspace" }));
+    await user.click(screen.getByRole("button", { name: i18n.t("common:retry") }));
+    await user.click(screen.getByRole("button", { name: i18n.t("shell:chooseAnotherWorkspace") }));
     expect(retry).toHaveBeenCalledTimes(1);
     expect(choose).toHaveBeenCalledTimes(1);
   });
@@ -44,8 +44,10 @@ describe("AppShell", () => {
   it("renders the routed workbench navigation when a workspace is open", () => {
     render(<AppShell workspaceStatus={openWorkspaceStatus} workspacePending={false} />);
 
-    expect(screen.getByRole("navigation", { name: "Workspace sections" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Generate" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("navigation", { name: i18n.t("shell:workspaceSections") }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: i18n.t("shell:nav.generate") })).toBeInTheDocument();
     expect(screen.queryByText("D:/atelier")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Collapse panels" })).not.toBeInTheDocument();
   });
@@ -61,7 +63,7 @@ describe("AppShell", () => {
       />,
     );
 
-    await user.click(screen.getByRole("link", { name: "Gallery" }));
+    await user.click(screen.getByRole("link", { name: i18n.t("shell:nav.gallery") }));
 
     expect(onNavigate).toHaveBeenCalledWith("/gallery");
   });

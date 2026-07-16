@@ -184,7 +184,7 @@ function CharacterCard({
         <div className="flex items-center gap-1">
           <input
             aria-label={t("enableCharacter", { index: index + 1 })}
-            title={`Enable character ${index + 1}`}
+            title={t("enableCharacter", { index: index + 1 })}
             type="checkbox"
             checked={character.enabled}
             onChange={(event) =>
@@ -195,7 +195,7 @@ function CharacterCard({
           />
           <AppIconButton
             icon={Trash2}
-            label={`Remove character ${index + 1}`}
+            label={t("removeCharacter", { index: index + 1 })}
             size="sm"
             variant="danger"
             onClick={onRemove}
@@ -211,13 +211,13 @@ function CharacterCard({
         }
       />
       <PromptCompletionTextarea
-        aria-label={`Character ${index + 1} prompt`}
+        aria-label={t("characterPrompt", { index: index + 1 })}
         value={character.prompt}
         onChange={(prompt) => patchCharacter(draft, onPatch, character.id, { prompt })}
         className="min-h-16 resize-none border border-app-border bg-black/20 p-2 text-sm text-app-text outline-none focus:border-brand-400"
       />
       <PromptCompletionTextarea
-        aria-label={`Character ${index + 1} negative prompt`}
+        aria-label={t("characterNegativePrompt", { index: index + 1 })}
         value={character.negativePrompt}
         onChange={(negativePrompt) =>
           patchCharacter(draft, onPatch, character.id, { negativePrompt })

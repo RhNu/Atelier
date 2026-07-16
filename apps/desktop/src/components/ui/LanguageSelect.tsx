@@ -1,7 +1,9 @@
-import { useCallback, type ChangeEvent } from "react";
+import { useCallback, useMemo, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { FrontendLanguageDto } from "@/types";
+
+import { AppSelect } from "./AppSelect";
 
 type LanguageSelectProps = {
   value: FrontendLanguageDto;
@@ -12,6 +14,14 @@ type LanguageSelectProps = {
 
 export function LanguageSelect({ value, disabled, onChange, compact }: LanguageSelectProps) {
   const { t } = useTranslation("common");
+  const options = useMemo(
+    () => [
+      { value: "system", label: t("languageSystem") },
+      { value: "en", label: t("languageEnglish") },
+      { value: "zh-CN", label: t("languageChinese") },
+    ],
+    [t],
+  );
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
       const language = parseFrontendLanguage(event.target.value);
@@ -25,17 +35,14 @@ export function LanguageSelect({ value, disabled, onChange, compact }: LanguageS
       <span className={compact ? "sr-only" : "text-xs font-semibold text-app-muted"}>
         {t("language")}
       </span>
-      <select
+      <AppSelect
         aria-label={t("language")}
         value={value}
         disabled={disabled}
         onChange={handleChange}
-        className="h-8 border border-app-border bg-app-surface px-2 text-xs text-app-text outline-none focus:border-brand-400 disabled:opacity-50"
-      >
-        <option value="system">{t("languageSystem")}</option>
-        <option value="en">{t("languageEnglish")}</option>
-        <option value="zh-CN">{t("languageChinese")}</option>
-      </select>
+        className="h-8 px-2 pr-7 text-xs"
+        options={options}
+      />
     </label>
   );
 }

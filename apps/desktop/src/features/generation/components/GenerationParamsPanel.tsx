@@ -2,6 +2,8 @@
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { AppSelect } from "@/components/ui";
+
 import type { GenerationDraft } from "../model/generation-draft";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 
@@ -71,25 +73,21 @@ export function GenerationParamsPanel({
       </header>
 
       <div className="flex gap-2">
-        <select
+        <AppSelect
           aria-label={t("sizePreset")}
           value={selectedPreset}
           onChange={handlePresetChange}
-          className="h-9 min-w-0 flex-1 border border-app-border bg-app-surface px-3 text-sm text-app-text outline-none focus:border-brand-400"
-        >
-          {(["normal", "large", "small"] as const).map((group) => (
-            <optgroup key={group} label={t(`sizeGroup.${group}`)}>
-              {SIZE_PRESETS.filter((preset) => preset.group === group).map((preset) => (
-                <option key={preset.value} value={preset.value}>
-                  {t(`sizeShape.${preset.shape}`)} ({preset.width}×{preset.height})
-                </option>
-              ))}
-            </optgroup>
-          ))}
-          <optgroup label={t("custom")}>
-            <option value="custom">{t("custom")}</option>
-          </optgroup>
-        </select>
+          className="h-9 min-w-0 flex-1 px-3 pr-7 text-sm"
+          options={[
+            ...(["normal", "large", "small"] as const).flatMap((group) =>
+              SIZE_PRESETS.filter((preset) => preset.group === group).map((preset) => ({
+                value: preset.value,
+                label: `${t(`sizeGroup.${group}`)} · ${t(`sizeShape.${preset.shape}`)} (${preset.width}×${preset.height})`,
+              })),
+            ),
+            { value: "custom", label: t("custom") },
+          ]}
+        />
         <div className="flex min-w-0 flex-1 items-center border border-app-border bg-black/20 px-2">
           <input
             aria-label={t("width")}

@@ -11,9 +11,9 @@ import {
 import { useTranslation } from "react-i18next";
 
 const SIDEBAR_STORAGE_KEY = "atelier.ui.generate.sidebar-width.v1";
-const DEFAULT_SIDEBAR_WIDTH = 420;
-const MIN_SIDEBAR_WIDTH = 360;
-const MAX_SIDEBAR_WIDTH = 520;
+const DEFAULT_SIDEBAR_WIDTH = 360;
+const MIN_SIDEBAR_WIDTH = 320;
+const MAX_SIDEBAR_WIDTH = 480;
 const MIN_PREVIEW_WIDTH = 320;
 const HISTORY_WIDTH = 280;
 const RESIZER_WIDTH = 6;

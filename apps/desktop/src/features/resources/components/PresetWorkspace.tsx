@@ -119,7 +119,7 @@ export function PresetWorkspace({
             key={preset.preset_id}
             selected={draft.preset_id === preset.preset_id}
             title={preset.name}
-            detail={`${preset.enabled ? "Enabled" : "Disabled"} · ${preset.category ?? "Preset"}`}
+            detail={`${preset.enabled ? t("enabled") : t("disabled")} · ${preset.category ?? t("preset")}`}
             preview={preset.preview}
             onClick={() => {
               setDraft(presetToDraft(preset));
@@ -134,16 +134,14 @@ export function PresetWorkspace({
         open={editorOpen}
         title={
           draft.preset_id
-            ? `Edit ${mainPreset ? "main" : "character"} preset`
-            : `New ${mainPreset ? "main" : "character"} preset`
+            ? t("editPreset", { kind: t(mainPreset ? "mainPreset" : "characterPreset") })
+            : t("newPreset", { kind: t(mainPreset ? "mainPreset" : "characterPreset") })
         }
         onClose={() => setEditorOpen(false)}
       >
         <EditorPanel
           title={mainPreset ? t("mainPreset") : t("characterPreset")}
-          subtitle={
-            mainPreset ? "Applies global prompt and UC overrides" : "Applies one character prompt"
-          }
+          subtitle={mainPreset ? t("mainPresetDescription") : t("characterPresetDescription")}
           error={errorMessage}
           actions={
             <EditorActions
@@ -176,6 +174,7 @@ export function PresetWorkspace({
             checked={draft.enabled}
             onChange={(enabled) => setDraft({ ...draft, enabled })}
           />
+          <p className="-mt-2 text-xs text-app-muted">{t("enabledDescription")}</p>
           <TextInput
             label={t("category")}
             value={draft.category ?? ""}

@@ -1,26 +1,26 @@
 import { ChevronLeft, ChevronRight, Download, ImageIcon, RotateCcw, Trash2 } from "lucide-react";
-import { useCallback, type ChangeEvent } from "react";
+import { useCallback, useMemo, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppIconButton, AppPanel } from "@/components/ui";
+import { AppIconButton, AppPanel, AppSelect } from "@/components/ui";
 import type { GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto } from "@/types";
 
 import { GenerationResourceImage } from "./GenerationResourceImage";
 
-const HISTORY_STATUS_OPTIONS: Array<{
-  value: "all" | GenerationBatchHistoryStatusDto;
-  label: string;
-}> = [
-  { value: "all", label: "All" },
-  { value: "succeeded", label: "Succeeded" },
-  { value: "partially_succeeded", label: "Partial" },
-  { value: "running", label: "Running" },
-  { value: "paused", label: "Paused" },
-  { value: "failed", label: "Failed" },
-  { value: "stopped", label: "Stopped" },
-];
-
 type HistoryStatusFilter = "all" | GenerationBatchHistoryStatusDto;
+
+const HISTORY_STATUS_OPTIONS = [
+  { value: "all", labelKey: "historyStatus.all" },
+  { value: "succeeded", labelKey: "historyStatus.succeeded" },
+  { value: "partially_succeeded", labelKey: "historyStatus.partially_succeeded" },
+  { value: "running", labelKey: "historyStatus.running" },
+  { value: "paused", labelKey: "historyStatus.paused" },
+  { value: "failed", labelKey: "historyStatus.failed" },
+  { value: "stopped", labelKey: "historyStatus.stopped" },
+] as const satisfies ReadonlyArray<{
+  value: HistoryStatusFilter;
+  labelKey: `historyStatus.${string}`;
+}>;
 
 type GenerationHistoryRailProps = {
   batches: ReadonlyArray<GenerationHistoryBatchDto>;
@@ -64,6 +64,14 @@ export function GenerationHistoryRail({
   onExportSelected,
 }: GenerationHistoryRailProps) {
   const { t } = useTranslation("generation");
+  const statusOptions = useMemo(
+    () =>
+      HISTORY_STATUS_OPTIONS.map((option) => ({
+        value: option.value,
+        label: t(option.labelKey),
+      })),
+    [t],
+  );
   const selectedBatch = batches.find((batch) => batch.batch_id === selectedBatchId) ?? null;
   const canPrevious = offset > 0;
   const canNext = offset + limit < total;
@@ -84,19 +92,14 @@ export function GenerationHistoryRail({
         <label className="sr-only" htmlFor="generation-history-filter">
           {t("filterHistory")}
         </label>
-        <select
+        <AppSelect
           id="generation-history-filter"
           aria-label={t("filterHistory")}
           value={statusFilter}
           onChange={handleStatusChange}
-          className="h-7 w-24 border border-app-border bg-app-surface px-2 text-xs text-app-text outline-none focus:border-brand-400"
-        >
-          {HISTORY_STATUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          className="h-7 w-28 px-2 pr-6 text-xs"
+          options={statusOptions}
+        />
         <div className="flex items-center gap-1">
           <AppIconButton
             icon={RotateCcw}
@@ -190,7 +193,7 @@ function GenerationHistoryBatch({
               <GenerationResourceImage
                 key={`${output.artifact_id}:${output.sample_index ?? index}`}
                 resource={output.resource}
-                alt={`Batch output ${index + 1}`}
+                alt={t("batchOutput", { index: index + 1 })}
                 className="h-full min-h-0 w-full bg-app-panel text-[8px]"
                 fallbackLabel=""
               />
@@ -203,7 +206,7 @@ function GenerationHistoryBatch({
       </span>
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold text-app-text">
-          {batch.title ?? "Generation batch"}
+          {batch.title ?? t("generationBatch")}
         </span>
         <span className="mt-1 block text-xs text-app-muted">
           {t("completedRequests", {

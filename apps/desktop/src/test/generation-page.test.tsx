@@ -647,7 +647,7 @@ describe("GeneratePage", () => {
     expect(await screen.findByDisplayValue("832")).toBeInTheDocument();
     expect(screen.getByDisplayValue("1216")).toBeInTheDocument();
     expect(screen.getByLabelText("Model")).toHaveValue("nai-diffusion-4-5-full");
-    expect(screen.getByTestId("generation-settings-sidebar")).toHaveStyle({ width: "420px" });
+    expect(screen.getByTestId("generation-settings-sidebar")).toHaveStyle({ width: "360px" });
     await user.click(screen.getByRole("button", { name: /Steps 23/u }));
     expect(screen.getByLabelText("Steps")).toHaveValue("23");
     expect(screen.getByLabelText("Scale")).toHaveValue("5");

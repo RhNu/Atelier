@@ -93,7 +93,6 @@ export function AppShell({
           </div>
           <div data-tauri-drag-region>
             <p className="text-sm font-semibold text-white">Atelier</p>
-            <p className="text-[11px] text-app-muted uppercase">{t("subtitle")}</p>
           </div>
         </div>
         <div className="titlebar-no-drag flex h-full items-center">

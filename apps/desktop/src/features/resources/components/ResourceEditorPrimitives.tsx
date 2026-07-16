@@ -1,9 +1,9 @@
 /* eslint-disable max-lines, react-perf/jsx-no-new-function-as-prop */
 import { Plus, Save, Search, Trash2 } from "lucide-react";
-import { Children, type ReactNode } from "react";
+import { Children, type ChangeEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppPanel, EmptyState, ResourceImage } from "@/components/ui";
+import { AppButton, AppPanel, AppSelect, EmptyState, ResourceImage } from "@/components/ui";
 import { resourceImageToDataUrl } from "@/platform/atelier";
 import type { CompiledPromptDto, ResourceRefDto } from "@/types";
 
@@ -314,21 +314,11 @@ export function SelectField({
   options: ReadonlyArray<{ value: string; label: string }>;
   onChange: (value: string) => void;
 }) {
+  const handleChange = (event: ChangeEvent<HTMLSelectElement>) => onChange(event.target.value);
   return (
     <label className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
       {label}
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-9 border border-app-border bg-black/20 px-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <AppSelect aria-label={label} value={value} options={options} onChange={handleChange} />
     </label>
   );
 }

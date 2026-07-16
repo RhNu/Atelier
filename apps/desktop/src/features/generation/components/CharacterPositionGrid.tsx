@@ -68,7 +68,10 @@ export function CharacterPositionGrid({
               key={`${x}-${y}`}
               type="button"
               role="gridcell"
-              aria-label={`Position ${Math.round(x * 100)}%, ${Math.round(y * 100)}%`}
+              aria-label={t("positionCell", {
+                x: Math.round(x * 100),
+                y: Math.round(y * 100),
+              })}
               className="border-r border-b border-app-border/60 last:border-r-0 hover:bg-brand-500/10"
               onClick={() => active && onChangePosition(activeIndex, { x, y })}
             />
@@ -78,7 +81,7 @@ export function CharacterPositionGrid({
           <button
             key={character.id}
             type="button"
-            aria-label={`Select character ${index + 1}`}
+            aria-label={t("selectCharacter", { index: index + 1 })}
             className={[
               "absolute grid size-6 -translate-x-1/2 -translate-y-1/2 place-items-center border text-[11px] font-bold shadow",
               activeIndex === index

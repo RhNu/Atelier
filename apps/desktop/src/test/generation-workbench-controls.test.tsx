@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { CharacterPositionGrid } from "../features/generation/components/CharacterPositionGrid";
 import { GenerationWorkbenchLayout } from "../features/generation/components/GenerationWorkbenchLayout";
 import type { GenerationCharacterDraft } from "../features/generation/model/generation-draft";
+import { i18n } from "../i18n";
 
 const SIDEBAR_STORAGE_KEY = "atelier.ui.generate.sidebar-width.v1";
 
@@ -23,18 +24,18 @@ describe("GenerationWorkbenchLayout", () => {
     );
 
     const sidebar = screen.getByTestId("generation-settings-sidebar");
-    const resizer = screen.getByRole("separator", { name: "Resize generation settings" });
-    expect(sidebar).toHaveStyle({ width: "420px" });
+    const resizer = screen.getByRole("separator", { name: i18n.t("generation:resizeSettings") });
+    expect(sidebar).toHaveStyle({ width: "360px" });
 
     fireEvent.keyDown(resizer, { key: "ArrowRight" });
-    expect(sidebar).toHaveStyle({ width: "436px" });
-    expect(window.localStorage.getItem(SIDEBAR_STORAGE_KEY)).toBe("436");
+    expect(sidebar).toHaveStyle({ width: "376px" });
+    expect(window.localStorage.getItem(SIDEBAR_STORAGE_KEY)).toBe("376");
 
     fireEvent.keyDown(resizer, { key: "End" });
-    expect(sidebar).toHaveStyle({ width: "520px" });
+    expect(sidebar).toHaveStyle({ width: "480px" });
     fireEvent.keyDown(resizer, { key: "Home" });
-    expect(sidebar).toHaveStyle({ width: "360px" });
-    expect(window.localStorage.getItem(SIDEBAR_STORAGE_KEY)).toBe("360");
+    expect(sidebar).toHaveStyle({ width: "320px" });
+    expect(window.localStorage.getItem(SIDEBAR_STORAGE_KEY)).toBe("320");
   });
 
   it("hydrates a stored width and clamps invalid extremes", () => {
@@ -46,7 +47,7 @@ describe("GenerationWorkbenchLayout", () => {
         history={<div>History</div>}
       />,
     );
-    expect(screen.getByTestId("generation-settings-sidebar")).toHaveStyle({ width: "520px" });
+    expect(screen.getByTestId("generation-settings-sidebar")).toHaveStyle({ width: "480px" });
   });
 });
 
@@ -68,13 +69,19 @@ describe("CharacterPositionGrid", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Select character 2" }));
+    await user.click(
+      screen.getByRole("button", { name: i18n.t("generation:selectCharacter", { index: 2 }) }),
+    );
     expect(onSelectCharacter).toHaveBeenCalledWith(1);
 
-    await user.click(screen.getByRole("gridcell", { name: "Position 25%, 75%" }));
+    await user.click(
+      screen.getByRole("gridcell", {
+        name: i18n.t("generation:positionCell", { x: 25, y: 75 }),
+      }),
+    );
     expect(onChangePosition).toHaveBeenCalledWith(0, { x: 0.25, y: 0.75 });
 
-    const grid = screen.getByRole("grid", { name: "Character position grid" });
+    const grid = screen.getByRole("grid", { name: i18n.t("generation:positionGrid") });
     fireEvent.keyDown(grid, { key: "ArrowLeft" });
     expect(onChangePosition).toHaveBeenLastCalledWith(0, { x: 0.25, y: 0.5 });
     fireEvent.keyDown(grid, { key: "Home" });

@@ -69,18 +69,27 @@ export function FrontendSettingsSection({
           {saving ? t("savingFrontend") : t("saveFrontend")}
         </AppButton>
       </SectionHeader>
-      <div className="grid gap-3 p-3 md:grid-cols-2">
-        <LanguageSelect value={draft.frontend.language} onChange={updateLanguage} />
-        <CheckboxField
-          label={t("developerMode")}
-          checked={draft.frontend.developer_mode}
-          onChange={updateDeveloperMode}
-        />
-        <CheckboxField
-          label={t("blurNsfw")}
-          checked={draft.frontend.gallery.blur_sensitive_images}
-          onChange={updateBlurSensitiveImages}
-        />
+      <div className="grid gap-4 p-3">
+        <section className="grid gap-2">
+          <h3 className="text-xs font-semibold text-app-muted uppercase">{t("languageGroup")}</h3>
+          <LanguageSelect value={draft.frontend.language} onChange={updateLanguage} />
+        </section>
+        <section className="grid gap-2">
+          <h3 className="text-xs font-semibold text-app-muted uppercase">{t("displayGroup")}</h3>
+          <CheckboxField
+            label={t("blurNsfw")}
+            checked={draft.frontend.gallery.blur_sensitive_images}
+            onChange={updateBlurSensitiveImages}
+          />
+        </section>
+        <section className="grid gap-2">
+          <h3 className="text-xs font-semibold text-app-muted uppercase">{t("developerGroup")}</h3>
+          <CheckboxField
+            label={t("developerMode")}
+            checked={draft.frontend.developer_mode}
+            onChange={updateDeveloperMode}
+          />
+        </section>
       </div>
     </AppPanel>
   );
