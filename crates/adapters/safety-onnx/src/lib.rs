@@ -88,13 +88,13 @@ impl OrtNsfwScanner {
             imageops::crop_imm(&resized, offset, offset, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE)
                 .to_image();
         let normalized = jpeg_roundtrip(cropped)?;
-        let plane_len = (MODEL_INPUT_SIZE * MODEL_INPUT_SIZE) as usize;
-        let mut tensor = vec![0.0; plane_len * 3];
-        for (idx, pixel) in normalized.pixels().enumerate() {
+        let pixel_count = (MODEL_INPUT_SIZE * MODEL_INPUT_SIZE) as usize;
+        let mut tensor = Vec::with_capacity(pixel_count * 3);
+        for pixel in normalized.pixels() {
             let [r, g, b] = pixel.0;
-            tensor[idx] = f32::from(b) - BGR_MEAN[0];
-            tensor[plane_len + idx] = f32::from(g) - BGR_MEAN[1];
-            tensor[(plane_len * 2) + idx] = f32::from(r) - BGR_MEAN[2];
+            tensor.push(f32::from(b) - BGR_MEAN[0]);
+            tensor.push(f32::from(g) - BGR_MEAN[1]);
+            tensor.push(f32::from(r) - BGR_MEAN[2]);
         }
         Ok(tensor)
     }
@@ -107,9 +107,9 @@ impl SafetyScanner for OrtNsfwScanner {
         let input_tensor = Tensor::from_array((
             [
                 1_usize,
+                MODEL_INPUT_SIZE as usize,
+                MODEL_INPUT_SIZE as usize,
                 3_usize,
-                MODEL_INPUT_SIZE as usize,
-                MODEL_INPUT_SIZE as usize,
             ],
             tensor.into_boxed_slice(),
         ))
@@ -205,13 +205,12 @@ mod tests {
     }
 
     #[test]
-    fn preprocess_uses_nchw_bgr_plane_order() {
+    fn preprocess_uses_nhwc_bgr_interleaved_order() {
         let tensor = OrtNsfwScanner::preprocess(&solid_png([20, 40, 80])).unwrap();
-        let plane_len = (MODEL_INPUT_SIZE * MODEL_INPUT_SIZE) as usize;
 
-        assert!((tensor[1] - tensor[0]).abs() < 1.0);
-        assert!(tensor[0] > tensor[plane_len] + 20.0);
-        assert!(tensor[plane_len] > tensor[plane_len * 2] + 10.0);
+        assert!((tensor[3] - tensor[0]).abs() < 1.0);
+        assert!(tensor[0] > tensor[1] + 20.0);
+        assert!(tensor[1] > tensor[2] + 10.0);
     }
 
     #[test]
@@ -246,20 +245,10 @@ mod tests {
 
     #[test]
     fn bundled_onnx_smoke_test() {
-        if std::env::var_os("ATELIER_RUN_SAFETY_ONNX_SMOKE").is_none() {
+        let Some(assets) = smoke_test_assets() else {
             return;
-        }
-        let model_path = std::env::var_os("ATELIER_SAFETY_ONNX_MODEL")
-            .map(PathBuf::from)
-            .expect("ATELIER_SAFETY_ONNX_MODEL must point to open-nsfw.onnx");
-        let runtime_library_path = std::env::var_os("ATELIER_ONNX_RUNTIME")
-            .map(PathBuf::from)
-            .expect("ATELIER_ONNX_RUNTIME must point to the ONNX Runtime library");
-        let scanner = OrtNsfwScanner::load(NsfwRuntimeAssets {
-            model_path,
-            runtime_library_path: Some(runtime_library_path),
-        })
-        .unwrap();
+        };
+        let scanner = OrtNsfwScanner::load(assets).unwrap();
         let assessment = futures_executor::block_on(scanner.scan_image(SafetyScanInput {
             resource: ResourceRef::base(ResourceId::new("resource:smoke")),
             bytes: sample_png(),
@@ -267,6 +256,37 @@ mod tests {
         }))
         .unwrap();
         assert!((0.0..=1.0).contains(&assessment.score.value()));
+    }
+
+    fn smoke_test_assets() -> Option<NsfwRuntimeAssets> {
+        if std::env::var_os("ATELIER_RUN_SAFETY_ONNX_SMOKE").is_some() {
+            let model_path = std::env::var_os("ATELIER_SAFETY_ONNX_MODEL")
+                .map(PathBuf::from)
+                .expect("ATELIER_SAFETY_ONNX_MODEL must point to open-nsfw.onnx");
+            let runtime_library_path = std::env::var_os("ATELIER_ONNX_RUNTIME")
+                .map(PathBuf::from)
+                .expect("ATELIER_ONNX_RUNTIME must point to the ONNX Runtime library");
+            return Some(NsfwRuntimeAssets {
+                model_path,
+                runtime_library_path: Some(runtime_library_path),
+            });
+        }
+
+        #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+        {
+            let safety_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../../apps/desktop/src-tauri/resources/safety");
+            let model_path = safety_dir.join("open_nsfw.onnx");
+            let runtime_library_path = safety_dir.join("onnxruntime.dll");
+            if model_path.exists() && runtime_library_path.exists() {
+                return Some(NsfwRuntimeAssets {
+                    model_path,
+                    runtime_library_path: Some(runtime_library_path),
+                });
+            }
+        }
+
+        None
     }
 
     fn sample_png() -> Vec<u8> {
