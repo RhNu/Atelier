@@ -58,6 +58,19 @@ impl<P> KernelRuntime<P> {
         self.queue.snapshot()
     }
 
+    /// Replaces the in-memory queue with a previously captured snapshot.
+    ///
+    /// This is used by the application facade when durable persistence fails
+    /// after a state transition, keeping the live runtime aligned with the
+    /// last committed state.
+    ///
+    /// # Errors
+    /// Returns an error when the supplied snapshot is internally inconsistent.
+    pub fn restore_queue_snapshot(&mut self, snapshot: JobQueueSnapshot) -> KernelResult<()> {
+        self.queue = JobQueue::from_snapshot(snapshot)?;
+        Ok(())
+    }
+
     #[must_use]
     pub const fn ports(&self) -> &P {
         &self.ports

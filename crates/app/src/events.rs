@@ -1,3 +1,4 @@
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::{Arc, Mutex};
 
 use atelier_app_api::event::{AppEventDto, AppEventKindDto};
@@ -30,7 +31,10 @@ impl AppEventHub {
             .lock()
             .map_or_else(|_| Vec::new(), |listeners| listeners.clone());
         for listener in listeners {
-            listener(event.clone());
+            // A UI listener is an extension boundary. One faulty consumer must
+            // not abort the kernel workflow or prevent other listeners from
+            // receiving the event.
+            let _ = catch_unwind(AssertUnwindSafe(|| listener(event.clone())));
         }
     }
 
@@ -231,5 +235,25 @@ mod tests {
             AppEventKindDto::DirectorSafetyScanFailed { run_id, .. }
                 if run_id == "director-1"
         ));
+    }
+
+    #[test]
+    fn panicking_listener_does_not_abort_event_delivery() {
+        let hub = AppEventHub::default();
+        let received = std::sync::Arc::new(std::sync::Mutex::new(0_u32));
+        hub.subscribe(std::sync::Arc::new(|_| panic!("listener failed")));
+        let next = std::sync::Arc::clone(&received);
+        hub.subscribe(std::sync::Arc::new(move |_| {
+            *next.lock().expect("test mutex should not be poisoned") += 1;
+        }));
+
+        hub.push_kernel_event(KernelEvent {
+            sequence: 1,
+            kind: KernelEventKind::BatchSubmitted {
+                batch_id: BatchId::new("batch-1"),
+            },
+        });
+
+        assert_eq!(*received.lock().unwrap(), 1);
     }
 }

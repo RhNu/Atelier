@@ -43,7 +43,7 @@ use crate::ports::{
 use crate::usecases::{
     AccountUseCases, DirectorUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases,
     HistoryUseCases, PromptUseCases, ResourceUseCases, SettingsUseCases, VibeUseCases,
-    WorkspaceUseCases, sync_generation_history_from_queue_snapshot,
+    WorkspaceUseCases, generation_history_records_from_queue_snapshot,
 };
 use crate::{AppResult, error::AppError};
 
@@ -242,11 +242,11 @@ where
             let runtime = KernelRuntime::from_recovered_queue_snapshot(ports, snapshot)
                 .map_err(AppError::from)?;
             let snapshot = runtime.queue_snapshot();
+            let history =
+                generation_history_records_from_queue_snapshot(&run_history, &snapshot).await?;
             queue_repository
-                .save_queue_snapshot(&snapshot)
-                .await
+                .commit_queue_and_history(Some(&snapshot), history)
                 .map_err(|error| AppError::new("job_queue", error.to_string()))?;
-            sync_generation_history_from_queue_snapshot(&run_history, &snapshot).await?;
             runtime
         } else {
             KernelRuntime::new(ports)

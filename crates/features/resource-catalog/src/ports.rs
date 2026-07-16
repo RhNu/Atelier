@@ -32,7 +32,12 @@ pub trait ResourceCatalogRepository: Send + Sync {
         blob_id: &BlobId,
     ) -> ResourceResult<bool>;
 
-    async fn delete_resource_record(&self, id: &ResourceId) -> ResourceResult<()>;
+    /// Atomically removes a delete-pending resource only while it still has
+    /// no owner links. Returns `false` when a concurrent owner won the race.
+    async fn delete_resource_record_if_unowned(&self, id: &ResourceId) -> ResourceResult<bool>;
+
+    /// Returns whether any resource or variant currently references a blob.
+    async fn blob_is_referenced(&self, blob_id: &BlobId) -> ResourceResult<bool>;
 
     async fn scan_orphan_blobs(&self) -> ResourceResult<Vec<BlobId>>;
 

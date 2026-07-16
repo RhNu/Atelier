@@ -272,7 +272,9 @@ where
         let orphan_blobs = self.repository.scan_orphan_blobs().await?;
         let mut report = RepairReport::default();
         for blob_id in orphan_blobs {
-            if self.blob_store.blob_exists(&blob_id).await? {
+            if !self.repository.blob_is_referenced(&blob_id).await?
+                && self.blob_store.blob_exists(&blob_id).await?
+            {
                 self.blob_store.delete_blob(&blob_id).await?;
                 report.deleted_orphan_blobs += 1;
             }
@@ -296,22 +298,24 @@ where
         let mut report = ResourceCleanupReport::default();
         for candidate in candidates {
             let mut deleted_blobs = 0;
+            if !self
+                .repository
+                .delete_resource_record_if_unowned(&candidate.record.id)
+                .await?
+            {
+                continue;
+            }
             for blob_id in unique_blob_ids(&candidate.record.blob_id, &candidate.variants) {
-                if self
-                    .repository
-                    .blob_is_referenced_outside_resource(&candidate.record.id, &blob_id)
-                    .await?
+                if !self.repository.blob_is_referenced(&blob_id).await?
+                    && self.blob_store.blob_exists(&blob_id).await?
                 {
-                    continue;
-                }
-                if self.blob_store.blob_exists(&blob_id).await? {
-                    self.blob_store.delete_blob(&blob_id).await?;
+                    if let Err(error) = self.blob_store.delete_blob(&blob_id).await {
+                        let _ = self.repository.record_orphan_blob(&blob_id).await;
+                        return Err(error);
+                    }
                     deleted_blobs += 1;
                 }
             }
-            self.repository
-                .delete_resource_record(&candidate.record.id)
-                .await?;
             report.resources_deleted += 1;
             report.blobs_deleted += deleted_blobs;
         }

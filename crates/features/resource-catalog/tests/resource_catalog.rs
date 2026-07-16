@@ -130,6 +130,28 @@ fn commit_failure_leaves_repairable_orphan_blob() {
 }
 
 #[test]
+fn repair_does_not_delete_orphan_marker_for_a_reused_blob() {
+    block_on(async {
+        let repository = FakeRepository::default();
+        let blob_store = FakeBlobStore::default();
+        let catalog = test_catalog(repository.clone(), blob_store.clone());
+        let owner = ResourceOwner::new(ResourceOwnerKind::Job, "job-1");
+        let reference = register_generated(&catalog, owner, ResourceId::new("res-1"))
+            .await
+            .unwrap();
+        let blob_id = repository.records()[&reference.id].blob_id.clone();
+        repository.record_orphan_blob(&blob_id).await.unwrap();
+
+        let report = catalog.repair_orphans().await.unwrap();
+
+        assert_eq!(report.deleted_orphan_blobs, 0);
+        assert_eq!(report.cleared_orphan_markers, 1);
+        assert_eq!(blob_store.finalized_blobs(), vec![blob_id]);
+        assert!(catalog.get(&reference).await.is_ok());
+    });
+}
+
+#[test]
 fn multi_owner_links_release_only_the_detached_owner() {
     block_on(async {
         let repository = FakeRepository::default();

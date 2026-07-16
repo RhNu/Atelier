@@ -363,12 +363,19 @@ impl ResourceCatalogRepository for SimpleRepository {
         Ok(false)
     }
 
-    async fn delete_resource_record(
+    async fn delete_resource_record_if_unowned(
         &self,
         id: &ResourceId,
-    ) -> atelier_resource_catalog::ResourceResult<()> {
+    ) -> atelier_resource_catalog::ResourceResult<bool> {
         self.state.lock().unwrap().records.remove(id);
-        Ok(())
+        Ok(true)
+    }
+
+    async fn blob_is_referenced(
+        &self,
+        _blob_id: &BlobId,
+    ) -> atelier_resource_catalog::ResourceResult<bool> {
+        Ok(false)
     }
 
     async fn scan_orphan_blobs(&self) -> atelier_resource_catalog::ResourceResult<Vec<BlobId>> {

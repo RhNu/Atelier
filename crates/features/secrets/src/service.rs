@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use futures::lock::Mutex;
+use std::sync::Arc;
 
 use crate::{
     ApiKeyId, ApiKeyRecord, ApiKeyRegistryStore, CreateApiKeyRequest, ProbeApiKeyResult,
@@ -11,15 +13,17 @@ pub struct ApiKeyRegistryService<M, S, P> {
     metadata: M,
     secrets: S,
     probe: P,
+    operation_gate: Arc<Mutex<()>>,
 }
 
 impl<M, S, P> ApiKeyRegistryService<M, S, P> {
     #[must_use]
-    pub const fn new(metadata: M, secrets: S, probe: P) -> Self {
+    pub fn new(metadata: M, secrets: S, probe: P) -> Self {
         Self {
             metadata,
             secrets,
             probe,
+            operation_gate: Arc::new(Mutex::new(())),
         }
     }
 }
@@ -39,6 +43,7 @@ where
         &self,
         request: CreateApiKeyRequest,
     ) -> SecretsResult<ApiKeyRecord> {
+        let _gate = self.operation_gate.lock().await;
         validate_id(&request.id)?;
         let display_name = validate_display_name(&request.display_name)?;
         validate_secret(&request.secret)?;
@@ -82,6 +87,7 @@ where
         &self,
         request: UpdateApiKeyRequest,
     ) -> SecretsResult<ApiKeyRecord> {
+        let _gate = self.operation_gate.lock().await;
         validate_id(&request.id)?;
         let mut record = self
             .metadata
@@ -154,6 +160,7 @@ where
     /// Returns an error when validation, metadata deletion, or secret deletion
     /// fails.
     pub async fn delete_api_key(&self, id: &ApiKeyId) -> SecretsResult<bool> {
+        let _gate = self.operation_gate.lock().await;
         validate_id(id)?;
         let Some(record) = self.metadata.get_api_key_record(id).await? else {
             return Ok(false);
@@ -197,6 +204,7 @@ where
     /// Returns an error when validation fails or the metadata store cannot mark
     /// the key active.
     pub async fn set_active_api_key(&self, id: &ApiKeyId) -> SecretsResult<()> {
+        let _gate = self.operation_gate.lock().await;
         validate_id(id)?;
         self.metadata.set_active_api_key(id).await
     }
@@ -207,6 +215,7 @@ where
     /// Returns an error when validation fails, metadata lookup fails, the key is
     /// missing, or the secret is missing.
     pub async fn resolve_secret_for_key(&self, id: &ApiKeyId) -> SecretsResult<SecretValue> {
+        let _gate = self.operation_gate.lock().await;
         validate_id(id)?;
         let record = self
             .metadata
@@ -222,6 +231,7 @@ where
     /// Returns an error when there is no active key or its secret cannot be
     /// resolved.
     pub async fn resolve_active_secret(&self) -> SecretsResult<SecretValue> {
+        let _gate = self.operation_gate.lock().await;
         let record = self
             .metadata
             .get_active_api_key_record()
@@ -252,6 +262,7 @@ where
     P: Send + Sync,
 {
     async fn resolve_active_secret(&self) -> SecretsResult<SecretValue> {
+        let _gate = self.operation_gate.lock().await;
         let record = self
             .metadata
             .get_active_api_key_record()

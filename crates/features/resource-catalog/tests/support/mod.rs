@@ -178,15 +178,30 @@ impl ResourceCatalogRepository for FakeRepository {
                 .any(|variant| &variant.resource_id != resource_id && &variant.blob_id == blob_id))
     }
 
-    async fn delete_resource_record(&self, id: &ResourceId) -> ResourceResult<()> {
+    async fn delete_resource_record_if_unowned(&self, id: &ResourceId) -> ResourceResult<bool> {
         let mut state = self.state.lock().unwrap();
+        if state.links.iter().any(|link| &link.resource_id == id) {
+            return Ok(false);
+        }
         state.records.remove(id);
         state.links.retain(|link| &link.resource_id != id);
         state
             .variants
             .retain(|_, variant| &variant.resource_id != id);
         drop(state);
-        Ok(())
+        Ok(true)
+    }
+
+    async fn blob_is_referenced(&self, blob_id: &BlobId) -> ResourceResult<bool> {
+        let state = self.state.lock().unwrap();
+        Ok(state
+            .records
+            .values()
+            .any(|record| &record.blob_id == blob_id)
+            || state
+                .variants
+                .values()
+                .any(|variant| &variant.blob_id == blob_id))
     }
 
     async fn scan_orphan_blobs(&self) -> ResourceResult<Vec<BlobId>> {

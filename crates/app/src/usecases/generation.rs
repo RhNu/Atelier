@@ -9,17 +9,16 @@ use super::{
     GenerateImageRequestDto, GenerateImageStreamRequest, GenerateImageStreamRequestDto,
     GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationHistoryPosition,
     GenerationHistoryUpdate, GenerationStatusDto, GenerationWorkRequest, GenerationWorkRequestDto,
-    ImageInputDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId, JobQueueRepository,
-    NovelAiClientFactory, PromptPresetId, QueueDirectiveDto, RunHistoryRecord,
-    RunHistoryRepository, RunHistoryStatus, RunOutputRecord, SecretStore, SecretsErrorKind,
-    SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationBatchJobDto,
-    SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, WorkspaceSession,
-    character_reference_type_to_domain, characters_to_domain, generation_status_to_dto,
-    generation_work_title, image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
-    plan_context_to_domain, queue_directive_to_dto, resource_ref_from_dto,
-    resource_variant_kind_as_str, run_history_status_from_job_status, sampler_to_domain,
-    stream_mode_to_domain, sync_generation_history_from_queue_snapshot, uc_preset_to_domain,
-    upsert_generation_history_record, visual_asset_role_as_str,
+    ImageInputDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId, NovelAiClientFactory,
+    PromptPresetId, QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus,
+    RunOutputRecord, SecretStore, SecretsErrorKind, SubmitGenerationBatch,
+    SubmitGenerationBatchJob, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
+    SubmitGenerationRequestDto, WorkspaceSession, character_reference_type_to_domain,
+    characters_to_domain, generation_status_to_dto, generation_work_title, image_format_to_domain,
+    image_model_to_domain, noise_schedule_to_domain, plan_context_to_domain,
+    queue_directive_to_dto, resource_ref_from_dto, resource_variant_kind_as_str,
+    run_history_status_from_job_status, sampler_to_domain, stream_mode_to_domain,
+    uc_preset_to_domain, upsert_generation_history_record, visual_asset_role_as_str,
 };
 pub struct GenerationUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -86,6 +85,7 @@ where
             .collect::<Vec<_>>();
         let work = self.submit_batch_request_to_domain(request).await?;
         let mut kernel = self.app.inner.kernel.lock().await;
+        let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .submit_generation_batch(work)
             .await
@@ -93,7 +93,8 @@ where
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
         drop(kernel);
-        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+            .await?;
         for (job_id, title, position) in history_positions {
             self.upsert_generation_history(
                 &batch_id,
@@ -113,6 +114,7 @@ where
 
     pub async fn run_job(&self, job_id: &str) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
+        let previous_snapshot = kernel.queue_snapshot();
         let result = kernel
             .run_scheduled_generation_job(&JobId::new(job_id))
             .await;
@@ -127,12 +129,12 @@ where
                     job_status.map_or(RunHistoryStatus::Failed, run_history_status_from_job_status);
                 self.update_generation_history_status(job_id, status, Some(error.to_string()))
                     .await?;
-                self.persist_queue_snapshot(&QueueDirectiveDto::Idle, &snapshot)
-                    .await?;
+                self.persist_queue_snapshot_after_failure(&snapshot).await?;
                 return Err(AppError::from(error));
             }
         };
-        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+            .await?;
         let status = job_status.map_or(
             RunHistoryStatus::Succeeded,
             run_history_status_from_job_status,
@@ -145,49 +147,57 @@ where
 
     pub async fn pause(&self) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
+        let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .pause()
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
         drop(kernel);
-        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+            .await?;
         Ok(directive)
     }
 
     pub async fn resume(&self) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
+        let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .resume()
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
         drop(kernel);
-        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+            .await?;
         Ok(directive)
     }
 
     pub async fn stop(&self) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
+        let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .stop()
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
         drop(kernel);
-        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+            .await?;
         Ok(directive)
     }
 
     pub async fn delay_elapsed(&self) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
+        let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .delay_elapsed()
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
         drop(kernel);
-        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+            .await?;
         Ok(directive)
     }
 
@@ -460,29 +470,6 @@ where
                     .await
                     .map_err(AppError::from)
             }
-        }
-    }
-
-    async fn persist_queue_snapshot(
-        &self,
-        directive: &QueueDirectiveDto,
-        snapshot: &atelier_jobs::JobQueueSnapshot,
-    ) -> AppResult<()> {
-        sync_generation_history_from_queue_snapshot(&self.app.inner.run_history, snapshot).await?;
-        if matches!(directive, QueueDirectiveDto::Idle) {
-            self.app
-                .inner
-                .queue_repository
-                .clear_queue_snapshot()
-                .await
-                .map_err(|error| AppError::new("job_queue", error.to_string()))
-        } else {
-            self.app
-                .inner
-                .queue_repository
-                .save_queue_snapshot(snapshot)
-                .await
-                .map_err(|error| AppError::new("job_queue", error.to_string()))
         }
     }
 

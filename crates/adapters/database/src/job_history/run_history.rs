@@ -21,78 +21,19 @@ impl DatabaseRunHistoryRepository {
 #[async_trait]
 impl RunHistoryRepository for DatabaseRunHistoryRepository {
     async fn upsert_run_history(&self, record: RunHistoryRecord) -> JobResult<()> {
-        let created_at_ms = i64::try_from(record.created_at_ms).unwrap_or(i64::MAX);
-        let updated_at_ms = i64::try_from(record.updated_at_ms).unwrap_or(i64::MAX);
-        let completed_at_ms = record
-            .completed_at_ms
-            .map(|value| i64::try_from(value).unwrap_or(i64::MAX));
-        let recoverable = i64::from(record.recoverable);
-        {
-            let connection = self.connection.lock().map_err(job_store_error)?;
-            connection
-                .execute(
-                    r"
-                    INSERT INTO run_history(
-                        run_id,
-                        run_kind,
-                        run_status,
-                        batch_id,
-                        job_id,
-                        origin_run_id,
-                        request_index,
-                        expected_samples,
-                        submitted_payload_ref,
-                        prepared_payload_ref,
-                        title,
-                        last_error,
-                        created_at_ms,
-                        updated_at_ms,
-                        completed_at_ms,
-                        recoverable
-                    )
-                    VALUES (
-                        ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
-                        ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16
-                    )
-                    ON CONFLICT(run_id) DO UPDATE SET
-                        run_kind = excluded.run_kind,
-                        run_status = excluded.run_status,
-                        batch_id = excluded.batch_id,
-                        job_id = excluded.job_id,
-                        origin_run_id = excluded.origin_run_id,
-                        request_index = excluded.request_index,
-                        expected_samples = excluded.expected_samples,
-                        submitted_payload_ref = excluded.submitted_payload_ref,
-                        prepared_payload_ref = excluded.prepared_payload_ref,
-                        title = excluded.title,
-                        last_error = excluded.last_error,
-                        created_at_ms = excluded.created_at_ms,
-                        updated_at_ms = excluded.updated_at_ms,
-                        completed_at_ms = excluded.completed_at_ms,
-                        recoverable = excluded.recoverable
-                    ",
-                    params![
-                        record.run_id,
-                        run_history_kind_as_str(record.kind),
-                        run_history_status_as_str(record.status),
-                        record.batch_id,
-                        record.job_id,
-                        record.origin_run_id,
-                        record.request_index.map(i64::from),
-                        record.expected_samples.map(i64::from),
-                        record.submitted_payload_ref,
-                        record.prepared_payload_ref,
-                        record.title,
-                        record.last_error,
-                        created_at_ms,
-                        updated_at_ms,
-                        completed_at_ms,
-                        recoverable,
-                    ],
-                )
-                .map_err(job_store_error)?;
+        self.upsert_run_history_batch(vec![record]).await
+    }
+
+    async fn upsert_run_history_batch(&self, records: Vec<RunHistoryRecord>) -> JobResult<()> {
+        if records.is_empty() {
+            return Ok(());
         }
-        Ok(())
+        let mut connection = self.connection.lock().map_err(job_store_error)?;
+        let transaction = connection.transaction().map_err(job_store_error)?;
+        for record in records {
+            upsert_run_history_row(&transaction, &record).map_err(job_store_error)?;
+        }
+        transaction.commit().map_err(job_store_error)
     }
 
     async fn get_run_history(&self, run_id: &str) -> JobResult<Option<RunHistoryRecord>> {
@@ -441,6 +382,63 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
         }
         Ok(deleted)
     }
+}
+
+pub(super) fn upsert_run_history_row(
+    connection: &rusqlite::Connection,
+    record: &RunHistoryRecord,
+) -> rusqlite::Result<()> {
+    let created_at_ms = i64::try_from(record.created_at_ms).unwrap_or(i64::MAX);
+    let updated_at_ms = i64::try_from(record.updated_at_ms).unwrap_or(i64::MAX);
+    let completed_at_ms = record
+        .completed_at_ms
+        .map(|value| i64::try_from(value).unwrap_or(i64::MAX));
+    connection.execute(
+        r"
+        INSERT INTO run_history(
+            run_id, run_kind, run_status, batch_id, job_id, origin_run_id,
+            request_index, expected_samples, submitted_payload_ref,
+            prepared_payload_ref, title, last_error, created_at_ms,
+            updated_at_ms, completed_at_ms, recoverable
+        )
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+        ON CONFLICT(run_id) DO UPDATE SET
+            run_kind = excluded.run_kind,
+            run_status = excluded.run_status,
+            batch_id = excluded.batch_id,
+            job_id = excluded.job_id,
+            origin_run_id = excluded.origin_run_id,
+            request_index = excluded.request_index,
+            expected_samples = excluded.expected_samples,
+            submitted_payload_ref = excluded.submitted_payload_ref,
+            prepared_payload_ref = excluded.prepared_payload_ref,
+            title = excluded.title,
+            last_error = excluded.last_error,
+            created_at_ms = excluded.created_at_ms,
+            updated_at_ms = excluded.updated_at_ms,
+            completed_at_ms = excluded.completed_at_ms,
+            recoverable = excluded.recoverable
+        ",
+        params![
+            record.run_id.as_str(),
+            run_history_kind_as_str(record.kind),
+            run_history_status_as_str(record.status),
+            record.batch_id.as_deref(),
+            record.job_id.as_deref(),
+            record.origin_run_id.as_deref(),
+            record.request_index.map(i64::from),
+            record.expected_samples.map(i64::from),
+            record.submitted_payload_ref.as_deref(),
+            record.prepared_payload_ref.as_deref(),
+            record.title.as_deref(),
+            record.last_error.as_deref(),
+            created_at_ms,
+            updated_at_ms,
+            completed_at_ms,
+            i64::from(record.recoverable),
+        ],
+    )?;
+    Ok(())
 }
 
 const GENERATION_BATCHES_CTE: &str = r"

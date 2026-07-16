@@ -30,6 +30,8 @@ pub trait JobQueueRepository: Send + Sync {
 pub trait RunHistoryRepository: Send + Sync {
     async fn upsert_run_history(&self, record: RunHistoryRecord) -> JobResult<()>;
 
+    async fn upsert_run_history_batch(&self, records: Vec<RunHistoryRecord>) -> JobResult<()>;
+
     async fn get_run_history(&self, run_id: &str) -> JobResult<Option<RunHistoryRecord>>;
 
     async fn query_run_history(&self, query: RunHistoryQuery) -> JobResult<Vec<RunHistoryRecord>>;

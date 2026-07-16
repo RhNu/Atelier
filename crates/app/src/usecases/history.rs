@@ -11,8 +11,8 @@ use atelier_app_api::history::{
 };
 use atelier_jobs::{
     BatchId, BatchStatus, GenerationBatchHistoryRecord, GenerationBatchHistoryStatus, JobId,
-    JobKind, JobPayloadRef, JobQueueRepository, JobQueueSnapshot, JobRecord, JobStatus,
-    RunHistoryKind, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
+    JobKind, JobPayloadRef, JobQueueSnapshot, JobRecord, JobStatus, RunHistoryKind,
+    RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
 };
 use atelier_kernel::{
     GenerationPayloadStore, SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationWork,
@@ -221,6 +221,7 @@ where
         .ok_or_else(|| AppError::new("history_not_found", "submitted payload does not exist"))?;
         let title = submitted.request.prompt().to_owned();
         let mut kernel = self.app.inner.kernel.lock().await;
+        let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .submit_generation_work(SubmitGenerationWork {
                 batch_id: BatchId::new(request.batch_id.clone()),
@@ -232,20 +233,16 @@ where
             .map(queue_directive_to_dto)?;
         let snapshot = kernel.queue_snapshot();
         drop(kernel);
-        if matches!(directive, QueueDirectiveDto::Idle) {
-            self.app
+        let persist_result = self.persist_queue_snapshot(&directive, &snapshot).await;
+        if let Err(error) = persist_result {
+            let _ = self
+                .app
                 .inner
-                .queue_repository
-                .clear_queue_snapshot()
+                .kernel
+                .lock()
                 .await
-                .map_err(|error| AppError::new("job_queue", error.to_string()))?;
-        } else {
-            self.app
-                .inner
-                .queue_repository
-                .save_queue_snapshot(&snapshot)
-                .await
-                .map_err(|error| AppError::new("job_queue", error.to_string()))?;
+                .restore_queue_snapshot(previous_snapshot);
+            return Err(error);
         }
         let record = upsert_generation_history_record(
             &self.app.inner.run_history,
@@ -300,6 +297,7 @@ where
             })
             .collect();
         let mut kernel = self.app.inner.kernel.lock().await;
+        let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .submit_generation_batch(SubmitGenerationBatch {
                 batch_id: BatchId::new(request.batch_id.clone()),
@@ -310,7 +308,16 @@ where
             .map(queue_directive_to_dto)?;
         let snapshot = kernel.queue_snapshot();
         drop(kernel);
-        self.persist_queue_snapshot(&directive, &snapshot).await?;
+        if let Err(error) = self.persist_queue_snapshot(&directive, &snapshot).await {
+            let _ = self
+                .app
+                .inner
+                .kernel
+                .lock()
+                .await
+                .restore_queue_snapshot(previous_snapshot);
+            return Err(error);
+        }
 
         let rerun_records = self
             .record_generation_batch_rerun(&request, &sources)
@@ -463,22 +470,15 @@ where
         directive: &QueueDirectiveDto,
         snapshot: &JobQueueSnapshot,
     ) -> AppResult<()> {
-        sync_generation_history_from_queue_snapshot(&self.app.inner.run_history, snapshot).await?;
-        if matches!(directive, QueueDirectiveDto::Idle) {
-            self.app
-                .inner
-                .queue_repository
-                .clear_queue_snapshot()
-                .await
-                .map_err(|error| AppError::new("job_queue", error.to_string()))
-        } else {
-            self.app
-                .inner
-                .queue_repository
-                .save_queue_snapshot(snapshot)
-                .await
-                .map_err(|error| AppError::new("job_queue", error.to_string()))
-        }
+        let history =
+            generation_history_records_from_queue_snapshot(&self.app.inner.run_history, snapshot)
+                .await?;
+        let durable_snapshot = (!matches!(directive, QueueDirectiveDto::Idle)).then_some(snapshot);
+        self.app
+            .inner
+            .queue_repository
+            .commit_queue_and_history(durable_snapshot, history)
+            .map_err(|error| AppError::new("job_queue", error.to_string()))
     }
 
     async fn ensure_rerun_target_is_new(
@@ -741,12 +741,12 @@ pub struct GenerationHistoryUpdate {
     pub position: Option<GenerationHistoryPosition>,
 }
 
-pub async fn sync_generation_history_from_queue_snapshot(
+pub async fn generation_history_records_from_queue_snapshot(
     repository: &DatabaseRunHistoryRepository,
     snapshot: &JobQueueSnapshot,
-) -> AppResult<()> {
+) -> AppResult<Vec<RunHistoryRecord>> {
     let Some(active_batch) = &snapshot.active_batch else {
-        return Ok(());
+        return Ok(Vec::new());
     };
     let paused_job_id = if active_batch.batch.status == BatchStatus::Paused {
         active_batch.current_job.as_ref().or_else(|| {
@@ -760,6 +760,7 @@ pub async fn sync_generation_history_from_queue_snapshot(
     } else {
         None
     };
+    let mut records = Vec::new();
     for (request_index, job) in active_batch.batch.jobs.iter().enumerate() {
         if job.kind != JobKind::GenerateImage {
             continue;
@@ -769,25 +770,27 @@ pub async fn sync_generation_history_from_queue_snapshot(
         } else {
             run_history_status_from_job_status(job.status)
         };
-        upsert_generation_history_from_job(
-            repository,
-            active_batch.batch.batch_id.as_str(),
-            job,
-            status,
-            u32::try_from(request_index).unwrap_or(u32::MAX),
-        )
-        .await?;
+        records.push(
+            build_generation_history_from_job(
+                repository,
+                active_batch.batch.batch_id.as_str(),
+                job,
+                status,
+                u32::try_from(request_index).unwrap_or(u32::MAX),
+            )
+            .await?,
+        );
     }
-    Ok(())
+    Ok(records)
 }
 
-async fn upsert_generation_history_from_job(
+async fn build_generation_history_from_job(
     repository: &DatabaseRunHistoryRepository,
     batch_id: &str,
     job: &JobRecord,
     status: RunHistoryStatus,
     request_index: u32,
-) -> AppResult<()> {
+) -> AppResult<RunHistoryRecord> {
     let now = unix_timestamp_ms();
     let existing = repository
         .get_run_history(job.job_id.as_str())
@@ -836,10 +839,7 @@ async fn upsert_generation_history_from_job(
         },
         recoverable: status == RunHistoryStatus::Paused,
     };
-    repository
-        .upsert_run_history(record)
-        .await
-        .map_err(|error| AppError::new("run_history", error.to_string()))
+    Ok(record)
 }
 
 const fn run_history_status_from_job_status(status: JobStatus) -> RunHistoryStatus {

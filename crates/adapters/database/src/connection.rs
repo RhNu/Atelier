@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::Poll;
+use std::time::Duration;
 
 use rusqlite::Connection;
 
@@ -55,6 +56,9 @@ impl DatabaseConnection {
 
     fn from_connection(connection: Connection) -> DatabaseResult<Self> {
         connection.pragma_update(None, "foreign_keys", "ON")?;
+        // Keep transient writer contention bounded instead of immediately
+        // surfacing SQLITE_BUSY from the synchronous adapter boundary.
+        connection.busy_timeout(Duration::from_secs(5))?;
         Ok(Self {
             inner: Arc::new(Mutex::new(connection)),
             transaction_gate: Arc::new(TransactionGateState {

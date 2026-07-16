@@ -185,9 +185,8 @@ impl DesktopSystem {
         path: impl AsRef<Path>,
         opener: &impl DesktopPathOpener,
     ) -> DesktopSystemResult<()> {
-        let path = path.as_ref();
-        self.ensure_open_allowed(path)?;
-        opener.open_path(path)
+        let canonical = self.ensure_open_allowed(path.as_ref())?;
+        opener.open_path(&canonical)
     }
 
     pub fn reveal_path(
@@ -195,9 +194,8 @@ impl DesktopSystem {
         path: impl AsRef<Path>,
         opener: &impl DesktopPathOpener,
     ) -> DesktopSystemResult<()> {
-        let path = path.as_ref();
-        self.ensure_open_allowed(path)?;
-        opener.reveal_path(path)
+        let canonical = self.ensure_open_allowed(path.as_ref())?;
+        opener.reveal_path(&canonical)
     }
 
     #[allow(clippy::unused_self)]
@@ -233,10 +231,10 @@ impl DesktopSystem {
         Ok(files)
     }
 
-    fn ensure_open_allowed(&self, path: &Path) -> DesktopSystemResult<()> {
+    fn ensure_open_allowed(&self, path: &Path) -> DesktopSystemResult<PathBuf> {
         let canonical = canonicalize_existing(path)?;
         if self.is_app_owned_path(&canonical) || self.is_user_allowed_path(&canonical)? {
-            return Ok(());
+            return Ok(canonical);
         }
 
         Err(DesktopSystemError::new(format!(
@@ -294,12 +292,29 @@ fn require_file(path: &Path, label: &str) -> DesktopSystemResult<()> {
 }
 
 fn canonicalize_existing(path: &Path) -> DesktopSystemResult<PathBuf> {
-    path.canonicalize().map_err(|error| {
+    let canonical = path.canonicalize().map_err(|error| {
         DesktopSystemError::new(format!(
             "failed to resolve path {}: {error}",
             path.display()
         ))
-    })
+    })?;
+    Ok(normalize_windows_verbatim_path(&canonical))
+}
+
+#[cfg(target_os = "windows")]
+fn normalize_windows_verbatim_path(path: &Path) -> PathBuf {
+    let display = path.to_string_lossy();
+    if let Some(rest) = display.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    display
+        .strip_prefix(r"\\?\")
+        .map_or_else(|| path.to_path_buf(), PathBuf::from)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn normalize_windows_verbatim_path(path: &Path) -> PathBuf {
+    path.to_path_buf()
 }
 
 #[cfg(target_os = "windows")]

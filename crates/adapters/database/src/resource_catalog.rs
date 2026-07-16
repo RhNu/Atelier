@@ -159,26 +159,44 @@ impl ResourceCatalogRepository for DatabaseResourceCatalogRepository {
             .map_err(sql_error)
     }
 
-    async fn delete_resource_record(&self, id: &ResourceId) -> ResourceResult<()> {
+    async fn delete_resource_record_if_unowned(&self, id: &ResourceId) -> ResourceResult<bool> {
         {
             let mut connection = self.connection.lock().map_err(resource_error)?;
             let tx = connection.transaction().map_err(sql_error)?;
-            tx.execute(
-                "DELETE FROM resource_links WHERE resource_id = ?1",
-                params![id.as_str()],
-            )
-            .map_err(sql_error)?;
-            tx.execute(
-                "DELETE FROM resource_variants WHERE resource_id = ?1",
-                params![id.as_str()],
-            )
-            .map_err(sql_error)?;
-            tx.execute("DELETE FROM resources WHERE id = ?1", params![id.as_str()])
+            let deleted = tx
+                .execute(
+                    r"
+                    DELETE FROM resources
+                    WHERE id = ?1
+                      AND state = 'delete_pending'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM resource_links WHERE resource_id = resources.id
+                      )
+                    ",
+                    params![id.as_str()],
+                )
                 .map_err(sql_error)?;
             tx.commit().map_err(sql_error)?;
             drop(connection);
+            return Ok(deleted == 1);
         }
-        Ok(())
+    }
+
+    async fn blob_is_referenced(&self, blob_id: &BlobId) -> ResourceResult<bool> {
+        let connection = self.connection.lock().map_err(resource_error)?;
+        connection
+            .query_row(
+                r"
+                SELECT EXISTS(
+                    SELECT 1 FROM resources WHERE blob_id = ?1
+                    UNION ALL
+                    SELECT 1 FROM resource_variants WHERE blob_id = ?1
+                )
+                ",
+                params![blob_id.as_str()],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(sql_error)
     }
 
     async fn scan_orphan_blobs(&self) -> ResourceResult<Vec<BlobId>> {

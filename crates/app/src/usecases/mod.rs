@@ -44,8 +44,8 @@ use atelier_generation::{
     Img2ImgRequest, plan_generation_request,
 };
 use atelier_jobs::{
-    BatchId, JobId, JobQueueRepository, JobStatus, RunHistoryKind, RunHistoryRecord,
-    RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
+    BatchId, JobId, JobStatus, RunHistoryKind, RunHistoryRecord, RunHistoryRepository,
+    RunHistoryStatus, RunOutputRecord,
 };
 use atelier_kernel::{
     EnsureVibeEncoding, ExportVibeDocument, GenerationWorkRequest, ImportEmbeddedPngVibeDocument,
@@ -67,7 +67,7 @@ mod resource;
 
 pub use history::{
     GenerationHistoryPosition, GenerationHistoryUpdate, HistoryUseCases,
-    sync_generation_history_from_queue_snapshot, upsert_generation_history_record,
+    generation_history_records_from_queue_snapshot, upsert_generation_history_record,
 };
 pub use resource::ResourceUseCases;
 
@@ -94,6 +94,7 @@ mod events;
 mod gallery;
 mod generation;
 mod generation_draft;
+mod generation_persistence;
 mod generation_support;
 mod prompt;
 mod settings;
