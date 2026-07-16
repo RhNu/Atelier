@@ -1,9 +1,7 @@
 mod commands;
 mod desktop;
 mod desktop_system;
-
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+mod shutdown;
 
 use tauri::{Manager, RunEvent};
 
@@ -107,36 +105,20 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    let shutdown_started = Arc::new(AtomicBool::new(false));
-    let shutdown_complete = Arc::new(AtomicBool::new(false));
+    let shutdown = shutdown::ShutdownCoordinator::default();
     app.run(move |app_handle, event| {
-        handle_run_event(app_handle, event, &shutdown_started, &shutdown_complete);
+        handle_run_event(app_handle, event, &shutdown);
     });
 }
 
 fn handle_run_event(
     app_handle: &tauri::AppHandle,
     event: RunEvent,
-    shutdown_started: &Arc<AtomicBool>,
-    shutdown_complete: &Arc<AtomicBool>,
+    shutdown: &shutdown::ShutdownCoordinator,
 ) {
     let RunEvent::ExitRequested { api, .. } = event else {
         return;
     };
-    if shutdown_complete.load(Ordering::Acquire) {
-        return;
-    }
-
     api.prevent_exit();
-    if shutdown_started.swap(true, Ordering::AcqRel) {
-        return;
-    }
-
-    let app_handle = app_handle.clone();
-    let shutdown_complete = shutdown_complete.clone();
-    tauri::async_runtime::spawn(async move {
-        app_handle.state::<desktop::DesktopState>().shutdown().await;
-        shutdown_complete.store(true, Ordering::Release);
-        app_handle.exit(0);
-    });
+    shutdown.request(app_handle);
 }

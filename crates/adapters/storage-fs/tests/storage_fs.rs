@@ -13,8 +13,8 @@ use atelier_resource_catalog::{
     ResourceVariant, ResourceVariantBuilder, VariantId,
 };
 use atelier_workspace::{
-    WorkspaceErrorKind, WorkspaceLayout, WorkspaceLock, WorkspaceLockRequest,
-    WorkspaceRelativePath, WorkspaceRoot, WorkspaceSlot, WorkspaceStore,
+    WorkspaceErrorKind, WorkspaceLayout, WorkspaceLock, WorkspaceRelativePath, WorkspaceRoot,
+    WorkspaceSlot, WorkspaceStore,
 };
 use futures_executor::block_on;
 
@@ -68,24 +68,35 @@ fn workspace_lock_rejects_second_holder_until_first_lease_drops() {
             .unwrap();
         let lock = FileSystemWorkspaceLock::new();
 
-        let first = lock
-            .acquire(&root, &layout, WorkspaceLockRequest::new("first"))
-            .await
-            .unwrap();
-        let error = lock
-            .acquire(&root, &layout, WorkspaceLockRequest::new("second"))
-            .await
-            .err()
-            .unwrap();
+        let first = lock.acquire(&root, &layout).await.unwrap();
+        let error = lock.acquire(&root, &layout).await.err().unwrap();
         assert_eq!(error.kind, WorkspaceErrorKind::Locked);
 
         drop(first);
-        let second = lock
-            .acquire(&root, &layout, WorkspaceLockRequest::new("second"))
+        let _second = lock.acquire(&root, &layout).await.unwrap();
+    });
+}
+
+#[test]
+fn workspace_lock_release_is_explicit_and_lock_path_is_reusable_after_crash_style_remainder() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let root = WorkspaceRoot::new(temp.path());
+        let layout = WorkspaceLayout;
+        FileSystemWorkspaceStore::new()
+            .initialize(&root, &layout)
             .await
             .unwrap();
-        let metadata = second.metadata().await.unwrap();
-        assert_eq!(metadata.holder, "second");
+        let lock = FileSystemWorkspaceLock::new();
+
+        let mut first = lock.acquire(&root, &layout).await.unwrap();
+        first.release().unwrap();
+        assert!(
+            root.join_relative(&storage_path(WorkspaceSlot::LockFile))
+                .exists()
+        );
+
+        let _second = lock.acquire(&root, &layout).await.unwrap();
     });
 }
 
@@ -101,22 +112,12 @@ fn dropping_old_lock_lease_does_not_remove_newer_lock() {
             .unwrap();
         let lock = FileSystemWorkspaceLock::new();
 
-        let first = lock
-            .acquire(&root, &layout, WorkspaceLockRequest::new("first"))
-            .await
-            .unwrap();
+        let first = lock.acquire(&root, &layout).await.unwrap();
         std::fs::remove_file(root.join_relative(&storage_path(WorkspaceSlot::LockFile))).unwrap();
-        let second = lock
-            .acquire(&root, &layout, WorkspaceLockRequest::new("second"))
-            .await
-            .unwrap();
+        let second = lock.acquire(&root, &layout).await.unwrap();
 
         drop(first);
-        let error = lock
-            .acquire(&root, &layout, WorkspaceLockRequest::new("third"))
-            .await
-            .err()
-            .unwrap();
+        let error = lock.acquire(&root, &layout).await.err().unwrap();
 
         assert_eq!(error.kind, WorkspaceErrorKind::Locked);
         drop(second);

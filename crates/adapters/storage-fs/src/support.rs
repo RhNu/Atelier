@@ -1,34 +1,16 @@
 use super::{
     BlobId, Deserialize, Digest, Error, OpenOptions, Path, ResourceCatalogError, ResourceMetadata,
     ResourceResult, Serialize, Sha256, StagedBlobToken, SystemTime, UNIX_EPOCH,
-    WORKSPACE_SCHEMA_VERSION, WorkspaceError, WorkspaceLockMetadata, WorkspaceRelativePath,
-    WorkspaceResult, WorkspaceSlot, Write, fs, io,
+    WORKSPACE_SCHEMA_VERSION, WorkspaceError, WorkspaceRelativePath, WorkspaceResult,
+    WorkspaceSlot, Write, fs, io,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static STAGING_COUNTER: AtomicU64 = AtomicU64::new(0);
-static LOCK_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub struct StoredManifest {
     pub(super) schema_version: u32,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct StoredLockMetadata {
-    token: String,
-    holder: String,
-    created_at_ms: u64,
-}
-
-impl StoredLockMetadata {
-    pub(super) fn from_metadata(metadata: &WorkspaceLockMetadata, token: String) -> Self {
-        Self {
-            token,
-            holder: metadata.holder.clone(),
-            created_at_ms: metadata.created_at_ms,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -88,34 +70,11 @@ pub fn read_sidecar(path: &Path) -> ResourceResult<StagedBlobSidecar> {
         .map_err(|source| ResourceCatalogError::blob_store(source.to_string()))
 }
 
-pub fn write_lock_metadata(
-    file: &mut fs::File,
-    path: &Path,
-    metadata: &StoredLockMetadata,
-) -> WorkspaceResult<()> {
-    serde_json::to_writer(&mut *file, metadata)
-        .map_err(|source| WorkspaceError::storage(source.to_string()))?;
-    file.write_all(b"\n")
-        .map_err(|source| workspace_fs_error(path, source))?;
-    file.flush()
-        .map_err(|source| workspace_fs_error(path, source))
-}
-
 pub fn write_staging_part(file: &mut fs::File, path: &Path, bytes: &[u8]) -> ResourceResult<()> {
     file.write_all(bytes)
         .map_err(|source| resource_fs_error(path, source))?;
     file.flush()
         .map_err(|source| resource_fs_error(path, source))
-}
-
-pub fn lock_file_token_matches(path: &Path, expected: &str) -> bool {
-    let Ok(text) = fs::read_to_string(path) else {
-        return false;
-    };
-    let Ok(metadata) = serde_json::from_str::<StoredLockMetadata>(&text) else {
-        return false;
-    };
-    metadata.token == expected
 }
 
 pub fn validate_staged_part_matches_sidecar(
@@ -219,14 +178,6 @@ pub fn validate_token(token: &StagedBlobToken) -> ResourceResult<()> {
     }
 }
 
-pub fn unix_ms() -> u64 {
-    let millis = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
-    u64::try_from(millis).unwrap_or(u64::MAX)
-}
-
 pub fn unix_nanos() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -241,15 +192,6 @@ pub fn unique_staged_blob_token() -> StagedBlobToken {
         unix_nanos(),
         STAGING_COUNTER.fetch_add(1, Ordering::Relaxed)
     ))
-}
-
-pub fn unique_lock_token() -> String {
-    format!(
-        "lock-{}-{}-{}",
-        std::process::id(),
-        unix_nanos(),
-        LOCK_COUNTER.fetch_add(1, Ordering::Relaxed)
-    )
 }
 
 const _: () = {

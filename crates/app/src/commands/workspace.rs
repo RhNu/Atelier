@@ -109,7 +109,15 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
     /// # Errors
     /// Returns an error envelope when command session state is unavailable.
     pub fn close_workspace(&self) -> CommandResult<CloseWorkspaceResponseDto> {
-        let was_open = self.lock_session()?.take().is_some();
-        Ok(CloseWorkspaceResponseDto { was_open })
+        let session = self.lock_session()?.take();
+        let Some(session) = session else {
+            return Ok(CloseWorkspaceResponseDto { was_open: false });
+        };
+        if let Err(error) = session.release_workspace_lock() {
+            // Put the session back so callers can retry a failed close.
+            *self.lock_session()? = Some(session);
+            return Err(error.envelope());
+        }
+        Ok(CloseWorkspaceResponseDto { was_open: true })
     }
 }

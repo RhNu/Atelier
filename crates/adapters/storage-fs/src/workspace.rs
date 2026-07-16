@@ -1,10 +1,10 @@
 use super::{
-    OpenOptions, PathBuf, StoredLockMetadata, StoredManifest, WorkspaceError, WorkspaceLayout,
-    WorkspaceLock, WorkspaceLockLease, WorkspaceLockMetadata, WorkspaceLockRequest,
-    WorkspaceManifest, WorkspaceRelativePath, WorkspaceResult, WorkspaceRoot, WorkspaceSlot,
-    WorkspaceStore, async_trait, create_dir_all, fs, io, lock_file_token_matches, storage_path_for,
-    unique_lock_token, unix_ms, workspace_fs_error, write_json, write_lock_metadata,
+    OpenOptions, PathBuf, StoredManifest, WorkspaceError, WorkspaceLayout, WorkspaceLock,
+    WorkspaceLockLease, WorkspaceManifest, WorkspaceRelativePath, WorkspaceResult, WorkspaceRoot,
+    WorkspaceSlot, WorkspaceStore, async_trait, create_dir_all, fs, storage_path_for,
+    workspace_fs_error, write_json,
 };
+use std::fs::TryLockError;
 
 #[must_use]
 pub fn workspace_relative_path_for(slot: WorkspaceSlot) -> WorkspaceRelativePath {
@@ -93,34 +93,36 @@ impl WorkspaceLock for FileSystemWorkspaceLock {
         &self,
         root: &WorkspaceRoot,
         _layout: &WorkspaceLayout,
-        request: WorkspaceLockRequest,
     ) -> WorkspaceResult<Box<dyn WorkspaceLockLease>> {
         let path = root.join_relative(&storage_path_for(WorkspaceSlot::LockFile));
         if let Some(parent) = path.parent() {
             create_dir_all(parent)?;
         }
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
+            .read(true)
             .write(true)
-            .create_new(true)
+            .create(true)
+            .truncate(false)
             .open(&path)
-            .map_err(|source| {
-                if source.kind() == io::ErrorKind::AlreadyExists {
-                    WorkspaceError::locked(format!("workspace is locked by `{}`", path.display()))
-                } else {
-                    workspace_fs_error(&path, source)
-                }
-            })?;
-        let metadata = WorkspaceLockMetadata::new(request.holder, unix_ms());
-        let token = unique_lock_token();
-        let stored = StoredLockMetadata::from_metadata(&metadata, token.clone());
-        if let Err(error) = write_lock_metadata(&mut file, &path, &stored) {
-            let _remove_result = fs::remove_file(&path);
-            return Err(error);
+            .map_err(|source| workspace_fs_error(&path, source))?;
+        match file.try_lock() {
+            Ok(()) => {}
+            Err(TryLockError::WouldBlock) => {
+                return Err(WorkspaceError::locked(format!(
+                    "workspace is locked by `{}`",
+                    path.display()
+                )));
+            }
+            Err(TryLockError::Error(source)) => return Err(workspace_fs_error(&path, source)),
         }
+
+        // The path is persistent and intentionally empty. The OS lock on the
+        // file handle is the only ownership primitive.
+        file.set_len(0)
+            .map_err(|source| workspace_fs_error(&path, source))?;
         Ok(Box::new(FileSystemWorkspaceLockLease {
             path,
-            metadata,
-            token,
+            file: Some(file),
         }))
     }
 }
@@ -128,21 +130,25 @@ impl WorkspaceLock for FileSystemWorkspaceLock {
 #[derive(Debug)]
 struct FileSystemWorkspaceLockLease {
     path: PathBuf,
-    metadata: WorkspaceLockMetadata,
-    token: String,
+    file: Option<fs::File>,
 }
 
 #[async_trait]
 impl WorkspaceLockLease for FileSystemWorkspaceLockLease {
-    async fn metadata(&self) -> WorkspaceResult<WorkspaceLockMetadata> {
-        Ok(self.metadata.clone())
+    fn release(&mut self) -> WorkspaceResult<()> {
+        let Some(file) = self.file.take() else {
+            return Ok(());
+        };
+        if let Err(source) = file.unlock() {
+            self.file = Some(file);
+            return Err(workspace_fs_error(&self.path, source));
+        }
+        Ok(())
     }
 }
 
 impl Drop for FileSystemWorkspaceLockLease {
     fn drop(&mut self) {
-        if lock_file_token_matches(&self.path, &self.token) {
-            let _remove_result = fs::remove_file(&self.path);
-        }
+        let _ = self.release();
     }
 }

@@ -31,8 +31,7 @@ use atelier_secrets::{ApiKeyRegistryService, SecretStore};
 use atelier_settings::WorkspaceSettingsService;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 use atelier_workspace::{
-    WorkspaceLayout, WorkspaceLock, WorkspaceLockLease, WorkspaceLockRequest, WorkspaceRoot,
-    WorkspaceStore,
+    WorkspaceLayout, WorkspaceLock, WorkspaceLockLease, WorkspaceRoot, WorkspaceStore,
 };
 use futures::lock::Mutex;
 
@@ -59,7 +58,7 @@ pub struct WorkspaceSession<
 pub struct AppInner<S, F, E> {
     pub root: WorkspaceRoot,
     pub schema_version: u32,
-    pub _lease: StdMutex<Box<dyn WorkspaceLockLease>>,
+    pub workspace_lock: StdMutex<Box<dyn WorkspaceLockLease>>,
     pub api_keys: AppApiKeyService<S, F>,
     pub settings: WorkspaceSettingsService<DatabaseSettingsRepository>,
     pub generation_drafts:
@@ -182,7 +181,7 @@ where
             .initialize(&root, &layout)
             .await?;
         let lease = FileSystemWorkspaceLock::new()
-            .acquire(&root, &layout, WorkspaceLockRequest::new("atelier-app"))
+            .acquire(&root, &layout)
             .await?;
         let connection = DatabaseConnection::open(workspace_database_path(&root))?;
         let api_key_store = DatabaseApiKeyRegistryStore::new(connection.clone());
@@ -257,7 +256,7 @@ where
             inner: AppInner {
                 root,
                 schema_version: manifest.schema_version,
-                _lease: StdMutex::new(lease),
+                workspace_lock: StdMutex::new(lease),
                 api_keys,
                 settings,
                 generation_drafts,
@@ -278,6 +277,23 @@ where
 }
 
 impl<S, F, E> WorkspaceSession<S, F, E> {
+    /// Explicitly releases the workspace lease before the session is dropped.
+    ///
+    /// This is intentionally separate from `Drop`: desktop shutdown may end
+    /// the Tauri event loop before all `Arc` clones have been destroyed.
+    ///
+    /// # Errors
+    /// Returns an error when the underlying workspace lock cannot be released.
+    pub fn release_workspace_lock(&self) -> AppResult<()> {
+        let mut lease = self.inner.workspace_lock.lock().map_err(|_| {
+            AppError::new(
+                "workspace_lock_state_poisoned",
+                "workspace lock state is unavailable",
+            )
+        })?;
+        lease.release().map_err(AppError::from)
+    }
+
     #[must_use]
     pub const fn workspace(&self) -> WorkspaceUseCases<'_, S, F, E> {
         WorkspaceUseCases { app: self }
