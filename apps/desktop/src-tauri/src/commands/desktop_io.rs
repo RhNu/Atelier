@@ -75,6 +75,22 @@ pub fn read_clipboard_image() -> CommandResult<ClipboardImageDto> {
 }
 
 #[tauri::command]
+pub async fn import_clipboard_image_resource(
+    state: State<'_, DesktopState>,
+    kind: ImageResourceKindDto,
+) -> CommandResult<ImportImageResourceResponseDto> {
+    let image = read_clipboard_image()?;
+    state
+        .host
+        .import_image_resource(ImportImageResourceRequestDto {
+            kind,
+            image_base64: image.image_base64,
+            mime_type: Some(image.mime_type.to_owned()),
+        })
+        .await
+}
+
+#[tauri::command]
 pub fn desktop_paths(state: State<'_, DesktopState>) -> DesktopPaths {
     state.system.paths().clone()
 }

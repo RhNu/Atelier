@@ -65,6 +65,31 @@ export function useResourceImageQuery(resource: ResourceRefDto | null) {
   });
 }
 
+export function useImportResourcePreviewMutation() {
+  return useMutation({
+    mutationFn: async (source: "clipboard" | "file") => {
+      if (source === "clipboard") {
+        return (await desktopApi.importClipboardImageResource("source_image")).resource;
+      }
+      const [selected, ...unused] = await desktopApi.pickAndImportImageResources("source_image", {
+        extensions: [],
+      });
+      if (unused.length > 0) {
+        await resourceApi.releaseImportedImages({
+          resources: unused.map((item) => item.resource),
+        });
+      }
+      return selected?.resource ?? null;
+    },
+  });
+}
+
+export function useReleaseResourcePreviewsMutation() {
+  return useMutation({
+    mutationFn: (resources: ResourceRefDto[]) => resourceApi.releaseImportedImages({ resources }),
+  });
+}
+
 export function useUpsertPromptChunkMutation() {
   const queryClient = useQueryClient();
   return useMutation({

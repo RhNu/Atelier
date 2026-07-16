@@ -1,14 +1,16 @@
-/* eslint-disable max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
+/* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { Eye } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppModal } from "@/components/ui";
+import { AppButton, AppModal, AppTabs } from "@/components/ui";
+import { generationUcPresetOptions } from "@/features/generation/model/generation-options";
 import type { CompiledPromptDto, PromptPresetDto, PromptPresetKindDto } from "@/types";
 
 import {
   useCompilePromptPreviewMutation,
   useDeletePromptPresetMutation,
+  useImportResourcePreviewMutation,
   useUpsertPromptPresetMutation,
 } from "../data/useResourcesData";
 import {
@@ -27,12 +29,13 @@ import {
   EditorActions,
   EditorPanel,
   NumberInput,
-  PreviewSlot,
   ResourceList,
   ResourceListButton,
+  SelectField,
   TextArea,
   TextInput,
 } from "./ResourceEditorPrimitives";
+import { ResourcePreviewEditor } from "./ResourcePreviewEditor";
 
 export function PresetWorkspace({
   kind,
@@ -61,6 +64,7 @@ export function PresetWorkspace({
   const upsertMutation = useUpsertPromptPresetMutation();
   const deleteMutation = useDeletePromptPresetMutation();
   const compileMutation = useCompilePromptPreviewMutation();
+  const previewMutation = useImportResourcePreviewMutation();
   const [preview, setPreview] = useState<CompiledPromptDto | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -184,13 +188,24 @@ export function PresetWorkspace({
               setDraft({ ...draft, description: nullableText(description) })
             }
           />
-          <PresetFields draft={draft} setDraft={setDraft} mainPreset={mainPreset} />
-          <PreviewSlot resource={draft.preview} label={t("presetPreview")} />
-          <AppButton variant="secondary" onClick={compile} disabled={compileMutation.isPending}>
-            <Eye aria-hidden="true" className="size-4" />
-            {t("compilePresetFields")}
-          </AppButton>
-          <CompiledPreview preview={preview} />
+          <PresetFields
+            draft={draft}
+            setDraft={setDraft}
+            mainPreset={mainPreset}
+            preview={preview}
+            compilePending={compileMutation.isPending}
+            previewPending={previewMutation.isPending}
+            previewError={previewMutation.isError ? formatError(previewMutation.error) : null}
+            onCompile={compile}
+            onImportPreview={(source) =>
+              void previewMutation
+                .mutateAsync(source)
+                .then(
+                  (resource) =>
+                    resource && setDraft((current) => ({ ...current, preview: resource })),
+                )
+            }
+          />
         </EditorPanel>
       </AppModal>
     </>
@@ -201,69 +216,171 @@ function PresetFields({
   draft,
   setDraft,
   mainPreset,
+  preview,
+  compilePending,
+  previewPending,
+  previewError,
+  onCompile,
+  onImportPreview,
 }: {
   draft: PresetDraft;
-  setDraft: (draft: PresetDraft) => void;
+  setDraft: Dispatch<SetStateAction<PresetDraft>>;
   mainPreset: boolean;
+  preview: CompiledPromptDto | null;
+  compilePending: boolean;
+  previewPending: boolean;
+  previewError: string | null;
+  onCompile: () => void;
+  onImportPreview: (source: "clipboard" | "file") => void;
 }) {
   const { t } = useTranslation("resources");
+  const [tab, setTab] = useState("prompt");
+  const positiveMode = draft.replace.trim() ? "replace" : "surround";
+  const ucMode = draft.uc_replace.trim() ? "replace" : "surround";
   return (
     <>
-      <TextArea
-        label={t("before")}
-        value={draft.before}
-        minRows="min-h-24"
-        onChange={(before) => setDraft({ ...draft, before })}
+      <AppTabs
+        value={tab}
+        label={t("editorSections")}
+        tabs={[
+          { value: "prompt", label: t("promptTab") },
+          { value: "uc", label: t("ucTab") },
+          ...(mainPreset ? [{ value: "overrides", label: t("overridesTab") }] : []),
+          { value: "preview", label: t("previewTab") },
+        ]}
+        onChange={setTab}
       />
-      <TextArea
-        label={t("after")}
-        value={draft.after}
-        minRows="min-h-20"
-        onChange={(after) => setDraft({ ...draft, after })}
-      />
-      <TextArea
-        label={t("replace")}
-        value={draft.replace}
-        minRows="min-h-20"
-        onChange={(replace) => setDraft({ ...draft, replace })}
-      />
-      <div className="grid grid-cols-3 gap-3">
-        <TextArea
-          label={t("ucBefore")}
-          value={draft.uc_before}
-          minRows="min-h-20"
-          onChange={(uc_before) => setDraft({ ...draft, uc_before })}
-        />
-        <TextArea
-          label={t("ucAfter")}
-          value={draft.uc_after}
-          minRows="min-h-20"
-          onChange={(uc_after) => setDraft({ ...draft, uc_after })}
-        />
-        <TextArea
-          label={t("ucReplace")}
-          value={draft.uc_replace}
-          minRows="min-h-20"
-          onChange={(uc_replace) => setDraft({ ...draft, uc_replace })}
-        />
-      </div>
-      {mainPreset ? (
+      {tab === "prompt" ? (
+        <>
+          <SelectField
+            label={t("promptBehavior")}
+            value={positiveMode}
+            options={[
+              { value: "surround", label: t("beforeAfterMode") },
+              { value: "replace", label: t("replaceMode") },
+            ]}
+            onChange={(mode) =>
+              setDraft(
+                mode === "replace"
+                  ? { ...draft, before: "", after: "", replace: draft.replace || draft.before }
+                  : { ...draft, replace: "" },
+              )
+            }
+          />
+          {positiveMode === "replace" ? (
+            <TextArea
+              label={t("replace")}
+              value={draft.replace}
+              minRows="min-h-40"
+              onChange={(replace) => setDraft({ ...draft, replace })}
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <TextArea
+                label={t("before")}
+                value={draft.before}
+                minRows="min-h-40"
+                onChange={(before) => setDraft({ ...draft, before })}
+              />
+              <TextArea
+                label={t("after")}
+                value={draft.after}
+                minRows="min-h-40"
+                onChange={(after) => setDraft({ ...draft, after })}
+              />
+            </div>
+          )}
+        </>
+      ) : null}
+      {tab === "uc" ? (
+        <>
+          <SelectField
+            label={t("promptBehavior")}
+            value={ucMode}
+            options={[
+              { value: "surround", label: t("beforeAfterMode") },
+              { value: "replace", label: t("replaceMode") },
+            ]}
+            onChange={(mode) =>
+              setDraft(
+                mode === "replace"
+                  ? {
+                      ...draft,
+                      uc_before: "",
+                      uc_after: "",
+                      uc_replace: draft.uc_replace || draft.uc_before,
+                    }
+                  : { ...draft, uc_replace: "" },
+              )
+            }
+          />
+          {ucMode === "replace" ? (
+            <TextArea
+              label={t("ucReplace")}
+              value={draft.uc_replace}
+              minRows="min-h-40"
+              onChange={(uc_replace) => setDraft({ ...draft, uc_replace })}
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <TextArea
+                label={t("ucBefore")}
+                value={draft.uc_before}
+                minRows="min-h-40"
+                onChange={(uc_before) => setDraft({ ...draft, uc_before })}
+              />
+              <TextArea
+                label={t("ucAfter")}
+                value={draft.uc_after}
+                minRows="min-h-40"
+                onChange={(uc_after) => setDraft({ ...draft, uc_after })}
+              />
+            </div>
+          )}
+        </>
+      ) : null}
+      {tab === "overrides" && mainPreset ? (
         <div className="grid grid-cols-2 gap-3">
-          <TextInput
+          <SelectField
             label={t("qualityOverride")}
             value={draft.quality_override ?? ""}
-            onChange={(quality_override) =>
-              setDraft({ ...draft, quality_override: nullableText(quality_override) })
-            }
+            options={[
+              { value: "", label: t("inherit") },
+              { value: "true", label: t("enabled") },
+              { value: "false", label: t("disabled") },
+            ]}
+            onChange={(value) => setDraft({ ...draft, quality_override: nullableText(value) })}
           />
-          <TextInput
+          <SelectField
             label={t("ucPresetOverride")}
             value={draft.uc_preset_override ?? ""}
-            onChange={(uc_preset_override) =>
-              setDraft({ ...draft, uc_preset_override: nullableText(uc_preset_override) })
-            }
+            options={[
+              { value: "", label: t("inherit") },
+              ...generationUcPresetOptions.map((value) => ({
+                value,
+                label: value.replaceAll("_", " "),
+              })),
+            ]}
+            onChange={(value) => setDraft({ ...draft, uc_preset_override: nullableText(value) })}
           />
         </div>
+      ) : null}
+      {tab === "preview" ? (
+        <>
+          <ResourcePreviewEditor
+            resource={draft.preview}
+            label={t("presetPreview")}
+            pending={previewPending}
+            error={previewError}
+            onImport={onImportPreview}
+            onClear={() => setDraft({ ...draft, preview: null })}
+          />
+          <AppButton variant="secondary" onClick={onCompile} disabled={compilePending}>
+            <Eye aria-hidden="true" className="size-4" />
+            {t("compilePresetFields")}
+          </AppButton>
+          <CompiledPreview preview={preview} />
+        </>
       ) : null}
     </>
   );

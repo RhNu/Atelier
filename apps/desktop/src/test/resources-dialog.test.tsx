@@ -10,12 +10,19 @@ const mocks = vi.hoisted(() => ({
   upsert: { isPending: false, mutateAsync: vi.fn<() => Promise<never>>() },
   remove: { isPending: false, mutateAsync: vi.fn<() => Promise<never>>() },
   compile: { isPending: false, mutateAsync: vi.fn<() => Promise<never>>() },
+  preview: {
+    isPending: false,
+    isError: false,
+    error: null,
+    mutateAsync: vi.fn<() => Promise<null>>(),
+  },
 }));
 
 vi.mock("../features/resources/data/useResourcesData", () => ({
   useUpsertPromptChunkMutation: () => mocks.upsert,
   useDeletePromptChunkMutation: () => mocks.remove,
   useCompilePromptPreviewMutation: () => mocks.compile,
+  useImportResourcePreviewMutation: () => mocks.preview,
   useResourceImageQuery: () => ({ data: undefined }),
 }));
 

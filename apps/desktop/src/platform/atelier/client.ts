@@ -118,6 +118,11 @@ export const desktopApi = {
   paths: () => invokeAtelierCommand<DesktopPathsDto>(atelierCommands.desktopPaths),
   readClipboardImage: () =>
     invokeAtelierCommand<ClipboardImageDto>(atelierCommands.readClipboardImage),
+  importClipboardImageResource: (kind: ImageResourceKindDto) =>
+    invokeAtelierCommand<ImportImageResourceResponseDto>(
+      atelierCommands.importClipboardImageResource,
+      { kind },
+    ),
   pickWorkspaceDirectory: () =>
     invokeAtelierCommand<string | null>(atelierCommands.pickWorkspaceDirectory),
   pickExportDirectory: () =>

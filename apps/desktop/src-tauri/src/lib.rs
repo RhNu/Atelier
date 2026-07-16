@@ -19,6 +19,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::desktop_paths,
             commands::read_clipboard_image,
+            commands::import_clipboard_image_resource,
             commands::pick_workspace_directory,
             commands::pick_export_directory,
             commands::pick_and_import_image_resources,

@@ -1,14 +1,15 @@
-/* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
+/* eslint-disable max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { Eye } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppModal } from "@/components/ui";
+import { AppButton, AppModal, AppTabs } from "@/components/ui";
 import type { CompiledPromptDto, PromptChunkDto } from "@/types";
 
 import {
   useCompilePromptPreviewMutation,
   useDeletePromptChunkMutation,
+  useImportResourcePreviewMutation,
   useUpsertPromptChunkMutation,
 } from "../data/useResourcesData";
 import {
@@ -24,12 +25,12 @@ import {
   CompiledPreview,
   EditorActions,
   EditorPanel,
-  PreviewSlot,
   ResourceList,
   ResourceListButton,
   TextArea,
   TextInput,
 } from "./ResourceEditorPrimitives";
+import { ResourcePreviewEditor } from "./ResourcePreviewEditor";
 
 export function ChunkWorkspace({
   chunks,
@@ -53,9 +54,11 @@ export function ChunkWorkspace({
   const upsertMutation = useUpsertPromptChunkMutation();
   const deleteMutation = useDeletePromptChunkMutation();
   const compileMutation = useCompilePromptPreviewMutation();
+  const previewMutation = useImportResourcePreviewMutation();
   const [preview, setPreview] = useState<CompiledPromptDto | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editorTab, setEditorTab] = useState("content");
   const previousNewRequest = useRef(newRequest);
 
   useEffect(() => {
@@ -65,6 +68,7 @@ export function ChunkWorkspace({
     setPreview(null);
     setErrorMessage(null);
     setEditorOpen(true);
+    setEditorTab("content");
   }, [newRequest]);
 
   function save() {
@@ -113,6 +117,7 @@ export function ChunkWorkspace({
               setPreview(null);
               setErrorMessage(null);
               setEditorOpen(true);
+              setEditorTab("content");
             }}
           />
         ))}
@@ -140,35 +145,70 @@ export function ChunkWorkspace({
             />
           }
         >
-          <TextInput
-            label={t("key")}
-            value={draft.key}
-            onChange={(key) => setDraft({ ...draft, key })}
+          <AppTabs
+            value={editorTab}
+            label={t("editorSections")}
+            tabs={[
+              { value: "content", label: t("contentTab") },
+              { value: "details", label: t("detailsTab") },
+              { value: "preview", label: t("previewTab") },
+            ]}
+            onChange={setEditorTab}
           />
-          <TextInput
-            label={t("category")}
-            value={draft.category ?? ""}
-            onChange={(category) => setDraft({ ...draft, category: nullableText(category) })}
-          />
-          <TextInput
-            label={t("description")}
-            value={draft.description ?? ""}
-            onChange={(description) =>
-              setDraft({ ...draft, description: nullableText(description) })
-            }
-          />
-          <TextArea
-            label={t("content")}
-            value={draft.content}
-            minRows="min-h-40"
-            onChange={(content) => setDraft({ ...draft, content })}
-          />
-          <PreviewSlot resource={draft.preview} label={t("chunkPreview")} />
-          <AppButton variant="secondary" onClick={compile} disabled={compileMutation.isPending}>
-            <Eye aria-hidden="true" className="size-4" />
-            {t("compilePreview")}
-          </AppButton>
-          <CompiledPreview preview={preview} />
+          {editorTab === "content" ? (
+            <>
+              <TextInput
+                label={t("key")}
+                value={draft.key}
+                onChange={(key) => setDraft({ ...draft, key })}
+              />
+              <TextArea
+                label={t("content")}
+                value={draft.content}
+                minRows="min-h-48"
+                onChange={(content) => setDraft({ ...draft, content })}
+              />
+              <AppButton variant="secondary" onClick={compile} disabled={compileMutation.isPending}>
+                <Eye aria-hidden="true" className="size-4" />
+                {t("compilePreview")}
+              </AppButton>
+              <CompiledPreview preview={preview} />
+            </>
+          ) : null}
+          {editorTab === "details" ? (
+            <>
+              <TextInput
+                label={t("category")}
+                value={draft.category ?? ""}
+                onChange={(category) => setDraft({ ...draft, category: nullableText(category) })}
+              />
+              <TextArea
+                label={t("description")}
+                value={draft.description ?? ""}
+                minRows="min-h-28"
+                onChange={(description) =>
+                  setDraft({ ...draft, description: nullableText(description) })
+                }
+              />
+            </>
+          ) : null}
+          {editorTab === "preview" ? (
+            <ResourcePreviewEditor
+              resource={draft.preview}
+              label={t("chunkPreview")}
+              pending={previewMutation.isPending}
+              error={previewMutation.isError ? formatError(previewMutation.error) : null}
+              onImport={(source) =>
+                void previewMutation
+                  .mutateAsync(source)
+                  .then(
+                    (resource) =>
+                      resource && setDraft((current) => ({ ...current, preview: resource })),
+                  )
+              }
+              onClear={() => setDraft({ ...draft, preview: null })}
+            />
+          ) : null}
         </EditorPanel>
       </AppModal>
     </>
