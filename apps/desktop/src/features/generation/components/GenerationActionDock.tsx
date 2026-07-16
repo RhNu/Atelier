@@ -1,5 +1,5 @@
 /* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
-import { ChevronDown, ChevronUp, RefreshCw, RotateCcw, WandSparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw, WandSparkles } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -9,20 +9,21 @@ import type { GenerationDraft } from "../model/generation-draft";
 import {
   generationImageFormatOptions,
   generationNoiseScheduleOptions,
-  generationSamplerOptions,
+  generationSamplerDisplayNames,
+  generationSamplerSelectOptions,
   toImageFormat,
   toNoiseSchedule,
   toSampler,
   toSelectOptions,
 } from "../model/generation-options";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
+import { SeedInput } from "./SeedInput";
 
 type GenerationActionDockProps = {
   draft: GenerationDraft;
   balance: number | null;
   balancePending: boolean;
   balanceError: string | null;
-  refreshPending: boolean;
   estimate: number | null;
   estimatePending: boolean;
   estimateError: string | null;
@@ -33,26 +34,19 @@ type GenerationActionDockProps = {
   draftSaveError: string | null;
   onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
   onFlush: () => void;
-  onRefreshBalance: () => void;
   onSubmit: () => void;
   onResetParameters: () => void;
   onRetryDraftSave: () => void;
   onClearStoredDraft: () => void;
 };
 
-const SAMPLER_OPTIONS = toSelectOptions(generationSamplerOptions);
 const NOISE_OPTIONS = toSelectOptions(generationNoiseScheduleOptions);
-const FORMAT_OPTIONS = [
-  { value: "default", label: "Workspace default" },
-  ...toSelectOptions(generationImageFormatOptions),
-];
 
 export function GenerationActionDock({
   draft,
   balance,
   balancePending,
   balanceError,
-  refreshPending,
   estimate,
   estimatePending,
   estimateError,
@@ -63,7 +57,6 @@ export function GenerationActionDock({
   draftSaveError,
   onPatch,
   onFlush,
-  onRefreshBalance,
   onSubmit,
   onResetParameters,
   onRetryDraftSave,
@@ -73,9 +66,13 @@ export function GenerationActionDock({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const totalImages = draft.requestCount * draft.nSamples;
   const insufficientBalance = balance !== null && estimate !== null && estimate > balance;
-  const samplerLabel = useMemo(
-    () => SAMPLER_OPTIONS.find((option) => option.value === draft.sampler)?.label ?? draft.sampler,
-    [draft.sampler],
+  const samplerLabel = generationSamplerDisplayNames[draft.sampler];
+  const formatOptions = useMemo(
+    () => [
+      { value: "default", label: t("workspaceDefault") },
+      ...toSelectOptions(generationImageFormatOptions),
+    ],
+    [t],
   );
   const toggleSettings = useCallback(() => setSettingsOpen((value) => !value), []);
 
@@ -106,7 +103,7 @@ export function GenerationActionDock({
           </div>
 
           <AppRangeField
-            label="Steps"
+            label={t("steps")}
             value={draft.steps}
             min={1}
             max={50}
@@ -115,7 +112,7 @@ export function GenerationActionDock({
             onCommit={onFlush}
           />
           <AppRangeField
-            label="Scale"
+            label={t("scale")}
             value={draft.scale}
             min={0}
             max={10}
@@ -134,7 +131,7 @@ export function GenerationActionDock({
                   onPatch({ varietyBoost: !draft.varietyBoost }, { persist: "immediate" })
                 }
               >
-                Variety boost
+                {t("varietyBoost")}
               </button>
             }
             onChange={(scale) => onPatch({ scale })}
@@ -142,28 +139,17 @@ export function GenerationActionDock({
           />
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
-              Seed
-              <input
-                aria-label={t("seed")}
-                type="number"
-                placeholder={t("random")}
-                value={draft.seedMode === "random" ? "" : draft.seed}
-                className="h-9 border border-app-border bg-black/20 px-3 text-sm text-app-text outline-none focus:border-brand-400"
-                onChange={(event) => {
-                  const value = event.target.value;
-                  onPatch({
-                    seedMode: value ? "fixed" : "random",
-                    seed: value ? Number(value) : 0,
-                  });
-                }}
-                onBlur={onFlush}
-              />
-            </label>
+            <SeedInput
+              label={t("seed")}
+              value={draft.seedMode === "random" ? 0 : draft.seed}
+              randomPlaceholder={t("random")}
+              onChange={(seed) => onPatch({ seedMode: seed === 0 ? "random" : "fixed", seed })}
+              onBlur={onFlush}
+            />
             <SelectControl
-              label="Sampler"
+              label={t("sampler")}
               value={draft.sampler}
-              options={SAMPLER_OPTIONS}
+              options={generationSamplerSelectOptions}
               onChange={(sampler) => onPatch({ sampler: toSampler(sampler) })}
               onBlur={onFlush}
             />
@@ -171,12 +157,12 @@ export function GenerationActionDock({
 
           <details className="group border-t border-app-border pt-3">
             <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-app-muted uppercase">
-              Advanced
+              {t("advanced")}
               <ChevronDown className="size-4 group-open:rotate-180" />
             </summary>
             <div className="mt-4 space-y-4">
               <AppRangeField
-                label="CFG rescale"
+                label={t("cfgRescale")}
                 value={draft.cfgRescale}
                 min={0}
                 max={1}
@@ -185,7 +171,7 @@ export function GenerationActionDock({
                 onCommit={onFlush}
               />
               <SelectControl
-                label="Noise schedule"
+                label={t("noiseSchedule")}
                 value={draft.noiseSchedule}
                 options={NOISE_OPTIONS}
                 onChange={(noiseSchedule) =>
@@ -196,7 +182,7 @@ export function GenerationActionDock({
                 onBlur={onFlush}
               />
               <ToggleControl
-                label="Strict mode"
+                label={t("strictMode")}
                 checked={draft.strictMode}
                 onChange={(strictMode) => onPatch({ strictMode }, { persist: "immediate" })}
               />
@@ -205,19 +191,19 @@ export function GenerationActionDock({
 
           <details className="group border-t border-app-border pt-3">
             <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-app-muted uppercase">
-              Software
+              {t("software")}
               <ChevronDown className="size-4 group-open:rotate-180" />
             </summary>
             <div className="mt-4 space-y-4">
               <ToggleControl
-                label="Streaming preview"
+                label={t("streamingPreview")}
                 checked={draft.streamEnabled}
                 onChange={(streamEnabled) => onPatch({ streamEnabled }, { persist: "immediate" })}
               />
               <SelectControl
-                label="Output format"
+                label={t("outputFormat")}
                 value={draft.imageFormat ?? "default"}
-                options={FORMAT_OPTIONS}
+                options={formatOptions}
                 onChange={(imageFormat) =>
                   onPatch({
                     imageFormat: imageFormat === "default" ? null : toImageFormat(imageFormat),
@@ -236,21 +222,9 @@ export function GenerationActionDock({
             <div className="min-w-0">
               <span className="text-app-muted">{t("balance")} </span>
               <strong className="text-app-text">
-                {balancePending ? "Loading" : balance === null ? "Unavailable" : `${balance} Anlas`}
+                {balancePending ? t("loading") : balance === null ? "—" : `${balance} Anlas`}
               </strong>
             </div>
-            <button
-              type="button"
-              aria-label={t("refreshBalance")}
-              className="grid size-7 place-items-center border border-app-border text-app-muted hover:text-app-text disabled:opacity-50"
-              disabled={refreshPending}
-              onClick={onRefreshBalance}
-            >
-              <RefreshCw
-                aria-hidden="true"
-                className={["size-3.5", refreshPending ? "animate-spin" : ""].join(" ")}
-              />
-            </button>
           </div>
           {balanceError ? <p className="text-amber-200">{balanceError}</p> : null}
           {estimateError ? <p className="text-amber-200">{estimateError}</p> : null}
@@ -265,14 +239,14 @@ export function GenerationActionDock({
             className="grid w-full grid-cols-[auto_auto_auto_1fr] gap-3 border border-transparent p-2 text-left text-xs hover:border-app-border hover:bg-app-surface/50"
             onClick={toggleSettings}
           >
-            <SummaryValue label="Steps" value={String(draft.steps)} />
-            <SummaryValue label="Scale" value={String(draft.scale)} />
+            <SummaryValue label={t("steps")} value={String(draft.steps)} />
+            <SummaryValue label={t("scale")} value={String(draft.scale)} />
             <SummaryValue
-              label="Seed"
-              value={draft.seedMode === "random" ? "Random" : String(draft.seed)}
+              label={t("seed")}
+              value={draft.seedMode === "random" ? t("random") : String(draft.seed)}
             />
             <div className="flex min-w-0 items-center justify-between gap-2">
-              <SummaryValue label="Sampler" value={samplerLabel} truncate />
+              <SummaryValue label={t("sampler")} value={samplerLabel} truncate />
               <ChevronUp aria-hidden="true" className="size-4 shrink-0 text-app-muted" />
             </div>
           </button>
@@ -281,12 +255,12 @@ export function GenerationActionDock({
         {draftLoadError ? (
           <ErrorLine
             message={draftLoadError}
-            action="Clear saved draft"
+            action={t("clearSavedDraft")}
             onAction={onClearStoredDraft}
           />
         ) : null}
         {draftSaveError ? (
-          <ErrorLine message={draftSaveError} action="Retry save" onAction={onRetryDraftSave} />
+          <ErrorLine message={draftSaveError} action={t("retrySave")} onAction={onRetryDraftSave} />
         ) : null}
         {validationError ? <p className="text-sm text-amber-200">{validationError}</p> : null}
         {submitError ? <p className="text-sm text-rose-100">{submitError}</p> : null}
@@ -299,7 +273,7 @@ export function GenerationActionDock({
         >
           <span className="inline-flex items-center gap-2">
             <WandSparkles aria-hidden="true" className="size-4" />
-            {submitPending ? "Queueing generation" : `Generate ${totalImages} images`}
+            {submitPending ? t("queueingGeneration") : t("generateImages", { count: totalImages })}
           </span>
           <span className="bg-white/15 px-2 py-1 text-sm">
             {estimatePending ? "…" : (estimate ?? 0)} Anlas

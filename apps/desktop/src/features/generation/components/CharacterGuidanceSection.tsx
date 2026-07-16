@@ -113,7 +113,7 @@ function CharacterPositionSettings({
   return (
     <GuidanceSettingsDisclosure title={t("position")} defaultOpen>
       <label className="flex items-center justify-between gap-3 text-xs text-app-muted">
-        AI positioning
+        {t("aiPositioning")}
         <input
           aria-label={t("aiPositioning")}
           title={t("aiPositioning")}
@@ -163,6 +163,7 @@ function CharacterCard({
   onSelect: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation("generation");
   return (
     <article
       className={[
@@ -173,16 +174,16 @@ function CharacterCard({
       <header className="flex items-center justify-between gap-2">
         <button
           type="button"
-          aria-label={`Select character ${index + 1}`}
+          aria-label={t("selectCharacter", { index: index + 1 })}
           aria-pressed={selected}
           className="text-xs font-semibold text-app-muted hover:text-app-text"
           onClick={onSelect}
         >
-          Character {index + 1}
+          {t("character", { index: index + 1 })}
         </button>
         <div className="flex items-center gap-1">
           <input
-            aria-label={`Enable character ${index + 1}`}
+            aria-label={t("enableCharacter", { index: index + 1 })}
             title={`Enable character ${index + 1}`}
             type="checkbox"
             checked={character.enabled}
@@ -202,7 +203,7 @@ function CharacterCard({
         </div>
       </header>
       <SelectField
-        label="Character preset"
+        label={t("characterPreset")}
         value={character.presetId ?? ""}
         options={characterPresetOptions}
         onChange={(presetId) =>

@@ -100,7 +100,7 @@ export function ChunkWorkspace({
 
   return (
     <>
-      <ResourceList pending={pending} error={error} emptyTitle="No prompt chunks">
+      <ResourceList pending={pending} error={error} emptyTitle={t("noPromptChunks")}>
         {filtered.map((chunk) => (
           <ResourceListButton
             key={chunk.chunk_id}
@@ -119,7 +119,7 @@ export function ChunkWorkspace({
       </ResourceList>
       <AppModal
         open={editorOpen}
-        title={draft.chunk_id ? "Edit prompt chunk" : "New prompt chunk"}
+        title={draft.chunk_id ? t("editPromptChunk") : t("newPromptChunk")}
         onClose={() => setEditorOpen(false)}
       >
         <EditorPanel
@@ -141,32 +141,32 @@ export function ChunkWorkspace({
           }
         >
           <TextInput
-            label="Key"
+            label={t("key")}
             value={draft.key}
             onChange={(key) => setDraft({ ...draft, key })}
           />
           <TextInput
-            label="Category"
+            label={t("category")}
             value={draft.category ?? ""}
             onChange={(category) => setDraft({ ...draft, category: nullableText(category) })}
           />
           <TextInput
-            label="Description"
+            label={t("description")}
             value={draft.description ?? ""}
             onChange={(description) =>
               setDraft({ ...draft, description: nullableText(description) })
             }
           />
           <TextArea
-            label="Content"
+            label={t("content")}
             value={draft.content}
             minRows="min-h-40"
             onChange={(content) => setDraft({ ...draft, content })}
           />
-          <PreviewSlot resource={draft.preview} label="Chunk preview" />
+          <PreviewSlot resource={draft.preview} label={t("chunkPreview")} />
           <AppButton variant="secondary" onClick={compile} disabled={compileMutation.isPending}>
             <Eye aria-hidden="true" className="size-4" />
-            Compile preview
+            {t("compilePreview")}
           </AppButton>
           <CompiledPreview preview={preview} />
         </EditorPanel>

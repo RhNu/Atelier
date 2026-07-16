@@ -46,7 +46,7 @@ export function VibeLibraryDialog({
         {query.isPending ? (
           <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-app-muted">
             <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-            Loading Vibes
+            {t("loadingVibes")}
           </div>
         ) : query.isError ? (
           <p className="border border-rose-500/40 bg-rose-950/30 p-3 text-sm text-rose-100">
@@ -54,7 +54,7 @@ export function VibeLibraryDialog({
           </p>
         ) : entries.length === 0 ? (
           <div className="grid min-h-40 place-items-center border border-dashed border-app-border text-sm text-app-muted">
-            No compatible Vibes on this page.
+            {t("noCompatibleVibes")}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -84,8 +84,12 @@ export function VibeLibraryDialog({
         <footer className="flex items-center justify-between border-t border-app-border pt-3 text-xs text-app-muted">
           <span>
             {total === 0
-              ? "No Vibes"
-              : `${offset + 1}–${Math.min(offset + PAGE_LIMIT, total)} of ${total}`}
+              ? t("noVibes")
+              : t("paginationRange", {
+                  start: offset + 1,
+                  end: Math.min(offset + PAGE_LIMIT, total),
+                  total,
+                })}
           </span>
           <div className="flex items-center gap-2">
             <AppButton
@@ -95,7 +99,7 @@ export function VibeLibraryDialog({
               onClick={() => setOffset((value) => Math.max(0, value - PAGE_LIMIT))}
             >
               <ChevronLeft aria-hidden="true" className="size-4" />
-              Previous
+              {t("previous")}
             </AppButton>
             <AppButton
               variant="ghost"
@@ -103,7 +107,7 @@ export function VibeLibraryDialog({
               disabled={!canGoNext}
               onClick={() => setOffset((value) => value + PAGE_LIMIT)}
             >
-              Next
+              {t("next")}
               <ChevronRight aria-hidden="true" className="size-4" />
             </AppButton>
           </div>
@@ -114,5 +118,5 @@ export function VibeLibraryDialog({
 }
 
 function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : "Vibe library unavailable";
+  return error instanceof Error ? error.message : String(error);
 }

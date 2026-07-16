@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createAtelierQueryClient } from "../app/query-client";
+import { AppToastHost } from "../components/ui/AppToastHost";
 import { GalleryPage } from "../features/gallery";
 import type {
   GalleryItemDto,
@@ -177,6 +178,7 @@ function setup(options?: { blurSensitive?: boolean; items?: GalleryItemDto[] }) 
     ...render(
       <QueryClientProvider client={createAtelierQueryClient()}>
         <GalleryPage />
+        <AppToastHost />
       </QueryClientProvider>,
     ),
   };
@@ -281,7 +283,7 @@ describe("GalleryPage", () => {
     mocks.desktopApi.saveResourceImage.mockRejectedValueOnce(new Error("export failed"));
     await user.click(screen.getByRole("button", { name: "Export selected image" }));
     expect(await screen.findByText("export failed")).toBeInTheDocument();
-    expect(screen.queryByText("override failed")).not.toBeInTheDocument();
+    expect(screen.getByText("override failed")).toBeInTheDocument();
   });
 
   it("confirms hard delete and deletes the selected gallery item", async () => {

@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 
 import { createAtelierQueryClient } from "../app/query-client";
+import { AppToastHost } from "../components/ui";
 import { GeneratePage } from "../features/generation";
 import {
   recordGenerationEvent,
@@ -135,7 +136,6 @@ const mocks = vi.hoisted(() => ({
       vi.fn<(request: GalleryImageReferenceRequestDto) => Promise<GalleryImageReferenceDto>>(),
   },
   accountApi: {
-    cachedActiveSubscription: vi.fn<() => Promise<SubscriptionSummaryDto | null>>(),
     probeActive: vi.fn<() => Promise<SubscriptionSummaryDto>>(),
   },
   desktopApi: {
@@ -214,7 +214,7 @@ vi.mock("../platform/atelier", () => ({
       root: () => ["gallery"],
     },
     account: {
-      activeProbe: () => ["account", "active-probe"],
+      activeSummary: () => ["account", "active-summary"],
     },
     vibe: {
       root: () => ["vibe"],
@@ -480,13 +480,6 @@ function setup(options?: {
     created: true,
   });
   mocks.vibeApi.saveDocument.mockResolvedValue({ path: "C:\\exports\\style.naiv4vibe" });
-  mocks.accountApi.cachedActiveSubscription.mockResolvedValue({
-    anlas_balance: 100,
-    is_opus: false,
-    tier: 1,
-    tier_name: "Tablet",
-    expires_at_ms: null,
-  });
   mocks.accountApi.probeActive.mockResolvedValue({
     anlas_balance: 100,
     is_opus: false,
@@ -500,6 +493,7 @@ function setup(options?: {
     ...render(
       <QueryClientProvider client={createAtelierQueryClient()}>
         <GeneratePage />
+        <AppToastHost />
       </QueryClientProvider>,
     ),
   };
@@ -756,7 +750,7 @@ describe("GeneratePage", () => {
 
     await user.type(await screen.findByLabelText("Positive prompt"), "1girl, atelier lighting");
     await user.click(screen.getByRole("tab", { name: "Undesired Content" }));
-    await user.type(screen.getByLabelText("Undesired content"), "low quality");
+    await user.type(screen.getByLabelText("Undesired Content"), "low quality");
     await user.click(screen.getByRole("button", { name: /Steps 23/u }));
     fireEvent.change(screen.getByLabelText("Steps"), { target: { value: "28" } });
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
@@ -1248,7 +1242,7 @@ describe("GeneratePage queue and preview behavior", () => {
 
     await user.type(await screen.findByLabelText("Positive prompt"), "@chunk(hero)");
     await user.click(screen.getByRole("tab", { name: "Undesired Content" }));
-    await user.type(screen.getByLabelText("Undesired content"), "bad anatomy");
+    await user.type(screen.getByLabelText("Undesired Content"), "bad anatomy");
     await user.click(screen.getByRole("button", { name: "Compile" }));
 
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
@@ -1284,7 +1278,7 @@ describe("GeneratePage queue and preview behavior", () => {
     const { user } = setup();
 
     await user.click(await screen.findByRole("tab", { name: "Undesired Content" }));
-    await user.click(screen.getByLabelText("Undesired content"));
+    await user.click(screen.getByLabelText("Undesired Content"));
     await user.keyboard("{Control>} {/Control}");
     await user.click(await screen.findByRole("option", { name: /lighting/u }));
     await user.click(screen.getByRole("tab", { name: "Positive" }));

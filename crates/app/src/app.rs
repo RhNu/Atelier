@@ -18,7 +18,6 @@ use atelier_adapter_storage_fs::{
     FileSystemResourceBlobStore, FileSystemResourceContentReader, FileSystemWorkspaceLock,
     FileSystemWorkspaceStore, workspace_database_path,
 };
-use atelier_app_api::account::SubscriptionSummaryDto;
 use atelier_app_api::workspace::OpenWorkspaceRequestDto;
 use atelier_artifacts::ArtifactService;
 use atelier_gallery::GalleryService;
@@ -62,7 +61,6 @@ pub struct AppInner<S, F, E> {
     pub schema_version: u32,
     pub _lease: StdMutex<Box<dyn WorkspaceLockLease>>,
     pub api_keys: AppApiKeyService<S, F>,
-    pub active_subscription: StdMutex<Option<SubscriptionSummaryDto>>,
     pub settings: WorkspaceSettingsService<DatabaseSettingsRepository>,
     pub generation_drafts:
         atelier_generation::GenerationDraftService<DatabaseGenerationDraftRepository>,
@@ -261,7 +259,6 @@ where
                 schema_version: manifest.schema_version,
                 _lease: StdMutex::new(lease),
                 api_keys,
-                active_subscription: StdMutex::new(None),
                 settings,
                 generation_drafts,
                 settings_state,

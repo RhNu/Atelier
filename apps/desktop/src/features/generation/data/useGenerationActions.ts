@@ -2,7 +2,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
-  accountApi,
   desktopApi,
   galleryApi,
   generationApi,
@@ -52,6 +51,7 @@ type EnsureVibeEncodingFromResourceRequest = {
 export type EnsuredVibeEncodingFromResource = {
   encoding: ResourceRefDto;
   sourceSha256: string;
+  created: boolean;
 };
 
 export function useGenerationSettingsQuery() {
@@ -82,25 +82,6 @@ export function useClearGenerationDraftMutation() {
     mutationFn: () => generationApi.clearDraft(),
     onSuccess: () => {
       queryClient.setQueryData(queryKeys.generation.draft(), null);
-    },
-  });
-}
-
-export function useCachedActiveSubscriptionQuery() {
-  return useQuery({
-    queryKey: queryKeys.account.activeProbe(),
-    queryFn: () => accountApi.cachedActiveSubscription(),
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
-}
-
-export function useRefreshActiveSubscriptionMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => accountApi.probeActive(),
-    onSuccess: (subscription) => {
-      queryClient.setQueryData(queryKeys.account.activeProbe(), subscription);
     },
   });
 }
@@ -152,10 +133,16 @@ export function useEnsureVibeEncodingFromResourceMutation() {
       return {
         encoding: ensured.resource,
         sourceSha256,
+        created: ensured.created,
       };
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
+    onSuccess: async (ensured) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() }),
+        ensured.created
+          ? queryClient.invalidateQueries({ queryKey: queryKeys.account.activeSummary() })
+          : Promise.resolve(),
+      ]);
     },
   });
 }

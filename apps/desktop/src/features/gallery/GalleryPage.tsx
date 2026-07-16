@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel } from "@/components/ui";
 import type { GalleryQueryDto } from "@/types";
@@ -17,6 +18,7 @@ import {
 import { useGalleryItemCommands } from "./useGalleryItemCommands";
 
 export function GalleryPage() {
+  const { t } = useTranslation("gallery");
   const [offset, setOffset] = useState(0);
   const [artifactKind, setArtifactKind] = useState("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
@@ -117,15 +119,17 @@ export function GalleryPage() {
           </div>
           <footer className="flex items-center justify-between border-t border-app-border px-3 py-2 text-sm text-app-muted">
             <span>
-              Page {Math.floor(offset / PAGE_LIMIT) + 1} of{" "}
-              {Math.max(1, Math.ceil(total / PAGE_LIMIT))}
+              {t("pageOf", {
+                page: Math.floor(offset / PAGE_LIMIT) + 1,
+                total: Math.max(1, Math.ceil(total / PAGE_LIMIT)),
+              })}
             </span>
             <div className="flex gap-2">
               <AppButton variant="secondary" onClick={previousPage} disabled={!canGoPrevious}>
-                Previous
+                {t("previous")}
               </AppButton>
               <AppButton variant="secondary" onClick={nextPage} disabled={!canGoNext}>
-                Next
+                {t("next")}
               </AppButton>
             </div>
           </footer>

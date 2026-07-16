@@ -1,4 +1,5 @@
 import type { ImgHTMLAttributes } from "react";
+import { useTranslation } from "react-i18next";
 
 import { ResourceImage } from "@/components/ui";
 import type { ResourceRefDto } from "@/types";
@@ -16,15 +17,16 @@ type GenerationResourceImageProps = Omit<
 
 export function GenerationResourceImage({
   resource,
-  fallbackLabel = "No final image",
+  fallbackLabel,
   ...props
 }: GenerationResourceImageProps) {
+  const { t } = useTranslation("generation");
   const imageQuery = useResourceImageQuery(resource);
   const label = imageQuery.isError
-    ? `Image unavailable: ${formatGenerationError(imageQuery.error)}`
+    ? t("imageUnavailableWithError", { error: formatGenerationError(imageQuery.error) })
     : imageQuery.isPending && resource
-      ? "Loading image"
-      : fallbackLabel;
+      ? t("loadingImage")
+      : (fallbackLabel ?? t("noFinalImage"));
   const src = imageQuery.data
     ? `data:${imageQuery.data.mime_type ?? "image/png"};base64,${imageQuery.data.image_base64}`
     : null;

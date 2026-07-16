@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel } from "@/components/ui";
+import { SeedInput } from "@/features/generation/components/SeedInput";
 import type { GenerationDefaultsDto, WorkspaceSettingsDto } from "@/types";
 
 import {
@@ -26,7 +27,6 @@ export function GenerationSettingsSection({
   resetSettings,
   saving,
   resetting,
-  commandError,
 }: {
   draft: WorkspaceSettingsDto;
   updateDraft: (draft: WorkspaceSettingsDto) => void;
@@ -34,7 +34,6 @@ export function GenerationSettingsSection({
   resetSettings: () => void;
   saving: boolean;
   resetting: boolean;
-  commandError: string | null;
 }) {
   const { t } = useTranslation("settings");
   const generation = draft.generation;
@@ -81,16 +80,7 @@ export function GenerationSettingsSection({
         onFieldChange={updateField}
         onSizeChange={updateSize}
       />
-      {commandError ? <SettingsCommandError message={commandError} /> : null}
     </AppPanel>
-  );
-}
-
-function SettingsCommandError({ message }: { message: string }) {
-  return (
-    <p className="border-t border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-      {message}
-    </p>
   );
 }
 
@@ -199,7 +189,12 @@ function GenerationFields({
           onChange={scaleChange}
         />
         <NumberField label={t("samples")} value={generation.n_samples} onChange={samplesChange} />
-        <NumberField label={t("seed")} value={generation.seed} onChange={seedChange} />
+        <SeedInput
+          label={t("seed")}
+          value={generation.seed}
+          randomPlaceholder={t("randomSeed")}
+          onChange={seedChange}
+        />
         <NumberField
           label={t("cfgRescale")}
           value={generation.cfg_rescale}
@@ -209,7 +204,7 @@ function GenerationFields({
         <SelectField
           label={t("imageFormat")}
           value={generation.image_format ?? "default"}
-          options={nullableImageFormatSelectOptions}
+          options={nullableImageFormatSelectOptions(t("novelAiDefault"))}
           onChange={formatChange}
         />
       </div>

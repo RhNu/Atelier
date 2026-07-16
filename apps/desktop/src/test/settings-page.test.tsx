@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createAtelierQueryClient } from "../app/query-client";
+import { AppToastHost } from "../components/ui";
 import { SettingsPage } from "../features/settings";
 import type {
   ApiKeyRecordDto,
@@ -10,7 +11,6 @@ import type {
   DeleteApiKeyRequestDto,
   DeleteApiKeyResponseDto,
   GlobalSettingsDto,
-  ProbeApiKeyRequestDto,
   ResetWorkspaceSettingsResponseDto,
   SetActiveApiKeyRequestDto,
   SubscriptionSummaryDto,
@@ -28,7 +28,6 @@ const mocks = vi.hoisted(() => ({
     delete: vi.fn<(request: DeleteApiKeyRequestDto) => Promise<DeleteApiKeyResponseDto>>(),
     list: vi.fn<() => Promise<ApiKeyRecordDto[]>>(),
     setActive: vi.fn<(request: SetActiveApiKeyRequestDto) => Promise<void>>(),
-    probe: vi.fn<(request: ProbeApiKeyRequestDto) => Promise<SubscriptionSummaryDto>>(),
     probeActive: vi.fn<() => Promise<SubscriptionSummaryDto>>(),
   },
   settingsApi: {
@@ -69,8 +68,7 @@ vi.mock("../platform/atelier", () => ({
     account: {
       root: () => ["account"],
       apiKeys: () => ["account", "api-keys"],
-      activeProbe: () => ["account", "active-probe"],
-      keyProbe: (id: string) => ["account", "key-probe", id],
+      activeSummary: () => ["account", "active-summary"],
     },
     settings: {
       root: () => ["settings"],
@@ -164,7 +162,6 @@ function setup(keys: ApiKeyRecordDto[] = []) {
   }));
   mocks.accountApi.delete.mockResolvedValue({ deleted: true });
   mocks.accountApi.setActive.mockResolvedValue(undefined);
-  mocks.accountApi.probe.mockResolvedValue(activeSubscription);
   mocks.accountApi.probeActive.mockResolvedValue(activeSubscription);
 
   return {
@@ -172,6 +169,7 @@ function setup(keys: ApiKeyRecordDto[] = []) {
     ...render(
       <QueryClientProvider client={createAtelierQueryClient()}>
         <SettingsPage />
+        <AppToastHost />
       </QueryClientProvider>,
     ),
   };
@@ -221,7 +219,7 @@ describe("SettingsPage", () => {
     expect(screen.queryByText("nai-secret-value")).not.toBeInTheDocument();
   });
 
-  it("lists API keys and supports activate, probe, edit, and delete actions", async () => {
+  it("lists API keys and supports activate, edit, and delete actions", async () => {
     const { user } = setup([
       { id: "main", display_name: "Main", is_active: true },
       { id: "backup", display_name: "Backup", is_active: false },
@@ -232,10 +230,6 @@ describe("SettingsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Set Backup active" }));
     expect(mocks.accountApi.setActive).toHaveBeenCalledWith({ id: "backup" });
-
-    await user.click(screen.getByRole("button", { name: "Probe Main" }));
-    expect(mocks.accountApi.probe).toHaveBeenCalledWith({ id: "main" });
-    expect(await screen.findByText("Probe Opus / 1234 Anlas")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Edit Backup" }));
     await user.clear(screen.getByLabelText("Edit API key display name"));
@@ -253,17 +247,12 @@ describe("SettingsPage", () => {
     expect(mocks.accountApi.delete).toHaveBeenCalledWith({ id: "backup" });
   });
 
-  it("shows active subscription status and can refresh the active probe", async () => {
-    const { user } = setup([{ id: "main", display_name: "Main", is_active: true }]);
-
-    expect(await screen.findByText("No active subscription probe yet.")).toBeInTheDocument();
-    expect(mocks.accountApi.probeActive).not.toHaveBeenCalled();
-
-    await user.click(screen.getByRole("button", { name: "Refresh active subscription" }));
-
+  it("loads active subscription status automatically without a refresh control", async () => {
+    setup([{ id: "main", display_name: "Main", is_active: true }]);
     expect(mocks.accountApi.probeActive).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Opus")).toBeInTheDocument();
     expect(screen.getByText("1234 Anlas")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /subscription/i })).not.toBeInTheDocument();
   });
 
   it("reports API key mutation failures without echoing the secret", async () => {
@@ -279,18 +268,15 @@ describe("SettingsPage", () => {
     expect(screen.queryByText("nai-secret-value")).not.toBeInTheDocument();
   });
 
-  it("clears stale per-key probe results after replacing a key", async () => {
+  it("invalidates the active summary after replacing a key", async () => {
     const { user } = setup([{ id: "main", display_name: "Main", is_active: true }]);
 
     expect(await screen.findByText("Main")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Probe Main" }));
-    expect(await screen.findByText("Probe Opus / 1234 Anlas")).toBeInTheDocument();
-
     await user.click(screen.getByRole("button", { name: "Edit Main" }));
     await user.type(screen.getByLabelText("Replace API key secret"), "replacement-secret");
     await user.click(screen.getByRole("button", { name: "Save API key changes" }));
 
-    expect(screen.queryByText("Probe Opus / 1234 Anlas")).not.toBeInTheDocument();
+    expect(mocks.accountApi.update).toHaveBeenCalledTimes(1);
   });
 
   it("saves generation defaults through the workspace settings command", async () => {

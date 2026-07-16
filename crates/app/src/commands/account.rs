@@ -110,15 +110,4 @@ where
     pub async fn probe_active_api_key(&self) -> CommandResult<SubscriptionSummaryDto> {
         Self::command_result(self.current_session()?.account().probe_active().await)
     }
-
-    /// Returns the last successful active-key subscription probe without network access.
-    ///
-    /// # Errors
-    /// Returns an error envelope when no workspace is open.
-    pub fn cached_active_subscription(&self) -> CommandResult<Option<SubscriptionSummaryDto>> {
-        Ok(self
-            .current_session()?
-            .account()
-            .cached_active_subscription())
-    }
 }

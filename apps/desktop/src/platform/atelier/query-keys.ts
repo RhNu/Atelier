@@ -32,8 +32,7 @@ export const queryKeys = {
   account: {
     root: () => ["workspace", "account"] as const,
     apiKeys: () => ["workspace", "account", "api-keys"] as const,
-    activeProbe: () => ["workspace", "account", "active-probe"] as const,
-    keyProbe: (id: string) => ["workspace", "account", "key-probe", id] as const,
+    activeSummary: () => ["workspace", "account", "active-summary"] as const,
   },
   settings: {
     root: () => ["workspace", "settings"] as const,

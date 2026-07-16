@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppTabs } from "@/components/ui";
 import type { PromptChunkDto, PromptPresetDto, VibeDocumentEntryDto } from "@/types";
@@ -15,17 +16,18 @@ import {
 } from "./data/useResourcesData";
 import { formatError, parseTab, tabSummary, type ResourceTab } from "./resource-model";
 
-const RESOURCE_TABS = [
-  { value: "chunks", label: "Prompt Chunks" },
-  { value: "main-presets", label: "Main Presets" },
-  { value: "character-presets", label: "Character Presets" },
-  { value: "vibe", label: "Vibe" },
-] as const;
 const EMPTY_CHUNKS: ReadonlyArray<PromptChunkDto> = [];
 const EMPTY_PRESETS: ReadonlyArray<PromptPresetDto> = [];
 const EMPTY_VIBES: ReadonlyArray<VibeDocumentEntryDto> = [];
 
 export function ResourcesPage() {
+  const { t } = useTranslation("resources");
+  const resourceTabs = [
+    { value: "chunks", label: t("promptChunks") },
+    { value: "main-presets", label: t("mainPresets") },
+    { value: "character-presets", label: t("characterPresets") },
+    { value: "vibe", label: "Vibe" },
+  ] as const;
   const [tab, setTab] = useState<ResourceTab>("chunks");
   const [search, setSearch] = useState("");
   const [includeHiddenVibes, setIncludeHiddenVibes] = useState(false);
@@ -56,7 +58,7 @@ export function ResourcesPage() {
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-12 items-center justify-between gap-3 border-b border-app-border bg-app-panel px-3 py-2">
           <div className="flex min-w-0 items-center gap-3">
-            <AppTabs value={tab} tabs={RESOURCE_TABS} onChange={handleTabChange} />
+            <AppTabs value={tab} tabs={resourceTabs} onChange={handleTabChange} />
             <span className="hidden text-xs text-app-muted xl:inline">{tabSummary(tab)}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -64,7 +66,7 @@ export function ResourcesPage() {
             {tab === "vibe" ? null : (
               <AppButton variant="secondary" onClick={handleNew}>
                 <Plus aria-hidden="true" className="size-4" />
-                New
+                {t("new")}
               </AppButton>
             )}
           </div>

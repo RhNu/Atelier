@@ -92,14 +92,23 @@ The current Settings frontend separates application and workspace scopes:
 
 - Atelier bundles `en` and `zh-CN` resources with `i18next` and `react-i18next`; translations never require network access.
 - English is the fallback resource. The `system` preference maps any Chinese OS locale to `zh-CN` and other locales to `en`.
-- Product names, NovelAI model and sampler identifiers, user content, resource metadata, and backend error details remain untranslated.
+- Product names, Anlas, user content, resource metadata, and backend error details remain untranslated.
+- Raw NovelAI model and sampler identifiers remain wire values only. User-facing controls use centralized canonical display names such as `NAI Diffusion 4.5 Full` and `Euler A`; these canonical names are shared across locales.
 - User-visible frontend labels, placeholders, actions, empty states, accessibility text, and frontend-owned fallback messages use typed translation keys.
 - Workspace: current workspace path and lifecycle action.
-- Account: API key registry, active key, and explicit subscription probe.
+- Account: API key registry, active key, and automatically refreshed subscription summary.
 - Generation: workspace-local NovelAI image defaults.
 - Images: resource thumbnail and preview long-edge sizes.
 
 Do not add runtime/network settings or artifacts root settings without a separate app-api/backend design note.
+
+## Interaction Feedback
+
+- Do not append temporary command results or error lines to an existing form, card, or list item after an interaction.
+- Use toast notifications for transient success and non-field errors. Toasts may be persistent and expose one explicit action when confirmation, retry, or navigation is required.
+- Interactive controls own their pending state through disabled behavior, progress icons, and temporary action labels.
+- Results with an established display surface update that surface in place. Reserve stable placeholders before data is available so loading and refreshes do not shift the layout.
+- Keep field validation beside the affected field in a reserved validation area; do not replace actionable field feedback with a global toast.
 
 ## Testing
 

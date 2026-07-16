@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 
 import { AppIconButton } from "./AppIconButton";
 
@@ -22,6 +23,7 @@ type AppModalProps = {
 };
 
 export function AppModal({ open, title, size = "default", children, onClose }: AppModalProps) {
+  const { t } = useTranslation("common");
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -91,7 +93,7 @@ export function AppModal({ open, title, size = "default", children, onClose }: A
           <h2 id={titleId} className="text-sm font-semibold text-app-text">
             {title}
           </h2>
-          <AppIconButton icon={X} label="Close" onClick={onClose} />
+          <AppIconButton icon={X} label={t("close")} onClick={onClose} />
         </header>
         <div className="min-h-0 overflow-y-auto p-4">{children}</div>
       </dialog>

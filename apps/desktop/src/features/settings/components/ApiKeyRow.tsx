@@ -1,9 +1,9 @@
-import { Check, PencilLine, Power, RefreshCw, Trash2, X } from "lucide-react";
+import { Check, PencilLine, Power, Trash2, X } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton } from "@/components/ui";
-import type { ApiKeyRecordDto, SubscriptionSummaryDto } from "@/types";
+import type { ApiKeyRecordDto } from "@/types";
 
 import { TextField } from "./SettingsControls";
 
@@ -13,34 +13,25 @@ export type ApiKeyEditState = {
   secret: string;
 };
 
-export type ApiKeyProbeState = {
-  subscription: SubscriptionSummaryDto | null;
-  error: string | null;
-};
-
 export function ApiKeyRow({
   item,
   editing,
-  probeState,
   busy,
   onEdit,
   onCancelEdit,
   onEditChange,
   onSaveEdit,
   onSetActive,
-  onProbe,
   onDelete,
 }: {
   item: ApiKeyRecordDto;
   editing: ApiKeyEditState | null;
-  probeState: ApiKeyProbeState | undefined;
   busy: boolean;
   onEdit: (editing: ApiKeyEditState) => void;
   onCancelEdit: () => void;
   onEditChange: (editing: ApiKeyEditState) => void;
   onSaveEdit: () => void;
   onSetActive: (id: string) => void;
-  onProbe: (item: ApiKeyRecordDto) => void;
   onDelete: (id: string) => void;
 }) {
   const isEditing = editing?.id === item.id;
@@ -50,9 +41,6 @@ export function ApiKeyRow({
   const setActive = useCallback(() => {
     onSetActive(item.id);
   }, [item.id, onSetActive]);
-  const probe = useCallback(() => {
-    onProbe(item);
-  }, [item, onProbe]);
   const deleteKey = useCallback(() => {
     onDelete(item.id);
   }, [item.id, onDelete]);
@@ -60,12 +48,11 @@ export function ApiKeyRow({
   return (
     <article className="border-b border-app-border p-3 last:border-b-0">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <ApiKeyIdentity item={item} probeState={probeState} />
+        <ApiKeyIdentity item={item} />
         <ApiKeyActions
           item={item}
           busy={busy}
           onSetActive={setActive}
-          onProbe={probe}
           onEdit={startEdit}
           onDelete={deleteKey}
         />
@@ -83,13 +70,7 @@ export function ApiKeyRow({
   );
 }
 
-function ApiKeyIdentity({
-  item,
-  probeState,
-}: {
-  item: ApiKeyRecordDto;
-  probeState: ApiKeyProbeState | undefined;
-}) {
+function ApiKeyIdentity({ item }: { item: ApiKeyRecordDto }) {
   const { t } = useTranslation("settings");
   return (
     <div className="min-w-0">
@@ -102,15 +83,6 @@ function ApiKeyIdentity({
         ) : null}
       </div>
       <p className="mt-1 text-xs break-all text-app-muted">ID {item.id}</p>
-      {probeState?.subscription ? (
-        <p className="mt-2 text-xs text-app-muted">
-          {t("probeSummary", {
-            tier: probeState.subscription.tier_name,
-            balance: probeState.subscription.anlas_balance,
-          })}
-        </p>
-      ) : null}
-      {probeState?.error ? <p className="mt-2 text-xs text-amber-200">{probeState.error}</p> : null}
     </div>
   );
 }
@@ -119,14 +91,12 @@ function ApiKeyActions({
   item,
   busy,
   onSetActive,
-  onProbe,
   onEdit,
   onDelete,
 }: {
   item: ApiKeyRecordDto;
   busy: boolean;
   onSetActive: () => void;
-  onProbe: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -146,16 +116,6 @@ function ApiKeyActions({
           {t("activate")}
         </AppButton>
       ) : null}
-      <AppButton
-        variant="ghost"
-        className="h-8 px-2 text-xs"
-        disabled={busy}
-        aria-label={t("probeKey", { name: item.display_name })}
-        onClick={onProbe}
-      >
-        <RefreshCw aria-hidden="true" className="size-3.5" />
-        {t("probe")}
-      </AppButton>
       <AppButton
         variant="ghost"
         className="h-8 px-2 text-xs"

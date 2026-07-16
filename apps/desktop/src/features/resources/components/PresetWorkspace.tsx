@@ -1,6 +1,7 @@
 /* eslint-disable max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { Eye } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { AppButton, AppModal } from "@/components/ui";
 import type { CompiledPromptDto, PromptPresetDto, PromptPresetKindDto } from "@/types";
@@ -48,6 +49,7 @@ export function PresetWorkspace({
   search: string;
   newRequest: number;
 }) {
+  const { t } = useTranslation("resources");
   const filtered = useMemo(
     () =>
       presets.filter((preset) =>
@@ -107,7 +109,7 @@ export function PresetWorkspace({
 
   return (
     <>
-      <ResourceList pending={pending} error={error} emptyTitle="No prompt presets">
+      <ResourceList pending={pending} error={error} emptyTitle={t("noPromptPresets")}>
         {filtered.map((preset) => (
           <ResourceListButton
             key={preset.preset_id}
@@ -134,7 +136,7 @@ export function PresetWorkspace({
         onClose={() => setEditorOpen(false)}
       >
         <EditorPanel
-          title={mainPreset ? "Main Preset" : "Character Preset"}
+          title={mainPreset ? t("mainPreset") : t("characterPreset")}
           subtitle={
             mainPreset ? "Applies global prompt and UC overrides" : "Applies one character prompt"
           }
@@ -155,38 +157,38 @@ export function PresetWorkspace({
         >
           <div className="grid grid-cols-2 gap-3">
             <TextInput
-              label="Name"
+              label={t("name")}
               value={draft.name}
               onChange={(name) => setDraft({ ...draft, name })}
             />
             <NumberInput
-              label="Order"
+              label={t("order")}
               value={draft.order}
               onChange={(order) => setDraft({ ...draft, order })}
             />
           </div>
           <CheckboxField
-            label="Enabled"
+            label={t("enabled")}
             checked={draft.enabled}
             onChange={(enabled) => setDraft({ ...draft, enabled })}
           />
           <TextInput
-            label="Category"
+            label={t("category")}
             value={draft.category ?? ""}
             onChange={(category) => setDraft({ ...draft, category: nullableText(category) })}
           />
           <TextInput
-            label="Description"
+            label={t("description")}
             value={draft.description ?? ""}
             onChange={(description) =>
               setDraft({ ...draft, description: nullableText(description) })
             }
           />
           <PresetFields draft={draft} setDraft={setDraft} mainPreset={mainPreset} />
-          <PreviewSlot resource={draft.preview} label="Preset preview" />
+          <PreviewSlot resource={draft.preview} label={t("presetPreview")} />
           <AppButton variant="secondary" onClick={compile} disabled={compileMutation.isPending}>
             <Eye aria-hidden="true" className="size-4" />
-            Compile preset fields
+            {t("compilePresetFields")}
           </AppButton>
           <CompiledPreview preview={preview} />
         </EditorPanel>
@@ -204,41 +206,42 @@ function PresetFields({
   setDraft: (draft: PresetDraft) => void;
   mainPreset: boolean;
 }) {
+  const { t } = useTranslation("resources");
   return (
     <>
       <TextArea
-        label="Before"
+        label={t("before")}
         value={draft.before}
         minRows="min-h-24"
         onChange={(before) => setDraft({ ...draft, before })}
       />
       <TextArea
-        label="After"
+        label={t("after")}
         value={draft.after}
         minRows="min-h-20"
         onChange={(after) => setDraft({ ...draft, after })}
       />
       <TextArea
-        label="Replace"
+        label={t("replace")}
         value={draft.replace}
         minRows="min-h-20"
         onChange={(replace) => setDraft({ ...draft, replace })}
       />
       <div className="grid grid-cols-3 gap-3">
         <TextArea
-          label="UC before"
+          label={t("ucBefore")}
           value={draft.uc_before}
           minRows="min-h-20"
           onChange={(uc_before) => setDraft({ ...draft, uc_before })}
         />
         <TextArea
-          label="UC after"
+          label={t("ucAfter")}
           value={draft.uc_after}
           minRows="min-h-20"
           onChange={(uc_after) => setDraft({ ...draft, uc_after })}
         />
         <TextArea
-          label="UC replace"
+          label={t("ucReplace")}
           value={draft.uc_replace}
           minRows="min-h-20"
           onChange={(uc_replace) => setDraft({ ...draft, uc_replace })}
@@ -247,14 +250,14 @@ function PresetFields({
       {mainPreset ? (
         <div className="grid grid-cols-2 gap-3">
           <TextInput
-            label="Quality override"
+            label={t("qualityOverride")}
             value={draft.quality_override ?? ""}
             onChange={(quality_override) =>
               setDraft({ ...draft, quality_override: nullableText(quality_override) })
             }
           />
           <TextInput
-            label="UC preset override"
+            label={t("ucPresetOverride")}
             value={draft.uc_preset_override ?? ""}
             onChange={(uc_preset_override) =>
               setDraft({ ...draft, uc_preset_override: nullableText(uc_preset_override) })

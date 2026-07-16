@@ -52,14 +52,14 @@ export function ImageToImageSection({
           <>
             <AppIconButton
               icon={Pencil}
-              label="Replace I2I source"
+              label={t("replaceI2iSource")}
               size="sm"
               onClick={pickSourceImage}
               disabled={imageImportPending}
             />
             <AppIconButton
               icon={ImagePlus}
-              label={i2i.mask ? "Replace I2I mask" : "Add I2I mask"}
+              label={i2i.mask ? t("replaceI2iMask") : t("addI2iMask")}
               size="sm"
               onClick={pickMaskImage}
               disabled={imageImportPending}
@@ -67,7 +67,7 @@ export function ImageToImageSection({
             {i2i.mask ? (
               <AppIconButton
                 icon={Trash2}
-                label="Remove I2I mask"
+                label={t("removeI2iMask")}
                 size="sm"
                 variant="danger"
                 onClick={() => {
@@ -79,7 +79,7 @@ export function ImageToImageSection({
             ) : null}
             <AppIconButton
               icon={Trash2}
-              label="Remove I2I source"
+              label={t("removeI2iSource")}
               size="sm"
               variant="danger"
               onClick={() => {
@@ -91,7 +91,7 @@ export function ImageToImageSection({
         ) : (
           <AppIconButton
             icon={ImagePlus}
-            label="Add I2I source"
+            label={t("addI2iSource")}
             size="sm"
             onClick={pickSourceImage}
             disabled={imageImportPending}
@@ -113,7 +113,7 @@ export function ImageToImageSection({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <AppRangeField
-              label="Strength"
+              label={t("strength")}
               value={i2i.strength}
               valueText={i2i.strength.toFixed(2)}
               min={0.01}
@@ -123,7 +123,7 @@ export function ImageToImageSection({
               onCommit={onFlush}
             />
             <AppRangeField
-              label="Noise"
+              label={t("noise")}
               value={i2i.noise}
               valueText={i2i.noise.toFixed(2)}
               min={0}
@@ -166,7 +166,7 @@ export function PreciseReferenceSection({
       actions={
         <AppIconButton
           icon={ImagePlus}
-          label="Add precise reference"
+          label={t("addPreciseReference")}
           size="sm"
           onClick={pickPreciseReference}
           disabled={imageImportPending}
@@ -209,7 +209,7 @@ export function PreciseReferenceSection({
               </div>
               <GuidanceSettingsDisclosure>
                 <SelectField
-                  label="Reference type"
+                  label={t("referenceType")}
                   value={reference.referenceType}
                   options={REFERENCE_TYPE_OPTIONS}
                   onChange={(value) => {
@@ -222,7 +222,7 @@ export function PreciseReferenceSection({
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <AppRangeField
-                    label="Fidelity"
+                    label={t("fidelity")}
                     value={reference.fidelity}
                     valueText={reference.fidelity.toFixed(1)}
                     min={0}
@@ -234,7 +234,7 @@ export function PreciseReferenceSection({
                     onCommit={onFlush}
                   />
                   <AppRangeField
-                    label="Strength"
+                    label={t("strength")}
                     value={reference.strength}
                     valueText={reference.strength.toFixed(1)}
                     min={0}

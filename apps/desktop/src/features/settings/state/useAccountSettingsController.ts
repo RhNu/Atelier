@@ -1,41 +1,21 @@
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import type { ApiKeyRecordDto, SubscriptionSummaryDto } from "@/types";
+import { useActiveAccountSummaryQuery } from "@/features/account/data/useActiveAccountSummaryQuery";
+import { useToastStore } from "@/stores/toast-store";
+import type { ApiKeyRecordDto } from "@/types";
 
-import type { ApiKeyEditState, ApiKeyProbeState } from "../components/ApiKeyRow";
+import type { ApiKeyEditState } from "../components/ApiKeyRow";
 import {
   useApiKeysQuery,
   useCreateApiKeyMutation,
   useDeleteApiKeyMutation,
-  useProbeActiveApiKeyMutation,
-  useProbeApiKeyMutation,
   useSetActiveApiKeyMutation,
   useUpdateApiKeyMutation,
 } from "../data/useAccountSettingsQueries";
 import { createApiKeyId, formatError } from "../settings-utils";
 
-type ProbeState = Record<string, ApiKeyProbeState>;
-
 const emptyApiKeys: ApiKeyRecordDto[] = [];
-
-function withoutProbeState(current: ProbeState, id: string): ProbeState {
-  const next = { ...current };
-  delete next[id];
-  return next;
-}
-
-function toActiveProbeState(probe: {
-  isPending: boolean;
-  isError: boolean;
-  error: unknown;
-  data: SubscriptionSummaryDto | undefined;
-}) {
-  return {
-    pending: probe.isPending,
-    error: probe.isError ? formatError(probe.error) : null,
-    summary: probe.data ?? null,
-  };
-}
 
 export type AccountSettingsController = {
   keys: ApiKeyRecordDto[];
@@ -45,61 +25,42 @@ export type AccountSettingsController = {
   createDisabled: boolean;
   displayName: string;
   secret: string;
-  commandError: string | null;
   editing: ApiKeyEditState | null;
-  probeState: ProbeState;
-  activeProbe: {
-    pending: boolean;
-    error: string | null;
-    summary: SubscriptionSummaryDto | null;
-  };
+  activeSummary: ReturnType<typeof useActiveAccountSummaryQuery>;
   setDisplayName: (value: string) => void;
   setSecret: (value: string) => void;
   setEditing: (editing: ApiKeyEditState) => void;
   cancelEdit: () => void;
   createKey: () => void;
-  probeKey: (key: ApiKeyRecordDto) => void;
   saveEdit: () => void;
   setActive: (id: string) => void;
   deleteKey: (id: string) => void;
-  refreshActive: () => void;
 };
 
 export function useAccountSettingsController(): AccountSettingsController {
+  const { t } = useTranslation("settings");
+  const pushToast = useToastStore((state) => state.push);
   const apiKeysQuery = useApiKeysQuery();
-  const activeSubscriptionMutation = useProbeActiveApiKeyMutation();
+  const activeSummary = useActiveAccountSummaryQuery();
   const createApiKeyMutation = useCreateApiKeyMutation();
   const updateApiKeyMutation = useUpdateApiKeyMutation();
   const deleteApiKeyMutation = useDeleteApiKeyMutation();
   const setActiveApiKeyMutation = useSetActiveApiKeyMutation();
-  const probeApiKeyMutation = useProbeApiKeyMutation();
   const [displayName, setDisplayName] = useState("");
   const [secret, setSecret] = useState("");
-  const [probeState, setProbeState] = useState<ProbeState>({});
   const [editing, setEditing] = useState<ApiKeyEditState | null>(null);
-  const [commandError, setCommandError] = useState<string | null>(null);
   const keys = apiKeysQuery.data ?? emptyApiKeys;
   const busy =
     createApiKeyMutation.isPending ||
     updateApiKeyMutation.isPending ||
     deleteApiKeyMutation.isPending ||
-    setActiveApiKeyMutation.isPending ||
-    probeApiKeyMutation.isPending ||
-    activeSubscriptionMutation.isPending;
+    setActiveApiKeyMutation.isPending;
 
-  const handleMutationError = useCallback((error: unknown) => {
-    setCommandError(formatError(error));
-  }, []);
-  const clearActiveProbe = useCallback(() => {
-    activeSubscriptionMutation.reset();
-  }, [activeSubscriptionMutation]);
-  const markKeyChanged = useCallback(
-    (id: string) => {
-      setCommandError(null);
-      clearActiveProbe();
-      setProbeState((current) => withoutProbeState(current, id));
+  const handleMutationError = useCallback(
+    (error: unknown) => {
+      pushToast({ level: "error", title: t("accountActionFailed"), message: formatError(error) });
     },
-    [clearActiveProbe],
+    [pushToast, t],
   );
 
   const createKey = useCallback(() => {
@@ -109,42 +70,18 @@ export function useAccountSettingsController(): AccountSettingsController {
       return;
     }
 
-    setCommandError(null);
     createApiKeyMutation.mutate(
       { id: createApiKeyId(), display_name: nextDisplayName, secret: nextSecret },
       {
         onSuccess: () => {
           setDisplayName("");
           setSecret("");
-          clearActiveProbe();
+          pushToast({ level: "success", message: t("apiKeyAdded") });
         },
         onError: handleMutationError,
       },
     );
-  }, [clearActiveProbe, createApiKeyMutation, displayName, handleMutationError, secret]);
-
-  const probeKey = useCallback(
-    (key: ApiKeyRecordDto) => {
-      probeApiKeyMutation.mutate(
-        { id: key.id },
-        {
-          onSuccess: (subscription) => {
-            setProbeState((current) => ({
-              ...current,
-              [key.id]: { subscription, error: null },
-            }));
-          },
-          onError: (error) => {
-            setProbeState((current) => ({
-              ...current,
-              [key.id]: { subscription: null, error: formatError(error) },
-            }));
-          },
-        },
-      );
-    },
-    [probeApiKeyMutation],
-  );
+  }, [createApiKeyMutation, displayName, handleMutationError, pushToast, secret, t]);
 
   const saveEdit = useCallback(() => {
     if (!editing) {
@@ -157,45 +94,43 @@ export function useAccountSettingsController(): AccountSettingsController {
       return;
     }
 
-    setCommandError(null);
     updateApiKeyMutation.mutate(
       { id: editing.id, display_name: nextDisplayName || null, secret: nextSecret || null },
       {
         onSuccess: () => {
-          markKeyChanged(editing.id);
           setEditing(null);
+          pushToast({ level: "success", message: t("apiKeyUpdated") });
         },
         onError: handleMutationError,
       },
     );
-  }, [editing, handleMutationError, markKeyChanged, updateApiKeyMutation]);
+  }, [editing, handleMutationError, pushToast, t, updateApiKeyMutation]);
 
   const setActive = useCallback(
     (id: string) => {
-      setCommandError(null);
       setActiveApiKeyMutation.mutate(
         { id },
-        { onSuccess: () => markKeyChanged(id), onError: handleMutationError },
+        {
+          onSuccess: () => pushToast({ level: "success", message: t("activeApiKeyChanged") }),
+          onError: handleMutationError,
+        },
       );
     },
-    [handleMutationError, markKeyChanged, setActiveApiKeyMutation],
+    [handleMutationError, pushToast, setActiveApiKeyMutation, t],
   );
 
   const deleteKey = useCallback(
     (id: string) => {
-      setCommandError(null);
       deleteApiKeyMutation.mutate(
         { id },
-        { onSuccess: () => markKeyChanged(id), onError: handleMutationError },
+        {
+          onSuccess: () => pushToast({ level: "success", message: t("apiKeyDeleted") }),
+          onError: handleMutationError,
+        },
       );
     },
-    [deleteApiKeyMutation, handleMutationError, markKeyChanged],
+    [deleteApiKeyMutation, handleMutationError, pushToast, t],
   );
-
-  const refreshActive = useCallback(() => {
-    setCommandError(null);
-    activeSubscriptionMutation.mutate(undefined, { onError: handleMutationError });
-  }, [activeSubscriptionMutation, handleMutationError]);
 
   return {
     keys,
@@ -205,19 +140,24 @@ export function useAccountSettingsController(): AccountSettingsController {
     createDisabled: busy || displayName.trim() === "" || secret.trim() === "",
     displayName,
     secret,
-    commandError,
     editing,
-    probeState,
-    activeProbe: toActiveProbeState(activeSubscriptionMutation),
+    activeSummary,
     setDisplayName,
     setSecret,
     setEditing,
     cancelEdit: () => setEditing(null),
     createKey,
-    probeKey,
     saveEdit,
     setActive,
     deleteKey,
-    refreshActive,
   };
+}
+
+export function isMissingActiveKey(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "missing_active_key"
+  );
 }

@@ -1,6 +1,9 @@
 /* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
+import { useActiveAccountSummaryQuery } from "@/features/account/data/useActiveAccountSummaryQuery";
+import { useToastStore } from "@/stores/toast-store";
 import type { CompiledGenerationPromptDto, GenerationBatchHistoryStatusDto } from "@/types";
 
 import { AdvancedGenerationInputs } from "./components/AdvancedGenerationInputs";
@@ -20,7 +23,6 @@ import {
 } from "./components/GenerationPromptPanel";
 import { GenerationWorkbenchLayout } from "./components/GenerationWorkbenchLayout";
 import {
-  useCachedActiveSubscriptionQuery,
   useClearGenerationDraftMutation,
   useCompilePromptMutation,
   useGenerationDraftQuery,
@@ -28,7 +30,6 @@ import {
   useGenerationSettingsQuery,
   usePauseGenerationMutation,
   usePromptPresetsQuery,
-  useRefreshActiveSubscriptionMutation,
   useResumeGenerationMutation,
   useSaveGenerationDraftMutation,
   useStopGenerationMutation,
@@ -57,14 +58,15 @@ const EMPTY_ITEMS: [] = [];
 const HISTORY_PAGE_LIMIT = 8;
 
 export function GeneratePage() {
+  const { t } = useTranslation("generation");
+  const pushToast = useToastStore((state) => state.push);
   const settingsQuery = useGenerationSettingsQuery();
   const globalSettingsQuery = useGenerationGlobalSettingsQuery();
   const storedDraftQuery = useGenerationDraftQuery();
   const saveDraftMutation = useSaveGenerationDraftMutation();
   const clearDraftMutation = useClearGenerationDraftMutation();
   const statusQuery = useGenerationStatusQuery();
-  const accountQuery = useCachedActiveSubscriptionQuery();
-  const refreshSubscriptionMutation = useRefreshActiveSubscriptionMutation();
+  const accountQuery = useActiveAccountSummaryQuery();
   const submitMutation = useSubmitGenerationMutation();
   const pauseMutation = usePauseGenerationMutation();
   const resumeMutation = useResumeGenerationMutation();
@@ -185,13 +187,19 @@ export function GeneratePage() {
     stop: stopMutation.mutateAsync,
     setQueueError,
   });
+  const interactionError = queueError ?? generationActions.error;
+  useEffect(() => {
+    if (interactionError) {
+      pushToast({ level: "error", title: t("generationActionFailed"), message: interactionError });
+    }
+  }, [interactionError, pushToast, t]);
 
   const handleSubmit = useCallback(() => {
     if (!draft || submitMutation.isPending) {
       return;
     }
     if (!canSubmitGenerationDraft(draft)) {
-      setValidationError("Positive prompt is required.");
+      setValidationError(t("positivePromptRequired"));
       promptPanelRef.current?.focusPositive();
       return;
     }
@@ -201,7 +209,7 @@ export function GeneratePage() {
     void submitMutation
       .mutateAsync(buildSubmitGenerationBatchRequest(draft, undefined, { isOpus }))
       .catch((error) => setSubmitError(formatError(error)));
-  }, [draft, flushDraft, isOpus, submitMutation]);
+  }, [draft, flushDraft, isOpus, submitMutation, t]);
 
   const handleCompile = useCallback(() => {
     if (!draft) {
@@ -308,7 +316,6 @@ export function GeneratePage() {
               balance={accountQuery.data?.anlas_balance ?? null}
               balancePending={accountQuery.isPending}
               balanceError={accountQuery.isError ? formatError(accountQuery.error) : null}
-              refreshPending={refreshSubscriptionMutation.isPending}
               estimate={estimateQuery.data?.total_cost ?? null}
               estimatePending={estimateQuery.isPending}
               estimateError={estimateQuery.isError ? formatError(estimateQuery.error) : null}
@@ -319,7 +326,6 @@ export function GeneratePage() {
               draftSaveError={draftSaveError}
               onPatch={patchDraft}
               onFlush={flushDraft}
-              onRefreshBalance={() => refreshSubscriptionMutation.mutate()}
               onSubmit={handleSubmit}
               onResetParameters={() =>
                 replaceDraft(resetGenerationParameters(draft, settingsQuery.data), {
@@ -388,12 +394,6 @@ export function GeneratePage() {
           />
         }
       />
-
-      {queueError || generationActions.error ? (
-        <div className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2 border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-sm text-rose-100 shadow-app-panel">
-          {queueError ?? generationActions.error}
-        </div>
-      ) : null}
 
       <GenerationPromptCompileDialog
         open={compileDialogOpen}

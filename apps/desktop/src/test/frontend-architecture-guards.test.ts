@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -37,6 +38,21 @@ const TOP_LEVEL_PAGE_PATHS = [
   "src/features/resources/ResourcesPage.tsx",
   "src/features/settings/SettingsPage.tsx",
 ] as const;
+const USER_VISIBLE_JSX_ATTRIBUTES = new Set(["aria-label", "label", "placeholder"]);
+const ALLOWED_LITERAL_LABELS = new Set([
+  "Anlas",
+  "NSFW",
+  "Atelier",
+  "A",
+  "R",
+  "S",
+  "ID",
+  "source",
+  "mask",
+  "resource:",
+  "variant:",
+  "vibe:",
+]);
 
 function walkFiles(dirPath: string): string[] {
   return readdirSync(dirPath)
@@ -83,6 +99,7 @@ function collectSourceFiles(): string[] {
     return (
       /\.(css|ts|tsx)$/u.test(filePath) &&
       !projectPath.includes("/test/") &&
+      !projectPath.includes(".test.") &&
       !projectPath.endsWith(".d.ts") &&
       !projectPath.includes("/types/generated/")
     );
@@ -165,6 +182,30 @@ describe("frontend architecture guards", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("keeps user-visible JSX text behind typed localization resources", () => {
+    const offenders = collectSourceFiles()
+      .filter((filePath) => filePath.endsWith(".tsx"))
+      .flatMap((filePath) => findVisibleJsxLiterals(filePath));
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("documents stable interaction feedback and removes manual account probes", () => {
+    const frontendArchitecture = readProjectFile(
+      path.join(projectRoot, "..", "..", "docs/agents/frontend-architecture.md"),
+    );
+    const accountSource = [
+      "src/features/settings/components/AccountSettingsSection.tsx",
+      "src/features/settings/components/ApiKeyRow.tsx",
+      "src/features/settings/components/ActiveSubscriptionPanel.tsx",
+    ]
+      .map((relativePath) => readProjectFile(path.join(projectRoot, relativePath)))
+      .join("\n");
+
+    expect(frontendArchitecture).toContain("## Interaction Feedback");
+    expect(accountSource).not.toMatch(/probeKey|refreshSubscription|onProbe/u);
+  });
+
   it("keeps custom titlebar window permissions available", () => {
     const capability: unknown = JSON.parse(
       readProjectFile(path.join(projectRoot, "src-tauri/capabilities/default.json")),
@@ -207,3 +248,40 @@ describe("frontend architecture guards", () => {
     expect(devCsp["connect-src"]).toContain("ws://localhost:5173");
   });
 });
+
+function findVisibleJsxLiterals(filePath: string): string[] {
+  const source = ts.createSourceFile(
+    filePath,
+    readProjectFile(filePath),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const offenders: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isJsxText(node)) {
+      const value = node.text.replace(/\s+/gu, " ").trim();
+      if (/[A-Za-z]/u.test(value) && !ALLOWED_LITERAL_LABELS.has(value)) {
+        offenders.push(
+          `${toProjectPath(filePath)}:${source.getLineAndCharacterOfPosition(node.pos).line + 1}:${value}`,
+        );
+      }
+    }
+    if (
+      ts.isJsxAttribute(node) &&
+      USER_VISIBLE_JSX_ATTRIBUTES.has(node.name.getText(source)) &&
+      node.initializer &&
+      ts.isStringLiteral(node.initializer)
+    ) {
+      const value = node.initializer.text.trim();
+      if (/[A-Za-z]/u.test(value) && !ALLOWED_LITERAL_LABELS.has(value)) {
+        offenders.push(
+          `${toProjectPath(filePath)}:${source.getLineAndCharacterOfPosition(node.pos).line + 1}:${value}`,
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return offenders;
+}

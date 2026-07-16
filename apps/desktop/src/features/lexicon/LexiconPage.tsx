@@ -1,4 +1,5 @@
 import { useCallback, useDeferredValue, useState, type ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { PromptLexiconListQueryDto } from "@/types";
 
@@ -16,6 +17,7 @@ type LexiconView = "catalog" | "search";
 const EMPTY_SELECTION: LexiconCategorySelection = { category: null, subcategory: null };
 
 export function LexiconPage() {
+  const { t } = useTranslation("lexicon");
   const [view, setView] = useState<LexiconView>("catalog");
   const [search, setSearch] = useState("");
   const [selection, setSelection] = useState(EMPTY_SELECTION);
@@ -60,9 +62,9 @@ export function LexiconPage() {
   const activeError = showingSearch ? searchQuery.error : browseQuery.error;
   const title = showingSearch
     ? deferredSearch
-      ? `Search: ${deferredSearch}`
-      : "Search results"
-    : (selection.subcategory ?? selection.category ?? "All tags");
+      ? t("searchTitle", { query: deferredSearch })
+      : t("searchResults")
+    : (selection.subcategory ?? selection.category ?? t("allTags"));
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -83,7 +85,7 @@ export function LexiconPage() {
           page={activePage}
           pending={activePending}
           error={activeError ? formatError(activeError) : null}
-          emptyTitle={showingSearch ? "Enter a search or try another term" : "No matching tags"}
+          emptyTitle={showingSearch ? t("enterSearch") : t("noMatchingTags")}
           pagination={!showingSearch}
           onPrevious={handlePrevious}
           onNext={handleNext}
@@ -94,5 +96,5 @@ export function LexiconPage() {
 }
 
 function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : "Command failed";
+  return error instanceof Error ? error.message : String(error);
 }

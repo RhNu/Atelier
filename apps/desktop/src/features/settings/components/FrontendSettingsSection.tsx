@@ -11,7 +11,6 @@ type FrontendSettingsSectionProps = {
   updateDraft: (draft: GlobalSettingsDto) => void;
   saveSettings: (settings: GlobalSettingsDto) => void;
   saving: boolean;
-  commandError: string | null;
 };
 
 export function FrontendSettingsSection({
@@ -19,7 +18,6 @@ export function FrontendSettingsSection({
   updateDraft,
   saveSettings,
   saving,
-  commandError,
 }: FrontendSettingsSectionProps) {
   const { t } = useTranslation("settings");
   const updateLanguage = useCallback(
@@ -71,11 +69,6 @@ export function FrontendSettingsSection({
           {saving ? t("savingFrontend") : t("saveFrontend")}
         </AppButton>
       </SectionHeader>
-      {commandError ? (
-        <p className="border-b border-app-border bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
-          {commandError}
-        </p>
-      ) : null}
       <div className="grid gap-3 p-3 md:grid-cols-2">
         <LanguageSelect value={draft.frontend.language} onChange={updateLanguage} />
         <CheckboxField

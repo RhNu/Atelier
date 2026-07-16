@@ -82,7 +82,7 @@ export function GenerationHistoryRail({
     >
       <header className="flex min-h-10 items-center justify-between gap-2 border-b border-app-border px-2 py-1">
         <label className="sr-only" htmlFor="generation-history-filter">
-          Filter history batches
+          {t("filterHistory")}
         </label>
         <select
           id="generation-history-filter"
@@ -100,21 +100,21 @@ export function GenerationHistoryRail({
         <div className="flex items-center gap-1">
           <AppIconButton
             icon={RotateCcw}
-            label="Rerun selected batch"
+            label={t("rerunSelectedBatch")}
             size="sm"
             disabled={!selectedBatch || rerunPending}
             onClick={onRerunSelected}
           />
           <AppIconButton
             icon={Download}
-            label="Export selected batch as ZIP"
+            label={t("exportSelectedBatch")}
             size="sm"
             disabled={!selectedBatch?.outputs.length || exportPending}
             onClick={onExportSelected}
           />
           <AppIconButton
             icon={Trash2}
-            label="Delete selected batch history"
+            label={t("deleteSelectedBatch")}
             size="sm"
             variant="danger"
             disabled={!selectedBatch || deletePending}
@@ -144,14 +144,14 @@ export function GenerationHistoryRail({
         <div className="flex items-center gap-1">
           <AppIconButton
             icon={ChevronLeft}
-            label="Previous history page"
+            label={t("previousHistoryPage")}
             size="sm"
             disabled={!canPrevious || pending}
             onClick={onPreviousPage}
           />
           <AppIconButton
             icon={ChevronRight}
-            label="Next history page"
+            label={t("nextHistoryPage")}
             size="sm"
             disabled={!canNext || pending}
             onClick={onNextPage}
@@ -171,6 +171,7 @@ function GenerationHistoryBatch({
   selected: boolean;
   onSelect: (batchId: string) => void;
 }) {
+  const { t } = useTranslation("generation");
   const handleSelect = useCallback(() => onSelect(batch.batch_id), [batch.batch_id, onSelect]);
   return (
     <button
@@ -205,8 +206,15 @@ function GenerationHistoryBatch({
           {batch.title ?? "Generation batch"}
         </span>
         <span className="mt-1 block text-xs text-app-muted">
-          {batch.completed_request_count}/{batch.request_count} requests ·{" "}
-          {batch.completed_sample_count}/{batch.expected_sample_count} samples
+          {t("completedRequests", {
+            completed: batch.completed_request_count,
+            total: batch.request_count,
+          })}{" "}
+          ·{" "}
+          {t("completedSamples", {
+            completed: batch.completed_sample_count,
+            total: batch.expected_sample_count,
+          })}
         </span>
         <span className={`mt-1 block text-[11px] ${statusTextClass(batch.status)}`}>
           {batch.status}

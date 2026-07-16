@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { resourceImageToDataUrl } from "@/platform/atelier";
 import type { ResourceRefDto } from "@/types";
 
@@ -12,6 +14,7 @@ export function GenerationResourceThumbnail({
   alt: string;
   className?: string;
 }) {
+  const { t } = useTranslation("generation");
   const query = useResourceImageQuery(resource);
   const src = query.data ? resourceImageToDataUrl(query.data) : null;
   return (
@@ -24,11 +27,11 @@ export function GenerationResourceThumbnail({
       {src ? (
         <img src={src} alt={alt} className="size-full object-cover" />
       ) : query.isError ? (
-        "Unavailable"
+        t("unavailable")
       ) : query.isPending && resource ? (
-        "Loading"
+        t("loading")
       ) : (
-        "No image"
+        t("noImage")
       )}
     </div>
   );

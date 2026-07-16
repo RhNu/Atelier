@@ -1,4 +1,5 @@
 import type { ImgHTMLAttributes } from "react";
+import { useTranslation } from "react-i18next";
 
 type ResourceImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   src: string | null;
@@ -7,11 +8,12 @@ type ResourceImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & {
 
 export function ResourceImage({
   src,
-  fallbackLabel = "No image",
+  fallbackLabel,
   className = "",
   alt = "",
   ...props
 }: ResourceImageProps) {
+  const { t } = useTranslation("common");
   if (!src) {
     return (
       <div
@@ -20,7 +22,7 @@ export function ResourceImage({
           className,
         ].join(" ")}
       >
-        {fallbackLabel}
+        {fallbackLabel ?? t("noImage")}
       </div>
     );
   }

@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useToastStore, type ToastItem as Toast, type ToastLevel } from "@/stores/toast-store";
@@ -29,16 +29,28 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
   const handleRemove = useCallback(() => {
     onRemove(toast.id);
   }, [onRemove, toast.id]);
+  const handleAction = useCallback(() => {
+    toast.action?.onClick();
+    onRemove(toast.id);
+  }, [onRemove, toast]);
+
+  useEffect(() => {
+    if (toast.durationMs === null) return undefined;
+    const timeout = window.setTimeout(handleRemove, toast.durationMs);
+    return () => window.clearTimeout(timeout);
+  }, [handleRemove, toast.durationMs]);
 
   return (
     <article
+      role={toast.level === "error" ? "alert" : "status"}
+      aria-live={toast.level === "error" ? "assertive" : "polite"}
       className={[
         "pointer-events-auto border p-3 shadow-app-panel backdrop-blur",
         levelClasses[toast.level],
       ].join(" ")}
     >
       <header className="flex items-start justify-between gap-3">
-        <p className="text-sm font-semibold">{toast.title ?? toast.level}</p>
+        <p className="text-sm font-semibold">{toast.title ?? t(`toastLevel.${toast.level}`)}</p>
         <button
           type="button"
           aria-label={t("closeToast")}
@@ -49,6 +61,15 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         </button>
       </header>
       <p className="mt-1 text-sm text-current/90">{toast.message}</p>
+      {toast.action ? (
+        <button
+          type="button"
+          className="mt-2 border border-current/35 px-2 py-1 text-xs font-semibold hover:bg-white/10"
+          onClick={handleAction}
+        >
+          {toast.action.label}
+        </button>
+      ) : null}
     </article>
   );
 }

@@ -167,10 +167,11 @@ function PreviewHeader({
   | "onResumeLive"
   | "onCompilePrompt"
 > & { showResume: boolean }) {
+  const { t } = useTranslation("generation");
   const PreviewModeIcon = isViewingLive ? Activity : History;
-  const previewModeLabel = isViewingLive ? "Live preview" : "History preview";
+  const previewModeLabel = isViewingLive ? t("livePreview") : t("historyPreview");
   const requestCount = batch?.requests.length ?? 0;
-  const requestCountLabel = `${requestCount} request${requestCount === 1 ? "" : "s"}`;
+  const requestCountLabel = t("requestCount", { count: requestCount });
   return (
     <header className="flex min-h-10 items-center justify-between gap-2 border-b border-app-border px-2 py-1">
       <div className="flex min-w-0 items-center gap-1.5">
@@ -181,7 +182,7 @@ function PreviewHeader({
           <PreviewModeIcon aria-label={previewModeLabel} className="size-4" />
         </span>
         <h2 className="truncate text-sm font-semibold text-white">
-          {batch ? "Batch" : "Generation canvas"}
+          {batch ? t("batch") : t("generationCanvas")}
         </h2>
         {batch ? (
           <span
@@ -215,7 +216,7 @@ function PreviewHeader({
           disabled={compilePending}
         >
           <Sparkles aria-hidden="true" className="size-4" />
-          Compile
+          {t("compile")}
         </AppButton>
         {queueControls}
       </div>
@@ -291,6 +292,7 @@ function RequestPreviewSurface({
   | "onRerunRequest"
   | "onDeleteRequest"
 > & { focusedSample: GenerationSampleSlot | null; onOpenLightbox: () => void }) {
+  const { t } = useTranslation("generation");
   const requestHasOutput = selectedRequest?.samples.some((sample) => sample.resource) ?? false;
   const canMutateRequest = Boolean(selectedRequest?.runId);
   return (
@@ -298,47 +300,53 @@ function RequestPreviewSurface({
       <div className="flex min-h-11 items-center justify-between gap-2 border-b border-app-border px-3 py-1">
         <div className="min-w-0">
           <span className="text-sm font-semibold text-app-text">
-            {selectedRequest ? `Request ${selectedRequest.requestIndex + 1}` : "No request"}
+            {selectedRequest
+              ? t("requestNumber", { number: selectedRequest.requestIndex + 1 })
+              : t("noRequest")}
           </span>
           {selectedRequest ? (
             <span className="ml-2 text-xs text-app-muted">
-              {selectedRequest.status} · {selectedRequest.expectedSamples} sample
-              {selectedRequest.expectedSamples === 1 ? "" : "s"}
+              {selectedRequest.status} ·{" "}
+              {t("sampleCount", { count: selectedRequest.expectedSamples })}
             </span>
           ) : null}
         </div>
         <div className="flex items-center gap-1">
           {focusedSample ? (
-            <AppIconButton icon={Grid2X2} label="Back to sample grid" onClick={onShowRequestGrid} />
+            <AppIconButton
+              icon={Grid2X2}
+              label={t("backToSampleGrid")}
+              onClick={onShowRequestGrid}
+            />
           ) : null}
           <AppIconButton
             icon={Download}
-            label="Export request as ZIP"
+            label={t("exportRequest")}
             disabled={!requestHasOutput || zipPending}
             onClick={onExportRequest}
           />
           <AppIconButton
             icon={RotateCcw}
-            label="Rerun request"
+            label={t("rerunRequest")}
             disabled={!canMutateRequest || rerunPending}
             onClick={onRerunRequest}
           />
           <AppIconButton
             icon={Trash2}
-            label="Delete request history"
+            label={t("deleteRequestHistory")}
             variant="danger"
             disabled={!canMutateRequest || deletePending}
             onClick={onDeleteRequest}
           />
           <AppIconButton
             icon={Save}
-            label="Save selected sample"
+            label={t("saveSelectedSample")}
             disabled={!focusedSample?.resource || savePending}
             onClick={onSaveSample}
           />
           <AppIconButton
             icon={Wand2}
-            label="Send selected sample to Director"
+            label={t("sendSelectedToDirector")}
             disabled={!focusedSample?.resource || !focusedSample.galleryItemId || handoffPending}
             onClick={onSendSampleToDirector}
           />
@@ -354,7 +362,7 @@ function RequestPreviewSurface({
         ) : selectedRequest ? (
           <SampleGrid request={selectedRequest} onFocusSample={onFocusSample} />
         ) : (
-          <PreviewEmptyState message={statusError ?? "No active preview"} />
+          <PreviewEmptyState message={statusError ?? t("noActivePreview")} />
         )}
       </div>
     </div>
@@ -372,13 +380,17 @@ function SampleLightbox({
   sample: GenerationSampleSlot | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("generation");
   return (
     <AppModal
       open={open}
       title={
         request && sample
-          ? `Request ${request.requestIndex + 1} · Sample ${sample.sampleIndex + 1}`
-          : "Generation sample"
+          ? t("requestSample", {
+              request: request.requestIndex + 1,
+              sample: sample.sampleIndex + 1,
+            })
+          : t("generationSample")
       }
       onClose={onClose}
     >
@@ -497,21 +509,25 @@ function FocusedSample({
   sample: GenerationSampleSlot;
   onOpenLightbox: () => void;
 }) {
+  const { t } = useTranslation("generation");
   return (
     <button
       type="button"
-      aria-label={`Open sample ${sample.sampleIndex + 1} lightbox`}
+      aria-label={t("openSampleLightbox", { sample: sample.sampleIndex + 1 })}
       onClick={onOpenLightbox}
       disabled={!sample.resource && !sample.streamSrc}
       className="relative h-full w-full overflow-hidden border border-app-border bg-black/35 disabled:cursor-default"
     >
       <SampleVisual
         sample={sample}
-        alt={`Request ${request.requestIndex + 1} sample ${sample.sampleIndex + 1}`}
+        alt={t("requestSampleAlt", {
+          request: request.requestIndex + 1,
+          sample: sample.sampleIndex + 1,
+        })}
         className="h-full min-h-[360px] w-full"
       />
       <span className="absolute right-2 bottom-2 border border-app-border bg-black/75 px-2 py-1 text-xs text-app-text">
-        Sample {sample.sampleIndex + 1} · {sample.state}
+        {t("sampleState", { sample: sample.sampleIndex + 1, state: sample.state })}
       </span>
     </button>
   );

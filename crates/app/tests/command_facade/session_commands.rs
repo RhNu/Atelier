@@ -78,10 +78,6 @@ fn account_and_prompt_chunk_commands_share_session() {
             .await
             .unwrap();
         assert_eq!(subscription.anlas_balance, 100);
-        assert_eq!(
-            host.cached_active_subscription().unwrap(),
-            Some(subscription)
-        );
         assert_eq!(factory.secrets(), vec!["active-secret".to_owned()]);
         factory.clear();
 

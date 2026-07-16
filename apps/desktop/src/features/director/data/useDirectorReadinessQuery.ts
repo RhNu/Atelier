@@ -1,11 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-
-import { accountApi, queryKeys } from "@/platform/atelier";
+import { useActiveAccountSummaryQuery } from "@/features/account/data/useActiveAccountSummaryQuery";
 
 export function useDirectorReadinessQuery() {
-  return useQuery({
-    queryKey: queryKeys.account.activeProbe(),
-    queryFn: () => accountApi.cachedActiveSubscription(),
-    retry: 0,
-  });
+  return useActiveAccountSummaryQuery();
 }

@@ -28,7 +28,8 @@ describe("applyAtelierEventInvalidations", () => {
     expect(invalidated).toContainEqual(["workspace", "generation"]);
     expect(invalidated).toContainEqual(["workspace", "history"]);
     expect(invalidated).toContainEqual(["workspace", "gallery"]);
-    expect(invalidateQueries).toHaveBeenCalledTimes(3);
+    expect(invalidated).toContainEqual(["workspace", "account", "active-summary"]);
+    expect(invalidateQueries).toHaveBeenCalledTimes(4);
   });
 
   it("does not refetch command-backed queries for stream chunks", () => {

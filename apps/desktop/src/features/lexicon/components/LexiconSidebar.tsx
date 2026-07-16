@@ -34,15 +34,14 @@ export function LexiconSidebar({
   onSelect,
 }: LexiconSidebarProps) {
   const { t } = useTranslation("lexicon");
+  const viewTabs = [
+    { value: "catalog", label: t("catalog") },
+    { value: "search", label: t("search") },
+  ] as const;
   return (
     <AppPanel variant="section" className="min-h-0 overflow-hidden">
       <div className="border-b border-app-border p-3">
-        <AppTabs
-          value={view}
-          label="Lexicon views"
-          tabs={LEXICON_VIEW_TABS}
-          onChange={onViewChange}
-        />
+        <AppTabs value={view} label={t("views")} tabs={viewTabs} onChange={onViewChange} />
         <label className="relative mt-3 block">
           <Search
             aria-hidden="true"
@@ -71,11 +70,6 @@ export function LexiconSidebar({
     </AppPanel>
   );
 }
-
-const LEXICON_VIEW_TABS = [
-  { value: "catalog", label: "Catalog" },
-  { value: "search", label: "Search" },
-] as const;
 
 function LexiconStats({ catalog }: { catalog: PromptLexiconCatalogDto }) {
   const { t } = useTranslation("lexicon");
@@ -106,7 +100,7 @@ function CategoryNavigator({
   return (
     <nav aria-label={t("categories")} className="grid gap-1">
       <CategoryButton
-        label="All tags"
+        label={t("allTags")}
         count={catalog.stats.total_tags}
         selected={selection.category === null}
         category={null}

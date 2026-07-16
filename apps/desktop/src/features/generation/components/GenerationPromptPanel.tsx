@@ -17,7 +17,7 @@ import type { PromptPresetDto } from "@/types";
 
 import type { GenerationDraft } from "../model/generation-draft";
 import {
-  generationModelOptions,
+  generationModelSelectOptions,
   generationUcPresetOptions,
   toImageModel,
   toUcPreset,
@@ -40,13 +40,8 @@ type GenerationPromptPanelProps = {
   onFlush: () => void;
 };
 
-const MODEL_OPTIONS = toSelectOptions(generationModelOptions);
+const MODEL_OPTIONS = generationModelSelectOptions;
 const UC_PRESET_OPTIONS = toSelectOptions(generationUcPresetOptions);
-const PROMPT_TABS = [
-  { value: "positive", label: "Positive" },
-  { value: "negative", label: "Undesired Content" },
-] as const;
-
 export const GenerationPromptPanel = forwardRef<
   GenerationPromptPanelHandle,
   GenerationPromptPanelProps
@@ -56,18 +51,25 @@ export const GenerationPromptPanel = forwardRef<
 ) {
   const { t } = useTranslation("generation");
   const [activeTab, setActiveTab] = useState<PromptTab>("positive");
+  const promptTabs = useMemo(
+    () => [
+      { value: "positive" as const, label: t("positive") },
+      { value: "negative" as const, label: t("undesiredContent") },
+    ],
+    [t],
+  );
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mainPresetOptions = useMemo(
     () => [
       {
         value: "",
-        label: mainPresetsPending ? "Loading presets" : "No main preset",
+        label: mainPresetsPending ? t("loadingPresets") : t("noMainPreset"),
       },
       ...mainPresets
         .filter((preset) => preset.enabled)
         .map((preset) => ({ value: preset.preset_id, label: preset.name })),
     ],
-    [mainPresets, mainPresetsPending],
+    [mainPresets, mainPresetsPending, t],
   );
 
   const focusPositive = useCallback(() => {
@@ -102,7 +104,7 @@ export const GenerationPromptPanel = forwardRef<
         htmlFor="generation-model"
         className="grid gap-1.5 text-xs font-semibold text-app-muted uppercase"
       >
-        Model
+        {t("model")}
         <AppSelect
           id="generation-model"
           aria-label={t("model")}
@@ -116,9 +118,9 @@ export const GenerationPromptPanel = forwardRef<
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <AppTabs
-            label="Prompt type"
+            label={t("promptType")}
             value={activeTab}
-            tabs={PROMPT_TABS}
+            tabs={promptTabs}
             onChange={handleTabChange}
           />
           <details className="group relative">
@@ -130,7 +132,7 @@ export const GenerationPromptPanel = forwardRef<
             </summary>
             <div className="absolute top-10 right-0 z-30 w-64 space-y-4 border border-app-border bg-app-panel p-3 shadow-app-panel">
               <label className="flex items-center justify-between gap-3 text-sm text-app-text">
-                Quality tags
+                {t("qualityTags")}
                 <input
                   aria-label={t("qualityTags")}
                   type="checkbox"
@@ -143,7 +145,7 @@ export const GenerationPromptPanel = forwardRef<
                 htmlFor="generation-uc-preset"
                 className="grid gap-1 text-xs font-semibold text-app-muted uppercase"
               >
-                UC preset
+                {t("ucPreset")}
                 <AppSelect
                   id="generation-uc-preset"
                   aria-label={t("ucPreset")}
@@ -159,7 +161,7 @@ export const GenerationPromptPanel = forwardRef<
         <PromptCompletionTextarea
           ref={textareaRef}
           id="generation-prompt-editor"
-          aria-label={activeTab === "positive" ? "Positive prompt" : "Undesired content"}
+          aria-label={activeTab === "positive" ? t("positivePrompt") : t("undesiredContent")}
           value={activeTab === "positive" ? draft.prompt : draft.negativePrompt}
           onChange={handlePromptChange}
           onKeyDown={handleEditorKeyDown}
@@ -173,7 +175,7 @@ export const GenerationPromptPanel = forwardRef<
         htmlFor="generation-main-preset"
         className="grid gap-1.5 text-xs font-semibold text-app-muted uppercase"
       >
-        Main preset
+        {t("mainPreset")}
         <AppSelect
           id="generation-main-preset"
           aria-label={t("mainPreset")}

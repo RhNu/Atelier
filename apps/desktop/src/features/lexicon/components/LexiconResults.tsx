@@ -35,7 +35,7 @@ export function LexiconResults({
           <h2 className="truncate text-sm font-semibold text-white">{title}</h2>
           {page ? (
             <p className="text-xs text-app-muted">
-              {shownFrom}-{shownTo} of {page.total}
+              {t("range", { from: shownFrom, to: shownTo, total: page.total })}
             </p>
           ) : null}
         </div>
@@ -80,7 +80,9 @@ export function LexiconResults({
                       {entry.tag}
                     </code>
                     {entry.weight === null ? null : (
-                      <span className="text-[10px] text-app-muted">weight {entry.weight}</span>
+                      <span className="text-[10px] text-app-muted">
+                        {t("weight", { value: entry.weight })}
+                      </span>
                     )}
                   </div>
                   <p className="mt-1 truncate text-sm text-app-text">
@@ -88,12 +90,12 @@ export function LexiconResults({
                   </p>
                   {entry.matched_translation !== entry.primary_translation ? (
                     <p className="mt-1 truncate text-xs text-app-muted">
-                      Matched: {entry.matched_translation}
+                      {t("matched", { value: entry.matched_translation })}
                     </p>
                   ) : null}
                 </div>
                 <div className="text-right text-xs text-app-muted">
-                  <p>{entry.category || "Uncategorized"}</p>
+                  <p>{entry.category || t("uncategorized")}</p>
                   <p className="mt-1 truncate">{entry.subcategory || "—"}</p>
                   {entry.match_rank ? (
                     <p className="mt-1 text-[10px] uppercase opacity-70">

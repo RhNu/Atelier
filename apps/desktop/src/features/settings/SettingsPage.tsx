@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { AppPanel, EmptyState } from "@/components/ui";
 import { applyLanguagePreference } from "@/i18n";
+import { useToastStore } from "@/stores/toast-store";
 import type { GlobalSettingsDto, WorkspaceSettingsDto } from "@/types";
 
 import { useWorkspaceStatus } from "../workspace/useWorkspaceStatus";
@@ -26,6 +27,7 @@ import { cloneGlobalSettings, cloneSettings, formatError } from "./settings-util
 
 export function SettingsPage() {
   const { t } = useTranslation("settings");
+  const pushToast = useToastStore((state) => state.push);
   const workspace = useWorkspaceStatus();
   const workspaceSettingsQuery = useWorkspaceSettingsQuery();
   const globalSettingsQuery = useGlobalSettingsQuery();
@@ -35,7 +37,6 @@ export function SettingsPage() {
   const [activeSection, setActiveSection] = useState<SettingsSection>("account");
   const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceSettingsDto | null>(null);
   const [globalDraft, setGlobalDraft] = useState<GlobalSettingsDto | null>(null);
-  const [commandError, setCommandError] = useState<string | null>(null);
 
   useEffect(() => {
     if (workspaceSettingsQuery.data) {
@@ -52,7 +53,7 @@ export function SettingsPage() {
   const saveGenerationSettings = useCallback(
     (settings: WorkspaceSettingsDto) => {
       if (!workspaceSettingsQuery.data) {
-        setCommandError(t("workspaceNotLoaded"));
+        pushToast({ level: "error", message: t("workspaceNotLoaded") });
         return;
       }
       const nextSettings = cloneSettings(workspaceSettingsQuery.data);
@@ -60,64 +61,58 @@ export function SettingsPage() {
         ...settings.generation,
         size: { ...settings.generation.size },
       };
-      saveWorkspaceSettings(
-        nextSettings,
-        updateWorkspaceMutation,
-        setWorkspaceDraft,
-        setCommandError,
-      );
+      saveWorkspaceSettings(nextSettings, updateWorkspaceMutation, setWorkspaceDraft, pushToast, t);
     },
-    [t, updateWorkspaceMutation, workspaceSettingsQuery.data],
+    [pushToast, t, updateWorkspaceMutation, workspaceSettingsQuery.data],
   );
 
   const saveImageSettings = useCallback(
     (settings: WorkspaceSettingsDto) => {
       if (!workspaceSettingsQuery.data) {
-        setCommandError(t("workspaceNotLoaded"));
+        pushToast({ level: "error", message: t("workspaceNotLoaded") });
         return;
       }
       const nextSettings = cloneSettings(workspaceSettingsQuery.data);
       nextSettings.image_variants = { ...settings.image_variants };
-      saveWorkspaceSettings(
-        nextSettings,
-        updateWorkspaceMutation,
-        setWorkspaceDraft,
-        setCommandError,
-      );
+      saveWorkspaceSettings(nextSettings, updateWorkspaceMutation, setWorkspaceDraft, pushToast, t);
     },
-    [t, updateWorkspaceMutation, workspaceSettingsQuery.data],
+    [pushToast, t, updateWorkspaceMutation, workspaceSettingsQuery.data],
   );
 
   const saveFrontendSettings = useCallback(
     (settings: GlobalSettingsDto) => {
-      setCommandError(null);
       updateGlobalMutation.mutate(
         { frontend: settings.frontend },
         {
           onSuccess: (updatedSettings) => {
             setGlobalDraft(cloneGlobalSettings(updatedSettings));
             void applyLanguagePreference(updatedSettings.frontend.language);
+            pushToast({ level: "success", message: t("settingsSaved") });
           },
           onError: (error) => {
-            setCommandError(formatError(error));
+            pushToast({
+              level: "error",
+              title: t("settingsSaveFailed"),
+              message: formatError(error),
+            });
           },
         },
       );
     },
-    [updateGlobalMutation],
+    [pushToast, t, updateGlobalMutation],
   );
 
   const resetSettings = useCallback(() => {
-    setCommandError(null);
     resetWorkspaceMutation.mutate(undefined, {
       onSuccess: (response) => {
         setWorkspaceDraft(cloneSettings(response.settings));
+        pushToast({ level: "success", message: t("settingsReset") });
       },
       onError: (error) => {
-        setCommandError(formatError(error));
+        pushToast({ level: "error", title: t("settingsResetFailed"), message: formatError(error) });
       },
     });
-  }, [resetWorkspaceMutation]);
+  }, [pushToast, resetWorkspaceMutation, t]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -139,8 +134,6 @@ export function SettingsPage() {
           savingWorkspace={updateWorkspaceMutation.isPending}
           savingGlobal={updateGlobalMutation.isPending}
           resetting={resetWorkspaceMutation.isPending}
-          commandError={commandError}
-          workspaceLifecycleError={workspace.workspaceErrorMessage ?? null}
           updateWorkspaceDraft={setWorkspaceDraft}
           updateGlobalDraft={setGlobalDraft}
           saveGenerationSettings={saveGenerationSettings}
@@ -159,14 +152,18 @@ function saveWorkspaceSettings(
   settings: WorkspaceSettingsDto,
   mutation: WorkspaceSettingsMutation,
   setDraft: (settings: WorkspaceSettingsDto) => void,
-  setCommandError: (error: string | null) => void,
+  pushToast: ReturnType<typeof useToastStore.getState>["push"],
+  t: ReturnType<typeof useTranslation<"settings">>["t"],
 ) {
-  setCommandError(null);
   mutation.mutate(
     { settings },
     {
-      onSuccess: (updatedSettings) => setDraft(cloneSettings(updatedSettings)),
-      onError: (error) => setCommandError(formatError(error)),
+      onSuccess: (updatedSettings) => {
+        setDraft(cloneSettings(updatedSettings));
+        pushToast({ level: "success", message: t("settingsSaved") });
+      },
+      onError: (error) =>
+        pushToast({ level: "error", title: t("settingsSaveFailed"), message: formatError(error) }),
     },
   );
 }
@@ -185,8 +182,6 @@ function SettingsContent({
   savingWorkspace,
   savingGlobal,
   resetting,
-  commandError,
-  workspaceLifecycleError,
   updateWorkspaceDraft,
   updateGlobalDraft,
   saveGenerationSettings,
@@ -205,7 +200,6 @@ function SettingsContent({
         workspace={workspace}
         closeWorkspace={closeWorkspace}
         closing={closingWorkspace}
-        commandError={workspaceLifecycleError}
       />
     ) : (
       <SettingsUnavailable description={t("noWorkspace")} title={t("settingsUnavailable")} />
@@ -225,7 +219,6 @@ function SettingsContent({
         updateDraft={updateGlobalDraft}
         saveSettings={saveFrontendSettings}
         saving={savingGlobal}
-        commandError={commandError}
       />
     );
   }
@@ -245,7 +238,6 @@ function SettingsContent({
         resetSettings={resetSettings}
         saving={savingWorkspace}
         resetting={resetting}
-        commandError={commandError}
       />
     );
   }
@@ -255,7 +247,6 @@ function SettingsContent({
       updateDraft={updateWorkspaceDraft}
       saveSettings={saveImageSettings}
       saving={savingWorkspace}
-      commandError={commandError}
     />
   );
 }
@@ -274,8 +265,6 @@ type SettingsContentProps = {
   savingWorkspace: boolean;
   savingGlobal: boolean;
   resetting: boolean;
-  commandError: string | null;
-  workspaceLifecycleError: string | null;
   updateWorkspaceDraft: (draft: WorkspaceSettingsDto) => void;
   updateGlobalDraft: (draft: GlobalSettingsDto) => void;
   saveGenerationSettings: (settings: WorkspaceSettingsDto) => void;

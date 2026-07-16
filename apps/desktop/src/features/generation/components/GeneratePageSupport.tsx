@@ -81,25 +81,26 @@ export function QueueControls({
   onResume,
   onStop,
 }: QueueControlsProps) {
+  const { t } = useTranslation("generation");
   return (
     <div className="flex items-center gap-1">
       <AppIconButton
         icon={Pause}
-        label="Pause queue"
+        label={t("pauseQueue")}
         size="sm"
         disabled={!canPause || pausePending}
         onClick={onPause}
       />
       <AppIconButton
         icon={Play}
-        label="Resume queue"
+        label={t("resumeQueue")}
         size="sm"
         disabled={!canResume || resumePending}
         onClick={onResume}
       />
       <AppIconButton
         icon={Square}
-        label="Stop queue"
+        label={t("stopQueue")}
         size="sm"
         disabled={!canStop || stopPending}
         onClick={onStop}

@@ -68,6 +68,7 @@ export function useRunDirectorToolMutation() {
         queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.history.root() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.account.activeSummary() }),
       ]);
     },
   });

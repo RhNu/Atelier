@@ -10,12 +10,10 @@ export function WorkspaceLifecycleSection({
   workspace,
   closeWorkspace,
   closing,
-  commandError,
 }: {
   workspace: WorkspaceStatusDto;
   closeWorkspace: () => void;
   closing: boolean;
-  commandError: string | null;
 }) {
   const { t } = useTranslation("settings");
   return (
@@ -29,11 +27,6 @@ export function WorkspaceLifecycleSection({
           {closing ? t("closingWorkspace") : t("closeWorkspace")}
         </AppButton>
       </SectionHeader>
-      {commandError ? (
-        <p className="border-b border-app-border bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
-          {commandError}
-        </p>
-      ) : null}
       <dl className="grid gap-3 p-3 text-sm md:grid-cols-2">
         <div className="border border-app-border bg-app-surface p-3 md:col-span-2">
           <dt className="flex items-center gap-2 text-xs font-semibold text-app-muted uppercase">

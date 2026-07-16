@@ -13,13 +13,11 @@ export function ImageSettingsSection({
   updateDraft,
   saveSettings,
   saving,
-  commandError,
 }: {
   draft: WorkspaceSettingsDto;
   updateDraft: (draft: WorkspaceSettingsDto) => void;
   saveSettings: (settings: WorkspaceSettingsDto) => void;
   saving: boolean;
-  commandError: string | null;
 }) {
   const { t } = useTranslation("settings");
   const variants = draft.image_variants;
@@ -71,15 +69,6 @@ export function ImageSettingsSection({
           <p className="text-sm text-amber-200 md:col-span-2">{t("positiveIntegerRequired")}</p>
         ) : null}
       </div>
-      {commandError ? <ImageCommandError message={commandError} /> : null}
     </AppPanel>
-  );
-}
-
-function ImageCommandError({ message }: { message: string }) {
-  return (
-    <p className="border-t border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-      {message}
-    </p>
   );
 }

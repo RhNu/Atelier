@@ -42,9 +42,41 @@ export const generationUcPresetOptions: ReadonlyArray<UcPresetDto> = [
 
 export const generationImageFormatOptions: ReadonlyArray<ImageFormatDto> = ["png", "webp"];
 
-export function toSelectOptions(values: ReadonlyArray<string>) {
-  return values.map((value) => ({ value, label: value }));
+export const generationModelDisplayNames: Record<ImageModelDto, string> = {
+  "nai-diffusion-4-5-full": "NAI Diffusion 4.5 Full",
+  "nai-diffusion-4-5-curated": "NAI Diffusion 4.5 Curated",
+  "nai-diffusion-4-full": "NAI Diffusion 4 Full",
+  "nai-diffusion-4-curated": "NAI Diffusion 4 Curated",
+  "nai-diffusion-3": "NAI Diffusion 3",
+  "nai-diffusion-3-furry": "NAI Diffusion 3 Furry",
+};
+
+export const generationSamplerDisplayNames: Record<SamplerDto, string> = {
+  k_euler: "Euler",
+  k_euler_ancestral: "Euler A",
+  k_dpm2: "DPM2",
+  k_dpm2_ancestral: "DPM2 A",
+  k_dpmpp2m: "DPM++ 2M",
+  k_dpmpp2s_ancestral: "DPM++ 2S A",
+  k_dpmpp_sde: "DPM++ SDE",
+  ddim: "DDIM",
+};
+
+export function toSelectOptions<Value extends string>(
+  values: ReadonlyArray<Value>,
+  labels?: Partial<Record<Value, string>>,
+) {
+  return values.map((value) => ({ value, label: labels?.[value] ?? value }));
 }
+
+export const generationModelSelectOptions = toSelectOptions(
+  generationModelOptions,
+  generationModelDisplayNames,
+);
+export const generationSamplerSelectOptions = toSelectOptions(
+  generationSamplerOptions,
+  generationSamplerDisplayNames,
+);
 
 export function toImageFormat(value: string): ImageFormatDto | null {
   if (value === "png" || value === "webp") {

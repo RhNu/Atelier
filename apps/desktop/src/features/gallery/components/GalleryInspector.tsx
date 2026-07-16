@@ -1,9 +1,10 @@
 import { Clapperboard, Download, Maximize2, ShieldCheck, Trash2 } from "lucide-react";
 import type { ChangeEvent } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppModal, AppPanel, AppSelect, EmptyState, SafetyBadge } from "@/components/ui";
+import { useToastStore } from "@/stores/toast-store";
 import type { GalleryItemDto } from "@/types";
 
 import {
@@ -119,7 +120,7 @@ function SafetyDetails({ item }: { item: GalleryItemDto }) {
       <dl className="grid gap-2">
         <DetailRow label={t("label")} value={effectiveSafetyLabel(item)} />
         <DetailRow label="NSFW" value={nsfwScore} />
-        <DetailRow label="Safe" value={safeScore} />
+        <DetailRow label={t("safe")} value={safeScore} />
         <DetailRow label={t("model")} value={item.safety?.model_id ?? null} />
         <DetailRow label={t("version")} value={item.safety?.scorer_version ?? null} />
       </dl>
@@ -215,9 +216,15 @@ function InspectorActions({
 export function GalleryInspector(props: GalleryInspectorProps) {
   const { t } = useTranslation("gallery");
   const { item, blurSensitive } = props;
+  const pushToast = useToastStore((state) => state.push);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const openLightbox = useCallback(() => setLightboxOpen(true), []);
   const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+  useEffect(() => {
+    if (props.commandError) {
+      pushToast({ level: "error", title: t("actionFailed"), message: props.commandError });
+    }
+  }, [props.commandError, pushToast, t]);
 
   if (!item) {
     return <EmptyInspector />;
@@ -240,11 +247,6 @@ export function GalleryInspector(props: GalleryInspectorProps) {
         </div>
       </header>
       <div className="grid gap-4 p-4">
-        {props.commandError ? (
-          <p className="border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
-            {props.commandError}
-          </p>
-        ) : null}
         <button
           type="button"
           aria-label={t("enlargeItem", { id: item.item_id })}

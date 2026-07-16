@@ -89,20 +89,20 @@ export function VibeGuidanceSection({
           <>
             <AppIconButton
               icon={ImagePlus}
-              label="Add Vibe from image"
+              label={t("addVibeFromImage")}
               size="sm"
               onClick={pickVibeEncoding}
               disabled={vibeEnsurePending}
             />
             <AppIconButton
               icon={Library}
-              label="Choose from Vibe library"
+              label={t("chooseVibeLibrary")}
               size="sm"
               onClick={() => setLibraryOpen(true)}
             />
             <AppIconButton
               icon={Upload}
-              label="Import Vibe file"
+              label={t("importVibeFile")}
               size="sm"
               onClick={onImportVibeDocuments}
               disabled={vibeImportPending}
@@ -110,7 +110,7 @@ export function VibeGuidanceSection({
             {slots.length > 0 ? (
               <AppIconButton
                 icon={Trash2}
-                label="Clear Vibe stack"
+                label={t("clearVibeStack")}
                 size="sm"
                 variant="danger"
                 onClick={() => {
@@ -126,7 +126,7 @@ export function VibeGuidanceSection({
         {slots.length > 0 ? (
           <>
             <AppRangeField
-              label="Vibe strength"
+              label={t("vibeStrength")}
               value={draft.vibe.strength}
               valueText={draft.vibe.strength.toFixed(1)}
               min={0}
@@ -183,6 +183,7 @@ function VibeSlot({
   releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
   developerMode: boolean;
 }) {
+  const { t } = useTranslation("generation");
   return (
     <article className="grid gap-2 border border-app-border bg-app-bg/70 p-2">
       <div className="flex min-w-0 items-center gap-2">
@@ -216,7 +217,7 @@ function VibeSlot({
       </div>
       <GuidanceSettingsDisclosure>
         <AppRangeField
-          label="Info extracted"
+          label={t("infoExtracted")}
           value={slot.informationExtracted}
           valueText={slot.informationExtracted.toFixed(2)}
           min={0.01}
@@ -232,7 +233,7 @@ function VibeSlot({
           onCommit={onFlush}
         />
         <AppRangeField
-          label="Slot strength"
+          label={t("slotStrength")}
           value={slot.strength}
           valueText={slot.strength.toFixed(2)}
           min={0}

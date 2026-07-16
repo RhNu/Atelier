@@ -12,7 +12,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import type { ChangeEvent } from "react";
+import { useMemo, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -28,13 +28,6 @@ import type { DirectorToolDto, DirectorToolResultDto } from "@/types";
 import { DIRECTOR_TOOLS, type DirectorInput } from "../director-model";
 
 const TOOL_TABS = DIRECTOR_TOOLS.map((tool) => ({ value: tool.value, label: tool.label }));
-const SAFETY_OPTIONS = [
-  { value: "", label: "Clear override" },
-  { value: "safe", label: "Safe" },
-  { value: "sensitive", label: "Sensitive" },
-  { value: "hidden", label: "Hidden" },
-] as const;
-
 export function DirectorInputPanel({
   input,
   imageSrc,
@@ -67,7 +60,7 @@ export function DirectorInputPanel({
           <EmptyState title={t("inputUnavailable")} description={imageError} />
         ) : input ? (
           <div className="min-h-0 overflow-hidden border border-app-border bg-black/20">
-            <ResourceImage src={imageSrc} alt="Director source" className="h-full w-full" />
+            <ResourceImage src={imageSrc} alt={t("sourceImage")} className="h-full w-full" />
           </div>
         ) : (
           <EmptyState title={t("noInput")} description={t("importImage")} />
@@ -77,16 +70,16 @@ export function DirectorInputPanel({
           <div className="grid grid-cols-2 gap-2">
             <AppButton variant="secondary" onClick={onPick} disabled={pickPending}>
               <ImagePlus aria-hidden="true" className="size-4" />
-              {input ? "Replace" : "Import"}
+              {input ? t("replace") : t("import")}
             </AppButton>
             <AppButton variant="secondary" onClick={onPaste}>
               <Layers aria-hidden="true" className="size-4" />
-              Paste
+              {t("paste")}
             </AppButton>
           </div>
           <AppButton variant="ghost" onClick={onClear} disabled={!input}>
             <Trash2 aria-hidden="true" className="size-4" />
-            Clear input
+            {t("clearInput")}
           </AppButton>
         </div>
       </div>
@@ -136,7 +129,7 @@ function PreviewFrame({
       ) : error ? (
         <EmptyState title={t("imageUnavailable")} description={error} />
       ) : (
-        <ResourceImage src={src} fallbackLabel="No image" className="h-full w-full bg-app-bg" />
+        <ResourceImage src={src} fallbackLabel={t("noImage")} className="h-full w-full bg-app-bg" />
       )}
     </section>
   );
@@ -208,11 +201,11 @@ export function DirectorRunPanel({
         <div className="grid gap-4 text-sm text-app-text">
           {readinessPending ? <p className="text-app-muted">{t("checkingAccount")}</p> : null}
           {readinessError ? <p className="text-rose-100">{readinessError}</p> : null}
-          <AppTabs value={tool} tabs={TOOL_TABS} onChange={onToolChange} label="Director tools" />
+          <AppTabs value={tool} tabs={TOOL_TABS} onChange={onToolChange} label={t("tools")} />
           <p className="text-sm text-app-muted">{toolDescription}</p>
           {showsPrompt ? (
             <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
-              {promptRequired ? "Prompt required" : "Prompt optional"}
+              {promptRequired ? t("promptRequired") : t("promptOptional")}
               <textarea
                 aria-label={t("prompt")}
                 value={prompt}
@@ -223,9 +216,9 @@ export function DirectorRunPanel({
           ) : null}
           {showsPrompt ? (
             <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
-              Defry
+              {t("defry")}
               <input
-                aria-label="Defry"
+                aria-label={t("defry")}
                 type="number"
                 value={defry}
                 min={0}
@@ -238,7 +231,7 @@ export function DirectorRunPanel({
           ) : null}
           <AppButton onClick={onRun} disabled={!canRun}>
             {runIcon(tool)}
-            {runPending ? "Running Director tool" : "Run Director tool"}
+            {runPending ? t("runningTool") : t("runTool")}
           </AppButton>
           {result ? (
             <ResultActions
@@ -275,6 +268,15 @@ function ResultActions({
   onApplySafety: () => void;
 }) {
   const { t } = useTranslation("director");
+  const safetyOptions = useMemo(
+    () => [
+      { value: "", label: t("clearOverride") },
+      { value: "safe", label: t("safe") },
+      { value: "sensitive", label: t("sensitive") },
+      { value: "hidden", label: t("hidden") },
+    ],
+    [t],
+  );
   return (
     <section className="grid gap-3 border border-app-border bg-black/20 p-3">
       <div>
@@ -283,11 +285,11 @@ function ResultActions({
       </div>
       <AppButton variant="secondary" onClick={onSave} disabled={savePending}>
         <Save aria-hidden="true" className="size-4" />
-        Save result
+        {t("saveResult")}
       </AppButton>
       <details className="group border-t border-app-border pt-3">
         <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-app-muted uppercase">
-          Advanced settings
+          {t("advancedSettings")}
           <ChevronDown
             aria-hidden="true"
             className="size-4 transition-transform group-open:rotate-180"
@@ -298,17 +300,17 @@ function ResultActions({
             htmlFor="director-safety-override"
             className="grid gap-1 text-xs font-semibold text-app-muted uppercase"
           >
-            Safety override
+            {t("safetyOverride")}
             <AppSelect
               id="director-safety-override"
               aria-label={t("safetyOverride")}
               value={safetyOverride}
-              options={SAFETY_OPTIONS}
+              options={safetyOptions}
               onChange={onSafetyChange}
             />
           </label>
           <AppButton variant="secondary" onClick={onApplySafety} disabled={safetyPending}>
-            Apply safety override
+            {t("applySafetyOverride")}
           </AppButton>
         </div>
       </details>

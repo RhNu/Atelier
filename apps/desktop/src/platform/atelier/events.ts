@@ -44,6 +44,7 @@ export function applyAtelierEventInvalidations(queryClient: QueryClient, event: 
     case "job_succeeded":
       void queryClient.invalidateQueries({ queryKey: queryKeys.generation.root() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.history.root() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.account.activeSummary() });
       break;
     case "generation_stream_chunk":
       break;

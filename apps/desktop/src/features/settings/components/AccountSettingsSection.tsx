@@ -1,19 +1,25 @@
+import { useCallback } from "react";
+
 import { AppButton, AppPanel, EmptyState } from "@/components/ui";
 import type { ApiKeyRecordDto } from "@/types";
 
-import { useAccountSettingsController } from "../state/useAccountSettingsController";
+import {
+  isMissingActiveKey,
+  useAccountSettingsController,
+} from "../state/useAccountSettingsController";
 import { ActiveSubscriptionPanel } from "./ActiveSubscriptionPanel";
-import { ApiKeyRow, type ApiKeyEditState, type ApiKeyProbeState } from "./ApiKeyRow";
+import { ApiKeyRow, type ApiKeyEditState } from "./ApiKeyRow";
 import { LoadingPanel, SectionHeader, TextField } from "./SettingsControls";
-
-type ProbeState = Record<string, ApiKeyProbeState>;
 
 export function AccountSettingsSection() {
   const { t } = useTranslation("settings");
   const account = useAccountSettingsController();
+  const retryActiveSummary = useCallback(() => {
+    void account.activeSummary.refetch();
+  }, [account.activeSummary]);
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_320px] divide-x divide-app-border">
+    <div className="h-full min-h-0">
       <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
         <SectionHeader
           kicker={t("account")}
@@ -21,6 +27,14 @@ export function AccountSettingsSection() {
           description={t("accountDescriptionLong")}
         />
         <div className="min-h-0 flex-1 overflow-auto p-3">
+          <ActiveSubscriptionPanel
+            pending={account.activeSummary.isPending}
+            refreshing={account.activeSummary.isFetching && !account.activeSummary.isPending}
+            missingActiveKey={isMissingActiveKey(account.activeSummary.error)}
+            error={account.activeSummary.isError ? account.activeSummary.error : null}
+            summary={account.activeSummary.data ?? null}
+            onRetry={retryActiveSummary}
+          />
           <CreateKeyForm
             displayName={account.displayName}
             secret={account.secret}
@@ -29,39 +43,22 @@ export function AccountSettingsSection() {
             onSecretChange={account.setSecret}
             onCreate={account.createKey}
           />
-          {account.commandError ? <CommandErrorMessage message={account.commandError} /> : null}
           <ApiKeyList
             keys={account.keys}
             pending={account.keysPending}
             error={account.keysError}
             editing={account.editing}
-            probeState={account.probeState}
             busy={account.busy}
             onEdit={account.setEditing}
             onCancelEdit={account.cancelEdit}
             onEditChange={account.setEditing}
             onSaveEdit={account.saveEdit}
             onSetActive={account.setActive}
-            onProbe={account.probeKey}
             onDelete={account.deleteKey}
           />
         </div>
       </AppPanel>
-      <ActiveSubscriptionPanel
-        pending={account.activeProbe.pending}
-        error={account.activeProbe.error}
-        summary={account.activeProbe.summary}
-        onRefresh={account.refreshActive}
-      />
     </div>
-  );
-}
-
-function CommandErrorMessage({ message }: { message: string }) {
-  return (
-    <p className="mt-3 border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
-      {message}
-    </p>
   );
 }
 
@@ -111,28 +108,24 @@ function ApiKeyList({
   pending,
   error,
   editing,
-  probeState,
   busy,
   onEdit,
   onCancelEdit,
   onEditChange,
   onSaveEdit,
   onSetActive,
-  onProbe,
   onDelete,
 }: {
   keys: ApiKeyRecordDto[];
   pending: boolean;
   error: string | null;
   editing: ApiKeyEditState | null;
-  probeState: ProbeState;
   busy: boolean;
   onEdit: (editing: ApiKeyEditState) => void;
   onCancelEdit: () => void;
   onEditChange: (editing: ApiKeyEditState) => void;
   onSaveEdit: () => void;
   onSetActive: (id: string) => void;
-  onProbe: (item: ApiKeyRecordDto) => void;
   onDelete: (id: string) => void;
 }) {
   const { t } = useTranslation("settings");
@@ -155,14 +148,12 @@ function ApiKeyList({
           key={key.id}
           item={key}
           editing={editing}
-          probeState={probeState[key.id]}
           busy={busy}
           onEdit={onEdit}
           onCancelEdit={onCancelEdit}
           onEditChange={onEditChange}
           onSaveEdit={onSaveEdit}
           onSetActive={onSetActive}
-          onProbe={onProbe}
           onDelete={onDelete}
         />
       ))}

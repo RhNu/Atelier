@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppModal, AppPanel, EmptyState } from "@/components/ui";
+import { useToastStore } from "@/stores/toast-store";
 import type { VibeDocumentEntryDto } from "@/types";
 
 import {
@@ -33,6 +34,7 @@ export function VibeWorkspace({
   onIncludeHiddenChange: (value: boolean) => void;
 }) {
   const { t } = useTranslation("resources");
+  const pushToast = useToastStore((state) => state.push);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingVibe, setEditingVibe] = useState<VibeDocumentEntryDto | null>(null);
   const filtered = useMemo(
@@ -52,6 +54,15 @@ export function VibeWorkspace({
     exportMutation.error ??
     renameMutation.error ??
     hideMutation.error;
+  useEffect(() => {
+    if (commandError) {
+      pushToast({
+        level: "error",
+        title: t("vibeActionFailed"),
+        message: formatError(commandError),
+      });
+    }
+  }, [commandError, pushToast, t]);
 
   function exportSelected() {
     if (selectedIds.length === 0) {
@@ -82,7 +93,7 @@ export function VibeWorkspace({
         </div>
         <div className="flex flex-wrap gap-2">
           <CheckboxField
-            label="Show hidden"
+            label={t("showHidden")}
             checked={includeHidden}
             onChange={onIncludeHiddenChange}
           />
@@ -92,7 +103,7 @@ export function VibeWorkspace({
             disabled={importVibeMutation.isPending}
           >
             <Import aria-hidden="true" className="size-4" />
-            Import .naiv4vibe
+            {t("importVibeDocument")}
           </AppButton>
           <AppButton
             variant="secondary"
@@ -100,7 +111,7 @@ export function VibeWorkspace({
             disabled={importPngMutation.isPending}
           >
             <FilePlus2 aria-hidden="true" className="size-4" />
-            Import PNG Vibe
+            {t("importPngVibe")}
           </AppButton>
           <AppButton
             variant="secondary"
@@ -108,15 +119,10 @@ export function VibeWorkspace({
             disabled={exportMutation.isPending || selectedIds.length === 0}
           >
             <Download aria-hidden="true" className="size-4" />
-            Export selected
+            {t("exportSelected")}
           </AppButton>
         </div>
       </header>
-      {commandError ? (
-        <p className="border-b border-app-border bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
-          {formatError(commandError)}
-        </p>
-      ) : null}
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {pending ? (
           <EmptyState title={t("loadingVibes")} />
@@ -156,7 +162,7 @@ export function VibeWorkspace({
       <VibeEditDialog
         vibe={editingVibe}
         saving={renameMutation.isPending || hideMutation.isPending}
-        error={commandError ? formatError(commandError) : null}
+        error={null}
         onClose={() => setEditingVibe(null)}
         onSave={(displayName, hidden) => {
           if (!editingVibe) return;
@@ -206,36 +212,36 @@ function VibeCard({
       <PreviewSlot resource={vibe.preview ?? vibe.source_image} label={vibe.display_name} />
       <label className="flex items-center gap-2 text-xs text-app-muted">
         <input
-          aria-label={`Select ${vibe.display_name}`}
+          aria-label={t("selectVibe", { name: vibe.display_name })}
           type="checkbox"
           checked={selected}
           onChange={(event) => onToggleSelected(event.target.checked)}
         />
-        Select
+        {t("select")}
       </label>
       <div className="grid grid-cols-3 gap-2">
         <AppButton variant="secondary" onClick={onEdit}>
           <Pencil aria-hidden="true" className="size-4" />
-          Edit
+          {t("edit")}
         </AppButton>
         <AppButton variant="secondary" onClick={onExport} disabled={exportPending}>
           <Download aria-hidden="true" className="size-4" />
-          Export
+          {t("export")}
         </AppButton>
         <span className="flex items-center justify-center text-xs text-app-muted">
-          {vibe.hidden ? "Hidden" : "Visible"}
+          {vibe.hidden ? t("hidden") : t("visible")}
         </span>
       </div>
       {onEnsureEncoding ? (
         <AppButton variant="secondary" onClick={onEnsureEncoding} disabled={encodePending}>
           <Sparkles aria-hidden="true" className="size-4" />
-          Encode source
+          {t("encodeSource")}
         </AppButton>
       ) : null}
       <div className="grid gap-1 text-xs text-app-muted">
-        <span>{vibe.available_model_keys.length} models</span>
-        <span>{vibe.available_encoding_configs.length} encoding configs</span>
-        <span>{vibe.encodings.length} cached encodings</span>
+        <span>{t("modelCount", { count: vibe.available_model_keys.length })}</span>
+        <span>{t("encodingConfigCount", { count: vibe.available_encoding_configs.length })}</span>
+        <span>{t("cachedEncodingCount", { count: vibe.encodings.length })}</span>
         {vibe.hidden ? <span className="text-amber-200">{t("hidden")}</span> : null}
       </div>
     </article>
@@ -274,7 +280,7 @@ function VibeEditDialog({
             {error}
           </p>
         ) : null}
-        <TextInput label="Local display name" value={name} onChange={setName} />
+        <TextInput label={t("localDisplayName")} value={name} onChange={setName} />
         <label className="flex h-9 items-center gap-2 border border-app-border bg-black/20 px-3 text-sm text-app-text">
           <input
             aria-label={t("hidden")}
@@ -282,11 +288,11 @@ function VibeEditDialog({
             checked={hidden}
             onChange={(event) => setHidden(event.target.checked)}
           />
-          Hidden
+          {t("hidden")}
         </label>
         <AppButton onClick={() => onSave(name, hidden)} disabled={saving || !name.trim()}>
           <Save aria-hidden="true" className="size-4" />
-          Save changes
+          {t("saveChanges")}
         </AppButton>
       </div>
     </AppModal>

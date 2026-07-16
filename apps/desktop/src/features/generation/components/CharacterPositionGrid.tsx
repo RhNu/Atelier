@@ -95,9 +95,7 @@ export function CharacterPositionGrid({
           </button>
         ))}
       </div>
-      <p className="text-[11px] text-app-muted">
-        Select a character marker, then click a cell or use arrow keys. Home centers it.
-      </p>
+      <p className="text-[11px] text-app-muted">{t("characterPositionHint")}</p>
     </div>
   );
 }

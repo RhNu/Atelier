@@ -49,16 +49,17 @@ export function GenerationPromptCompileDialog({
 }
 
 function CompiledPromptSection({ title, prompt }: { title: string; prompt: CompiledPromptDto }) {
+  const { t } = useTranslation("generation");
   return (
     <section className="border border-app-border bg-black/20 p-3">
       <h3 className="text-xs font-bold text-app-muted uppercase">{title}</h3>
       <p className="mt-2 text-sm leading-6 whitespace-pre-wrap text-app-text">
-        {prompt.expanded_prompt || "Empty"}
+        {prompt.expanded_prompt || t("empty")}
       </p>
       {prompt.trace.function_calls.length ? (
         <details className="mt-3 border-t border-app-border pt-2">
           <summary className="cursor-pointer text-xs font-semibold text-brand-200">
-            {prompt.trace.function_calls.length} function calls
+            {t("functionCalls", { count: prompt.trace.function_calls.length })}
           </summary>
           <div className="mt-2 space-y-2">
             {prompt.trace.function_calls.map((entry, index) => (
@@ -68,7 +69,7 @@ function CompiledPromptSection({ title, prompt }: { title: string; prompt: Compi
               >
                 <p className="font-semibold text-app-text">{entry.raw_call}</p>
                 <p className="mt-1 text-app-muted">
-                  {entry.resolved_arguments.join("; ") || "No resolved arguments"}
+                  {entry.resolved_arguments.join("; ") || t("noResolvedArguments")}
                 </p>
                 {entry.result_text ? (
                   <p className="mt-1 text-app-text">{entry.result_text}</p>

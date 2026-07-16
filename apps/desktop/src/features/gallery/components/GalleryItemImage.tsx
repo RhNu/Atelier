@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { ResourceImage } from "@/components/ui";
 import type { GalleryItemDto, ResourceRefDto } from "@/types";
 
@@ -19,6 +21,7 @@ export function GalleryItemImage({
   className,
   blurSensitive,
 }: GalleryItemImageProps) {
+  const { t } = useTranslation("gallery");
   const imageQuery = useGalleryImageQuery(resource);
   const shouldBlur = blurSensitive && effectiveSafetyLabel(item) === "sensitive";
 
@@ -26,7 +29,7 @@ export function GalleryItemImage({
     <ResourceImage
       src={imageQuery.data ?? null}
       alt={alt}
-      fallbackLabel={imageQuery.isError ? "Image unavailable" : "Loading image"}
+      fallbackLabel={imageQuery.isError ? t("imageUnavailable") : t("loadingImage")}
       className={[className, shouldBlur ? "blur-md" : ""].join(" ")}
     />
   );

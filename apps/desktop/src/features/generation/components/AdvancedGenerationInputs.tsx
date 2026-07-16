@@ -51,12 +51,12 @@ export function AdvancedGenerationInputs({
   const [error, setError] = useState<string | null>(null);
   const characterPresetOptions = useMemo(
     () => [
-      { value: "", label: "No character preset" },
+      { value: "", label: t("noCharacterPreset") },
       ...characterPresets
         .filter((preset) => preset.enabled)
         .map((preset) => ({ value: preset.preset_id, label: preset.name })),
     ],
-    [characterPresets],
+    [characterPresets, t],
   );
   const updateI2i = useCallback(
     (patch: Partial<NonNullable<GenerationDraft["i2i"]>>) => {

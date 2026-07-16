@@ -17,21 +17,21 @@ type GenerationParamsPanelProps = {
 
 type SizePreset = {
   value: string;
-  group: "Normal" | "Large" | "Small";
-  label: string;
+  group: "normal" | "large" | "small";
+  shape: "portrait" | "landscape" | "square";
   width: number;
   height: number;
 };
 
 const SIZE_PRESETS: ReadonlyArray<SizePreset> = [
-  { value: "normal-portrait", group: "Normal", label: "Portrait", width: 832, height: 1216 },
-  { value: "normal-landscape", group: "Normal", label: "Landscape", width: 1216, height: 832 },
-  { value: "normal-square", group: "Normal", label: "Square", width: 1024, height: 1024 },
-  { value: "large-portrait", group: "Large", label: "Portrait", width: 1024, height: 1536 },
-  { value: "large-landscape", group: "Large", label: "Landscape", width: 1536, height: 1024 },
-  { value: "small-portrait", group: "Small", label: "Portrait", width: 512, height: 768 },
-  { value: "small-landscape", group: "Small", label: "Landscape", width: 768, height: 512 },
-  { value: "small-square", group: "Small", label: "Square", width: 640, height: 640 },
+  { value: "normal-portrait", group: "normal", shape: "portrait", width: 832, height: 1216 },
+  { value: "normal-landscape", group: "normal", shape: "landscape", width: 1216, height: 832 },
+  { value: "normal-square", group: "normal", shape: "square", width: 1024, height: 1024 },
+  { value: "large-portrait", group: "large", shape: "portrait", width: 1024, height: 1536 },
+  { value: "large-landscape", group: "large", shape: "landscape", width: 1536, height: 1024 },
+  { value: "small-portrait", group: "small", shape: "portrait", width: 512, height: 768 },
+  { value: "small-landscape", group: "small", shape: "landscape", width: 768, height: 512 },
+  { value: "small-square", group: "small", shape: "square", width: 640, height: 640 },
 ];
 
 export function GenerationParamsPanel({
@@ -77,16 +77,16 @@ export function GenerationParamsPanel({
           onChange={handlePresetChange}
           className="h-9 min-w-0 flex-1 border border-app-border bg-app-surface px-3 text-sm text-app-text outline-none focus:border-brand-400"
         >
-          {["Normal", "Large", "Small"].map((group) => (
-            <optgroup key={group} label={group}>
+          {(["normal", "large", "small"] as const).map((group) => (
+            <optgroup key={group} label={t(`sizeGroup.${group}`)}>
               {SIZE_PRESETS.filter((preset) => preset.group === group).map((preset) => (
                 <option key={preset.value} value={preset.value}>
-                  {preset.label} ({preset.width}×{preset.height})
+                  {t(`sizeShape.${preset.shape}`)} ({preset.width}×{preset.height})
                 </option>
               ))}
             </optgroup>
           ))}
-          <optgroup label="Custom">
+          <optgroup label={t("custom")}>
             <option value="custom">{t("custom")}</option>
           </optgroup>
         </select>
@@ -124,13 +124,13 @@ export function GenerationParamsPanel({
       </div>
 
       <CountSelector
-        label="Requests"
+        label={t("requests")}
         value={draft.requestCount}
         values={[1, 2, 3, 4, 5, 6, 7, 8]}
         onChange={(requestCount) => onPatch({ requestCount }, { persist: "immediate" })}
       />
       <CountSelector
-        label="Samples per request"
+        label={t("samplesPerRequest")}
         value={draft.nSamples}
         values={[1, 2, 3, 4]}
         onChange={(nSamples) => onPatch({ nSamples }, { persist: "immediate" })}
