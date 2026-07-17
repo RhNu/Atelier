@@ -23,12 +23,15 @@ export type AccountSettingsController = {
   keysError: string | null;
   busy: boolean;
   createDisabled: boolean;
+  createOpen: boolean;
   displayName: string;
   secret: string;
   editing: ApiKeyEditState | null;
   activeSummary: ReturnType<typeof useActiveAccountSummaryQuery>;
   setDisplayName: (value: string) => void;
   setSecret: (value: string) => void;
+  openCreate: () => void;
+  cancelCreate: () => void;
   setEditing: (editing: ApiKeyEditState) => void;
   cancelEdit: () => void;
   createKey: () => void;
@@ -48,6 +51,7 @@ export function useAccountSettingsController(): AccountSettingsController {
   const setActiveApiKeyMutation = useSetActiveApiKeyMutation();
   const [displayName, setDisplayName] = useState("");
   const [secret, setSecret] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ApiKeyEditState | null>(null);
   const keys = apiKeysQuery.data ?? emptyApiKeys;
   const busy =
@@ -76,6 +80,7 @@ export function useAccountSettingsController(): AccountSettingsController {
         onSuccess: () => {
           setDisplayName("");
           setSecret("");
+          setCreateOpen(false);
           pushToast({ level: "success", message: t("apiKeyAdded") });
         },
         onError: handleMutationError,
@@ -138,12 +143,19 @@ export function useAccountSettingsController(): AccountSettingsController {
     keysError: apiKeysQuery.isError ? formatError(apiKeysQuery.error) : null,
     busy,
     createDisabled: busy || displayName.trim() === "" || secret.trim() === "",
+    createOpen,
     displayName,
     secret,
     editing,
     activeSummary,
     setDisplayName,
     setSecret,
+    openCreate: () => setCreateOpen(true),
+    cancelCreate: () => {
+      setCreateOpen(false);
+      setDisplayName("");
+      setSecret("");
+    },
     setEditing,
     cancelEdit: () => setEditing(null),
     createKey,

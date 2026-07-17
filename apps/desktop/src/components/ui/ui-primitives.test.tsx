@@ -8,6 +8,7 @@ import { AppIconButton } from "./AppIconButton";
 import { AppModal } from "./AppModal";
 import { AppPanel } from "./AppPanel";
 import { AppRangeField } from "./AppRangeField";
+import { AppSelect } from "./AppSelect";
 import { AppTabs } from "./AppTabs";
 import { EmptyState } from "./EmptyState";
 import { SafetyBadge } from "./SafetyBadge";
@@ -15,6 +16,14 @@ import { SafetyBadge } from "./SafetyBadge";
 const tabItems = [
   { value: "generate", label: "Generate" },
   { value: "gallery", label: "Gallery" },
+] as const;
+const groupedSelectItems = [
+  {
+    type: "group" as const,
+    label: "Standard",
+    options: [{ value: "portrait", label: "Portrait (832×1216)" }],
+  },
+  { value: "custom", label: "Custom" },
 ] as const;
 
 describe("UI primitives", () => {
@@ -95,6 +104,28 @@ describe("UI primitives", () => {
     expect(onChange).toHaveBeenCalledWith(0.75);
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: "Remove" })).toHaveClass("size-8");
+  });
+
+  it("supports grouped selects, container sizing, and icon-only empty states", () => {
+    render(
+      <>
+        <AppSelect
+          aria-label="Size preset"
+          value="portrait"
+          containerClassName="!w-40"
+          options={groupedSelectItems}
+        />
+        <EmptyState title="Empty inbox" iconOnly />
+        <AppHelpMarker label="Hover help" content="Hover-only details" hoverOnly />
+      </>,
+    );
+
+    expect(screen.getByRole("group", { name: "Standard" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Size preset").parentElement).toHaveClass("!w-40");
+    expect(screen.getByRole("img", { name: "Empty inbox" })).toBeInTheDocument();
+    expect(screen.queryByText("Empty inbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hover help" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tooltip")).not.toHaveClass("group-focus-within:block");
   });
 
   it("centers modal dialogs in a viewport portal and closes them with Escape", () => {

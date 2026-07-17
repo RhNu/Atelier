@@ -57,7 +57,7 @@ export function ResourceList({
         ) : error ? (
           <EmptyState title={t("unavailable")} description={error} />
         ) : Children.count(children) === 0 ? (
-          <EmptyState title={emptyTitle} />
+          <EmptyState title={emptyTitle} iconOnly />
         ) : (
           <div className="grid gap-2">{children}</div>
         )}
@@ -101,13 +101,11 @@ export function ResourceListButton({
 
 export function EditorPanel({
   title,
-  subtitle,
   error,
   actions,
   children,
 }: {
   title: string;
-  subtitle: string;
   error: string | null;
   actions: ReactNode;
   children: ReactNode;
@@ -115,10 +113,7 @@ export function EditorPanel({
   return (
     <div className="grid gap-4">
       <header className="flex items-center justify-between gap-3 border-b border-app-border pb-3">
-        <div>
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
-          <p className="text-xs text-app-muted">{subtitle}</p>
-        </div>
+        <h2 className="text-sm font-semibold text-white">{title}</h2>
         {actions}
       </header>
       {error ? (

@@ -38,4 +38,12 @@ describe("frontend i18n", () => {
     expect(document.documentElement.lang).toBe("zh-CN");
     expect(i18n.t("shell:openWorkspace")).toBe("打开工作区");
   });
+
+  it("uses the agreed Simplified Chinese workflow terminology", () => {
+    expect(zhCN.shell.nav.director).toBe("导演工具");
+    expect(zhCN.generation.positive).toBe("提示词");
+    expect(zhCN.generation.undesiredContent).toBe("负面内容");
+    expect(zhCN.resources.promptChunks).toBe("提示词片段");
+    expect(zhCN.director.tool.colorize.label).toBe("上色");
+  });
 });

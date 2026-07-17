@@ -141,7 +141,6 @@ export function PresetWorkspace({
       >
         <EditorPanel
           title={mainPreset ? t("mainPreset") : t("characterPreset")}
-          subtitle={mainPreset ? t("mainPresetDescription") : t("characterPresetDescription")}
           error={errorMessage}
           actions={
             <EditorActions

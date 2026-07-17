@@ -135,16 +135,3 @@ export function parseTab(value: string): ResourceTab {
       return "chunks";
   }
 }
-
-export function tabSummary(tab: ResourceTab): string {
-  switch (tab) {
-    case "chunks":
-      return "Reusable $chunk(...) prompt fragments";
-    case "main-presets":
-      return "Global prompt presets and generation overrides";
-    case "character-presets":
-      return "Character prompt presets without generation overrides";
-    case "vibe":
-      return "NovelAI Vibe documents and encodings";
-  }
-}

@@ -11,8 +11,6 @@ import { parser } from "./nai-prompt-parser";
 const naiPromptParser = parser.configure({
   props: [
     styleTags({
-      "LBrace RBrace": tags.brace,
-      "LBracket RBracket": tags.squareBracket,
       String: tags.string,
       "Dollar Equals DoublePipe Pipe": tags.operator,
       Comma: tags.separator,
@@ -27,8 +25,6 @@ export const naiPromptLanguage = LRLanguage.define({
 });
 
 const promptHighlightStyle = HighlightStyle.define([
-  { tag: tags.brace, color: "var(--color-brand-300)", fontWeight: "700" },
-  { tag: tags.squareBracket, color: "#c4b5fd", fontWeight: "700" },
   { tag: tags.number, color: "#fbbf24" },
   { tag: tags.string, color: "#86efac" },
   { tag: tags.function(tags.variableName), color: "#67e8f9", fontWeight: "600" },

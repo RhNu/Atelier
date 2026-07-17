@@ -2,6 +2,7 @@
 import { render, screen } from "@testing-library/react";
 
 import {
+  DirectorInputPanel,
   DirectorPreviewPanel,
   DirectorRunPanel,
 } from "../features/director/components/DirectorPanels";
@@ -28,19 +29,37 @@ const result: DirectorToolResultDto = {
 };
 
 describe("Director panels", () => {
+  it("shows only an icon when no input is selected", () => {
+    render(
+      <DirectorInputPanel
+        input={null}
+        imageSrc={null}
+        loadingImage={false}
+        imageError={null}
+        pickPending={false}
+        onPick={() => undefined}
+        onPaste={() => undefined}
+        onClear={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "No director input" })).toBeInTheDocument();
+    expect(screen.queryByText("No director input")).not.toBeInTheDocument();
+    expect(screen.queryByText("Import or paste an image.")).not.toBeInTheDocument();
+  });
+
   it("shows a single Output comparison panel without a duplicate Original", () => {
     render(<DirectorPreviewPanel resultSrc={null} resultPending={false} resultError={null} />);
 
     expect(screen.getByRole("heading", { name: "Output" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Original" })).not.toBeInTheDocument();
+    expect(screen.getByText("No image").closest("section")).toHaveClass("h-full");
   });
 
-  it("moves account status into Controls and keeps safety settings collapsed", () => {
+  it("shows compact localized tools and only the refreshable Anlas balance", () => {
     render(
       <DirectorRunPanel
         tool="lineart"
-        toolDescription="Extract line art"
-        tier="Opus"
         anlas={1200}
         showsPrompt={false}
         promptRequired={false}
@@ -57,6 +76,7 @@ describe("Director panels", () => {
         onToolChange={() => undefined}
         onPromptChange={() => undefined}
         onDefryChange={() => undefined}
+        onRefresh={() => undefined}
         onRun={() => undefined}
         onSave={() => undefined}
         onSafetyChange={() => undefined}
@@ -64,9 +84,46 @@ describe("Director panels", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Controls" })).toBeInTheDocument();
-    expect(screen.getByText("Opus")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Controls" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Opus")).not.toBeInTheDocument();
     expect(screen.getByText("1200 Anlas")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh Anlas" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Lineart" })).toBeChecked();
+    expect(screen.getByText("Extract clean line art")).toBeInTheDocument();
     expect(screen.getByText("Advanced settings").closest("details")).not.toHaveAttribute("open");
+  });
+
+  it("uses the backend defry bounds for prompt-capable tools", () => {
+    render(
+      <DirectorRunPanel
+        tool="colorize"
+        anlas={1200}
+        showsPrompt
+        promptRequired={false}
+        prompt=""
+        defry={2}
+        canRun
+        runPending={false}
+        result={null}
+        safetyOverride=""
+        readinessPending={false}
+        readinessError={null}
+        savePending={false}
+        safetyPending={false}
+        onToolChange={() => undefined}
+        onPromptChange={() => undefined}
+        onDefryChange={() => undefined}
+        onRefresh={() => undefined}
+        onRun={() => undefined}
+        onSave={() => undefined}
+        onSafetyChange={() => undefined}
+        onApplySafety={() => undefined}
+      />,
+    );
+
+    const slider = screen.getByRole("slider", { name: "Defry" });
+    expect(slider).toHaveAttribute("min", "0");
+    expect(slider).toHaveAttribute("max", "5");
+    expect(slider).toHaveAttribute("step", "1");
   });
 });

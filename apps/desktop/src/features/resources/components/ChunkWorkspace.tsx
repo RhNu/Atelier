@@ -130,7 +130,6 @@ export function ChunkWorkspace({
       >
         <EditorPanel
           title={t("promptChunk")}
-          subtitle={t("chunkSubtitle")}
           error={errorMessage}
           actions={
             <EditorActions

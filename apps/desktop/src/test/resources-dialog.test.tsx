@@ -49,6 +49,7 @@ describe("Resources dialogs", () => {
     await user.click(screen.getByRole("button", { name: /lighting/ }));
     expect(screen.getByRole("dialog", { name: "Edit prompt chunk" })).toBeInTheDocument();
     expect(screen.getByLabelText("Content")).toHaveValue("cinematic lighting");
+    expect(screen.queryByText("Reusable $chunk(...) source")).not.toBeInTheDocument();
   });
 
   it("opens a blank creation dialog when the page requests New", () => {
@@ -58,17 +59,24 @@ describe("Resources dialogs", () => {
     expect(screen.getByRole("dialog", { name: "New prompt chunk" })).toBeInTheDocument();
     expect(screen.getByLabelText("Content")).toHaveValue("");
   });
+
+  it("uses an icon-only placeholder for an empty resource list", () => {
+    render(workspace(0, []));
+
+    expect(screen.getByRole("img", { name: "No prompt chunks" })).toBeInTheDocument();
+    expect(screen.queryByText("No prompt chunks")).not.toBeInTheDocument();
+  });
 });
 
 function renderWorkspace(newRequest: number) {
   return render(workspace(newRequest));
 }
 
-function workspace(newRequest: number) {
+function workspace(newRequest: number, chunks: ReadonlyArray<PromptChunkDto> = CHUNKS) {
   return (
     <QueryClientProvider client={createAtelierQueryClient()}>
       <ChunkWorkspace
-        chunks={CHUNKS}
+        chunks={chunks}
         pending={false}
         error={null}
         search=""

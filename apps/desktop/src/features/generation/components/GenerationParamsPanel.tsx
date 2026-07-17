@@ -77,14 +77,17 @@ export function GenerationParamsPanel({
           aria-label={t("sizePreset")}
           value={selectedPreset}
           onChange={handlePresetChange}
-          className="h-9 min-w-0 flex-1 px-3 pr-7 text-sm"
+          containerClassName="!w-40 shrink-0"
+          className="h-9 min-w-0 px-3 pr-7 text-sm"
           options={[
-            ...(["normal", "large", "small"] as const).flatMap((group) =>
-              SIZE_PRESETS.filter((preset) => preset.group === group).map((preset) => ({
+            ...(["normal", "large", "small"] as const).map((group) => ({
+              type: "group" as const,
+              label: t(`sizeGroup.${group}`),
+              options: SIZE_PRESETS.filter((preset) => preset.group === group).map((preset) => ({
                 value: preset.value,
-                label: `${t(`sizeGroup.${group}`)} · ${t(`sizeShape.${preset.shape}`)} (${preset.width}×${preset.height})`,
+                label: `${t(`sizeShape.${preset.shape}`)} (${preset.width}×${preset.height})`,
               })),
-            ),
+            })),
             { value: "custom", label: t("custom") },
           ]}
         />

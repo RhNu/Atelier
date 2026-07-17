@@ -1,6 +1,15 @@
 import type { Diagnostic } from "@codemirror/lint";
 
+import { buildPromptSemanticSpans, type PromptSemanticSpan } from "./prompt-semantics";
+import { tokenizePrompt, type PromptToken, type PromptTokenKind } from "./prompt-tokenizer";
+
+export { tokenizePrompt } from "./prompt-tokenizer";
+export type { PromptSemanticSpan, PromptWeightDirection } from "./prompt-semantics";
+export type { PromptToken } from "./prompt-tokenizer";
+
 export type NaiPromptProfile = "novelai_v3" | "novelai_v4" | "novelai_v45";
+export type PromptParse = { tokens: PromptToken[]; semanticSpans: PromptSemanticSpan[] };
+export type PromptAnalysis = PromptParse & { diagnostics: Diagnostic[] };
 
 export function promptProfileForModel(model: string): NaiPromptProfile {
   if (model.includes("4-5")) return "novelai_v45";
@@ -8,29 +17,13 @@ export function promptProfileForModel(model: string): NaiPromptProfile {
   return "novelai_v3";
 }
 
-type TokenKind =
-  | "whitespace"
-  | "number"
-  | "invalid_number"
-  | "identifier"
-  | "string"
-  | "unterminated_string"
-  | "escaped"
-  | "double_pipe"
-  | "double_colon"
-  | "symbol"
-  | "text";
-
-export type PromptToken = { kind: TokenKind; from: number; to: number; text: string };
-export type PromptAnalysis = { tokens: PromptToken[]; diagnostics: Diagnostic[] };
-
-const NUMBER = /^-?\d+(?:\.\d+)?/u;
-const INVALID_NUMBER = /^-?\d+(?:\.\d*){2,}/u;
-const IDENTIFIER = /^[\p{ID_Start}_][\p{ID_Continue}_-]*/u;
-const SPECIAL = /[{}[\](),|@$=:"\\\s]/u;
+export function parsePrompt(text: string): PromptParse {
+  const tokens = tokenizePrompt(text);
+  return { tokens, semanticSpans: buildPromptSemanticSpans(tokens) };
+}
 
 export function analyzePrompt(text: string, profile: NaiPromptProfile): PromptAnalysis {
-  const tokens = tokenizePrompt(text);
+  const { tokens, semanticSpans } = parsePrompt(text);
   const diagnostics: Diagnostic[] = [];
   const stack: Array<{ kind: "brace" | "bracket"; token: PromptToken }> = [];
   let extensionDepth = 0;
@@ -77,46 +70,13 @@ export function analyzePrompt(text: string, profile: NaiPromptProfile): PromptAn
       );
     }
     if (token.kind === "number" && tokens[index + 1]?.kind === "double_colon") {
-      const value = Number(token.text);
-      if (profile === "novelai_v3") {
-        diagnostics.push(
-          error(
-            token,
-            "unsupported_capability",
-            "Numeric emphasis is not supported by this model.",
-          ),
-        );
-      } else if (value < 0 && profile !== "novelai_v45") {
-        diagnostics.push(
-          error(
-            token,
-            "unsupported_capability",
-            "Negative numeric emphasis requires NAI Diffusion 4.5.",
-          ),
-        );
-      }
-      if (!findClosingDoubleColon(tokens, index + 2)) {
-        diagnostics.push(
-          warning(
-            token,
-            "unclosed_numeric_emphasis",
-            "Numeric emphasis remains active until the end of the prompt.",
-          ),
-        );
-      }
+      validateNumericWeight(tokens, index, token, profile, diagnostics);
     }
     if (token.kind === "unterminated_string") {
       diagnostics.push(error(token, "unterminated_string", "String literal is not closed."));
     }
     if (token.kind === "double_pipe" && previous?.kind !== "double_pipe") {
-      const close = findToken(tokens, index + 1, "double_pipe");
-      if (close < 0) {
-        diagnostics.push(warning(token, "unclosed_randomizer", "Prompt randomizer is not closed."));
-      } else if (hasEmptyRandomizerOption(tokens, index + 1, close)) {
-        diagnostics.push(
-          error(token, "empty_randomizer_option", "Prompt randomizer contains an empty option."),
-        );
-      }
+      validateRandomizer(tokens, index, token, diagnostics);
     }
     if (
       token.text === "|" &&
@@ -143,96 +103,63 @@ export function analyzePrompt(text: string, profile: NaiPromptProfile): PromptAn
   }
   if (extensionDepth > 0) {
     const at = [...tokens].reverse().find((token) => token.text === "$");
-    if (at)
+    if (at) {
       diagnostics.push(
         warning(at, "unclosed_function_call", "Extension function call is not closed."),
       );
+    }
   }
-  return { tokens, diagnostics };
+  return { tokens, semanticSpans, diagnostics };
 }
 
-export function tokenizePrompt(text: string): PromptToken[] {
-  const tokens: PromptToken[] = [];
-  let index = 0;
-  while (index < text.length) {
-    const from = index;
-    const char = text[index];
-    if (char === undefined) break;
-    if (/\s/u.test(char)) {
-      while (index < text.length && /\s/u.test(text[index] ?? "")) index += 1;
-      push(tokens, "whitespace", text, from, index);
-      continue;
-    }
-    if (text.startsWith("||", index) || text.startsWith("::", index)) {
-      index += 2;
-      push(
-        tokens,
-        text.slice(from, index) === "||" ? "double_pipe" : "double_colon",
-        text,
-        from,
-        index,
-      );
-      continue;
-    }
-    if (char === "\\" && index + 1 < text.length) {
-      index += 2;
-      push(tokens, "escaped", text, from, index);
-      continue;
-    }
-    if (char === '"') {
-      index += 1;
-      let closed = false;
-      while (index < text.length) {
-        if (text[index] === "\\") index += 2;
-        else if (text[index++] === '"') {
-          closed = true;
-          break;
-        } else index += 1;
-      }
-      push(
-        tokens,
-        closed ? "string" : "unterminated_string",
-        text,
-        from,
-        Math.min(index, text.length),
-      );
-      continue;
-    }
-    const slice = text.slice(index);
-    const invalid = INVALID_NUMBER.exec(slice)?.[0];
-    const numberCandidate = NUMBER.exec(slice)?.[0];
-    const number =
-      numberCandidate && /[\p{ID_Continue}_-]/u.test(slice[numberCandidate.length] ?? "")
-        ? undefined
-        : numberCandidate;
-    const identifier = IDENTIFIER.exec(slice)?.[0];
-    const matched = invalid ?? number ?? identifier;
-    if (matched) {
-      index += matched.length;
-      push(
-        tokens,
-        invalid ? "invalid_number" : number ? "number" : "identifier",
-        text,
-        from,
-        index,
-      );
-      continue;
-    }
-    if ("{}[](),|@$=:".includes(char)) {
-      index += 1;
-      push(tokens, "symbol", text, from, index);
-      continue;
-    }
-    index += 1;
-    while (index < text.length && !SPECIAL.test(text[index] ?? "")) index += 1;
-    push(tokens, "text", text, from, index);
+function validateNumericWeight(
+  tokens: PromptToken[],
+  index: number,
+  token: PromptToken,
+  profile: NaiPromptProfile,
+  diagnostics: Diagnostic[],
+) {
+  const value = Number(token.text);
+  if (profile === "novelai_v3") {
+    diagnostics.push(
+      error(token, "unsupported_capability", "Numeric emphasis is not supported by this model."),
+    );
+  } else if (value < 0 && profile !== "novelai_v45") {
+    diagnostics.push(
+      error(
+        token,
+        "unsupported_capability",
+        "Negative numeric emphasis requires NAI Diffusion 4.5.",
+      ),
+    );
   }
-  return tokens;
+  if (!findClosingDoubleColon(tokens, index + 2)) {
+    diagnostics.push(
+      warning(
+        token,
+        "unclosed_numeric_emphasis",
+        "Numeric emphasis remains active until the end of the prompt.",
+      ),
+    );
+  }
 }
 
-function push(tokens: PromptToken[], kind: TokenKind, text: string, from: number, to: number) {
-  tokens.push({ kind, from, to, text: text.slice(from, to) });
+function validateRandomizer(
+  tokens: PromptToken[],
+  index: number,
+  token: PromptToken,
+  diagnostics: Diagnostic[],
+) {
+  const close = findToken(tokens, index + 1, "double_pipe");
+  if (close < 0) {
+    diagnostics.push(warning(token, "unclosed_randomizer", "Prompt randomizer is not closed."));
+  } else if (hasEmptyRandomizerOption(tokens, index + 1, close)) {
+    diagnostics.push(
+      error(token, "empty_randomizer_option", "Prompt randomizer contains an empty option."),
+    );
+  }
 }
+
 function popMatching(
   stack: Array<{ kind: "brace" | "bracket"; token: PromptToken }>,
   kind: "brace" | "bracket",
@@ -242,12 +169,15 @@ function popMatching(
   stack.splice(found, 1);
   return true;
 }
-function findToken(tokens: PromptToken[], start: number, kind: TokenKind) {
+
+function findToken(tokens: PromptToken[], start: number, kind: PromptTokenKind) {
   return tokens.findIndex((token, index) => index >= start && token.kind === kind);
 }
+
 function findClosingDoubleColon(tokens: PromptToken[], start: number) {
   return findToken(tokens, start, "double_colon") >= 0;
 }
+
 function hasEmptyRandomizerOption(tokens: PromptToken[], start: number, end: number) {
   let hasContent = false;
   for (let index = start; index < end; index += 1) {
@@ -260,6 +190,7 @@ function hasEmptyRandomizerOption(tokens: PromptToken[], start: number, end: num
   }
   return !hasContent;
 }
+
 function error(token: PromptToken, code: string, message: string): Diagnostic {
   return {
     from: token.from,
@@ -269,6 +200,7 @@ function error(token: PromptToken, code: string, message: string): Diagnostic {
     source: code,
   };
 }
+
 function warning(token: PromptToken, code: string, message: string): Diagnostic {
   return {
     from: token.from,

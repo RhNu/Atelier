@@ -37,15 +37,6 @@ export function LoadingPanel({ label }: { label: string }) {
   );
 }
 
-export function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-app-border bg-app-surface p-3">
-      <dt className="text-xs text-app-muted uppercase">{label}</dt>
-      <dd className="mt-1 truncate font-semibold text-app-text">{value}</dd>
-    </div>
-  );
-}
-
 export function TextField({
   label,
   value,

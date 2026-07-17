@@ -1,5 +1,5 @@
 /* eslint-disable max-lines-per-function */
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import { desktopApi, resourceApi, uniqueImportedImageResources } from "@/platform/atelier";
 import type { DirectorToolDto, DirectorToolResultDto } from "@/types";
@@ -22,7 +22,6 @@ import { useDirectorReadinessQuery } from "./data/useDirectorReadinessQuery";
 import {
   buildDirectorRunRequest,
   clampDefry,
-  DIRECTOR_TOOLS,
   parseDirectorTool,
   parseSafetyOverride,
   type DirectorInput,
@@ -31,6 +30,7 @@ import { useDirectorHandoffStore } from "./state/director-handoff-store";
 
 export function DirectorPage() {
   const readinessQuery = useDirectorReadinessQuery();
+  const refetchReadiness = readinessQuery.refetch;
   const pickInputMutation = usePickDirectorImageMutation();
   const runToolMutation = useRunDirectorToolMutation();
   const releaseImagesMutation = useReleaseDirectorImagesMutation();
@@ -65,7 +65,6 @@ export function DirectorPage() {
   const resultImageQuery = useDirectorImageQuery(result?.resource ?? null);
   const sourceImageSrc = input?.kind === "inline" ? input.src : (sourceImageQuery.data ?? null);
   const resultImageSrc = resultImageQuery.data ?? null;
-  const selectedTool = DIRECTOR_TOOLS.find((item) => item.value === tool) ?? DIRECTOR_TOOLS[0];
   const showsPrompt = tool === "colorize" || tool === "emotion";
   const promptRequired = tool === "emotion";
   const canRun =
@@ -86,15 +85,6 @@ export function DirectorPage() {
   useEffect(() => {
     setSafetyOverride(result?.item.manual_safety_override ?? "");
   }, [result?.item.item_id, result?.item.manual_safety_override]);
-
-  const runSummary = useMemo(
-    () => ({
-      tier: readinessQuery.data?.tier_name ?? "Unknown",
-      anlas: readinessQuery.data?.anlas_balance ?? null,
-      tool: selectedTool.description,
-    }),
-    [readinessQuery.data?.anlas_balance, readinessQuery.data?.tier_name, selectedTool.description],
-  );
 
   const handlePickInput = useCallback(() => {
     setActionError(null);
@@ -152,9 +142,13 @@ export function DirectorPage() {
     setPrompt(event.target.value);
   }, []);
 
-  const handleDefryChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setDefry(clampDefry(Number(event.target.value)));
+  const handleDefryChange = useCallback((value: number) => {
+    setDefry(clampDefry(value));
   }, []);
+
+  const handleRefreshReadiness = useCallback(() => {
+    void refetchReadiness();
+  }, [refetchReadiness]);
 
   const handleRunTool = useCallback(() => {
     if (!input || !canRun) {
@@ -226,9 +220,7 @@ export function DirectorPage() {
 
         <DirectorRunPanel
           tool={tool}
-          toolDescription={runSummary.tool}
-          tier={runSummary.tier}
-          anlas={runSummary.anlas}
+          anlas={readinessQuery.data?.anlas_balance ?? null}
           showsPrompt={showsPrompt}
           promptRequired={promptRequired}
           prompt={prompt}
@@ -237,13 +229,14 @@ export function DirectorPage() {
           runPending={runToolMutation.isPending}
           result={result}
           safetyOverride={safetyOverride}
-          readinessPending={readinessQuery.isPending}
+          readinessPending={readinessQuery.isFetching}
           readinessError={readinessQuery.isError ? formatError(readinessQuery.error) : null}
           savePending={saveImageMutation.isPending}
           safetyPending={safetyMutation.isPending}
           onToolChange={handleToolChange}
           onPromptChange={handlePromptChange}
           onDefryChange={handleDefryChange}
+          onRefresh={handleRefreshReadiness}
           onRun={handleRunTool}
           onSave={handleSaveResult}
           onSafetyChange={handleSafetyChange}

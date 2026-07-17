@@ -2,32 +2,31 @@
 import {
   Brush,
   ChevronDown,
-  Clapperboard,
   Eraser,
   ImagePlus,
   Layers,
   Palette,
+  RotateCw,
   Save,
   ScanLine,
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useMemo, type ChangeEvent } from "react";
+import { useCallback, useMemo, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
   AppButton,
+  AppIconButton,
   AppPanel,
+  AppRangeField,
   AppSelect,
-  AppTabs,
   EmptyState,
   ResourceImage,
 } from "@/components/ui";
 import type { DirectorToolDto, DirectorToolResultDto } from "@/types";
 
 import { DIRECTOR_TOOLS, type DirectorInput } from "../director-model";
-
-const TOOL_TABS = DIRECTOR_TOOLS.map((tool) => ({ value: tool.value, label: tool.label }));
 export function DirectorInputPanel({
   input,
   imageSrc,
@@ -63,7 +62,7 @@ export function DirectorInputPanel({
             <ResourceImage src={imageSrc} alt={t("sourceImage")} className="h-full w-full" />
           </div>
         ) : (
-          <EmptyState title={t("noInput")} description={t("importImage")} />
+          <EmptyState title={t("noInput")} iconOnly />
         )}
         <div className="grid gap-2">
           {input ? <p className="truncate text-xs text-app-muted">{input.label}</p> : null}
@@ -122,7 +121,7 @@ function PreviewFrame({
 }) {
   const { t } = useTranslation("director");
   return (
-    <section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 p-3">
+    <section className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-2 p-3">
       <h2 className="text-xs font-semibold text-app-muted uppercase">{title}</h2>
       {pending ? (
         <EmptyState title={t("loadingResult")} />
@@ -137,8 +136,6 @@ function PreviewFrame({
 
 export function DirectorRunPanel({
   tool,
-  toolDescription,
-  tier,
   anlas,
   showsPrompt,
   promptRequired,
@@ -155,14 +152,13 @@ export function DirectorRunPanel({
   onToolChange,
   onPromptChange,
   onDefryChange,
+  onRefresh,
   onRun,
   onSave,
   onSafetyChange,
   onApplySafety,
 }: {
   tool: DirectorToolDto;
-  toolDescription: string;
-  tier: string;
   anlas: number | null;
   showsPrompt: boolean;
   promptRequired: boolean;
@@ -178,7 +174,8 @@ export function DirectorRunPanel({
   safetyPending: boolean;
   onToolChange: (value: string) => void;
   onPromptChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
-  onDefryChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onDefryChange: (value: number) => void;
+  onRefresh: () => void;
   onRun: () => void;
   onSave: () => void;
   onSafetyChange: (event: ChangeEvent<HTMLSelectElement>) => void;
@@ -187,49 +184,48 @@ export function DirectorRunPanel({
   const { t } = useTranslation("director");
   return (
     <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
-      <header className="border-b border-app-border px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-white">{t("controls")}</h2>
-          <div className="flex items-center gap-2 text-xs text-app-muted">
-            <Clapperboard aria-hidden="true" className="size-4" />
-            <span>{tier}</span>
-            {anlas === null ? null : <span>{anlas} Anlas</span>}
-          </div>
-        </div>
+      <header className="flex min-h-12 items-center justify-end gap-1 border-b border-app-border px-3 py-2">
+        <span className="text-xs font-semibold text-app-text tabular-nums">
+          {readinessPending && anlas === null ? "…" : anlas === null ? "—" : `${anlas} Anlas`}
+        </span>
+        <AppIconButton
+          icon={RotateCw}
+          label={t("refreshAnlas")}
+          size="sm"
+          disabled={readinessPending}
+          className={readinessPending ? "[&>svg]:animate-spin" : ""}
+          onClick={onRefresh}
+        />
       </header>
-      <div className="min-h-0 flex-1 overflow-auto p-3">
-        <div className="grid gap-4 text-sm text-app-text">
-          {readinessPending ? <p className="text-app-muted">{t("checkingAccount")}</p> : null}
-          {readinessError ? <p className="text-rose-100">{readinessError}</p> : null}
-          <AppTabs value={tool} tabs={TOOL_TABS} onChange={onToolChange} label={t("tools")} />
-          <p className="text-sm text-app-muted">{toolDescription}</p>
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto p-3">
+        <div className="grid min-w-0 gap-3 text-sm text-app-text">
+          {readinessError ? <p className="break-words text-rose-100">{readinessError}</p> : null}
+          <DirectorToolPicker tool={tool} onToolChange={onToolChange} />
+          <p className="min-h-5 text-xs leading-5 text-app-muted">
+            {t(`tool.${tool}.description`)}
+          </p>
           {showsPrompt ? (
-            <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
+            <label className="grid min-w-0 gap-2 text-xs font-semibold text-app-muted uppercase">
               {promptRequired ? t("promptRequired") : t("promptOptional")}
               <textarea
                 aria-label={t("prompt")}
                 value={prompt}
                 onChange={onPromptChange}
-                className="min-h-24 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
+                className="min-h-20 min-w-0 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
               />
             </label>
           ) : null}
           {showsPrompt ? (
-            <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
-              {t("defry")}
-              <input
-                aria-label={t("defry")}
-                type="number"
-                value={defry}
-                min={0}
-                max={5}
-                step={1}
-                onChange={onDefryChange}
-                className="h-9 border border-app-border bg-black/20 px-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
-              />
-            </label>
+            <AppRangeField
+              label={t("defry")}
+              value={defry}
+              min={0}
+              max={5}
+              step={1}
+              onChange={onDefryChange}
+            />
           ) : null}
-          <AppButton onClick={onRun} disabled={!canRun}>
+          <AppButton className="w-full min-w-0" onClick={onRun} disabled={!canRun}>
             {runIcon(tool)}
             {runPending ? t("runningTool") : t("runTool")}
           </AppButton>
@@ -247,6 +243,47 @@ export function DirectorRunPanel({
         </div>
       </div>
     </AppPanel>
+  );
+}
+
+function DirectorToolPicker({
+  tool,
+  onToolChange,
+}: {
+  tool: DirectorToolDto;
+  onToolChange: (value: string) => void;
+}) {
+  const { t } = useTranslation("director");
+  const handleToolChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => onToolChange(event.target.value),
+    [onToolChange],
+  );
+  return (
+    <div role="radiogroup" aria-label={t("tools")} className="grid min-w-0 grid-cols-2 gap-1.5">
+      {DIRECTOR_TOOLS.map((item) => (
+        <label
+          key={item.value}
+          className={[
+            "flex h-9 min-w-0 cursor-pointer items-center gap-2 border px-2 text-xs font-semibold transition-colors",
+            tool === item.value
+              ? "border-brand-400/70 bg-brand-500/15 text-white"
+              : "border-app-border bg-black/20 text-app-muted hover:bg-app-surface hover:text-app-text",
+          ].join(" ")}
+        >
+          <input
+            type="radio"
+            name="director-tool"
+            value={item.value}
+            checked={tool === item.value}
+            aria-label={t(`tool.${item.value}.label`)}
+            className="sr-only"
+            onChange={handleToolChange}
+          />
+          {runIcon(item.value)}
+          <span className="truncate">{t(`tool.${item.value}.label`)}</span>
+        </label>
+      ))}
+    </div>
   );
 }
 

@@ -2,7 +2,7 @@ import { Plus } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppTabs } from "@/components/ui";
+import { AppButton, AppHelpMarker, AppTabs } from "@/components/ui";
 import type { PromptChunkDto, PromptPresetDto, VibeDocumentEntryDto } from "@/types";
 
 import { ChunkWorkspace } from "./components/ChunkWorkspace";
@@ -14,11 +14,17 @@ import {
   usePromptPresetsQuery,
   useVibeDocumentsQuery,
 } from "./data/useResourcesData";
-import { formatError, parseTab, tabSummary, type ResourceTab } from "./resource-model";
+import { formatError, parseTab, type ResourceTab } from "./resource-model";
 
 const EMPTY_CHUNKS: ReadonlyArray<PromptChunkDto> = [];
 const EMPTY_PRESETS: ReadonlyArray<PromptPresetDto> = [];
 const EMPTY_VIBES: ReadonlyArray<VibeDocumentEntryDto> = [];
+const TAB_SUMMARY_KEYS = {
+  chunks: "chunks",
+  "main-presets": "mainPresets",
+  "character-presets": "characterPresets",
+  vibe: "vibe",
+} as const;
 
 export function ResourcesPage() {
   const { t } = useTranslation("resources");
@@ -59,7 +65,11 @@ export function ResourcesPage() {
         <div className="flex min-h-12 items-center justify-between gap-3 border-b border-app-border bg-app-panel px-3 py-2">
           <div className="flex min-w-0 items-center gap-3">
             <AppTabs value={tab} tabs={resourceTabs} onChange={handleTabChange} />
-            <span className="hidden text-xs text-app-muted xl:inline">{tabSummary(tab)}</span>
+            <AppHelpMarker
+              label={t("tabHelp")}
+              content={t(`tabSummary.${TAB_SUMMARY_KEYS[tab]}`)}
+              hoverOnly
+            />
           </div>
           <div className="flex items-center gap-2">
             <SearchField value={search} onChange={setSearch} />

@@ -206,9 +206,12 @@ describe("SettingsPage", () => {
     const { user } = setup();
 
     await screen.findByText("No API keys");
+    expect(screen.queryByLabelText("API key display name")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add API key" }));
+    expect(screen.getByRole("dialog", { name: "Add API key" })).toBeInTheDocument();
     await user.type(screen.getByLabelText("API key display name"), "Main key");
     await user.type(screen.getByLabelText("NovelAI API key secret"), "nai-secret-value");
-    await user.click(screen.getByRole("button", { name: "Add API key" }));
+    await user.click(screen.getByRole("button", { name: "Add" }));
 
     expect(mocks.accountApi.create).toHaveBeenCalledWith({
       id: "00000000-0000-4000-8000-000000000001",
@@ -217,6 +220,20 @@ describe("SettingsPage", () => {
     });
     expect(screen.queryByDisplayValue("nai-secret-value")).not.toBeInTheDocument();
     expect(screen.queryByText("nai-secret-value")).not.toBeInTheDocument();
+  });
+
+  it("discards an unfinished API key when the creation dialog is cancelled", async () => {
+    const { user } = setup();
+
+    await screen.findByText("No API keys");
+    await user.click(screen.getByRole("button", { name: "Add API key" }));
+    await user.type(screen.getByLabelText("API key display name"), "Discard me");
+    await user.type(screen.getByLabelText("NovelAI API key secret"), "temporary-secret");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("button", { name: "Add API key" }));
+
+    expect(screen.getByLabelText("API key display name")).toHaveValue("");
+    expect(screen.getByLabelText("NovelAI API key secret")).toHaveValue("");
   });
 
   it("lists API keys and supports activate, edit, and delete actions", async () => {
@@ -232,6 +249,8 @@ describe("SettingsPage", () => {
     expect(mocks.accountApi.setActive).toHaveBeenCalledWith({ id: "backup" });
 
     await user.click(screen.getByRole("button", { name: "Edit Backup" }));
+    expect(screen.getByRole("dialog", { name: "Edit Backup" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Replace API key secret")).toHaveValue("");
     await user.clear(screen.getByLabelText("Edit API key display name"));
     await user.type(screen.getByLabelText("Edit API key display name"), "Backup edited");
     await user.type(screen.getByLabelText("Replace API key secret"), "replacement-secret");
@@ -260,9 +279,10 @@ describe("SettingsPage", () => {
     const { user } = setup();
 
     await screen.findByText("No API keys");
+    await user.click(screen.getByRole("button", { name: "Add API key" }));
     await user.type(screen.getByLabelText("API key display name"), "Main key");
     await user.type(screen.getByLabelText("NovelAI API key secret"), "nai-secret-value");
-    await user.click(screen.getByRole("button", { name: "Add API key" }));
+    await user.click(screen.getByRole("button", { name: "Add" }));
 
     expect(await screen.findByText("Keyring unavailable")).toBeInTheDocument();
     expect(screen.queryByText("nai-secret-value")).not.toBeInTheDocument();

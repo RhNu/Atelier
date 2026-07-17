@@ -11,15 +11,13 @@ export type DirectorInput =
 
 export const DIRECTOR_TOOLS: ReadonlyArray<{
   value: DirectorToolDto;
-  label: string;
-  description: string;
 }> = [
-  { value: "lineart", label: "Lineart", description: "Extract clean line art" },
-  { value: "sketch", label: "Sketch", description: "Create a loose sketch pass" },
-  { value: "bg_removal", label: "Background", description: "Remove the background" },
-  { value: "declutter", label: "Declutter", description: "Clean visual noise" },
-  { value: "colorize", label: "Colorize", description: "Add color with an optional prompt" },
-  { value: "emotion", label: "Emotion", description: "Change expression from a prompt" },
+  { value: "lineart" },
+  { value: "sketch" },
+  { value: "bg_removal" },
+  { value: "declutter" },
+  { value: "colorize" },
+  { value: "emotion" },
 ];
 
 export function buildDirectorRunRequest(

@@ -129,7 +129,7 @@ export function VibeWorkspace({
         ) : error ? (
           <EmptyState title={t("vibeUnavailable")} description={error} />
         ) : filtered.length === 0 ? (
-          <EmptyState title={t("noVibes")} />
+          <EmptyState title={t("noVibes")} iconOnly />
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
             {filtered.map((vibe) => (

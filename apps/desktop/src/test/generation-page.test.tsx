@@ -647,6 +647,9 @@ describe("GeneratePage", () => {
     expect(await screen.findByDisplayValue("832")).toBeInTheDocument();
     expect(screen.getByDisplayValue("1216")).toBeInTheDocument();
     expect(screen.getByLabelText("Model")).toHaveValue("nai-diffusion-4-5-full");
+    expect(screen.getByRole("group", { name: "Normal" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Portrait (832×1216)" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Size preset").parentElement).toHaveClass("!w-40", "shrink-0");
     expect(screen.getByTestId("generation-settings-sidebar")).toHaveStyle({ width: "360px" });
     await user.click(screen.getByRole("button", { name: /Steps 23/u }));
     expect(screen.getByLabelText("Steps")).toHaveValue("23");

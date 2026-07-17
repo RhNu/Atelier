@@ -1,11 +1,9 @@
-import { Check, PencilLine, Power, Trash2, X } from "lucide-react";
+import { PencilLine, Power, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton } from "@/components/ui";
 import type { ApiKeyRecordDto } from "@/types";
-
-import { TextField } from "./SettingsControls";
 
 export type ApiKeyEditState = {
   id: string;
@@ -15,26 +13,17 @@ export type ApiKeyEditState = {
 
 export function ApiKeyRow({
   item,
-  editing,
   busy,
   onEdit,
-  onCancelEdit,
-  onEditChange,
-  onSaveEdit,
   onSetActive,
   onDelete,
 }: {
   item: ApiKeyRecordDto;
-  editing: ApiKeyEditState | null;
   busy: boolean;
   onEdit: (editing: ApiKeyEditState) => void;
-  onCancelEdit: () => void;
-  onEditChange: (editing: ApiKeyEditState) => void;
-  onSaveEdit: () => void;
   onSetActive: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const isEditing = editing?.id === item.id;
   const startEdit = useCallback(() => {
     onEdit({ id: item.id, displayName: item.display_name, secret: "" });
   }, [item.display_name, item.id, onEdit]);
@@ -57,15 +46,6 @@ export function ApiKeyRow({
           onDelete={deleteKey}
         />
       </div>
-      {isEditing && editing ? (
-        <ApiKeyEditForm
-          editing={editing}
-          busy={busy}
-          onEditChange={onEditChange}
-          onSaveEdit={onSaveEdit}
-          onCancelEdit={onCancelEdit}
-        />
-      ) : null}
     </article>
   );
 }
@@ -136,62 +116,6 @@ function ApiKeyActions({
         <Trash2 aria-hidden="true" className="size-3.5" />
         {translateCommon("delete")}
       </AppButton>
-    </div>
-  );
-}
-
-function ApiKeyEditForm({
-  editing,
-  busy,
-  onEditChange,
-  onSaveEdit,
-  onCancelEdit,
-}: {
-  editing: ApiKeyEditState;
-  busy: boolean;
-  onEditChange: (editing: ApiKeyEditState) => void;
-  onSaveEdit: () => void;
-  onCancelEdit: () => void;
-}) {
-  const { t } = useTranslation("settings");
-  const { t: translateCommon } = useTranslation("common");
-  const updateDisplayName = useCallback(
-    (displayName: string) => {
-      onEditChange({ ...editing, displayName });
-    },
-    [editing, onEditChange],
-  );
-  const updateSecret = useCallback(
-    (secret: string) => {
-      onEditChange({ ...editing, secret });
-    },
-    [editing, onEditChange],
-  );
-
-  return (
-    <div className="mt-3 grid gap-2 border-t border-app-border pt-3 md:grid-cols-[1fr_1.3fr_auto]">
-      <TextField
-        label={t("editApiKeyName")}
-        value={editing.displayName}
-        onChange={updateDisplayName}
-      />
-      <TextField
-        label={t("replaceApiKeySecret")}
-        value={editing.secret}
-        onChange={updateSecret}
-        type="password"
-        autoComplete="new-password"
-      />
-      <div className="flex items-end gap-2">
-        <AppButton disabled={busy} aria-label={t("saveApiKeyChanges")} onClick={onSaveEdit}>
-          <Check aria-hidden="true" className="size-4" />
-          {translateCommon("save")}
-        </AppButton>
-        <AppButton variant="ghost" disabled={busy} onClick={onCancelEdit}>
-          <X aria-hidden="true" className="size-4" />
-          {translateCommon("cancel")}
-        </AppButton>
-      </div>
     </div>
   );
 }
