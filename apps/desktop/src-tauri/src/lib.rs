@@ -121,6 +121,12 @@ fn handle_run_event(
     let RunEvent::ExitRequested { api, .. } = event else {
         return;
     };
-    api.prevent_exit();
-    shutdown.request(app_handle);
+    match shutdown.on_exit_requested() {
+        shutdown::ExitRequestAction::BeginShutdown => {
+            api.prevent_exit();
+            shutdown.begin(app_handle);
+        }
+        shutdown::ExitRequestAction::WaitForShutdown => api.prevent_exit(),
+        shutdown::ExitRequestAction::AllowExit => {}
+    }
 }
