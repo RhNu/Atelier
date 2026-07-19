@@ -253,13 +253,20 @@ pub fn build_desktop_state(
     });
     let system = Arc::new(DesktopSystem::new(resolve_desktop_paths(&app_handle)?));
     let safety_scanner = match system.resolve_safety_assets() {
-        Ok(assets) => match atelier_adapter_safety_onnx::build_safety_scanner(assets) {
-            Ok(scanner) => scanner,
-            Err(error) => {
-                log::warn!("safety scanner is unavailable: {error}");
-                None
+        Ok(Some(assets)) => {
+            let runtime =
+                atelier_adapter_safety_onnx::initialize_ort_runtime(&assets.runtime_library_path);
+            match runtime.and_then(|runtime| {
+                atelier_adapter_safety_onnx::build_safety_scanner(&assets, runtime)
+            }) {
+                Ok(scanner) => Some(scanner),
+                Err(error) => {
+                    log::warn!("safety scanner is unavailable: {error}");
+                    None
+                }
             }
-        },
+        }
+        Ok(None) => None,
         Err(error) => {
             log::warn!("safety assets are unavailable: {error}");
             None

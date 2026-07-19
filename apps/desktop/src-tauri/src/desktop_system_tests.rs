@@ -19,10 +19,7 @@ fn safety_assets_prefer_environment_paths() {
     let assets = system.resolve_safety_assets().unwrap().unwrap();
 
     assert_eq!(assets.model_path, model);
-    assert_eq!(
-        assets.runtime_library_path.as_deref(),
-        Some(runtime.as_path())
-    );
+    assert_eq!(assets.runtime_library_path, runtime);
 }
 
 #[test]
@@ -41,10 +38,7 @@ fn safety_assets_fall_back_to_bundled_resource_paths() {
     let assets = system.resolve_safety_assets().unwrap().unwrap();
 
     assert_eq!(assets.model_path, model);
-    assert_eq!(
-        assets.runtime_library_path.as_deref(),
-        Some(runtime.as_path())
-    );
+    assert_eq!(assets.runtime_library_path, runtime);
 }
 
 #[test]

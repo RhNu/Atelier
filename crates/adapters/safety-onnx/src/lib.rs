@@ -1,5 +1,5 @@
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use async_trait::async_trait;
 use atelier_safety::{
@@ -18,56 +18,105 @@ const BGR_MEAN: [f32; 3] = [104.0, 117.0, 123.0];
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NsfwRuntimeAssets {
     pub model_path: PathBuf,
-    pub runtime_library_path: Option<PathBuf>,
+    pub runtime_library_path: PathBuf,
 }
 
-/// Builds a scanner from host-provided ONNX assets.
+#[derive(Debug)]
+pub struct OrtRuntime {
+    library_path: PathBuf,
+}
+
+static ORT_RUNTIME: OnceLock<OrtRuntime> = OnceLock::new();
+static ORT_RUNTIME_INIT: Mutex<()> = Mutex::new(());
+
+/// Initializes the process-global ONNX Runtime from a host-selected library.
+///
+/// Repeated initialization with the same canonical path is idempotent. A
+/// different path is rejected because `ort` cannot replace a committed runtime
+/// in the same process.
 ///
 /// # Errors
-/// Returns an error when a configured model or runtime path is missing, or when
-/// ONNX Runtime cannot load the model.
-pub fn build_safety_scanner(
-    assets: Option<NsfwRuntimeAssets>,
-) -> SafetyResult<Option<Arc<dyn SafetyScanner>>> {
-    let Some(assets) = assets else {
-        return Ok(None);
-    };
-    OrtNsfwScanner::load(assets).map(|scanner| Some(Arc::new(scanner) as Arc<dyn SafetyScanner>))
+/// Returns an error when the library is missing, cannot be loaded, conflicts
+/// with the committed runtime, or another caller configured `ort` first.
+pub fn initialize_ort_runtime(
+    runtime_library_path: impl AsRef<Path>,
+) -> SafetyResult<&'static OrtRuntime> {
+    let requested_path = canonicalize_runtime_library(runtime_library_path.as_ref())?;
+    let _init_guard = ORT_RUNTIME_INIT
+        .lock()
+        .map_err(|_| SafetyError::scanner("ONNX Runtime initialization lock is unavailable"))?;
+
+    if let Some(runtime) = ORT_RUNTIME.get() {
+        return runtime.for_path(&requested_path);
+    }
+
+    let committed = ort::init_from(&requested_path)
+        .map_err(ort_error_to_safety)?
+        .commit();
+    if !committed {
+        return Err(SafetyError::scanner(
+            "ONNX Runtime was configured before the desktop host initialized it",
+        ));
+    }
+
+    ORT_RUNTIME
+        .set(OrtRuntime {
+            library_path: requested_path,
+        })
+        .map_err(|_| SafetyError::scanner("ONNX Runtime initialization raced unexpectedly"))?;
+    ORT_RUNTIME
+        .get()
+        .ok_or_else(|| SafetyError::scanner("ONNX Runtime initialization did not persist"))
 }
 
-pub struct OrtNsfwScanner {
+impl OrtRuntime {
+    fn for_path(&'static self, requested_path: &Path) -> SafetyResult<&'static Self> {
+        if self.library_path == requested_path {
+            return Ok(self);
+        }
+        Err(SafetyError::scanner(format!(
+            "ONNX Runtime is already initialized from {}; cannot switch to {}",
+            self.library_path.display(),
+            requested_path.display()
+        )))
+    }
+}
+
+/// Builds a scanner from host-provided ONNX assets and an initialized runtime.
+///
+/// # Errors
+/// Returns an error when the asset runtime does not match the initialized
+/// runtime, or when ONNX Runtime cannot load the model.
+pub fn build_safety_scanner(
+    assets: &NsfwRuntimeAssets,
+    runtime: &'static OrtRuntime,
+) -> SafetyResult<Arc<dyn SafetyScanner>> {
+    let asset_runtime_path = canonicalize_runtime_library(&assets.runtime_library_path)?;
+    runtime.for_path(&asset_runtime_path)?;
+    OrtNsfwScanner::load(&assets.model_path)
+        .map(|scanner| Arc::new(scanner) as Arc<dyn SafetyScanner>)
+}
+
+struct OrtNsfwScanner {
     session: Mutex<Session>,
 }
 
 impl OrtNsfwScanner {
-    /// Loads the `OpenNSFW` ONNX model using a host-provided ONNX Runtime library.
+    /// Loads the `OpenNSFW` model after the host has initialized ONNX Runtime.
     ///
     /// # Errors
-    /// Returns an error when paths are missing or ONNX Runtime initialization
-    /// fails.
-    pub fn load(assets: NsfwRuntimeAssets) -> SafetyResult<Self> {
-        if !assets.model_path.exists() {
+    /// Returns an error when the model is missing or ONNX Runtime cannot create
+    /// a session from it.
+    fn load(model_path: &Path) -> SafetyResult<Self> {
+        if !model_path.exists() {
             return Err(SafetyError::scanner(format!(
                 "NSFW model file missing: {}",
-                assets.model_path.display()
+                model_path.display()
             )));
         }
-        let runtime_library_path = assets.runtime_library_path.ok_or_else(|| {
-            SafetyError::scanner("ONNX Runtime library missing for NSFW detector")
-        })?;
-        if !runtime_library_path.exists() {
-            return Err(SafetyError::scanner(format!(
-                "ONNX Runtime library missing: {}",
-                runtime_library_path.display()
-            )));
-        }
-
-        let _ = ort::init_from(&runtime_library_path)
-            .map_err(ort_error_to_safety)?
-            .commit();
         let session = Session::builder()
             .map_err(ort_error_to_safety)?
-            .commit_from_file(&assets.model_path)
+            .commit_from_file(model_path)
             .map_err(ort_error_to_safety)?;
         Ok(Self {
             session: Mutex::new(session),
@@ -170,23 +219,39 @@ fn ort_error_to_safety(error: impl std::fmt::Display) -> SafetyError {
     SafetyError::scanner(format!("ONNX Runtime error: {error}"))
 }
 
+fn canonicalize_runtime_library(path: &Path) -> SafetyResult<PathBuf> {
+    if !path.is_file() {
+        return Err(SafetyError::scanner(format!(
+            "ONNX Runtime library missing: {}",
+            path.display()
+        )));
+    }
+    path.canonicalize().map_err(|error| {
+        SafetyError::scanner(format!(
+            "failed to resolve ONNX Runtime library {}: {error}",
+            path.display()
+        ))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use atelier_resource_catalog::{ResourceId, ResourceRef};
 
     #[test]
-    fn build_scanner_returns_none_without_assets() {
-        assert!(build_safety_scanner(None).unwrap().is_none());
+    fn missing_runtime_library_returns_scanner_error() {
+        let temp = tempfile::tempdir().unwrap();
+        let error = initialize_ort_runtime(temp.path().join(runtime_library_file_name()))
+            .expect_err("missing runtime should not initialize");
+
+        assert_eq!(error.kind(), atelier_safety::SafetyErrorKind::Scanner);
     }
 
     #[test]
     fn missing_model_file_returns_scanner_error() {
         let temp = tempfile::tempdir().unwrap();
-        let Err(error) = OrtNsfwScanner::load(NsfwRuntimeAssets {
-            model_path: temp.path().join("missing.onnx"),
-            runtime_library_path: Some(temp.path().join(runtime_library_file_name())),
-        }) else {
+        let Err(error) = OrtNsfwScanner::load(&temp.path().join("missing.onnx")) else {
             panic!("missing model should not load");
         };
 
@@ -244,11 +309,39 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "loads the native ONNX Runtime; run in the dedicated safety smoke job"]
     fn bundled_onnx_smoke_test() {
         let Some(assets) = smoke_test_assets() else {
             return;
         };
-        let scanner = OrtNsfwScanner::load(assets).unwrap();
+        let runtimes = std::thread::scope(|scope| {
+            let mut handles = Vec::new();
+            for _ in 0..8 {
+                let runtime_library_path = &assets.runtime_library_path;
+                handles.push(
+                    scope.spawn(move || initialize_ort_runtime(runtime_library_path).unwrap()),
+                );
+            }
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        let runtime = runtimes[0];
+        assert!(
+            runtimes
+                .iter()
+                .all(|candidate| std::ptr::eq(*candidate, runtime))
+        );
+
+        let alternate_dir = tempfile::tempdir().unwrap();
+        let alternate_runtime = alternate_dir.path().join(runtime_library_file_name());
+        std::fs::copy(&assets.runtime_library_path, &alternate_runtime).unwrap();
+        let conflict = initialize_ort_runtime(&alternate_runtime)
+            .expect_err("a different runtime path must not replace the committed runtime");
+        assert!(conflict.to_string().contains("already initialized"));
+
+        let scanner = build_safety_scanner(&assets, runtime).unwrap();
         let assessment = futures_executor::block_on(scanner.scan_image(SafetyScanInput {
             resource: ResourceRef::base(ResourceId::new("resource:smoke")),
             bytes: sample_png(),
@@ -268,7 +361,7 @@ mod tests {
                 .expect("ATELIER_ONNX_RUNTIME must point to the ONNX Runtime library");
             return Some(NsfwRuntimeAssets {
                 model_path,
-                runtime_library_path: Some(runtime_library_path),
+                runtime_library_path,
             });
         }
 
@@ -281,7 +374,7 @@ mod tests {
             if model_path.exists() && runtime_library_path.exists() {
                 return Some(NsfwRuntimeAssets {
                     model_path,
-                    runtime_library_path: Some(runtime_library_path),
+                    runtime_library_path,
                 });
             }
         }

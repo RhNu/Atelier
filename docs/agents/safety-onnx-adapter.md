@@ -17,9 +17,14 @@
 - The Windows x64 desktop bundle includes the model and ONNX Runtime under
   `apps/desktop/src-tauri/resources/safety`; other desktop targets remain optional until their
   platform runtime is added.
-- The adapter returns `None` when no runtime assets are configured.
+- The desktop host initializes the process-global ONNX Runtime exactly once before constructing a
+  scanner. Reusing the same canonical runtime path is idempotent; attempting to switch paths is an
+  error.
+- The desktop host leaves the scanner unset when no runtime assets are configured.
 - Safety scanning receives resource bytes from app/kernel ports, not direct filesystem paths.
 - Scan output preserves raw `safe` and `nsfw` model scores when present, with `nsfw` used as the canonical risk score.
+- The native inference smoke test is ignored by the default workspace suite and runs as a dedicated
+  process so ONNX Runtime lifecycle failures cannot make unrelated unit tests nondeterministic.
 
 ## Source Record
 

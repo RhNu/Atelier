@@ -84,7 +84,7 @@ impl DesktopSystem {
             require_file(&runtime_library_path, "ONNX Runtime library")?;
             return Ok(Some(NsfwRuntimeAssets {
                 model_path,
-                runtime_library_path: Some(runtime_library_path),
+                runtime_library_path,
             }));
         }
 
@@ -97,7 +97,7 @@ impl DesktopSystem {
         if model_path.exists() && runtime_library_path.exists() {
             return Ok(Some(NsfwRuntimeAssets {
                 model_path,
-                runtime_library_path: Some(runtime_library_path),
+                runtime_library_path,
             }));
         }
         Ok(None)
