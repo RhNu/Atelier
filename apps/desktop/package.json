@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "prompt-parser:generate": "lezer-generator --typeScript --output src/features/prompt-editor/nai-prompt-parser.ts src/features/prompt-editor/nai-prompt.grammar && oxfmt src/features/prompt-editor/nai-prompt-parser.ts src/features/prompt-editor/nai-prompt-parser.terms.ts",
+    "prompt-parser:check": "node scripts/check-prompt-parser.mjs",
     "fmt": "oxfmt .",
     "fmt:check": "oxfmt --check .",
     "lint": "oxlint -c .oxlintrc.json --type-aware --report-unused-disable-directives",
     "lint:base": "oxlint -c .oxlintrc.json --report-unused-disable-directives",
-    "test": "vitest run",
+    "test": "pnpm prompt-parser:check && vitest run",
     "typecheck": "tsc -b",
     "preview": "vite preview"
   },

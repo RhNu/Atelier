@@ -7,7 +7,7 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 
-import { parsePrompt, type PromptSemanticSpan } from "./prompt-analysis";
+import { promptAnalysisForState, type PromptSemanticSpan } from "./prompt-analysis";
 
 const markCache = new Map<string, Decoration>();
 
@@ -16,21 +16,21 @@ export const naiSemanticHighlighting = ViewPlugin.fromClass(
     decorations: DecorationSet;
 
     constructor(view: EditorView) {
-      this.decorations = buildDecorations(view.state.doc.toString());
+      this.decorations = buildDecorations(view);
     }
 
     update(update: ViewUpdate) {
       if (!update.docChanged) return;
-      this.decorations = buildDecorations(update.state.doc.toString());
+      this.decorations = buildDecorations(update.view);
     }
   },
   { decorations: (value) => value.decorations },
 );
 
-function buildDecorations(text: string): DecorationSet {
+function buildDecorations(view: EditorView): DecorationSet {
   try {
     const builder = new RangeSetBuilder<Decoration>();
-    for (const span of parsePrompt(text).semanticSpans) {
+    for (const span of promptAnalysisForState(view.state).semanticSpans) {
       builder.add(span.from, span.to, markFor(classesForSpan(span)));
     }
     return builder.finish();

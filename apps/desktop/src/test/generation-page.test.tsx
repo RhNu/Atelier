@@ -1,4 +1,5 @@
 /* eslint-disable max-lines, max-lines-per-function */
+import { currentCompletions } from "@codemirror/autocomplete";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -64,6 +65,16 @@ import type {
   VibeDocumentPageDto,
   WorkspaceSettingsDto,
 } from "../types";
+import {
+  acceptPromptCompletion,
+  clearPromptEditor,
+  closePromptCompletion,
+  promptEditorText,
+  promptEditorView,
+  startPromptCompletion,
+  typeInPromptEditor,
+  undoPromptEditor,
+} from "./prompt-editor-test-utils";
 
 const mocks = vi.hoisted(() => ({
   generationApi: {
@@ -720,11 +731,11 @@ describe("GeneratePage", () => {
   });
 
   it("hydrates a persisted workspace draft and auto-saves the latest prompt", async () => {
-    const { user } = setup({ storedDraft: storedDraft() });
+    setup({ storedDraft: storedDraft() });
 
     const prompt = await screen.findByLabelText("Positive prompt");
-    expect(prompt).toHaveValue("restored prompt");
-    await user.type(prompt, ", detailed eyes");
+    expect(promptEditorText(prompt)).toBe("restored prompt");
+    typeInPromptEditor(prompt, ", detailed eyes");
 
     await waitFor(() => expect(mocks.generationApi.saveDraft).toHaveBeenCalled(), {
       timeout: 2_000,
@@ -733,13 +744,27 @@ describe("GeneratePage", () => {
     expect(savedRequest?.draft.prompt).toBe("restored prompt, detailed eyes");
   });
 
+  it("isolates undo history between positive and undesired prompts", async () => {
+    const { user } = setup();
+    typeInPromptEditor(await screen.findByLabelText("Positive prompt"), "positive edit");
+
+    await user.click(screen.getByRole("tab", { name: "Undesired Content" }));
+    const negative = screen.getByLabelText("Undesired Content");
+    typeInPromptEditor(negative, "negative edit");
+    expect(undoPromptEditor(negative)).toBe(true);
+    expect(promptEditorText(negative)).toBe("");
+
+    await user.click(screen.getByRole("tab", { name: "Positive" }));
+    expect(promptEditorText(screen.getByLabelText("Positive prompt"))).toBe("positive edit");
+  });
+
   it("surfaces non-blocking draft save failures and retries the latest draft", async () => {
     const { user } = setup({ storedDraft: storedDraft() });
     mocks.generationApi.saveDraft
       .mockRejectedValueOnce(new Error("draft database busy"))
       .mockImplementation(async (request) => request.draft);
 
-    await user.type(await screen.findByLabelText("Positive prompt"), ", retry me");
+    typeInPromptEditor(await screen.findByLabelText("Positive prompt"), ", retry me");
     expect(await screen.findByText("draft database busy")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Retry save" }));
 
@@ -751,9 +776,9 @@ describe("GeneratePage", () => {
   it("submits batch stream generation work from the current draft", async () => {
     const { user } = setup();
 
-    await user.type(await screen.findByLabelText("Positive prompt"), "1girl, atelier lighting");
+    typeInPromptEditor(await screen.findByLabelText("Positive prompt"), "1girl, atelier lighting");
     await user.click(screen.getByRole("tab", { name: "Undesired Content" }));
-    await user.type(screen.getByLabelText("Undesired Content"), "low quality");
+    typeInPromptEditor(screen.getByLabelText("Undesired Content"), "low quality");
     await user.click(screen.getByRole("button", { name: /Steps 23/u }));
     fireEvent.change(screen.getByLabelText("Steps"), { target: { value: "28" } });
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
@@ -795,7 +820,7 @@ describe("GeneratePage", () => {
     const { user } = setup();
     mocks.generationApi.submitBatch.mockReturnValue(new Promise(() => {}));
 
-    await user.type(await screen.findByLabelText("Positive prompt"), "1girl");
+    typeInPromptEditor(await screen.findByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     const pendingButton = await screen.findByRole("button", { name: /^Queueing generation/u });
@@ -813,11 +838,11 @@ describe("GeneratePage", () => {
     expect(mocks.generationApi.submitBatch).not.toHaveBeenCalled();
     expect(screen.getByText("Positive prompt is required.")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     expect(await screen.findByText("NovelAI key missing")).toBeInTheDocument();
-    expect(screen.getByLabelText("Positive prompt")).toHaveValue("1girl");
+    expect(promptEditorText(screen.getByLabelText("Positive prompt"))).toBe("1girl");
   });
 
   it("allows main preset only generation without rewriting draft prompt", async () => {
@@ -863,7 +888,7 @@ describe("GeneratePage", () => {
         },
       },
     });
-    expect(screen.getByLabelText("Positive prompt")).toHaveValue("");
+    expect(promptEditorText(screen.getByLabelText("Positive prompt"))).toBe("");
   });
 
   it("imports an image resource into i2i before submit", async () => {
@@ -873,7 +898,7 @@ describe("GeneratePage", () => {
     ]);
 
     await user.click(await screen.findByRole("button", { name: "Add I2I source" }));
-    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
@@ -934,7 +959,7 @@ describe("GeneratePage", () => {
     expect(screen.queryByRole("button", { name: "Add Vibe from image" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Precise reference help" })).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
@@ -993,7 +1018,7 @@ describe("GeneratePage", () => {
       "data:image/png;base64,final-image",
     );
     await user.click(within(dialog).getByRole("button", { name: /Style A/u }));
-    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
@@ -1030,7 +1055,7 @@ describe("GeneratePage", () => {
 
     await user.click(await screen.findByRole("button", { name: "Add Vibe from image" }));
     await waitFor(() => expect(mocks.vibeApi.ensureEncoding).toHaveBeenCalledTimes(1));
-    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
@@ -1243,9 +1268,9 @@ describe("GeneratePage queue and preview behavior", () => {
   it("compiles positive and negative prompt previews", async () => {
     const { user } = setup();
 
-    await user.type(await screen.findByLabelText("Positive prompt"), "$chunk(hero)");
+    typeInPromptEditor(await screen.findByLabelText("Positive prompt"), "$chunk(hero)");
     await user.click(screen.getByRole("tab", { name: "Undesired Content" }));
-    await user.type(screen.getByLabelText("Undesired Content"), "bad anatomy");
+    typeInPromptEditor(screen.getByLabelText("Undesired Content"), "bad anatomy");
     await user.click(screen.getByRole("button", { name: "Compile" }));
 
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
@@ -1263,7 +1288,7 @@ describe("GeneratePage queue and preview behavior", () => {
   it("inserts a tag completion into the positive prompt before submit", async () => {
     const { user } = setup();
 
-    await user.type(await screen.findByLabelText("Positive prompt"), "cine");
+    typeInPromptEditor(await screen.findByLabelText("Positive prompt"), "cine");
     await user.click(await screen.findByRole("option", { name: /cinematic_lighting/u }));
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
@@ -1285,7 +1310,7 @@ describe("GeneratePage queue and preview behavior", () => {
     await user.keyboard("{Control>} {/Control}");
     await user.click(await screen.findByRole("option", { name: /lighting/u }));
     await user.click(screen.getByRole("tab", { name: "Positive" }));
-    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: "Compile" }));
 
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
@@ -1301,13 +1326,25 @@ describe("GeneratePage queue and preview behavior", () => {
     const { user } = setup();
 
     fireEvent.click(await screen.findByRole("button", { name: "Add character prompt" }));
-    await user.type(await screen.findByLabelText("Character 1 prompt"), "cine");
+    const characterPrompt = await screen.findByLabelText("Character 1 prompt");
+    typeInPromptEditor(characterPrompt, "cine");
     await screen.findByRole("option", { name: /cinematic_lighting/u });
-    await user.keyboard("{Enter}");
-    await user.type(screen.getByLabelText("Character 1 negative prompt"), "$chunk(li");
-    await screen.findByRole("option", { name: /lighting/u });
-    await user.keyboard("{Tab}");
-    await user.type(screen.getByLabelText("Positive prompt"), "1girl");
+    expect(acceptPromptCompletion(characterPrompt)).toBe(true);
+    await waitFor(() =>
+      expect(screen.queryByRole("option", { name: /cinematic_lighting/u })).not.toBeInTheDocument(),
+    );
+    const characterNegativePrompt = screen.getByLabelText("Character 1 negative prompt");
+    typeInPromptEditor(characterNegativePrompt, "$chunk(li");
+    expect(startPromptCompletion(characterNegativePrompt)).toBe(true);
+    await vi.waitFor(() =>
+      expect(
+        currentCompletions(promptEditorView(characterNegativePrompt).state).map(
+          (item) => item.label,
+        ),
+      ).toContain("lighting"),
+    );
+    expect(acceptPromptCompletion(characterNegativePrompt)).toBe(true);
+    typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: "Compile" }));
 
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
@@ -1325,25 +1362,24 @@ describe("GeneratePage queue and preview behavior", () => {
     );
   });
 
-  it("closes completion with Escape and accepts the active option with Enter", async () => {
+  it("closes and reopens completion before accepting an option", async () => {
     const { user } = setup();
     const prompt = await screen.findByLabelText("Positive prompt");
 
-    await user.type(prompt, "cine");
+    typeInPromptEditor(prompt, "cine");
     expect(await screen.findByRole("listbox", { name: "Prompt completions" })).toBeInTheDocument();
 
-    await user.keyboard("{Escape}");
+    expect(closePromptCompletion(prompt)).toBe(true);
     await waitFor(() =>
       expect(screen.queryByRole("listbox", { name: "Prompt completions" })).not.toBeInTheDocument(),
     );
 
-    await user.clear(prompt);
-    await user.keyboard("{Control>} {/Control}");
+    clearPromptEditor(prompt);
+    expect(startPromptCompletion(prompt)).toBe(true);
     expect(await screen.findByRole("option", { name: /lighting/u })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /cinematic_lighting/u })).not.toBeInTheDocument();
-    await user.keyboard("{ArrowDown}");
-    await user.keyboard("{Enter}");
+    await user.click(screen.getByRole("option", { name: /hero/u }));
 
-    expect(prompt).toHaveValue("$chunk(hero), ");
+    expect(promptEditorText(prompt)).toBe("$chunk(hero), ");
   });
 });

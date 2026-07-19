@@ -28,18 +28,19 @@ fn rust_parser_matches_shared_syntax_corpus() {
         };
         let parsed = parse_prompt(&case.text);
         assert_eq!(parsed.to_lossless_text(), case.text, "{}", case.name);
-        let actual = parsed
+        let mut actual = parsed
             .diagnostics_with_functions(&profile, &FunctionRegistry::atelier_defaults())
             .into_iter()
             .map(|diagnostic| diagnostic_code(diagnostic.kind))
             .collect::<Vec<_>>();
-        for expected in case.diagnostics {
-            assert!(
-                actual.contains(&expected.as_str()),
-                "{} missing {expected:?}: {actual:?}",
-                case.name
-            );
-        }
+        actual.sort_unstable();
+        let mut expected = case
+            .diagnostics
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        expected.sort_unstable();
+        assert_eq!(actual, expected, "{}", case.name);
     }
 }
 

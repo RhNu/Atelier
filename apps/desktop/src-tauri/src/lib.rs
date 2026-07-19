@@ -41,7 +41,6 @@ pub fn run() {
             commands::set_active_api_key,
             commands::probe_api_key,
             commands::probe_active_api_key,
-            commands::prompt_analyze,
             commands::upsert_prompt_chunk,
             commands::get_prompt_chunk,
             commands::list_prompt_chunks,

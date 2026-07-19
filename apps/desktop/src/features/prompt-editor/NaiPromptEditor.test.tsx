@@ -1,0 +1,201 @@
+import { diagnosticCount } from "@codemirror/lint";
+import { runScopeHandlers } from "@codemirror/view";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
+
+import {
+  clearPromptEditor,
+  promptEditorText,
+  promptEditorView,
+  typeInPromptEditor,
+} from "@/test/prompt-editor-test-utils";
+import type {
+  PromptChunkPageDto,
+  PromptLexiconPageDto,
+  PromptLexiconSearchQueryDto,
+} from "@/types";
+
+import { NaiPromptEditor, type NaiPromptHighlightMode } from "./NaiPromptEditor";
+import type { NaiPromptProfile } from "./prompt-analysis";
+
+const mocks = vi.hoisted(() => ({
+  listChunks: vi.fn<() => Promise<PromptChunkPageDto>>(async () => ({
+    items: [
+      {
+        chunk_id: "chunk-lighting",
+        key: "lighting",
+        content: "dramatic light",
+        category: null,
+        description: null,
+        preview: null,
+        created_at_ms: 1,
+        updated_at_ms: 1,
+      },
+    ],
+    total: 1,
+    offset: 0,
+    limit: 200,
+  })),
+  lexiconSearch: vi.fn<(request: PromptLexiconSearchQueryDto) => Promise<PromptLexiconPageDto>>(
+    async (request) => ({
+      items: [
+        {
+          tag: "cinematic_lighting",
+          weight: 1000,
+          category: "general",
+          subcategory: "lighting",
+          primary_translation: "cinematic lighting",
+          matched_translation: "cinematic lighting",
+          match_field: "tag",
+          match_rank: "prefix",
+        },
+      ],
+      total: 1,
+      offset: 0,
+      limit: request.limit,
+    }),
+  ),
+}));
+
+vi.mock("@/platform/atelier", () => ({
+  promptApi: mocks,
+  queryKeys: {
+    prompt: {
+      chunks: (request: unknown) => ["prompt", "chunks", request],
+      lexiconSearch: (request: unknown) => ["prompt", "lexicon", request],
+    },
+  },
+}));
+
+describe("NaiPromptEditor", () => {
+  it("reacts to controlled value, profile, read-only, placeholder, ARIA, and highlight changes", async () => {
+    const onChange = vi.fn<(value: string) => void>();
+    const view = render(
+      editor({
+        value: "1.2::portrait::",
+        profile: "novelai_v3",
+        placeholder: "First placeholder",
+        ariaLabel: "First prompt",
+        id: "first-prompt",
+        onChange,
+      }),
+    );
+    const content = screen.getByLabelText("First prompt");
+    const editorView = promptEditorView(content);
+    expect(content).toHaveAttribute("id", "first-prompt");
+    expect(editorView.dom).toHaveClass("nai-highlight-foreground");
+    await waitFor(() => expect(diagnosticCount(editorView.state)).toBe(1));
+
+    view.rerender(
+      editor({
+        value: "",
+        profile: "novelai_v45",
+        placeholder: "Updated placeholder",
+        ariaLabel: "Updated prompt",
+        id: "updated-prompt",
+        readOnly: true,
+        highlightMode: "background",
+        onChange,
+      }),
+    );
+    const updated = screen.getByLabelText("Updated prompt");
+    expect(promptEditorText(updated)).toBe("");
+    expect(updated).toHaveAttribute("id", "updated-prompt");
+    expect(updated).toHaveAttribute("contenteditable", "false");
+    expect(editorView.dom).toHaveClass("nai-highlight-background");
+    expect(editorView.dom).not.toHaveClass("nai-highlight-foreground");
+    expect(screen.getByText("Updated placeholder")).toBeInTheDocument();
+    await waitFor(() => expect(diagnosticCount(editorView.state)).toBe(0));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("defers an external controlled value until IME composition ends", async () => {
+    const view = render(editor({ value: "before", ariaLabel: "IME prompt" }));
+    const content = screen.getByLabelText("IME prompt");
+    fireEvent.compositionStart(content, { data: "中" });
+
+    view.rerender(editor({ value: "external", ariaLabel: "IME prompt" }));
+    expect(promptEditorText(content)).toBe("before");
+    fireEvent.compositionEnd(content, { data: "中" });
+    await waitFor(() => expect(promptEditorText(content)).toBe("external"));
+  });
+
+  it("wires Tab, Enter, Escape, and Ctrl-Space through the CodeMirror completion state", async () => {
+    render(
+      <QueryClientProvider client={queryClient()}>
+        <StatefulEditor />
+      </QueryClientProvider>,
+    );
+    const content = screen.getByLabelText("Completion prompt");
+    const editorView = promptEditorView(content);
+    expect(runKey(editorView, "Tab")).toBe(false);
+
+    expect(runKey(editorView, " ", { ctrlKey: true })).toBe(true);
+    expect(await screen.findByRole("option", { name: /lighting/u })).toBeInTheDocument();
+    expect(runKey(editorView, "Escape")).toBe(true);
+    await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
+
+    typeInPromptEditor(content, "cine");
+    await screen.findByRole("option", { name: /cinematic_lighting/u });
+    expect(runKey(editorView, "Enter")).toBe(true);
+    expect(promptEditorText(content)).toBe("cinematic_lighting, ");
+
+    clearPromptEditor(content);
+    typeInPromptEditor(content, "cine");
+    await screen.findByRole("option", { name: /cinematic_lighting/u });
+    expect(runKey(editorView, "Tab")).toBe(true);
+    expect(promptEditorText(content)).toBe("cinematic_lighting, ");
+  });
+});
+
+type EditorOptions = {
+  value: string;
+  ariaLabel: string;
+  id?: string;
+  profile?: NaiPromptProfile;
+  placeholder?: string;
+  readOnly?: boolean;
+  highlightMode?: NaiPromptHighlightMode;
+  onChange?: (value: string) => void;
+};
+
+function editor(options: EditorOptions) {
+  return (
+    <QueryClientProvider client={queryClient()}>
+      <NaiPromptEditor
+        id={options.id}
+        aria-label={options.ariaLabel}
+        value={options.value}
+        onChange={options.onChange ?? ignoreChange}
+        profile={options.profile}
+        placeholder={options.placeholder}
+        readOnly={options.readOnly}
+        highlightMode={options.highlightMode}
+      />
+    </QueryClientProvider>
+  );
+}
+
+function StatefulEditor() {
+  const [value, setValue] = useState("");
+  return <NaiPromptEditor aria-label="Completion prompt" value={value} onChange={setValue} />;
+}
+
+function queryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
+}
+
+function ignoreChange() {}
+
+function runKey(
+  view: ReturnType<typeof promptEditorView>,
+  key: string,
+  init: KeyboardEventInit = {},
+): boolean {
+  let handled = false;
+  act(() => {
+    handled = runScopeHandlers(view, new KeyboardEvent("keydown", { key, ...init }), "editor");
+  });
+  return handled;
+}

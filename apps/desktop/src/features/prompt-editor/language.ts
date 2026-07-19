@@ -12,8 +12,10 @@ const naiPromptParser = parser.configure({
   props: [
     styleTags({
       String: tags.string,
+      Number: tags.number,
       "Dollar Equals DoublePipe Pipe": tags.operator,
       Comma: tags.separator,
+      "InvalidNumber UnterminatedString": tags.invalid,
       "⚠": tags.invalid,
     }),
   ],

@@ -1,15 +1,74 @@
+import { syntaxTree } from "@codemirror/language";
 import type { Diagnostic } from "@codemirror/lint";
+import { EditorState, Facet } from "@codemirror/state";
 
-import { buildPromptSemanticSpans, type PromptSemanticSpan } from "./prompt-semantics";
-import { tokenizePrompt, type PromptToken, type PromptTokenKind } from "./prompt-tokenizer";
-
-export { tokenizePrompt } from "./prompt-tokenizer";
-export type { PromptSemanticSpan, PromptWeightDirection } from "./prompt-semantics";
-export type { PromptToken } from "./prompt-tokenizer";
+import { naiPromptLanguage } from "./language";
+import { buildPromptDiagnostics } from "./prompt-diagnostics";
+import { buildPromptSemanticSpans } from "./prompt-semantics";
+import { inspectPromptTree } from "./prompt-syntax-tree";
 
 export type NaiPromptProfile = "novelai_v3" | "novelai_v4" | "novelai_v45";
-export type PromptParse = { tokens: PromptToken[]; semanticSpans: PromptSemanticSpan[] };
-export type PromptAnalysis = PromptParse & { diagnostics: Diagnostic[] };
+export type PromptWeightDirection = "up" | "down" | "neutral";
+export type PromptSemanticSpan =
+  | { kind: "function"; from: number; to: number }
+  | { kind: "weight_reset"; from: number; to: number }
+  | {
+      kind: "weight";
+      role: "content" | "operator";
+      direction: PromptWeightDirection;
+      tier: number;
+      from: number;
+      to: number;
+    };
+
+export type PromptEditorMessages = {
+  unmatchedStrengtheningClose: string;
+  unmatchedWeakeningClose: string;
+  unclosedStrengthening: string;
+  unclosedWeakening: string;
+  invalidNumericWeight: string;
+  unsupportedNumericWeight: string;
+  unsupportedNegativeNumericWeight: string;
+  unclosedNumericWeight: string;
+  unterminatedString: string;
+  unclosedRandomizer: string;
+  emptyRandomizerOption: string;
+  unclosedFunctionCall: string;
+  unknownFunction: string;
+  invalidFunctionArity: string;
+  invalidFunctionArgument: string;
+};
+
+export type PromptAnalysis = {
+  diagnostics: Diagnostic[];
+  semanticSpans: PromptSemanticSpan[];
+};
+
+const DEFAULT_MESSAGES: PromptEditorMessages = {
+  unmatchedStrengtheningClose: "Strengthening close delimiter has no matching opener.",
+  unmatchedWeakeningClose: "Weakening close delimiter has no matching opener.",
+  unclosedStrengthening: "Strengthening block is not closed.",
+  unclosedWeakening: "Weakening block is not closed.",
+  invalidNumericWeight: "Numeric emphasis weight is invalid.",
+  unsupportedNumericWeight: "Numeric emphasis is not supported by this model.",
+  unsupportedNegativeNumericWeight: "Negative numeric emphasis requires NAI Diffusion 4.5.",
+  unclosedNumericWeight: "Numeric emphasis remains active until the end of the prompt.",
+  unterminatedString: "String literal is not closed.",
+  unclosedRandomizer: "Prompt randomizer is not closed.",
+  emptyRandomizerOption: "Prompt randomizer contains an empty option.",
+  unclosedFunctionCall: "Extension function call is not closed.",
+  unknownFunction: "Unknown prompt extension function.",
+  invalidFunctionArity: "Prompt extension function has an invalid number of arguments.",
+  invalidFunctionArgument: "Prompt extension function has an invalid named argument.",
+};
+const analysisCache = new WeakMap<EditorState, PromptAnalysis>();
+
+export const naiPromptProfileFacet = Facet.define<NaiPromptProfile, NaiPromptProfile>({
+  combine: (values) => values.at(-1) ?? "novelai_v45",
+});
+export const naiPromptMessagesFacet = Facet.define<PromptEditorMessages, PromptEditorMessages>({
+  combine: (values) => values.at(-1) ?? DEFAULT_MESSAGES,
+});
 
 export function promptProfileForModel(model: string): NaiPromptProfile {
   if (model.includes("4-5")) return "novelai_v45";
@@ -17,196 +76,40 @@ export function promptProfileForModel(model: string): NaiPromptProfile {
   return "novelai_v3";
 }
 
-export function parsePrompt(text: string): PromptParse {
-  const tokens = tokenizePrompt(text);
-  return { tokens, semanticSpans: buildPromptSemanticSpans(tokens) };
-}
-
-export function analyzePrompt(text: string, profile: NaiPromptProfile): PromptAnalysis {
-  const { tokens, semanticSpans } = parsePrompt(text);
-  const diagnostics: Diagnostic[] = [];
-  const stack: Array<{ kind: "brace" | "bracket"; token: PromptToken }> = [];
-  let extensionDepth = 0;
-
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (!token) continue;
-    const previous = tokens[index - 1];
-    if (
-      token.text === "$" &&
-      tokens[index + 1]?.kind === "identifier" &&
-      tokens[index + 2]?.text === "("
-    ) {
-      extensionDepth += 1;
-    } else if (extensionDepth > 0 && token.text === ")") {
-      extensionDepth -= 1;
-      continue;
-    }
-    if (extensionDepth > 0) continue;
-
-    if (token.text === "{") stack.push({ kind: "brace", token });
-    if (token.text === "[") stack.push({ kind: "bracket", token });
-    if (token.text === "}" && !popMatching(stack, "brace")) {
-      diagnostics.push(
-        error(
-          token,
-          "unmatched_strengthening_close",
-          "Strengthening close delimiter has no matching opener.",
-        ),
-      );
-    }
-    if (token.text === "]" && !popMatching(stack, "bracket")) {
-      diagnostics.push(
-        error(
-          token,
-          "unmatched_weakening_close",
-          "Weakening close delimiter has no matching opener.",
-        ),
-      );
-    }
-    if (token.kind === "invalid_number" && tokens[index + 1]?.kind === "double_colon") {
-      diagnostics.push(
-        error(token, "invalid_numeric_weight", "Numeric emphasis weight is invalid."),
-      );
-    }
-    if (token.kind === "number" && tokens[index + 1]?.kind === "double_colon") {
-      validateNumericWeight(tokens, index, token, profile, diagnostics);
-    }
-    if (token.kind === "unterminated_string") {
-      diagnostics.push(error(token, "unterminated_string", "String literal is not closed."));
-    }
-    if (token.kind === "double_pipe" && previous?.kind !== "double_pipe") {
-      validateRandomizer(tokens, index, token, diagnostics);
-    }
-    if (
-      token.text === "|" &&
-      profile !== "novelai_v3" &&
-      profile !== "novelai_v4" &&
-      profile !== "novelai_v45"
-    ) {
-      diagnostics.push(
-        error(token, "ambiguous_pipe", "Pipe cannot be interpreted by this syntax profile."),
-      );
-    }
-  }
-
-  for (const open of stack) {
-    diagnostics.push(
-      warning(
-        open.token,
-        open.kind === "brace" ? "unclosed_strengthening" : "unclosed_weakening",
-        open.kind === "brace"
-          ? "Strengthening block is not closed."
-          : "Weakening block is not closed.",
-      ),
-    );
-  }
-  if (extensionDepth > 0) {
-    const at = [...tokens].reverse().find((token) => token.text === "$");
-    if (at) {
-      diagnostics.push(
-        warning(at, "unclosed_function_call", "Extension function call is not closed."),
-      );
-    }
-  }
-  return { tokens, semanticSpans, diagnostics };
-}
-
-function validateNumericWeight(
-  tokens: PromptToken[],
-  index: number,
-  token: PromptToken,
+export function analyzePrompt(
+  text: string,
   profile: NaiPromptProfile,
-  diagnostics: Diagnostic[],
-) {
-  const value = Number(token.text);
-  if (profile === "novelai_v3") {
-    diagnostics.push(
-      error(token, "unsupported_capability", "Numeric emphasis is not supported by this model."),
-    );
-  } else if (value < 0 && profile !== "novelai_v45") {
-    diagnostics.push(
-      error(
-        token,
-        "unsupported_capability",
-        "Negative numeric emphasis requires NAI Diffusion 4.5.",
-      ),
-    );
-  }
-  if (!findClosingDoubleColon(tokens, index + 2)) {
-    diagnostics.push(
-      warning(
-        token,
-        "unclosed_numeric_emphasis",
-        "Numeric emphasis remains active until the end of the prompt.",
-      ),
-    );
-  }
+  messages: PromptEditorMessages = DEFAULT_MESSAGES,
+): PromptAnalysis {
+  return analyzeSyntax(
+    text,
+    inspectPromptTree(naiPromptLanguage.parser.parse(text)),
+    profile,
+    messages,
+  );
 }
 
-function validateRandomizer(
-  tokens: PromptToken[],
-  index: number,
-  token: PromptToken,
-  diagnostics: Diagnostic[],
-) {
-  const close = findToken(tokens, index + 1, "double_pipe");
-  if (close < 0) {
-    diagnostics.push(warning(token, "unclosed_randomizer", "Prompt randomizer is not closed."));
-  } else if (hasEmptyRandomizerOption(tokens, index + 1, close)) {
-    diagnostics.push(
-      error(token, "empty_randomizer_option", "Prompt randomizer contains an empty option."),
-    );
-  }
+export function promptAnalysisForState(state: EditorState): PromptAnalysis {
+  const cached = analysisCache.get(state);
+  if (cached) return cached;
+  const analysis = analyzeSyntax(
+    state.doc.toString(),
+    inspectPromptTree(syntaxTree(state)),
+    state.facet(naiPromptProfileFacet),
+    state.facet(naiPromptMessagesFacet),
+  );
+  analysisCache.set(state, analysis);
+  return analysis;
 }
 
-function popMatching(
-  stack: Array<{ kind: "brace" | "bracket"; token: PromptToken }>,
-  kind: "brace" | "bracket",
-) {
-  const found = stack.findLastIndex((entry) => entry.kind === kind);
-  if (found < 0) return false;
-  stack.splice(found, 1);
-  return true;
-}
-
-function findToken(tokens: PromptToken[], start: number, kind: PromptTokenKind) {
-  return tokens.findIndex((token, index) => index >= start && token.kind === kind);
-}
-
-function findClosingDoubleColon(tokens: PromptToken[], start: number) {
-  return findToken(tokens, start, "double_colon") >= 0;
-}
-
-function hasEmptyRandomizerOption(tokens: PromptToken[], start: number, end: number) {
-  let hasContent = false;
-  for (let index = start; index < end; index += 1) {
-    const token = tokens[index];
-    if (!token) continue;
-    if (token.text === "|") {
-      if (!hasContent) return true;
-      hasContent = false;
-    } else if (token.kind !== "whitespace") hasContent = true;
-  }
-  return !hasContent;
-}
-
-function error(token: PromptToken, code: string, message: string): Diagnostic {
+function analyzeSyntax(
+  text: string,
+  syntax: ReturnType<typeof inspectPromptTree>,
+  profile: NaiPromptProfile,
+  messages: PromptEditorMessages,
+): PromptAnalysis {
   return {
-    from: token.from,
-    to: Math.max(token.to, token.from + 1),
-    severity: "error",
-    message,
-    source: code,
-  };
-}
-
-function warning(token: PromptToken, code: string, message: string): Diagnostic {
-  return {
-    from: token.from,
-    to: Math.max(token.to, token.from + 1),
-    severity: "warning",
-    message,
-    source: code,
+    diagnostics: buildPromptDiagnostics(text, syntax, profile, messages),
+    semanticSpans: buildPromptSemanticSpans(text, syntax),
   };
 }

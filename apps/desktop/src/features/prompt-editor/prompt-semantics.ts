@@ -1,124 +1,111 @@
-import type { PromptToken } from "./prompt-tokenizer";
-
-export type PromptWeightDirection = "up" | "down" | "neutral";
-export type PromptSemanticSpan =
-  | { kind: "function"; from: number; to: number }
-  | { kind: "weight_reset"; from: number; to: number }
-  | {
-      kind: "weight";
-      role: "content" | "operator";
-      direction: PromptWeightDirection;
-      tier: number;
-      from: number;
-      to: number;
-    };
+import type { PromptSemanticSpan, PromptWeightDirection } from "./prompt-analysis";
+import {
+  firstPromptDescendant,
+  hasPromptAncestor,
+  promptDescendants,
+  type PromptSyntax,
+  syntaxRecordKey,
+} from "./prompt-syntax-tree";
 
 const UP_FACTOR = 1.05;
 const DOWN_FACTOR = 1 / UP_FACTOR;
 const MAX_WEIGHT_TIER = 4;
 const WEIGHT_EPSILON = 0.0001;
 
-export function buildPromptSemanticSpans(tokens: PromptToken[]): PromptSemanticSpan[] {
-  const spans: PromptSemanticSpan[] = [];
-  const functionRanges = findFunctionRanges(tokens);
-  const functionTokens = new Set<number>();
+type WeightLayer = { factor: number };
+type StructuralLayer = { kind: "up" | "down"; weight?: WeightLayer };
 
-  for (const range of functionRanges) {
-    for (let index = range.fromIndex; index <= range.toIndex; index += 1) {
-      functionTokens.add(index);
+export function buildPromptSemanticSpans(text: string, syntax: PromptSyntax): PromptSemanticSpan[] {
+  const spans: PromptSemanticSpan[] = syntax.nodes
+    .filter((node) => node.name === "ExtensionCall")
+    .map((node) => ({ kind: "function" as const, from: node.from, to: node.to }));
+  const numericOpen = numericOpenOperators(text, syntax);
+  const openingColonKeys = new Set(numericOpen.map((item) => syntaxRecordKey(item.colon)));
+  const openingNumberKeys = new Map(
+    numericOpen.map((item) => [syntaxRecordKey(item.number), item]),
+  );
+  const weights: WeightLayer[] = [];
+  const structures: StructuralLayer[] = [];
+
+  for (const leaf of syntax.leaves) {
+    if (leaf.from === leaf.to || hasPromptAncestor(leaf, "ExtensionCall")) continue;
+    const numeric = openingNumberKeys.get(syntaxRecordKey(leaf));
+    if (numeric) {
+      spans.push(weightSpan(numeric.number.from, numeric.colon.to, "operator", numeric.factor));
+      if (Number.isFinite(numeric.factor)) weights.push({ factor: numeric.factor });
+      continue;
     }
-    spans.push({
-      kind: "function",
-      from: tokens[range.fromIndex]?.from ?? 0,
-      to: tokens[range.toIndex]?.to ?? tokens[range.fromIndex]?.to ?? 0,
-    });
+    if (openingColonKeys.has(syntaxRecordKey(leaf))) continue;
+    if (leaf.name === "DoubleColon") {
+      spans.push({ kind: "weight_reset", from: leaf.from, to: leaf.to });
+      weights.length = 0;
+      for (const structure of structures) structure.weight = undefined;
+      continue;
+    }
+    if (leaf.name === "LBrace" || leaf.name === "LBracket") {
+      const up = leaf.name === "LBrace";
+      const factor = up ? UP_FACTOR : DOWN_FACTOR;
+      const weight = { factor };
+      spans.push(weightSpan(leaf.from, leaf.to, "operator", factor));
+      weights.push(weight);
+      structures.push({ kind: up ? "up" : "down", weight });
+      continue;
+    }
+    if (leaf.name === "RBrace" || leaf.name === "RBracket") {
+      const up = leaf.name === "RBrace";
+      spans.push(weightSpan(leaf.from, leaf.to, "operator", up ? UP_FACTOR : DOWN_FACTOR));
+      closeStructuralLayer(structures, weights, up ? "up" : "down");
+      continue;
+    }
+    if (!isWeightContent(leaf.name)) continue;
+    const effectiveWeight = weights.reduce((weight, entry) => weight * entry.factor, 1);
+    if (Math.abs(effectiveWeight - 1) > WEIGHT_EPSILON) {
+      spans.push(weightSpan(leaf.from, leaf.to, "content", effectiveWeight));
+    }
   }
-
-  const weightStack: Array<{ kind: "up" | "down" | "numeric"; factor: number }> = [];
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (!token || functionTokens.has(index)) continue;
-
-    const numericColon = tokens[index + 1];
-    if (token.kind === "number" && numericColon?.kind === "double_colon") {
-      const factor = Number(token.text);
-      spans.push(weightSpan(token.from, numericColon.to, "operator", factor));
-      if (Number.isFinite(factor)) weightStack.push({ kind: "numeric", factor });
-      index += 1;
-      continue;
-    }
-
-    if (token.kind === "double_colon") {
-      spans.push({ kind: "weight_reset", from: token.from, to: token.to });
-      weightStack.length = 0;
-      continue;
-    }
-
-    if (token.text === "{") {
-      spans.push(weightSpan(token.from, token.to, "operator", UP_FACTOR));
-      weightStack.push({ kind: "up", factor: UP_FACTOR });
-      continue;
-    }
-    if (token.text === "[") {
-      spans.push(weightSpan(token.from, token.to, "operator", DOWN_FACTOR));
-      weightStack.push({ kind: "down", factor: DOWN_FACTOR });
-      continue;
-    }
-    if (token.text === "}" || token.text === "]") {
-      const direction = token.text === "}" ? "up" : "down";
-      const factor = direction === "up" ? UP_FACTOR : DOWN_FACTOR;
-      spans.push(weightSpan(token.from, token.to, "operator", factor));
-      popWeight(weightStack, direction);
-      continue;
-    }
-
-    if (!isWeightContent(token)) continue;
-    const effectiveWeight = weightStack.reduce((weight, entry) => weight * entry.factor, 1);
-    if (Math.abs(effectiveWeight - 1) <= WEIGHT_EPSILON) continue;
-    spans.push(weightSpan(token.from, token.to, "content", effectiveWeight));
-  }
-
   return spans.sort((left, right) => left.from - right.from || left.to - right.to);
 }
 
-function findFunctionRanges(tokens: PromptToken[]): Array<{ fromIndex: number; toIndex: number }> {
-  const ranges: Array<{ fromIndex: number; toIndex: number }> = [];
-  for (let index = 0; index + 2 < tokens.length; index += 1) {
-    if (
-      tokens[index]?.text !== "$" ||
-      tokens[index + 1]?.kind !== "identifier" ||
-      tokens[index + 2]?.text !== "("
-    ) {
-      continue;
-    }
-    let depth = 1;
-    let closeIndex = tokens.length - 1;
-    for (let cursor = index + 3; cursor < tokens.length; cursor += 1) {
-      const token = tokens[cursor];
-      if (token?.text === "(") depth += 1;
-      if (token?.text === ")") depth -= 1;
-      if (depth === 0) {
-        closeIndex = cursor;
-        break;
-      }
-    }
-    ranges.push({ fromIndex: index, toIndex: closeIndex });
-    index = closeIndex;
-  }
-  return ranges;
+function numericOpenOperators(text: string, syntax: PromptSyntax) {
+  return syntax.nodes
+    .filter((node) => node.name === "NumericEmphasis")
+    .flatMap((node) => {
+      const number =
+        firstPromptDescendant(syntax, node, "Number") ??
+        firstPromptDescendant(syntax, node, "InvalidNumber");
+      const colon = promptDescendants(syntax, node, "DoubleColon")[0];
+      return number
+        ? colon
+          ? [{ number, colon, factor: Number(text.slice(number.from, number.to)) }]
+          : []
+        : [];
+    });
 }
 
-function isWeightContent(token: PromptToken): boolean {
-  return (
-    token.kind === "number" ||
-    token.kind === "invalid_number" ||
-    token.kind === "tag" ||
-    token.kind === "identifier" ||
-    token.kind === "string" ||
-    token.kind === "unterminated_string" ||
-    token.kind === "escaped" ||
-    token.kind === "text"
-  );
+function closeStructuralLayer(
+  structures: StructuralLayer[],
+  weights: WeightLayer[],
+  kind: StructuralLayer["kind"],
+) {
+  const index = structures.findLastIndex((entry) => entry.kind === kind);
+  if (index < 0) return;
+  const [structure] = structures.splice(index, 1);
+  if (!structure?.weight) return;
+  const weightIndex = weights.lastIndexOf(structure.weight);
+  if (weightIndex >= 0) weights.splice(weightIndex, 1);
+}
+
+function isWeightContent(name: string): boolean {
+  return [
+    "Number",
+    "InvalidNumber",
+    "Tag",
+    "Identifier",
+    "String",
+    "UnterminatedString",
+    "Escaped",
+    "Text",
+  ].includes(name);
 }
 
 function weightSpan(
@@ -155,12 +142,4 @@ function weightTier(weight: number): number {
   if (inverse >= 2.5) return 3;
   if (inverse >= 1.5) return 2;
   return 1;
-}
-
-function popWeight(
-  stack: Array<{ kind: "up" | "down" | "numeric"; factor: number }>,
-  kind: "up" | "down",
-) {
-  const index = stack.findLastIndex((entry) => entry.kind === kind);
-  if (index >= 0) stack.splice(index, 1);
 }

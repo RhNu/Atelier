@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { createAtelierQueryClient } from "../app/query-client";
 import { ChunkWorkspace } from "../features/resources/components/ChunkWorkspace";
 import type { PromptChunkDto } from "../types";
+import { promptEditorText } from "./prompt-editor-test-utils";
 
 const mocks = vi.hoisted(() => ({
   upsert: { isPending: false, mutateAsync: vi.fn<() => Promise<never>>() },
@@ -48,7 +49,7 @@ describe("Resources dialogs", () => {
 
     await user.click(screen.getByRole("button", { name: /lighting/ }));
     expect(screen.getByRole("dialog", { name: "Edit prompt chunk" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Content")).toHaveValue("cinematic lighting");
+    expect(promptEditorText(screen.getByLabelText("Content"))).toBe("cinematic lighting");
     expect(screen.queryByText("Reusable $chunk(...) source")).not.toBeInTheDocument();
   });
 
@@ -57,7 +58,7 @@ describe("Resources dialogs", () => {
     view.rerender(workspace(1));
 
     expect(screen.getByRole("dialog", { name: "New prompt chunk" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Content")).toHaveValue("");
+    expect(promptEditorText(screen.getByLabelText("Content"))).toBe("");
   });
 
   it("uses an icon-only placeholder for an empty resource list", () => {

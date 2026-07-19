@@ -1,6 +1,5 @@
 /* eslint-disable max-lines */
 import type {
-  AnalyzePromptRequestDto,
   ApiKeyRecordDto,
   AppBootstrapDto,
   CloseWorkspaceResponseDto,
@@ -54,7 +53,6 @@ import type {
   ProbeApiKeyRequestDto,
   PromptChunkDto,
   PromptChunkPageDto,
-  PromptAnalysisDto,
   PromptLexiconCatalogDto,
   PromptLexiconListQueryDto,
   PromptLexiconPageDto,
@@ -185,8 +183,6 @@ export const accountApi = {
 };
 
 export const promptApi = {
-  analyze: (request: AnalyzePromptRequestDto) =>
-    invokeAtelierCommand<PromptAnalysisDto>(atelierCommands.promptAnalyze, { request }),
   upsertChunk: (request: UpsertPromptChunkRequestDto) =>
     invokeAtelierCommand<PromptChunkDto>(atelierCommands.upsertPromptChunk, { request }),
   getChunk: (request: GetPromptChunkRequestDto) =>

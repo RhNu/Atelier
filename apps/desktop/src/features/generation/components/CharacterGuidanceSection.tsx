@@ -216,7 +216,6 @@ function CharacterCard({
         onChange={(prompt) => patchCharacter(draft, onPatch, character.id, { prompt })}
         profile={promptProfileForModel(draft.model)}
         minHeight={72}
-        showStatus={false}
       />
       <NaiPromptEditor
         aria-label={t("characterNegativePrompt", { index: index + 1 })}
@@ -226,7 +225,6 @@ function CharacterCard({
         }
         profile={promptProfileForModel(draft.model)}
         minHeight={64}
-        showStatus={false}
       />
     </article>
   );

@@ -1,166 +1,194 @@
-import type { Completion, CompletionContext, CompletionResult } from "@codemirror/autocomplete";
+import {
+  pickedCompletion,
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+  type CompletionSource,
+} from "@codemirror/autocomplete";
+import type { QueryClient } from "@tanstack/react-query";
 
+import type { PromptChunkDto, PromptLexiconEntryDto } from "@/types";
+
+import { fetchPromptCompletionChunks, fetchPromptCompletionTags } from "./completion-data";
 import {
   buildPromptCompletionEdit,
   getPromptCompletionContext,
+  type PromptCompletionContext,
   type PromptCompletionItem,
-} from "@/features/generation/components/prompt-completion/prompt-completion-utils";
-import { promptApi } from "@/platform/atelier";
+} from "./completion-model";
 
-const FUNCTION_OPTIONS = [
-  {
-    label: "chunk",
-    detail: "Reusable prompt chunk",
-    type: "function" as const,
-  },
-];
+export type PromptCompletionMessages = {
+  reusableChunk: string;
+  promptChunk: string;
+};
 
-export async function naiPromptCompletion(
+const FUNCTION_ITEM: PromptCompletionItem = {
+  kind: "function",
+  id: "function:chunk",
+  label: "chunk",
+  value: "chunk",
+  detail: null,
+  rank: "function",
+};
+const VISIBLE_CHUNK_LIMIT = 20;
+
+export function createNaiPromptCompletion(
+  queryClient: QueryClient,
+  messages: PromptCompletionMessages,
+): CompletionSource {
+  return async (context) => completePrompt(context, queryClient, messages);
+}
+
+async function completePrompt(
   context: CompletionContext,
+  queryClient: QueryClient,
+  messages: PromptCompletionMessages,
 ): Promise<CompletionResult | null> {
+  context.addEventListener("abort", () => undefined, { onDocChange: true });
   const source = context.state.doc.toString();
   const promptContext = getPromptCompletionContext(source, context.pos, context.explicit);
 
   if (promptContext.mode === "function") {
-    const query = promptContext.query.toLowerCase();
-    const options = FUNCTION_OPTIONS.filter((item) => item.label.includes(query)).map((item) =>
-      withPromptApply(item, {
-        kind: "function",
-        id: `function:${item.label}`,
-        label: item.label,
-        value: item.label,
-        detail: item.detail,
-        rank: "function",
-      }),
+    const options = functionItems(promptContext, messages).map((item) =>
+      completionForItem(item, promptContext),
     );
     return options.length > 0
       ? {
-          from: promptContext.replaceStart,
+          from: promptContext.filterStart,
+          to: promptContext.filterEnd,
           options,
           validFor: /^[A-Za-z0-9_-]*$/u,
         }
       : null;
   }
 
-  if (promptContext.mode === "chunk") {
-    const page = await promptApi.listChunks({ offset: 0, limit: 200 });
-    const query = normalize(promptContext.query);
-    const options = page.items
-      .filter(
-        (item) =>
-          !query ||
-          normalize(`${item.key} ${item.category ?? ""} ${item.description ?? ""}`).includes(query),
-      )
-      .slice(0, 20)
-      .map((item) =>
-        withPromptApply(
-          {
-            label: item.key,
-            detail: item.description ?? item.category ?? "Prompt chunk",
-            type: "function" as const,
-          },
-          {
-            kind: "chunk",
-            id: `chunk:${item.chunk_id}`,
-            label: item.key,
-            value: item.key,
-            detail: item.description ?? item.category ?? "Prompt chunk",
-            rank: "workspace",
-          },
-        ),
-      );
-    return options.length > 0
-      ? {
-          from: promptContext.replaceStart,
-          options,
-          validFor: /^[^,()[\]{}|\s]*$/u,
-        }
-      : null;
+  if (
+    !context.explicit &&
+    promptContext.mode === "tag" &&
+    promptContext.query.trim().length === 0
+  ) {
+    return null;
   }
 
-  const query = promptContext.query.trim();
-  if (!context.explicit && query.length === 0) return null;
-  const [chunks, lexicon] = await Promise.all([
-    context.explicit
-      ? promptApi.listChunks({ offset: 0, limit: 20 })
-      : Promise.resolve({ items: [] }),
-    query ? promptApi.lexiconSearch({ query, limit: 20 }) : Promise.resolve({ items: [] }),
+  const [chunks, tags] = await Promise.all([
+    shouldFetchChunks(promptContext)
+      ? recover(fetchPromptCompletionChunks(queryClient))
+      : Promise.resolve([]),
+    shouldFetchTags(promptContext)
+      ? recover(fetchPromptCompletionTags(queryClient, promptContext.query.trim()))
+      : Promise.resolve([]),
   ]);
-  const options: Completion[] = [
-    ...(context.explicit
-      ? FUNCTION_OPTIONS.map((item) =>
-          withPromptApply(item, {
-            kind: "function",
-            id: `function:${item.label}`,
-            label: item.label,
-            value: item.label,
-            detail: item.detail,
-            rank: "function",
-          }),
-        )
-      : []),
-    ...chunks.items.map((item) =>
-      withPromptApply(
-        {
-          label: `$chunk(${item.key})`,
-          detail: item.description ?? item.category ?? "Prompt chunk",
-          type: "function" as const,
-        },
-        {
-          kind: "chunk",
-          id: `chunk:${item.chunk_id}`,
-          label: item.key,
-          value: item.key,
-          detail: item.description ?? item.category ?? "Prompt chunk",
-          rank: "workspace",
-        },
-      ),
-    ),
-    ...lexicon.items.map((item) =>
-      withPromptApply(
-        {
-          label: item.tag,
-          detail: item.primary_translation || item.category,
-          type: "text" as const,
-        },
-        {
-          kind: "tag",
-          id: `tag:${item.tag}`,
-          label: item.tag,
-          value: item.tag,
-          detail: item.primary_translation || item.category,
-          rank: item.match_rank,
-        },
-      ),
-    ),
-  ];
-  return options.length > 0
-    ? {
-        from: promptContext.replaceStart,
-        options,
-        validFor: /^[^,\n\r|{}[\]]*$/u,
-      }
-    : null;
+  if (context.aborted) return null;
+
+  const items = completionItems(promptContext, chunks, tags, messages);
+  if (items.length === 0) return null;
+  return {
+    from: promptContext.filterStart,
+    to: promptContext.filterEnd,
+    options: items.map((item) => completionForItem(item, promptContext)),
+    filter: false,
+  };
 }
 
-function withPromptApply(
-  option: { label: string; detail: string | null; type: "function" | "text" },
-  item: PromptCompletionItem,
-): Completion {
+function completionItems(
+  context: PromptCompletionContext,
+  chunks: PromptChunkDto[],
+  tags: PromptLexiconEntryDto[],
+  messages: PromptCompletionMessages,
+): PromptCompletionItem[] {
+  if (context.mode === "chunk") return chunkItems(chunks, context.query, messages);
+  const functions = context.manual ? functionItems(context, messages) : [];
+  const chunkResults = context.manual ? chunkItems(chunks, context.query, messages) : [];
+  return [...functions, ...chunkResults, ...tags.map(tagItem)];
+}
+
+function functionItems(
+  context: PromptCompletionContext,
+  messages: PromptCompletionMessages,
+): PromptCompletionItem[] {
+  const query = normalize(context.query);
+  if (query && !FUNCTION_ITEM.label.includes(query)) return [];
+  return [{ ...FUNCTION_ITEM, detail: messages.reusableChunk }];
+}
+
+function chunkItems(
+  chunks: PromptChunkDto[],
+  query: string,
+  messages: PromptCompletionMessages,
+): PromptCompletionItem[] {
+  const normalizedQuery = normalize(query);
+  return chunks
+    .filter((chunk) => !normalizedQuery || chunkMatches(chunk, normalizedQuery))
+    .slice(0, VISIBLE_CHUNK_LIMIT)
+    .map((chunk) => ({
+      kind: "chunk",
+      id: `chunk:${chunk.chunk_id}`,
+      label: chunk.key,
+      value: chunk.key,
+      detail: chunk.description ?? chunk.category ?? messages.promptChunk,
+      rank: "workspace",
+    }));
+}
+
+function tagItem(entry: PromptLexiconEntryDto): PromptCompletionItem {
   return {
-    ...option,
-    detail: option.detail ?? undefined,
-    apply: (view, _completion, _from, to) => {
-      const source = view.state.doc.toString();
-      const edit = buildPromptCompletionEdit(source, to, item);
+    kind: "tag",
+    id: `tag:${entry.tag}`,
+    label: entry.tag,
+    value: entry.tag,
+    detail: entry.primary_translation || entry.category,
+    rank: entry.match_rank,
+  };
+}
+
+function completionForItem(
+  item: PromptCompletionItem,
+  context: PromptCompletionContext,
+): Completion {
+  const label =
+    context.mode === "tag" && item.kind === "chunk" ? `$chunk(${item.label})` : item.label;
+  return {
+    label,
+    detail: item.detail ?? undefined,
+    type: item.kind === "tag" ? "text" : "function",
+    apply: (view, completion) => {
+      const edit = buildPromptCompletionEdit(
+        view.state.doc.toString(),
+        view.state.selection.main.head,
+        item,
+        context.manual,
+      );
       view.dispatch({
         changes: { from: edit.replaceStart, to: edit.replaceEnd, insert: edit.insert },
         selection: { anchor: edit.selectionStart },
+        annotations: pickedCompletion.of(completion),
       });
     },
   };
 }
 
+function shouldFetchChunks(context: PromptCompletionContext): boolean {
+  return context.mode === "chunk" || context.manual;
+}
+
+function shouldFetchTags(context: PromptCompletionContext): boolean {
+  return context.mode === "tag" && context.query.trim().length > 0;
+}
+
+function chunkMatches(chunk: PromptChunkDto, query: string): boolean {
+  return [chunk.key, chunk.category ?? "", chunk.description ?? "", chunk.content].some((value) =>
+    normalize(value).includes(query),
+  );
+}
+
 function normalize(value: string): string {
   return value.toLowerCase().replaceAll("_", " ").trim();
+}
+
+async function recover<T>(promise: Promise<T[]>): Promise<T[]> {
+  try {
+    return await promise;
+  } catch {
+    return [];
+  }
 }

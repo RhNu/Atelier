@@ -31,14 +31,13 @@ use atelier_app_api::{
         RerunGenerationHistoryItemResponseDto, RunHistoryPageDto, RunHistoryQueryDto,
     },
     prompt::{
-        AnalyzePromptRequestDto, CompileGenerationPromptRequestDto, CompilePromptRequestDto,
-        CompiledGenerationPromptDto, CompiledPromptDto, DeletePromptChunkRequestDto,
-        DeletePromptChunkResponseDto, DeletePromptPresetRequestDto, DeletePromptPresetResponseDto,
-        GetPromptChunkRequestDto, ListPromptChunksRequestDto, ListPromptPresetsRequestDto,
-        PromptAnalysisDto, PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto,
-        PromptLexiconListQueryDto, PromptLexiconPageDto, PromptLexiconSearchQueryDto,
-        PromptPresetDto, PromptPresetPageDto, UpsertPromptChunkRequestDto,
-        UpsertPromptPresetRequestDto,
+        CompileGenerationPromptRequestDto, CompilePromptRequestDto, CompiledGenerationPromptDto,
+        CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
+        DeletePromptPresetRequestDto, DeletePromptPresetResponseDto, GetPromptChunkRequestDto,
+        ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptChunkDto,
+        PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
+        PromptLexiconPageDto, PromptLexiconSearchQueryDto, PromptPresetDto, PromptPresetPageDto,
+        UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
     },
     resource::{
         GetResourceImageRequestDto, ReleaseImportedImageResourcesRequestDto,
@@ -57,15 +56,6 @@ use atelier_app_api::{
 use tauri::State;
 
 use crate::desktop::DesktopState;
-
-#[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
-pub fn prompt_analyze(
-    state: State<'_, DesktopState>,
-    request: AnalyzePromptRequestDto,
-) -> CommandResult<PromptAnalysisDto> {
-    state.host.prompt_analyze(request)
-}
 
 #[tauri::command]
 pub async fn get_global_settings(

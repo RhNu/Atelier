@@ -162,6 +162,7 @@ export const GenerationPromptPanel = forwardRef<
           </details>
         </div>
         <NaiPromptEditor
+          key={activeTab}
           ref={textareaRef}
           id="generation-prompt-editor"
           aria-label={activeTab === "positive" ? t("positivePrompt") : t("undesiredContent")}

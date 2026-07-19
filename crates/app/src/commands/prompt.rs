@@ -1,11 +1,11 @@
 use atelier_app_api::prompt::{
-    AnalyzePromptRequestDto, CompileGenerationPromptRequestDto, CompilePromptRequestDto,
-    CompiledGenerationPromptDto, CompiledPromptDto, DeletePromptChunkRequestDto,
-    DeletePromptChunkResponseDto, DeletePromptPresetRequestDto, DeletePromptPresetResponseDto,
-    GetPromptChunkRequestDto, ListPromptChunksRequestDto, ListPromptPresetsRequestDto,
-    PromptAnalysisDto, PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto,
-    PromptLexiconListQueryDto, PromptLexiconPageDto, PromptLexiconSearchQueryDto, PromptPresetDto,
-    PromptPresetPageDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
+    CompileGenerationPromptRequestDto, CompilePromptRequestDto, CompiledGenerationPromptDto,
+    CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
+    DeletePromptPresetRequestDto, DeletePromptPresetResponseDto, GetPromptChunkRequestDto,
+    ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkPageDto,
+    PromptLexiconCatalogDto, PromptLexiconListQueryDto, PromptLexiconPageDto,
+    PromptLexiconSearchQueryDto, PromptPresetDto, PromptPresetPageDto, UpsertPromptChunkRequestDto,
+    UpsertPromptPresetRequestDto,
 };
 
 use crate::commands::{AtelierRuntime, CommandResult};
@@ -16,20 +16,6 @@ where
     F: Send + Sync,
     E: Send + Sync,
 {
-    /// Analyzes `NovelAI` prompt syntax without requiring an open workspace.
-    ///
-    /// # Errors
-    /// Returns an error envelope if analysis cannot be completed.
-    pub fn prompt_analyze(
-        &self,
-        request: AnalyzePromptRequestDto,
-    ) -> CommandResult<PromptAnalysisDto> {
-        Ok(crate::mapping::analyze_prompt_to_dto(
-            request.text,
-            request.profile,
-        ))
-    }
-
     /// Creates or updates a prompt chunk.
     ///
     /// # Errors

@@ -22,6 +22,14 @@ The active frontend lives in `apps/desktop/src`.
 - `i18n/`: bundled English and Simplified Chinese resources, typed translation keys, and language preference resolution.
 - `features/<feature>/`: feature pages and local feature-owned code.
 
+`features/prompt-editor/` owns the complete interactive prompt-input surface: the Lezer grammar,
+generated parser, immediate diagnostics and semantic highlighting, completion edit model,
+QueryClient-backed candidate provider, CodeMirror adapter, theme, and thin React wrapper.
+Generation and resource features consume `NaiPromptEditor`; they must not grow parallel textarea,
+tokenizer, highlighting, or completion implementations.
+Regenerate its checked-in parser with `pnpm prompt-parser:generate`; `pnpm test` verifies that the
+generated parser has not drifted from `nai-prompt.grammar`.
+
 Feature folders should stay shallow and explicit:
 
 - `data/`: TanStack Query hooks, mutations, and cache invalidation helpers for command-backed data.
@@ -47,6 +55,10 @@ Desktop host boundaries:
 
 - Native dialogs, keyring, file picker reads/writes, reveal/open actions, notifications, database, NovelAI calls, bundled resource paths, and workspace filesystem access go through Tauri commands.
 - Frontend code may transform DTOs for display, but it should not duplicate Rust domain validation beyond cheap input guards.
+- Prompt editing is the deliberate exception for immediate feedback: the frontend Lezer parser owns
+  editor diagnostics and highlighting, while `atelier-prompt` remains authoritative when prompts are
+  compiled, validated, or sent through backend workflows. Editor analysis is not exposed through a
+  Tauri command or app-api DTO.
 - NovelAI protocol details and `novelai-bridge` types stay behind backend adapters.
 
 ## Events and Cache

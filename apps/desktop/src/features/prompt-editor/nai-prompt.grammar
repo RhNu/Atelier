@@ -11,7 +11,9 @@ Item {
   Comma |
   Escaped |
   String |
+  UnterminatedString |
   Tag |
+  InvalidNumber |
   Number |
   Identifier |
   Text
@@ -19,12 +21,15 @@ Item {
 
 Strengthening { LBrace Item* RBrace }
 Weakening { LBracket Item* RBracket }
-NumericEmphasis { Number !numeric DoubleColon NumericContent* DoubleColon }
-NumericContent { ExtensionCall | Randomizer | Strengthening | Weakening | Pipe | Comma | Escaped | String | Tag | Number | Identifier | Text }
+NumericEmphasis {
+  Number !numeric DoubleColon NumericContent* DoubleColon |
+  InvalidNumber !numeric DoubleColon NumericContent* DoubleColon
+}
+NumericContent { ExtensionCall | Randomizer | Strengthening | Weakening | Pipe | Comma | Escaped | String | UnterminatedString | Tag | InvalidNumber | Number | Identifier | Text }
 Randomizer { DoublePipe RandomizerContent* DoublePipe }
 RandomizerContent { ExtensionCall | Strengthening | Weakening | NumericEmphasis | Pipe | Comma | Escaped | String | Tag | Number | Identifier | Text }
 ExtensionCall { Dollar Identifier LParen ExtensionItem* RParen }
-ExtensionItem { String | Tag | Number | Identifier | Equals | Comma | Escaped | Pipe | Text }
+ExtensionItem { String | UnterminatedString | Tag | InvalidNumber | Number | Identifier | Equals | Comma | Escaped | DoublePipe | DoubleColon | LBrace | RBrace | LBracket | RBracket | Pipe | Text }
 CloseAll { DoubleColon }
 
 @tokens {
@@ -43,11 +48,13 @@ CloseAll { DoubleColon }
   Equals { "=" }
   Escaped { "\\" ![\n\r] }
   String { '"' ("\\" ![\n\r] | !["\\])* '"' }
+  UnterminatedString { '"' ("\\" ![\n\r] | !["\\])* }
   Tag { @digit+ ( @asciiLetter | @digit | "_" | "-" )+ }
+  InvalidNumber { "-"? @digit+ "." @digit* "." ( @digit | "." )* }
   Number { "-"? @digit+ ("." @digit+)? }
   Identifier { @asciiLetter ( @asciiLetter | @digit | "_" | "-" )* }
   Text { ![{}\[\](),|@$=:"\\ \t\n\r]+ | ":" }
-  @precedence { DoublePipe, DoubleColon, String, Tag, Number, Identifier, Escaped, whitespace, Text }
+  @precedence { DoublePipe, DoubleColon, String, UnterminatedString, Tag, InvalidNumber, Number, Identifier, Escaped, whitespace, Text }
 }
 
 @skip { whitespace }
