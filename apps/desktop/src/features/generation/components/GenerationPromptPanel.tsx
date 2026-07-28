@@ -44,7 +44,17 @@ type GenerationPromptPanelProps = {
 };
 
 const MODEL_OPTIONS = generationModelSelectOptions;
-const UC_PRESET_OPTIONS = toSelectOptions(generationUcPresetOptions);
+
+function localizedUcPresetOptions(translate: (key: string) => string) {
+  return toSelectOptions(generationUcPresetOptions, {
+    heavy: translate("ucPresetOptions.heavy"),
+    light: translate("ucPresetOptions.light"),
+    furry_focus: translate("ucPresetOptions.furry_focus"),
+    human_focus: translate("ucPresetOptions.human_focus"),
+    none: translate("ucPresetOptions.none"),
+  });
+}
+
 export const GenerationPromptPanel = forwardRef<
   GenerationPromptPanelHandle,
   GenerationPromptPanelProps
@@ -54,6 +64,7 @@ export const GenerationPromptPanel = forwardRef<
 ) {
   const { t } = useTranslation("generation");
   const [activeTab, setActiveTab] = useState<PromptTab>("positive");
+  const ucPresetOptions = useMemo(() => localizedUcPresetOptions(t), [t]);
   const promptTabs = useMemo(
     () => [
       { value: "positive" as const, label: t("positive") },
@@ -153,7 +164,7 @@ export const GenerationPromptPanel = forwardRef<
                   id="generation-uc-preset"
                   aria-label={t("ucPreset")}
                   value={draft.ucPreset}
-                  options={UC_PRESET_OPTIONS}
+                  options={ucPresetOptions}
                   onChange={(event) => onPatch({ ucPreset: toUcPreset(event.target.value) })}
                   onBlur={onFlush}
                 />

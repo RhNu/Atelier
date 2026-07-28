@@ -1,5 +1,5 @@
 import { RotateCcw, Save } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel } from "@/components/ui";
@@ -97,6 +97,17 @@ function GenerationFields({
   onSizeChange: (key: "width" | "height", value: number) => void;
 }) {
   const { t } = useTranslation("settings");
+  const ucPresetOptions = useMemo(
+    () =>
+      ucPresetSelectOptions({
+        heavy: t("ucPresetOptions.heavy"),
+        light: t("ucPresetOptions.light"),
+        furry_focus: t("ucPresetOptions.furry_focus"),
+        human_focus: t("ucPresetOptions.human_focus"),
+        none: t("ucPresetOptions.none"),
+      }),
+    [t],
+  );
   const modelChange = useCallback(
     (value: string) => onFieldChange("model", toImageModel(value)),
     [onFieldChange],
@@ -178,7 +189,7 @@ function GenerationFields({
         <SelectField
           label={t("ucPreset")}
           value={generation.uc_preset}
-          options={ucPresetSelectOptions}
+          options={ucPresetOptions}
           onChange={ucPresetChange}
         />
         <NumberField label={t("steps")} value={generation.steps} onChange={stepsChange} />

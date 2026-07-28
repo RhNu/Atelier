@@ -43,6 +43,14 @@ describe("frontend i18n", () => {
     expect(zhCN.shell.nav.director).toBe("导演工具");
     expect(zhCN.generation.positive).toBe("提示词");
     expect(zhCN.generation.undesiredContent).toBe("负面内容");
+    expect(zhCN.generation.ucPreset).toBe("负面提示预设");
+    expect(zhCN.generation.ucPresetOptions).toEqual({
+      heavy: "重度",
+      light: "轻度",
+      furry_focus: "兽类优先",
+      human_focus: "人类优先",
+      none: "无",
+    });
     expect(zhCN.resources.promptChunks).toBe("提示词片段");
     expect(zhCN.director.tool.colorize.label).toBe("上色");
   });

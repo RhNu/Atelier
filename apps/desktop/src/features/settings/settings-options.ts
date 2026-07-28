@@ -11,11 +11,14 @@ import {
   toSelectOptions,
   toUcPreset,
 } from "@/features/generation/model/generation-options";
+import type { UcPresetDto } from "@/types";
 
 export const modelSelectOptions = generationModelSelectOptions;
 export const samplerSelectOptions = generationSamplerSelectOptions;
 export const noiseScheduleSelectOptions = toSelectOptions(generationNoiseScheduleOptions);
-export const ucPresetSelectOptions = toSelectOptions(generationUcPresetOptions);
+export function ucPresetSelectOptions(labels?: Partial<Record<UcPresetDto, string>>) {
+  return toSelectOptions(generationUcPresetOptions, labels);
+}
 export const imageFormatSelectOptions = toSelectOptions(generationImageFormatOptions);
 
 export function nullableImageFormatSelectOptions(defaultLabel: string) {
