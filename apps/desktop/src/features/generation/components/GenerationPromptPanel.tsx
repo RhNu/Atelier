@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 import { Settings2 } from "lucide-react";
 import {
@@ -45,7 +46,7 @@ type GenerationPromptPanelProps = {
 
 const MODEL_OPTIONS = generationModelSelectOptions;
 
-function localizedUcPresetOptions(translate: (key: string) => string) {
+function localizedUcPresetOptions(translate: TFunction<"generation">) {
   return toSelectOptions(generationUcPresetOptions, {
     heavy: translate("ucPresetOptions.heavy"),
     light: translate("ucPresetOptions.light"),

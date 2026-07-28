@@ -1,0 +1,39 @@
+import type { LocaleShape } from "../../locale-types";
+import { shell as enShell } from "../en/shell";
+
+export const shell = {
+  subtitle: "NovelAI 工作区",
+  minimizeWindow: "最小化窗口",
+  maximizeWindow: "最大化窗口",
+  closeWindow: "关闭窗口",
+  workspace: "工作区",
+  reopenFailed: "无法重新打开上次使用的工作区",
+  openTitle: "打开 Atelier 工作区",
+  statusFailed: "无法加载工作区状态。",
+  selectWorkspace: "请先选择工作区文件夹，再运行 NovelAI 生成工作流。",
+  retryingWorkspace: "正在重试工作区",
+  openingWorkspace: "正在打开工作区",
+  chooseAnotherWorkspace: "选择其他工作区",
+  openWorkspace: "打开工作区",
+  workspaceSections: "工作区功能",
+  closeToast: "关闭通知",
+  viewNotFound: "未找到页面",
+  unexpectedError: "Atelier 遇到了意外错误",
+  frontendError: "前端错误",
+  renderFailed: "Atelier 无法渲染此页面",
+  reloadApplication: "重新加载应用",
+  toastLevel: {
+    info: "信息",
+    success: "成功",
+    warning: "警告",
+    error: "错误",
+  },
+  nav: {
+    generate: "生成",
+    director: "导演工具",
+    resources: "资源",
+    lexicon: "词典",
+    gallery: "图库",
+    settings: "设置",
+  },
+} satisfies LocaleShape<typeof enShell>;

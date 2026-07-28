@@ -1,0 +1,32 @@
+import type { LocaleShape } from "../../locale-types";
+import { common as enCommon } from "../en/common";
+
+export const common = {
+  language: "语言",
+  languageSystem: "跟随系统",
+  languageEnglish: "English",
+  languageChinese: "简体中文",
+  save: "保存",
+  saving: "正在保存",
+  cancel: "取消",
+  close: "关闭",
+  delete: "删除",
+  edit: "编辑",
+  create: "创建",
+  add: "添加",
+  remove: "移除",
+  reset: "重置",
+  retry: "重试",
+  loading: "正在加载",
+  unknown: "未知",
+  commandFailed: "命令执行失败",
+  unavailable: "不可用",
+  previous: "上一页",
+  next: "下一页",
+  search: "搜索",
+  enabled: "已启用",
+  disabled: "已禁用",
+  yes: "是",
+  no: "否",
+  noImage: "没有图像",
+} satisfies LocaleShape<typeof enCommon>;

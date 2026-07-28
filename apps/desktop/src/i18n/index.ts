@@ -3,7 +3,7 @@ import { initReactI18next } from "react-i18next";
 
 import type { FrontendLanguageDto } from "@/types";
 
-import { resources } from "./resources";
+import { resources } from "./locales";
 
 export type ResolvedLanguage = "en" | "zh-CN";
 

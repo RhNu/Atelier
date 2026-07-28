@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { applyLanguagePreference, i18n, resolveLanguagePreference, resolveSystemLanguage } from ".";
-import { en, zhCN } from "./resources";
+import { en, zhCN } from "./locales";
 
 type TranslationTree = { readonly [key: string]: string | TranslationTree };
 

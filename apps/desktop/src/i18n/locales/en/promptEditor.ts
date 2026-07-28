@@ -1,0 +1,22 @@
+export const promptEditor = {
+  completions: "Prompt completions",
+  reusableChunk: "Reusable prompt chunk",
+  promptChunk: "Prompt chunk",
+  diagnostic: {
+    unmatchedStrengtheningClose: "Strengthening close delimiter has no matching opener.",
+    unmatchedWeakeningClose: "Weakening close delimiter has no matching opener.",
+    unclosedStrengthening: "Strengthening block is not closed.",
+    unclosedWeakening: "Weakening block is not closed.",
+    invalidNumericWeight: "Numeric emphasis weight is invalid.",
+    unsupportedNumericWeight: "Numeric emphasis is not supported by this model.",
+    unsupportedNegativeNumericWeight: "Negative numeric emphasis requires NAI Diffusion 4.5.",
+    unclosedNumericWeight: "Numeric emphasis remains active until the end of the prompt.",
+    unterminatedString: "String literal is not closed.",
+    unclosedRandomizer: "Prompt randomizer is not closed.",
+    emptyRandomizerOption: "Prompt randomizer contains an empty option.",
+    unclosedFunctionCall: "Extension function call is not closed.",
+    unknownFunction: "Unknown prompt extension function.",
+    invalidFunctionArity: "Prompt extension function has an invalid number of arguments.",
+    invalidFunctionArgument: "Prompt extension function has an invalid named argument.",
+  },
+} as const;
