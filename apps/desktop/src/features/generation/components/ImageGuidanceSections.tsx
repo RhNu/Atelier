@@ -2,6 +2,7 @@
 import { ImagePlus, Pencil, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { reportBackgroundPromise } from "@/app/logger";
 import { AppIconButton, AppRangeField } from "@/components/ui";
 import type { ResourceRefDto } from "@/types";
 
@@ -73,7 +74,7 @@ export function ImageToImageSection({
                 onClick={() => {
                   const mask = i2i.mask;
                   updateI2i({ mask: null });
-                  void releaseImages([mask]);
+                  reportBackgroundPromise(releaseImages([mask]), "Release generation mask");
                 }}
               />
             ) : null}
@@ -84,7 +85,10 @@ export function ImageToImageSection({
               variant="danger"
               onClick={() => {
                 onPatch({ i2i: null }, { persist: "immediate" });
-                void releaseImages([i2i.image, i2i.mask]);
+                reportBackgroundPromise(
+                  releaseImages([i2i.image, i2i.mask]),
+                  "Release generation image guidance",
+                );
               }}
             />
           </>
@@ -203,7 +207,10 @@ export function PreciseReferenceSection({
                       },
                       { persist: "immediate" },
                     );
-                    void releaseImages([reference.image]);
+                    reportBackgroundPromise(
+                      releaseImages([reference.image]),
+                      "Release precise reference image",
+                    );
                   }}
                 />
               </div>

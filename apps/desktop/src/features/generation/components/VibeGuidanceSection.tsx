@@ -3,6 +3,7 @@ import { Download, ImagePlus, Library, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { reportBackgroundPromise } from "@/app/logger";
 import { AppIconButton, AppRangeField } from "@/components/ui";
 import type { ResourceRefDto, VibeDocumentEntryDto } from "@/types";
 
@@ -78,7 +79,10 @@ export function VibeGuidanceSection({
       },
       { persist: "immediate" },
     );
-    void releaseImages(draft.preciseReferences.map((reference) => reference.image));
+    reportBackgroundPromise(
+      releaseImages(draft.preciseReferences.map((reference) => reference.image)),
+      "Release precise reference images",
+    );
   }
 
   return (
@@ -116,7 +120,7 @@ export function VibeGuidanceSection({
                 onClick={() => {
                   const resources = slots.map((slot) => slot.sourceImage);
                   onPatch({ vibe: { ...draft.vibe, slots: [] } }, { persist: "immediate" });
-                  void releaseImages(resources);
+                  reportBackgroundPromise(releaseImages(resources), "Release Vibe source images");
                 }}
               />
             ) : null}
@@ -211,7 +215,7 @@ function VibeSlot({
           variant="danger"
           onClick={() => {
             updateVibe({ slots: draft.vibe.slots.filter((item) => item.id !== slot.id) });
-            void releaseImages([slot.sourceImage]);
+            reportBackgroundPromise(releaseImages([slot.sourceImage]), "Release Vibe source image");
           }}
         />
       </div>

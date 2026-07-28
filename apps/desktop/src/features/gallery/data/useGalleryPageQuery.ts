@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { runLoggedAction } from "@/app/logger";
 import {
   desktopApi,
   galleryApi,
@@ -51,7 +52,7 @@ export function useSetGallerySafetyOverrideMutation() {
 
   return useMutation({
     mutationFn: (request: SetGallerySafetyOverrideRequestDto) =>
-      galleryApi.setSafetyOverride(request),
+      runLoggedAction("Apply gallery safety override", () => galleryApi.setSafetyOverride(request)),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() }),
@@ -65,7 +66,8 @@ export function useDeleteGalleryItemsMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: DeleteGalleryItemsRequestDto) => galleryApi.deleteItems(request),
+    mutationFn: (request: DeleteGalleryItemsRequestDto) =>
+      runLoggedAction("Delete gallery items", () => galleryApi.deleteItems(request)),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() }),
@@ -78,12 +80,14 @@ export function useDeleteGalleryItemsMutation() {
 
 export function useSaveGalleryImageMutation() {
   return useMutation({
-    mutationFn: (request: SaveResourceImageRequestDto) => desktopApi.saveResourceImage(request),
+    mutationFn: (request: SaveResourceImageRequestDto) =>
+      runLoggedAction("Save gallery image", () => desktopApi.saveResourceImage(request)),
   });
 }
 
 export function useGalleryImageReferenceMutation() {
   return useMutation({
-    mutationFn: (request: GalleryImageReferenceRequestDto) => galleryApi.imageReference(request),
+    mutationFn: (request: GalleryImageReferenceRequestDto) =>
+      runLoggedAction("Create gallery image reference", () => galleryApi.imageReference(request)),
   });
 }

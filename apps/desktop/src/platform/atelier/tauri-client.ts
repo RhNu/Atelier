@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { ErrorEnvelopeDto } from "@/types";
 
+import { describeError, frontendLogger } from "../../app/logger";
 import type { AtelierCommandName } from "./commands";
 
 export class AtelierCommandError extends Error {
@@ -20,10 +21,18 @@ export async function invokeAtelierCommand<T>(
   command: AtelierCommandName,
   args?: Record<string, unknown>,
 ): Promise<T> {
+  frontendLogger.debug("Tauri command started", { command });
   try {
-    return await invoke<T>(command, args);
+    const result = await invoke<T>(command, args);
+    frontendLogger.debug("Tauri command completed", { command });
+    return result;
   } catch (error) {
-    throw normalizeCommandError(error);
+    const normalized = normalizeCommandError(error);
+    frontendLogger.error("Tauri command failed", {
+      command,
+      error: describeError(normalized),
+    });
+    throw normalized;
   }
 }
 

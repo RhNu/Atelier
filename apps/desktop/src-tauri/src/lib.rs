@@ -12,7 +12,13 @@ use tauri::{Manager, RunEvent};
 ///
 /// Panics if the Tauri runtime cannot start.
 pub fn run() {
+    let log_level = if cfg!(debug_assertions) {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().level(log_level).build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
@@ -92,13 +98,6 @@ pub fn run() {
             commands::events_since,
         ])
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
             let state = desktop::build_desktop_state(app.handle().clone())?;
             app.manage(state);
             Ok(())

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
+import { frontendLogger, reportBackgroundPromise } from "@/app/logger";
 import { applyLanguagePreference } from "@/i18n";
 import {
   AtelierCommandError,
@@ -51,14 +52,17 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
 
   const openMutation = useMutation({
     mutationFn: async () => {
+      frontendLogger.info("Opening workspace started");
       const root = await desktopApi.pickWorkspaceDirectory();
 
       if (!root) {
+        frontendLogger.info("Opening workspace cancelled");
         return null;
       }
 
       const status = await workspaceApi.open({ root });
       const globalSettings = await globalSettingsApi.get();
+      frontendLogger.info("Opening workspace completed", { root });
       return { status, globalSettings };
     },
     onSuccess: async (result) => {
@@ -74,17 +78,20 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
         workspace: result.status,
         restore_failure: null,
       });
+      frontendLogger.info("Workspace opened and frontend cache restored");
     },
   });
 
   const closeMutation = useMutation({
     mutationFn: () => workspaceApi.close(),
     onSuccess: async () => {
+      frontendLogger.info("Closing workspace completed");
       resetGenerationEventState();
       await clearWorkspaceScopedQueryCache(queryClient);
       queryClient.setQueryData<AppBootstrapDto | undefined>(queryKeys.app.bootstrap(), (current) =>
         current ? { ...current, workspace: null, restore_failure: null } : current,
       );
+      frontendLogger.info("Workspace closed and frontend cache cleared");
     },
   });
 
@@ -102,12 +109,15 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
         current ? { ...current, global_settings: settings } : current,
       );
       await applyLanguagePreference(settings.frontend.language);
+      frontendLogger.info("Global language setting updated", {
+        language: settings.frontend.language,
+      });
     },
   });
 
   const language = bootstrapQuery.data?.global_settings.frontend.language ?? "system";
   useEffect(() => {
-    void applyLanguagePreference(language);
+    reportBackgroundPromise(applyLanguagePreference(language), "Apply workspace language");
   }, [language]);
 
   const error = getCommandError(bootstrapQuery.error ?? openMutation.error ?? closeMutation.error);
@@ -121,7 +131,7 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
     restoreFailure: bootstrapQuery.data?.restore_failure ?? null,
     openWorkspace: () => openMutation.mutate(),
     retryWorkspaceRestore: () => {
-      void bootstrapQuery.refetch();
+      reportBackgroundPromise(bootstrapQuery.refetch(), "Retry workspace restore");
     },
     closeWorkspace: () => closeMutation.mutate(),
     openingWorkspace: openMutation.isPending,

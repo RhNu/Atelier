@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { describeError, frontendLogger } from "../app/logger";
 import { AppButton, AppPanel } from "../components/ui";
 
 type AppErrorBoundaryProps = {
@@ -25,7 +26,10 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Atelier frontend error", error, errorInfo);
+    frontendLogger.error("Atelier frontend render error", {
+      error: describeError(error),
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   render() {

@@ -86,9 +86,10 @@ export function ChunkWorkspace({
     if (!draft.chunk_id) {
       return;
     }
+    const chunkId = draft.chunk_id;
     setErrorMessage(null);
     void deleteMutation
-      .mutateAsync({ chunk_id: draft.chunk_id })
+      .mutateAsync({ chunk_id: chunkId })
       .then(() => {
         setDraft(blankChunkDraft());
         setEditorOpen(false);
@@ -205,6 +206,7 @@ export function ChunkWorkspace({
                     (resource) =>
                       resource && setDraft((current) => ({ ...current, preview: resource })),
                   )
+                  .catch((err: unknown) => setErrorMessage(formatError(err)))
               }
               onClear={() => setDraft({ ...draft, preview: null })}
             />

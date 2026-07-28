@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
 
+import { reportBackgroundPromise } from "../app/logger";
 import { ActiveAccountRuntime } from "../features/account/runtime/ActiveAccountRuntime";
 import { useWorkspaceStatus } from "../features/workspace/useWorkspaceStatus";
 import { AppShell } from "../shell/AppShell";
@@ -12,7 +13,7 @@ export function RootWorkbenchLayout() {
   const location = useLocation();
   const handleNavigate = useCallback(
     (to: RouteNavItem["to"]) => {
-      void navigate({ to });
+      reportBackgroundPromise(navigate({ to }), "Route navigation", { to });
     },
     [navigate],
   );

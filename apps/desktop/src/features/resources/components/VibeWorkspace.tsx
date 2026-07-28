@@ -3,6 +3,7 @@ import { Download, FilePlus2, Import, Pencil, Save, Sparkles } from "lucide-reac
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { runLoggedAction } from "@/app/logger";
 import { AppButton, AppModal, AppPanel, EmptyState } from "@/components/ui";
 import { useToastStore } from "@/stores/toast-store";
 import type { VibeDocumentEntryDto } from "@/types";
@@ -178,9 +179,15 @@ export function VibeWorkspace({
           if (hidden !== editingVibe.hidden) {
             updates.push(hideMutation.mutateAsync({ vibe_id: editingVibe.vibe_id, hidden }));
           }
-          void Promise.all(updates)
-            .then(() => setEditingVibe(null))
-            .catch(() => undefined);
+          void runLoggedAction("Update Vibe document", () =>
+            Promise.all(updates).then(() => setEditingVibe(null)),
+          ).catch((error: unknown) => {
+            pushToast({
+              level: "error",
+              title: t("vibeActionFailed"),
+              message: formatError(error),
+            });
+          });
         }}
       />
     </AppPanel>

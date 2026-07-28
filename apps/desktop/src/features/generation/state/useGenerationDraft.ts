@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { describeError, frontendLogger, reportBackgroundPromise } from "@/app/logger";
 import type { GenerationDraftDto, WorkspaceSettingsDto } from "@/types";
 
 import {
@@ -46,18 +47,22 @@ export function useGenerationDraft({
       return;
     }
     saveInFlightRef.current = true;
+    frontendLogger.debug("Generation draft save queue started");
     try {
       while (pendingDraftRef.current) {
         const next = pendingDraftRef.current;
         pendingDraftRef.current = null;
+        frontendLogger.debug("Generation draft save started");
         try {
           await saveDraftRef.current(next);
           failedDraftRef.current = null;
+          frontendLogger.info("Generation draft saved");
           if (mountedRef.current) {
             setSaveError(null);
           }
         } catch (error) {
           failedDraftRef.current = next;
+          logGenerationDraftSaveFailure(error);
           if (mountedRef.current) {
             setSaveError(formatSaveError(error));
           }
@@ -66,6 +71,7 @@ export function useGenerationDraft({
       }
     } finally {
       saveInFlightRef.current = false;
+      frontendLogger.debug("Generation draft save queue finished");
     }
   }, []);
 
@@ -77,12 +83,12 @@ export function useGenerationDraft({
         saveTimerRef.current = null;
       }
       if (mode === "immediate") {
-        void drainSaveQueue();
+        reportBackgroundPromise(drainSaveQueue(), "Drain generation draft save queue");
         return;
       }
       saveTimerRef.current = window.setTimeout(() => {
         saveTimerRef.current = null;
-        void drainSaveQueue();
+        reportBackgroundPromise(drainSaveQueue(), "Drain generation draft save queue");
       }, SAVE_DEBOUNCE_MS);
     },
     [drainSaveQueue],
@@ -116,7 +122,7 @@ export function useGenerationDraft({
       }
       const pending = pendingDraftRef.current;
       if (pending) {
-        void saveDraftRef.current(pending);
+        reportPendingGenerationDraftSave(saveDraftRef.current(pending));
       }
     };
   }, []);
@@ -179,4 +185,12 @@ export function useGenerationDraft({
 
 function formatSaveError(error: unknown): string {
   return error instanceof Error ? error.message : "Generation draft could not be saved.";
+}
+
+function logGenerationDraftSaveFailure(error: unknown): void {
+  frontendLogger.error("Generation draft save failed", { error: describeError(error) });
+}
+
+function reportPendingGenerationDraftSave(promise: Promise<unknown>): void {
+  reportBackgroundPromise(promise, "Persist pending generation draft on unmount");
 }

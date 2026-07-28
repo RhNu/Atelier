@@ -7,6 +7,7 @@ import {
 } from "@codemirror/autocomplete";
 import type { QueryClient } from "@tanstack/react-query";
 
+import { frontendLogger } from "@/app/logger";
 import type { PromptChunkDto, PromptLexiconEntryDto } from "@/types";
 
 import { fetchPromptCompletionChunks, fetchPromptCompletionTags } from "./completion-data";
@@ -47,6 +48,10 @@ async function completePrompt(
   context.addEventListener("abort", () => undefined, { onDocChange: true });
   const source = context.state.doc.toString();
   const promptContext = getPromptCompletionContext(source, context.pos, context.explicit);
+  frontendLogger.debug("Prompt completion started", {
+    mode: promptContext.mode,
+    explicit: context.explicit,
+  });
 
   if (promptContext.mode === "function") {
     const options = functionItems(promptContext, messages).map((item) =>
@@ -81,6 +86,10 @@ async function completePrompt(
   if (context.aborted) return null;
 
   const items = completionItems(promptContext, chunks, tags, messages);
+  frontendLogger.debug("Prompt completion completed", {
+    mode: promptContext.mode,
+    itemCount: items.length,
+  });
   if (items.length === 0) return null;
   return {
     from: promptContext.filterStart,
@@ -188,7 +197,11 @@ function normalize(value: string): string {
 async function recover<T>(promise: Promise<T[]>): Promise<T[]> {
   try {
     return await promise;
-  } catch {
+  } catch (error: unknown) {
+    frontendLogger.warn("Prompt completion source unavailable", {
+      error:
+        error instanceof Error ? { name: error.name, message: error.message } : { value: error },
+    });
     return [];
   }
 }

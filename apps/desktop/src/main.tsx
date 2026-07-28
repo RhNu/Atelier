@@ -7,12 +7,15 @@ import "./i18n";
 import "./index.css";
 import App from "./App.tsx";
 import { AtelierEventBridge } from "./app/AtelierEventBridge";
+import { frontendLogger, installGlobalErrorHandlers } from "./app/logger";
 import { createAtelierQueryClient } from "./app/query-client";
 
+installGlobalErrorHandlers();
 const queryClient = createAtelierQueryClient();
 const rootElement = document.getElementById("root");
 
 if (!rootElement) {
+  frontendLogger.error("Atelier root element is missing");
   throw new Error("Atelier root element is missing.");
 }
 

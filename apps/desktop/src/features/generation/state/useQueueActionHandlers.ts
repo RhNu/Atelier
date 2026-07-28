@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 
+import { frontendLogger, describeError } from "@/app/logger";
+
 import { formatGenerationError } from "../generation-page-utils";
 
 type QueueActionHandlersProps = {
@@ -18,9 +20,17 @@ export function useQueueActionHandlers({
   const runQueueCommand = useCallback(
     (command: () => Promise<unknown>) => {
       setQueueError(null);
-      void command().catch((error: unknown) => {
-        setQueueError(formatGenerationError(error));
-      });
+      frontendLogger.info("Generation queue action started");
+      void command()
+        .then(() => {
+          frontendLogger.info("Generation queue action completed");
+        })
+        .catch((error: unknown) => {
+          frontendLogger.error("Generation queue action failed", {
+            error: describeError(error),
+          });
+          setQueueError(formatGenerationError(error));
+        });
     },
     [setQueueError],
   );

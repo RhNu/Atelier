@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { runLoggedAction } from "@/app/logger";
 import {
   desktopApi,
   galleryApi,
@@ -116,26 +117,31 @@ export function useEnsureVibeEncodingFromResourceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       resource,
       model,
       informationExtracted,
-    }: EnsureVibeEncodingFromResourceRequest): Promise<EnsuredVibeEncodingFromResource> => {
-      const image = await resourceApi.image({ resource });
-      const sourceSha256 = await sha256Base64(image.image_base64);
-      const ensured = await vibeApi.ensureEncoding({
-        vibe_id: resource.id,
-        source_sha256: sourceSha256,
-        image: image.image_base64,
-        model: model as VibeModelDto,
-        information_extracted: informationExtracted,
-      });
-      return {
-        encoding: ensured.resource,
-        sourceSha256,
-        created: ensured.created,
-      };
-    },
+    }: EnsureVibeEncodingFromResourceRequest): Promise<EnsuredVibeEncodingFromResource> =>
+      runLoggedAction(
+        "Ensure generation Vibe encoding",
+        async () => {
+          const image = await resourceApi.image({ resource });
+          const sourceSha256 = await sha256Base64(image.image_base64);
+          const ensured = await vibeApi.ensureEncoding({
+            vibe_id: resource.id,
+            source_sha256: sourceSha256,
+            image: image.image_base64,
+            model: model as VibeModelDto,
+            information_extracted: informationExtracted,
+          });
+          return {
+            encoding: ensured.resource,
+            sourceSha256,
+            created: ensured.created,
+          };
+        },
+        { resourceId: resource.id },
+      ),
     onSuccess: async (ensured) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() }),
@@ -317,12 +323,14 @@ export function useExportVibeDocumentMutation() {
 }
 
 async function invalidateGenerationWorkbench(queryClient: ReturnType<typeof useQueryClient>) {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: queryKeys.generation.root() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.history.root() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() }),
-    queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
-  ]);
+  await runLoggedAction("Refresh generation workbench", () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.generation.root() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.history.root() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+    ]),
+  );
 }
 
 async function sha256Base64(value: string): Promise<string> {

@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
+import { reportBackgroundPromise } from "@/app/logger";
 import { AppButton, AppModal, AppPanel, EmptyState } from "@/components/ui";
 import type { ApiKeyRecordDto } from "@/types";
 
@@ -18,7 +19,7 @@ export function AccountSettingsSection() {
   const account = useAccountSettingsController();
   const refetchActiveSummary = account.activeSummary.refetch;
   const retryActiveSummary = useCallback(() => {
-    void refetchActiveSummary();
+    reportBackgroundPromise(refetchActiveSummary(), "Retry active account summary");
   }, [refetchActiveSummary]);
 
   return (

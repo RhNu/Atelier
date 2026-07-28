@@ -94,9 +94,10 @@ export function PresetWorkspace({
     if (!draft.preset_id) {
       return;
     }
+    const presetId = draft.preset_id;
     setErrorMessage(null);
     void deleteMutation
-      .mutateAsync({ preset_id: draft.preset_id })
+      .mutateAsync({ preset_id: presetId })
       .then(() => {
         setDraft(blankPresetDraft(kind));
         setEditorOpen(false);
@@ -202,6 +203,7 @@ export function PresetWorkspace({
                   (resource) =>
                     resource && setDraft((current) => ({ ...current, preview: resource })),
                 )
+                .catch((err: unknown) => setErrorMessage(formatError(err)))
             }
           />
         </EditorPanel>

@@ -2,6 +2,7 @@ import { Minus, Square, X } from "lucide-react";
 import { useCallback, type MouseEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { frontendLogger, reportBackgroundPromise } from "../app/logger";
 import { AppButton, AppPanel, AppToastHost, LanguageSelect } from "../components/ui";
 import { routeNavItems, type RouteNavItem } from "../routes/nav";
 import type { FrontendLanguageDto, WorkspaceRestoreFailureDto, WorkspaceStatusDto } from "../types";
@@ -24,32 +25,36 @@ export type AppShellProps = {
 };
 
 async function controlWindow(action: "close" | "maximize" | "minimize") {
+  frontendLogger.debug("Window command started", { action });
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
   const appWindow = getCurrentWindow();
 
   if (action === "close") {
     await appWindow.close();
+    frontendLogger.info("Window closed", { action });
     return;
   }
 
   if (action === "maximize") {
     await appWindow.toggleMaximize();
+    frontendLogger.info("Window maximize toggled", { action });
     return;
   }
 
   await appWindow.minimize();
+  frontendLogger.info("Window minimized", { action });
 }
 
 function handleMinimizeWindow() {
-  void controlWindow("minimize");
+  reportBackgroundPromise(controlWindow("minimize"), "Minimize window");
 }
 
 function handleMaximizeWindow() {
-  void controlWindow("maximize");
+  reportBackgroundPromise(controlWindow("maximize"), "Maximize window");
 }
 
 function handleCloseWindow() {
-  void controlWindow("close");
+  reportBackgroundPromise(controlWindow("close"), "Close window");
 }
 
 function getFallbackPath(): string {

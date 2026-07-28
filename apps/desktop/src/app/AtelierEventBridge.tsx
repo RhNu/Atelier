@@ -8,6 +8,7 @@ import {
   recoverAtelierEvents,
 } from "../platform/atelier";
 import type { AppEventDto } from "../types";
+import { describeError, frontendLogger, reportBackgroundPromise } from "./logger";
 
 export function AtelierEventBridge() {
   const queryClient = useQueryClient();
@@ -24,6 +25,10 @@ export function AtelierEventBridge() {
         return;
       }
       cursor = event.sequence;
+      frontendLogger.debug("Atelier event delivered", {
+        kind: event.kind.kind,
+        sequence: event.sequence,
+      });
       recordGenerationEvent(event);
       applyAtelierEventInvalidations(queryClient, event);
     };
@@ -40,7 +45,10 @@ export function AtelierEventBridge() {
       try {
         cursor = await recoverAtelierEvents(cursor, deliver);
       } catch (error: unknown) {
-        console.error("Failed to recover Atelier events", error);
+        frontendLogger.error("Failed to recover Atelier events", {
+          cursor,
+          error: describeError(error),
+        });
       } finally {
         recovering = false;
         flushPending();
@@ -52,14 +60,14 @@ export function AtelierEventBridge() {
         cursor = 0;
         recovering = true;
         pending.push(event);
-        void recover();
+        reportBackgroundPromise(recover(), "Atelier event recovery");
         return;
       }
       if (recovering || event.sequence > cursor + 1) {
         pending.push(event);
         if (!recovering) {
           recovering = true;
-          void recover();
+          reportBackgroundPromise(recover(), "Atelier event recovery");
         }
         return;
       }
@@ -72,10 +80,12 @@ export function AtelierEventBridge() {
         }
 
         unlisten = nextUnlisten;
-        void recover();
+        reportBackgroundPromise(recover(), "Atelier event recovery");
       })
       .catch((error: unknown) => {
-        console.error("Failed to attach Atelier event listener", error);
+        frontendLogger.error("Failed to attach Atelier event listener", {
+          error: describeError(error),
+        });
       });
 
     return () => {

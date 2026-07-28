@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { reportBackgroundPromise } from "@/app/logger";
 import { AppPanel, EmptyState } from "@/components/ui";
 import { applyLanguagePreference } from "@/i18n";
 import { useToastStore } from "@/stores/toast-store";
@@ -86,7 +87,10 @@ export function SettingsPage() {
         {
           onSuccess: (updatedSettings) => {
             setGlobalDraft(cloneGlobalSettings(updatedSettings));
-            void applyLanguagePreference(updatedSettings.frontend.language);
+            reportBackgroundPromise(
+              applyLanguagePreference(updatedSettings.frontend.language),
+              "Apply updated language preference",
+            );
             pushToast({ level: "success", message: t("settingsSaved") });
           },
           onError: (error) => {

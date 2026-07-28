@@ -1,6 +1,7 @@
 /* eslint-disable max-lines-per-function */
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 
+import { reportBackgroundPromise, runLoggedAction } from "@/app/logger";
 import { desktopApi, resourceApi, uniqueImportedImageResources } from "@/platform/atelier";
 import type { DirectorToolDto, DirectorToolResultDto } from "@/types";
 
@@ -54,7 +55,11 @@ export function DirectorPage() {
         latestInput.current?.kind === "resource" ? latestInput.current.resource : null;
       const resources = uniqueImportedImageResources([resource]);
       if (resources.length > 0) {
-        void resourceApi.releaseImportedImages({ resources }).catch(() => undefined);
+        reportBackgroundPromise(
+          resourceApi.releaseImportedImages({ resources }),
+          "Release Director input resource on unmount",
+          { count: resources.length },
+        );
       }
     },
     [],
@@ -78,7 +83,10 @@ export function DirectorPage() {
       setInput({ kind: "resource", resource, label: resource.id });
       setResult(null);
       setActionError(null);
-      void releaseImagesMutation.mutateAsync([replaced]).catch(() => undefined);
+      reportBackgroundPromise(
+        releaseImagesMutation.mutateAsync([replaced]),
+        "Release replaced Director input resource",
+      );
     }
   }, [consumeHandoff, releaseImagesMutation]);
 
@@ -95,9 +103,10 @@ export function DirectorPage() {
           const replaced = input?.kind === "resource" ? input.resource : null;
           setInput({ kind: "resource", resource, label: resource.id });
           setResult(null);
-          void releaseImagesMutation
-            .mutateAsync([replaced])
-            .catch((error: unknown) => setActionError(formatError(error)));
+          reportBackgroundPromise(
+            releaseImagesMutation.mutateAsync([replaced]),
+            "Release replaced Director input resource",
+          );
         }
       })
       .catch((error: unknown) => setActionError(formatError(error)));
@@ -105,8 +114,9 @@ export function DirectorPage() {
 
   const handlePasteInput = useCallback(() => {
     setActionError(null);
-    void desktopApi
-      .readClipboardImage()
+    void runLoggedAction("Read Director input image from clipboard", () =>
+      desktopApi.readClipboardImage(),
+    )
       .then((pasted) => {
         const replaced = input?.kind === "resource" ? input.resource : null;
         setInput({
@@ -116,9 +126,10 @@ export function DirectorPage() {
           label: "Clipboard image",
         });
         setResult(null);
-        void releaseImagesMutation
-          .mutateAsync([replaced])
-          .catch((error: unknown) => setActionError(formatError(error)));
+        reportBackgroundPromise(
+          releaseImagesMutation.mutateAsync([replaced]),
+          "Release replaced Director input resource",
+        );
       })
       .catch((error: unknown) => setActionError(formatError(error)));
   }, [input, releaseImagesMutation]);
@@ -128,9 +139,10 @@ export function DirectorPage() {
     setInput(null);
     setResult(null);
     setActionError(null);
-    void releaseImagesMutation
-      .mutateAsync([replaced])
-      .catch((error: unknown) => setActionError(formatError(error)));
+    reportBackgroundPromise(
+      releaseImagesMutation.mutateAsync([replaced]),
+      "Release cleared Director input resource",
+    );
   }, [input, releaseImagesMutation]);
 
   const handleToolChange = useCallback((value: string) => {
@@ -147,7 +159,7 @@ export function DirectorPage() {
   }, []);
 
   const handleRefreshReadiness = useCallback(() => {
-    void refetchReadiness();
+    reportBackgroundPromise(refetchReadiness(), "Refresh Director readiness");
   }, [refetchReadiness]);
 
   const handleRunTool = useCallback(() => {

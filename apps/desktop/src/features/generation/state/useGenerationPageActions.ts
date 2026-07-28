@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { reportBackgroundPromise, runLoggedAction } from "@/app/logger";
 import { setDirectorHandoffInput } from "@/features/director/state/director-handoff-store";
 import { navigateToDirector } from "@/features/director/state/navigate-to-director";
 import { resourceApi, uniqueImportedImageResources } from "@/platform/atelier";
@@ -62,64 +63,73 @@ function useGenerationHistoryActions({
 
   const handleRerunRequest = useCallback(() => {
     if (!selectedRequest?.runId || rerunMutation.isPending) return;
+    const runId = selectedRequest.runId;
     const ids = createGenerationRunIds(1);
     const jobId = ids.jobIds[0];
     if (!jobId) return;
     setError(null);
-    void rerunMutation
-      .mutateAsync({ run_id: selectedRequest.runId, batch_id: ids.batchId, job_id: jobId })
-      .catch((cause: unknown) => setError(formatGenerationError(cause)));
+    void runLoggedAction("Rerun generation request", () =>
+      rerunMutation.mutateAsync({
+        run_id: runId,
+        batch_id: ids.batchId,
+        job_id: jobId,
+      }),
+    ).catch((cause: unknown) => setError(formatGenerationError(cause)));
   }, [rerunMutation, selectedRequest?.runId, setError]);
 
   const handleRerunBatch = useCallback(() => {
     if (!batch?.requests.length || rerunBatchMutation.isPending) return;
     const ids = createGenerationRunIds(batch.requests.length);
     setError(null);
-    void rerunBatchMutation
-      .mutateAsync({
+    void runLoggedAction("Rerun generation batch", () =>
+      rerunBatchMutation.mutateAsync({
         source_batch_id: batch.batchId,
         batch_id: ids.batchId,
         job_ids: ids.jobIds,
-      })
-      .catch((cause: unknown) => setError(formatGenerationError(cause)));
+      }),
+    ).catch((cause: unknown) => setError(formatGenerationError(cause)));
   }, [batch, rerunBatchMutation, setError]);
 
   const handleDeleteRequest = useCallback(() => {
     if (!selectedRequest?.runId || deleteMutation.isPending) return;
+    const runId = selectedRequest.runId;
     setError(null);
-    void deleteMutation
-      .mutateAsync([selectedRequest.runId])
-      .then(onRequestDeleted)
-      .catch((cause: unknown) => setError(formatGenerationError(cause)));
+    void runLoggedAction("Delete generation request", () =>
+      deleteMutation.mutateAsync([runId]).then(onRequestDeleted),
+    ).catch((cause: unknown) => setError(formatGenerationError(cause)));
   }, [deleteMutation, onRequestDeleted, selectedRequest?.runId, setError]);
 
   const handleDeleteBatch = useCallback(() => {
     if (!batch || deleteBatchMutation.isPending) return;
     setError(null);
-    void deleteBatchMutation
-      .mutateAsync([batch.batchId])
-      .then(onBatchDeleted)
-      .catch((cause: unknown) => setError(formatGenerationError(cause)));
+    void runLoggedAction("Delete generation batch", () =>
+      deleteBatchMutation.mutateAsync([batch.batchId]).then(onBatchDeleted),
+    ).catch((cause: unknown) => setError(formatGenerationError(cause)));
   }, [batch, deleteBatchMutation, onBatchDeleted, setError]);
 
   const handleSaveSample = useCallback(() => {
     if (!selectedSample?.resource || !selectedRequest) return;
+    const resource = selectedSample.resource;
+    const request = selectedRequest;
+    const sample = selectedSample;
     setError(null);
-    void saveMutation
-      .mutateAsync({
-        resource: selectedSample.resource,
-        suggested_file_name: stableSampleName(selectedRequest, selectedSample),
-      })
-      .catch((cause: unknown) => setError(formatGenerationError(cause)));
+    void runLoggedAction("Save generated sample", () =>
+      saveMutation.mutateAsync({
+        resource,
+        suggested_file_name: stableSampleName(request, sample),
+      }),
+    ).catch((cause: unknown) => setError(formatGenerationError(cause)));
   }, [saveMutation, selectedRequest, selectedSample, setError]);
 
   const handleSendSampleToDirector = useCallback(() => {
     if (!selectedSample?.resource || !selectedSample.galleryItemId) return;
+    const galleryItemId = selectedSample.galleryItemId;
     setError(null);
-    void referenceMutation
-      .mutateAsync({ item_id: selectedSample.galleryItemId, target: "director" })
-      .then((reference) => handoffToDirector(reference.resource))
-      .catch((cause: unknown) => setError(formatGenerationError(cause)));
+    void runLoggedAction("Send generated sample to Director", () =>
+      referenceMutation
+        .mutateAsync({ item_id: galleryItemId, target: "director" })
+        .then((reference) => handoffToDirector(reference.resource)),
+    ).catch((cause: unknown) => setError(formatGenerationError(cause)));
   }, [referenceMutation, selectedSample, setError]);
 
   const handleExportRequest = useCallback(() => {
@@ -175,20 +185,26 @@ function useGenerationInputActions({
         generationDraftInputResources(latestDraft.current),
       );
       if (resources.length > 0) {
-        void resourceApi.releaseImportedImages({ resources }).catch(() => undefined);
+        reportBackgroundPromise(
+          resourceApi.releaseImportedImages({ resources }),
+          "Release generation input resources on unmount",
+          { count: resources.length },
+        );
       }
     },
     [],
   );
   const handleImportVibeDocuments = useCallback(() => {
     setError(null);
-    void importVibeMutation
-      .mutateAsync()
-      .catch((cause: unknown) => setError(formatGenerationError(cause)));
+    void runLoggedAction("Import Vibe documents", () => importVibeMutation.mutateAsync()).catch(
+      (cause: unknown) => setError(formatGenerationError(cause)),
+    );
   }, [importVibeMutation, setError]);
   const handlePickImageResources = useCallback(
     async (kind: "source_image" | "reference_image") => {
-      const imported = await imageMutation.mutateAsync({ kind, extensions: [] });
+      const imported = await runLoggedAction("Pick generation image resources", () =>
+        imageMutation.mutateAsync({ kind, extensions: [] }),
+      );
       return imported.map((item) => item.resource);
     },
     [imageMutation],
@@ -197,34 +213,38 @@ function useGenerationInputActions({
     async (resources: ReadonlyArray<ResourceRefDto | null>) => {
       const imported = uniqueImportedImageResources(resources);
       if (imported.length === 0) return;
-      await releaseImagesMutation.mutateAsync(imported);
+      await runLoggedAction("Release generation image resources", () =>
+        releaseImagesMutation.mutateAsync(imported),
+      );
     },
     [releaseImagesMutation],
   );
   const handlePickVibeEncoding = useCallback(async () => {
     if (!draft) return null;
-    const [imported, ...unused] = await imageMutation.mutateAsync({
-      kind: "control_net_image",
-      extensions: [],
-    });
-    await handleReleaseImageResources(unused.map((item) => item.resource));
-    if (!imported) return null;
-    try {
-      return await ensureVibeMutation.mutateAsync({
-        resource: imported.resource,
-        model: draft.model,
-        informationExtracted: 1,
+    return runLoggedAction("Prepare Vibe encoding", async () => {
+      const [imported, ...unused] = await imageMutation.mutateAsync({
+        kind: "control_net_image",
+        extensions: [],
       });
-    } finally {
-      await handleReleaseImageResources([imported.resource]);
-    }
+      await handleReleaseImageResources(unused.map((item) => item.resource));
+      if (!imported) return null;
+      try {
+        return await ensureVibeMutation.mutateAsync({
+          resource: imported.resource,
+          model: draft.model,
+          informationExtracted: 1,
+        });
+      } finally {
+        await handleReleaseImageResources([imported.resource]);
+      }
+    });
   }, [draft, ensureVibeMutation, handleReleaseImageResources, imageMutation]);
   const handleExportVibeDocument = useCallback(
     (vibeId: string) => {
       setError(null);
-      void exportVibeMutation
-        .mutateAsync([vibeId])
-        .catch((cause: unknown) => setError(formatGenerationError(cause)));
+      void runLoggedAction("Export Vibe document", () =>
+        exportVibeMutation.mutateAsync([vibeId]),
+      ).catch((cause: unknown) => setError(formatGenerationError(cause)));
     },
     [exportVibeMutation, setError],
   );
@@ -272,9 +292,9 @@ function exportZip(
 ): void {
   if (entries.length === 0) return;
   setError(null);
-  void mutation
-    .mutateAsync({ entries, suggested_file_name: suggestedName })
-    .catch((cause: unknown) => setError(formatGenerationError(cause)));
+  void runLoggedAction("Export generation images", () =>
+    mutation.mutateAsync({ entries, suggested_file_name: suggestedName }),
+  ).catch((cause: unknown) => setError(formatGenerationError(cause)));
 }
 
 function generationDraftInputResources(draft: GenerationDraft): ResourceRefDto[] {

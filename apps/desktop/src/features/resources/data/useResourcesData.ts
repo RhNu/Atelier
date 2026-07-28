@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { runLoggedAction } from "@/app/logger";
 import {
   desktopApi,
   promptApi,
@@ -67,33 +68,45 @@ export function useResourceImageQuery(resource: ResourceRefDto | null) {
 
 export function useImportResourcePreviewMutation() {
   return useMutation({
-    mutationFn: async (source: "clipboard" | "file") => {
-      if (source === "clipboard") {
-        return (await desktopApi.importClipboardImageResource("source_image")).resource;
-      }
-      const [selected, ...unused] = await desktopApi.pickAndImportImageResources("source_image", {
-        extensions: [],
-      });
-      if (unused.length > 0) {
-        await resourceApi.releaseImportedImages({
-          resources: unused.map((item) => item.resource),
-        });
-      }
-      return selected?.resource ?? null;
-    },
+    mutationFn: (source: "clipboard" | "file") =>
+      runLoggedAction(
+        "Import resource preview",
+        async () => {
+          if (source === "clipboard") {
+            return (await desktopApi.importClipboardImageResource("source_image")).resource;
+          }
+          const [selected, ...unused] = await desktopApi.pickAndImportImageResources(
+            "source_image",
+            {
+              extensions: [],
+            },
+          );
+          if (unused.length > 0) {
+            await resourceApi.releaseImportedImages({
+              resources: unused.map((item) => item.resource),
+            });
+          }
+          return selected?.resource ?? null;
+        },
+        { source },
+      ),
   });
 }
 
 export function useReleaseResourcePreviewsMutation() {
   return useMutation({
-    mutationFn: (resources: ResourceRefDto[]) => resourceApi.releaseImportedImages({ resources }),
+    mutationFn: (resources: ResourceRefDto[]) =>
+      runLoggedAction("Release resource previews", () =>
+        resourceApi.releaseImportedImages({ resources }),
+      ),
   });
 }
 
 export function useUpsertPromptChunkMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: UpsertPromptChunkRequestDto) => promptApi.upsertChunk(request),
+    mutationFn: (request: UpsertPromptChunkRequestDto) =>
+      runLoggedAction("Save prompt chunk", () => promptApi.upsertChunk(request)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() });
     },
@@ -103,7 +116,8 @@ export function useUpsertPromptChunkMutation() {
 export function useDeletePromptChunkMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: DeletePromptChunkRequestDto) => promptApi.deleteChunk(request),
+    mutationFn: (request: DeletePromptChunkRequestDto) =>
+      runLoggedAction("Delete prompt chunk", () => promptApi.deleteChunk(request)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() });
     },
@@ -113,7 +127,8 @@ export function useDeletePromptChunkMutation() {
 export function useUpsertPromptPresetMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: UpsertPromptPresetRequestDto) => promptApi.upsertPreset(request),
+    mutationFn: (request: UpsertPromptPresetRequestDto) =>
+      runLoggedAction("Save prompt preset", () => promptApi.upsertPreset(request)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() });
     },
@@ -123,7 +138,8 @@ export function useUpsertPromptPresetMutation() {
 export function useDeletePromptPresetMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: DeletePromptPresetRequestDto) => promptApi.deletePreset(request),
+    mutationFn: (request: DeletePromptPresetRequestDto) =>
+      runLoggedAction("Delete prompt preset", () => promptApi.deletePreset(request)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() });
     },
@@ -133,7 +149,10 @@ export function useDeletePromptPresetMutation() {
 export function useImportVibeDocumentsMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => desktopApi.pickAndImportVibeDocuments({ extensions: [] }),
+    mutationFn: () =>
+      runLoggedAction("Import Vibe documents", () =>
+        desktopApi.pickAndImportVibeDocuments({ extensions: [] }),
+      ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
     },
@@ -143,7 +162,10 @@ export function useImportVibeDocumentsMutation() {
 export function useImportEmbeddedPngVibeDocumentsMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => desktopApi.pickAndImportEmbeddedPngVibeDocuments({ extensions: [] }),
+    mutationFn: () =>
+      runLoggedAction("Import embedded PNG Vibe documents", () =>
+        desktopApi.pickAndImportEmbeddedPngVibeDocuments({ extensions: [] }),
+      ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
     },
@@ -152,14 +174,16 @@ export function useImportEmbeddedPngVibeDocumentsMutation() {
 
 export function useExportVibeDocumentMutation() {
   return useMutation({
-    mutationFn: (request: ExportVibeDocumentRequestDto) => vibeApi.saveDocument(request),
+    mutationFn: (request: ExportVibeDocumentRequestDto) =>
+      runLoggedAction("Export Vibe document", () => vibeApi.saveDocument(request)),
   });
 }
 
 export function useRenameVibeDocumentMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: RenameVibeDocumentRequestDto) => vibeApi.renameDocument(request),
+    mutationFn: (request: RenameVibeDocumentRequestDto) =>
+      runLoggedAction("Rename Vibe document", () => vibeApi.renameDocument(request)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
     },
@@ -169,7 +193,8 @@ export function useRenameVibeDocumentMutation() {
 export function useSetVibeDocumentHiddenMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (request: SetVibeDocumentHiddenRequestDto) => vibeApi.setDocumentHidden(request),
+    mutationFn: (request: SetVibeDocumentHiddenRequestDto) =>
+      runLoggedAction("Update Vibe document visibility", () => vibeApi.setDocumentHidden(request)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
     },
@@ -178,25 +203,31 @@ export function useSetVibeDocumentHiddenMutation() {
 
 export function useCompilePromptPreviewMutation() {
   return useMutation({
-    mutationFn: (request: CompilePromptRequestDto) => promptApi.compilePreview(request),
+    mutationFn: (request: CompilePromptRequestDto) =>
+      runLoggedAction("Compile prompt preview", () => promptApi.compilePreview(request)),
   });
 }
 
 export function useEnsureVibeEncodingFromSourceMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ vibeId, sourceImage }: EnsureVibeEncodingFromSourceRequest) => {
-      const settings = await settingsApi.get();
-      const image = await resourceApi.image({ resource: sourceImage });
-      const sourceSha256 = await sha256Base64(image.image_base64);
-      return vibeApi.ensureEncoding({
-        vibe_id: vibeId,
-        source_sha256: sourceSha256,
-        image: image.image_base64,
-        model: settings.generation.model as VibeModelDto,
-        information_extracted: 1,
-      });
-    },
+    mutationFn: ({ vibeId, sourceImage }: EnsureVibeEncodingFromSourceRequest) =>
+      runLoggedAction(
+        "Ensure Vibe encoding",
+        async () => {
+          const settings = await settingsApi.get();
+          const image = await resourceApi.image({ resource: sourceImage });
+          const sourceSha256 = await sha256Base64(image.image_base64);
+          return vibeApi.ensureEncoding({
+            vibe_id: vibeId,
+            source_sha256: sourceSha256,
+            image: image.image_base64,
+            model: settings.generation.model as VibeModelDto,
+            information_extracted: 1,
+          });
+        },
+        { vibeId },
+      ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
       await queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() });

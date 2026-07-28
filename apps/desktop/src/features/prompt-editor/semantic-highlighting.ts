@@ -7,6 +7,8 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 
+import { describeError, frontendLogger } from "@/app/logger";
+
 import { promptAnalysisForState, type PromptSemanticSpan } from "./prompt-analysis";
 
 const markCache = new Map<string, Decoration>();
@@ -35,7 +37,9 @@ function buildDecorations(view: EditorView): DecorationSet {
     }
     return builder.finish();
   } catch (error) {
-    console.error("[NaiPromptEditor] semantic highlighting disabled after an error", error);
+    frontendLogger.error("Prompt semantic highlighting disabled after an error", {
+      error: describeError(error),
+    });
     return Decoration.none;
   }
 }

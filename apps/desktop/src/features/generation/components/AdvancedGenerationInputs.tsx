@@ -2,6 +2,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { describeError, frontendLogger } from "@/app/logger";
 import type { CharacterReferenceTypeDto, PromptPresetDto, ResourceRefDto } from "@/types";
 
 import type { EnsuredVibeEncodingFromResource } from "../data/useGenerationActions";
@@ -71,6 +72,9 @@ export function AdvancedGenerationInputs({
     try {
       await onReleaseImageResources(resources);
     } catch (err) {
+      frontendLogger.error("Release generation image resources from input failed", {
+        error: describeError(err),
+      });
       setError(formatError(err));
     }
   }

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { describeError, frontendLogger } from "@/app/logger";
 import { useActiveAccountSummaryQuery } from "@/features/account/data/useActiveAccountSummaryQuery";
 import { useToastStore } from "@/stores/toast-store";
 import type { CompiledGenerationPromptDto, GenerationBatchHistoryStatusDto } from "@/types";
@@ -206,9 +207,18 @@ export function GeneratePage() {
     setValidationError(null);
     setSubmitError(null);
     flushDraft();
+    frontendLogger.info("Generation batch submission started");
     void submitMutation
       .mutateAsync(buildSubmitGenerationBatchRequest(draft, undefined, { isOpus }))
-      .catch((error) => setSubmitError(formatError(error)));
+      .then(() => {
+        frontendLogger.info("Generation batch submission completed");
+      })
+      .catch((error: unknown) => {
+        frontendLogger.error("Generation batch submission failed", {
+          error: describeError(error),
+        });
+        setSubmitError(formatError(error));
+      });
   }, [draft, flushDraft, isOpus, submitMutation, t]);
 
   const handleCompile = useCallback(() => {
@@ -218,6 +228,7 @@ export function GeneratePage() {
     setCompileDialogOpen(true);
     setCompileError(null);
     setCompiledPreview(null);
+    frontendLogger.info("Generation prompt compilation started");
     void compileMutation
       .mutateAsync({
         prompt: draft.prompt,
@@ -236,18 +247,36 @@ export function GeneratePage() {
           })),
         max_depth: 8,
       })
-      .then(setCompiledPreview)
-      .catch((error) => setCompileError(formatError(error)));
+      .then((preview) => {
+        frontendLogger.info("Generation prompt compilation completed");
+        setCompiledPreview(preview);
+      })
+      .catch((error: unknown) => {
+        frontendLogger.error("Generation prompt compilation failed", {
+          error: describeError(error),
+        });
+        setCompileError(formatError(error));
+      });
   }, [compileMutation, draft]);
 
   const handleClearStoredDraft = useCallback(() => {
     if (!settingsQuery.data) {
       return;
     }
-    void clearDraftMutation.mutateAsync().then(async () => {
-      replaceDraft(createGenerationDraft(settingsQuery.data), { persist: "immediate" });
-      await storedDraftQuery.refetch();
-    });
+    frontendLogger.info("Generation draft reset started");
+    void clearDraftMutation
+      .mutateAsync()
+      .then(async () => {
+        replaceDraft(createGenerationDraft(settingsQuery.data), { persist: "immediate" });
+        await storedDraftQuery.refetch();
+        frontendLogger.info("Generation draft reset completed");
+      })
+      .catch((error: unknown) => {
+        frontendLogger.error("Generation draft reset failed", {
+          error: describeError(error),
+        });
+        setSubmitError(formatError(error));
+      });
   }, [clearDraftMutation, replaceDraft, settingsQuery.data, storedDraftQuery]);
 
   if (settingsQuery.isError) {

@@ -206,7 +206,29 @@ describe("frontend architecture guards", () => {
     expect(accountSource).not.toMatch(/probeKey|refreshSubscription|onProbe/u);
   });
 
-  it("keeps custom titlebar window permissions available", () => {
+  it("keeps frontend promise failures on the shared logging path", () => {
+    const loggerPath = "src/app/logger.ts";
+    const offenders = collectSourceFiles()
+      .filter((filePath) => toProjectPath(filePath) !== loggerPath)
+      .filter((filePath) =>
+        /console\.(debug|info|warn|error|log)\s*\(/u.test(readProjectFile(filePath)),
+      )
+      .map(toProjectPath);
+    const silentPromiseCatches = collectSourceFiles()
+      .filter((filePath) =>
+        /catch\s*\(\s*\)[^{]*\{?\s*(?:return\s+)?undefined/u.test(readProjectFile(filePath)),
+      )
+      .map(toProjectPath);
+    const loggerSource = readProjectFile(path.join(projectRoot, loggerPath));
+
+    expect(offenders).toEqual([]);
+    expect(silentPromiseCatches).toEqual([]);
+    expect(loggerSource).toContain("reportBackgroundPromise");
+    expect(loggerSource).toContain("installGlobalErrorHandlers");
+    expect(loggerSource).toContain("@tauri-apps/plugin-log");
+  });
+
+  it("keeps desktop host permissions available", () => {
     const capability: unknown = JSON.parse(
       readProjectFile(path.join(projectRoot, "src-tauri/capabilities/default.json")),
     );
@@ -223,6 +245,7 @@ describe("frontend architecture guards", () => {
         "core:window:allow-minimize",
         "core:window:allow-start-dragging",
         "core:window:allow-toggle-maximize",
+        "log:default",
       ]),
     );
   });
