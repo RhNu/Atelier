@@ -9,6 +9,7 @@ import { resourceImageToDataUrl } from "@/platform/atelier";
 import type { CompiledPromptDto, ResourceRefDto } from "@/types";
 
 import { useResourceImageQuery } from "../data/useResourcesData";
+import type { ResourceViewMode } from "../resource-model";
 
 export function SearchField({
   value,
@@ -36,12 +37,14 @@ export function ResourceList({
   error,
   emptyTitle,
   actions,
+  viewMode,
   children,
 }: {
   pending: boolean;
   error: string | null;
   emptyTitle: string;
   actions?: ReactNode;
+  viewMode: ResourceViewMode;
   children: ReactNode;
 }) {
   const { t } = useTranslation("resources");
@@ -59,7 +62,15 @@ export function ResourceList({
         ) : Children.count(children) === 0 ? (
           <EmptyState title={emptyTitle} iconOnly />
         ) : (
-          <div className="grid gap-2">{children}</div>
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3"
+                : "grid gap-1"
+            }
+          >
+            {children}
+          </div>
         )}
       </div>
     </AppPanel>
@@ -70,30 +81,53 @@ export function ResourceListButton({
   selected,
   title,
   detail,
+  description,
   preview,
+  viewMode,
   onClick,
 }: {
   selected: boolean;
   title: string;
   detail: string;
+  description?: string | null;
   preview: ResourceRefDto | null;
+  viewMode: ResourceViewMode;
   onClick: () => void;
 }) {
+  const selectedClass = selected
+    ? "border-brand-400/70 bg-brand-500/10"
+    : "border-app-border bg-app-surface hover:border-brand-400/60";
+  if (viewMode === "grid") {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={["group grid content-start border text-left", selectedClass].join(" ")}
+      >
+        <PreviewSlot resource={preview} label={title} variant="grid" />
+        <span className="min-w-0 border-t border-app-border px-3 py-2.5">
+          <span className="block truncate text-sm font-semibold text-app-text">{title}</span>
+          <span className="mt-1 block truncate text-xs text-app-muted">{detail}</span>
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
       onClick={onClick}
       className={[
-        "grid grid-cols-[56px_minmax(0,1fr)] gap-3 border p-2 text-left",
-        selected
-          ? "border-brand-400/70 bg-brand-500/10"
-          : "border-app-border bg-app-surface hover:border-brand-400/60",
+        "grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3 border px-2 py-1.5 text-left",
+        selectedClass,
       ].join(" ")}
     >
-      <PreviewSlot resource={preview} label={title} compact />
+      <PreviewSlot resource={preview} label={title} variant="list" />
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold text-app-text">{title}</span>
-        <span className="mt-1 block truncate text-xs text-app-muted">{detail}</span>
+        <span className="mt-0.5 block truncate text-xs text-app-muted">{detail}</span>
+        {description ? (
+          <span className="mt-0.5 block truncate text-[11px] text-app-muted/80">{description}</span>
+        ) : null}
       </span>
     </button>
   );
@@ -164,11 +198,11 @@ export function EditorActions({
 export function PreviewSlot({
   resource,
   label,
-  compact = false,
+  variant = "editor",
 }: {
   resource: ResourceRefDto | null;
   label: string;
-  compact?: boolean;
+  variant?: "editor" | "list" | "grid";
 }) {
   const { t } = useTranslation("resources");
   const imageQuery = useResourceImageQuery(resource);
@@ -177,11 +211,13 @@ export function PreviewSlot({
     <ResourceImage
       src={src}
       alt={label}
-      fallbackLabel={compact ? "" : t("noPreview")}
+      fallbackLabel={variant === "list" ? "" : t("noPreview")}
       className={
-        compact
-          ? "size-14 border border-app-border"
-          : "aspect-video w-full border border-app-border"
+        {
+          editor: "aspect-video w-full border border-app-border",
+          grid: "aspect-square w-full border-app-border bg-black/20",
+          list: "size-11 border border-app-border opacity-60",
+        }[variant]
       }
     />
   );

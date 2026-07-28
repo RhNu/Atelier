@@ -7,6 +7,7 @@ import type {
 } from "@/types";
 
 export type ResourceTab = "chunks" | "main-presets" | "character-presets" | "vibe";
+export type ResourceViewMode = "list" | "grid";
 export type ChunkDraft = UpsertPromptChunkRequestDto;
 export type PresetDraft = UpsertPromptPresetRequestDto;
 

@@ -1,8 +1,8 @@
-import { Plus } from "lucide-react";
+import { LayoutGrid, List, Plus } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppHelpMarker, AppTabs } from "@/components/ui";
+import { AppButton, AppHelpMarker, AppIconButton, AppTabs } from "@/components/ui";
 import type { PromptChunkDto, PromptPresetDto, VibeDocumentEntryDto } from "@/types";
 
 import { ChunkWorkspace } from "./components/ChunkWorkspace";
@@ -14,7 +14,7 @@ import {
   usePromptPresetsQuery,
   useVibeDocumentsQuery,
 } from "./data/useResourcesData";
-import { formatError, parseTab, type ResourceTab } from "./resource-model";
+import { formatError, parseTab, type ResourceTab, type ResourceViewMode } from "./resource-model";
 
 const EMPTY_CHUNKS: ReadonlyArray<PromptChunkDto> = [];
 const EMPTY_PRESETS: ReadonlyArray<PromptPresetDto> = [];
@@ -35,6 +35,7 @@ export function ResourcesPage() {
     { value: "vibe", label: "Vibe" },
   ] as const;
   const [tab, setTab] = useState<ResourceTab>("chunks");
+  const [viewMode, setViewMode] = useState<ResourceViewMode>("list");
   const [search, setSearch] = useState("");
   const [includeHiddenVibes, setIncludeHiddenVibes] = useState(false);
   const [newRequest, setNewRequest] = useState(0);
@@ -58,6 +59,8 @@ export function ResourcesPage() {
   });
   const handleTabChange = useCallback((value: string) => setTab(parseTab(value)), []);
   const handleNew = useCallback(() => setNewRequest((value) => value + 1), []);
+  const handleListView = useCallback(() => setViewMode("list"), []);
+  const handleGridView = useCallback(() => setViewMode("grid"), []);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -72,6 +75,25 @@ export function ResourcesPage() {
             />
           </div>
           <div className="flex items-center gap-2">
+            <fieldset className="flex border border-app-border bg-app-surface">
+              <legend className="sr-only">{t("viewMode")}</legend>
+              <AppIconButton
+                icon={List}
+                label={t("listView")}
+                size="sm"
+                selected={viewMode === "list"}
+                aria-pressed={viewMode === "list"}
+                onClick={handleListView}
+              />
+              <AppIconButton
+                icon={LayoutGrid}
+                label={t("gridView")}
+                size="sm"
+                selected={viewMode === "grid"}
+                aria-pressed={viewMode === "grid"}
+                onClick={handleGridView}
+              />
+            </fieldset>
             <SearchField value={search} onChange={setSearch} />
             {tab === "vibe" ? null : (
               <AppButton variant="secondary" onClick={handleNew}>
@@ -88,6 +110,7 @@ export function ResourcesPage() {
             error={chunksQuery.isError ? formatError(chunksQuery.error) : null}
             search={search}
             newRequest={newRequest}
+            viewMode={viewMode}
           />
         ) : null}
         {tab === "main-presets" ? (
@@ -98,6 +121,7 @@ export function ResourcesPage() {
             error={mainPresetsQuery.isError ? formatError(mainPresetsQuery.error) : null}
             search={search}
             newRequest={newRequest}
+            viewMode={viewMode}
           />
         ) : null}
         {tab === "character-presets" ? (
@@ -108,6 +132,7 @@ export function ResourcesPage() {
             error={characterPresetsQuery.isError ? formatError(characterPresetsQuery.error) : null}
             search={search}
             newRequest={newRequest}
+            viewMode={viewMode}
           />
         ) : null}
         {tab === "vibe" ? (
@@ -118,6 +143,7 @@ export function ResourcesPage() {
             search={search}
             includeHidden={includeHiddenVibes}
             onIncludeHiddenChange={setIncludeHiddenVibes}
+            viewMode={viewMode}
           />
         ) : null}
       </div>

@@ -20,6 +20,7 @@ import {
   normalizeChunkDraft,
   nullableText,
   type ChunkDraft,
+  type ResourceViewMode,
 } from "../resource-model";
 import {
   CompiledPreview,
@@ -39,12 +40,14 @@ export function ChunkWorkspace({
   error,
   search,
   newRequest,
+  viewMode,
 }: {
   chunks: ReadonlyArray<PromptChunkDto>;
   pending: boolean;
   error: string | null;
   search: string;
   newRequest: number;
+  viewMode: ResourceViewMode;
 }) {
   const { t } = useTranslation("resources");
   const filtered = useMemo(
@@ -106,14 +109,21 @@ export function ChunkWorkspace({
 
   return (
     <>
-      <ResourceList pending={pending} error={error} emptyTitle={t("noPromptChunks")}>
+      <ResourceList
+        pending={pending}
+        error={error}
+        emptyTitle={t("noPromptChunks")}
+        viewMode={viewMode}
+      >
         {filtered.map((chunk) => (
           <ResourceListButton
             key={chunk.chunk_id}
             selected={draft.chunk_id === chunk.chunk_id}
             title={chunk.key}
             detail={chunk.category ?? "Uncategorized"}
+            description={chunk.description ?? chunk.content}
             preview={chunk.preview}
+            viewMode={viewMode}
             onClick={() => {
               setDraft(chunkToDraft(chunk));
               setPreview(null);

@@ -22,6 +22,7 @@ import {
   presetPreviewSource,
   presetToDraft,
   type PresetDraft,
+  type ResourceViewMode,
 } from "../resource-model";
 import {
   CheckboxField,
@@ -44,6 +45,7 @@ export function PresetWorkspace({
   error,
   search,
   newRequest,
+  viewMode,
 }: {
   kind: PromptPresetKindDto;
   presets: ReadonlyArray<PromptPresetDto>;
@@ -51,6 +53,7 @@ export function PresetWorkspace({
   error: string | null;
   search: string;
   newRequest: number;
+  viewMode: ResourceViewMode;
 }) {
   const { t } = useTranslation("resources");
   const filtered = useMemo(
@@ -114,14 +117,25 @@ export function PresetWorkspace({
 
   return (
     <>
-      <ResourceList pending={pending} error={error} emptyTitle={t("noPromptPresets")}>
+      <ResourceList
+        pending={pending}
+        error={error}
+        emptyTitle={t("noPromptPresets")}
+        viewMode={viewMode}
+      >
         {filtered.map((preset) => (
           <ResourceListButton
             key={preset.preset_id}
             selected={draft.preset_id === preset.preset_id}
             title={preset.name}
             detail={`${preset.enabled ? t("enabled") : t("disabled")} · ${preset.category ?? t("preset")}`}
+            description={
+              preset.description ??
+              preset.replace ??
+              [preset.before, preset.after].filter(Boolean).join(" … ")
+            }
             preview={preset.preview}
+            viewMode={viewMode}
             onClick={() => {
               setDraft(presetToDraft(preset));
               setPreview(null);

@@ -1,5 +1,5 @@
 /* eslint-disable max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
-import { Download, FilePlus2, Import, Pencil, Save, Sparkles } from "lucide-react";
+import { Download, FilePlus2, Import, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -17,7 +17,9 @@ import {
   useSetVibeDocumentHiddenMutation,
 } from "../data/useResourcesData";
 import { formatError, matchesSearch } from "../resource-model";
-import { CheckboxField, PreviewSlot, TextInput } from "./ResourceEditorPrimitives";
+import type { ResourceViewMode } from "../resource-model";
+import { CheckboxField, TextInput } from "./ResourceEditorPrimitives";
+import { VibeCard } from "./VibeCard";
 
 export function VibeWorkspace({
   vibes,
@@ -26,6 +28,7 @@ export function VibeWorkspace({
   search,
   includeHidden,
   onIncludeHiddenChange,
+  viewMode,
 }: {
   vibes: ReadonlyArray<VibeDocumentEntryDto>;
   pending: boolean;
@@ -33,6 +36,7 @@ export function VibeWorkspace({
   search: string;
   includeHidden: boolean;
   onIncludeHiddenChange: (value: boolean) => void;
+  viewMode: ResourceViewMode;
 }) {
   const { t } = useTranslation("resources");
   const pushToast = useToastStore((state) => state.push);
@@ -132,11 +136,18 @@ export function VibeWorkspace({
         ) : filtered.length === 0 ? (
           <EmptyState title={t("noVibes")} iconOnly />
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3"
+                : "grid gap-1"
+            }
+          >
             {filtered.map((vibe) => (
               <VibeCard
                 key={vibe.vibe_id}
                 vibe={vibe}
+                viewMode={viewMode}
                 selected={selectedIds.includes(vibe.vibe_id)}
                 exportPending={exportMutation.isPending}
                 encodePending={ensureEncodingMutation.isPending}
@@ -191,67 +202,6 @@ export function VibeWorkspace({
         }}
       />
     </AppPanel>
-  );
-}
-
-function VibeCard({
-  vibe,
-  selected,
-  exportPending,
-  encodePending,
-  onToggleSelected,
-  onExport,
-  onEdit,
-  onEnsureEncoding,
-}: {
-  vibe: VibeDocumentEntryDto;
-  selected: boolean;
-  exportPending: boolean;
-  encodePending: boolean;
-  onToggleSelected: (selected: boolean) => void;
-  onExport: () => void;
-  onEdit: () => void;
-  onEnsureEncoding: (() => void) | null;
-}) {
-  const { t } = useTranslation("resources");
-  return (
-    <article className="grid gap-3 border border-app-border bg-app-surface p-3">
-      <PreviewSlot resource={vibe.preview ?? vibe.source_image} label={vibe.display_name} />
-      <label className="flex items-center gap-2 text-xs text-app-muted">
-        <input
-          aria-label={t("selectVibe", { name: vibe.display_name })}
-          type="checkbox"
-          checked={selected}
-          onChange={(event) => onToggleSelected(event.target.checked)}
-        />
-        {t("select")}
-      </label>
-      <div className="grid grid-cols-3 gap-2">
-        <AppButton variant="secondary" onClick={onEdit}>
-          <Pencil aria-hidden="true" className="size-4" />
-          {t("edit")}
-        </AppButton>
-        <AppButton variant="secondary" onClick={onExport} disabled={exportPending}>
-          <Download aria-hidden="true" className="size-4" />
-          {t("export")}
-        </AppButton>
-        <span className="flex items-center justify-center text-xs text-app-muted">
-          {vibe.hidden ? t("hidden") : t("visible")}
-        </span>
-      </div>
-      {onEnsureEncoding ? (
-        <AppButton variant="secondary" onClick={onEnsureEncoding} disabled={encodePending}>
-          <Sparkles aria-hidden="true" className="size-4" />
-          {t("encodeSource")}
-        </AppButton>
-      ) : null}
-      <div className="grid gap-1 text-xs text-app-muted">
-        <span>{t("modelCount", { count: vibe.available_model_keys.length })}</span>
-        <span>{t("encodingConfigCount", { count: vibe.available_encoding_configs.length })}</span>
-        <span>{t("cachedEncodingCount", { count: vibe.encodings.length })}</span>
-        {vibe.hidden ? <span className="text-amber-200">{t("hidden")}</span> : null}
-      </div>
-    </article>
   );
 }
 

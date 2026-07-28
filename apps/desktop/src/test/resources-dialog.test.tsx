@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createAtelierQueryClient } from "../app/query-client";
+import { ResourcesPage } from "../features/resources";
 import { ChunkWorkspace } from "../features/resources/components/ChunkWorkspace";
 import type { PromptChunkDto } from "../types";
 import { promptEditorText } from "./prompt-editor-test-utils";
@@ -20,6 +21,21 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../features/resources/data/useResourcesData", () => ({
+  usePromptChunksQuery: () => ({
+    data: { items: CHUNKS, total: CHUNKS.length },
+    isPending: false,
+    isError: false,
+  }),
+  usePromptPresetsQuery: () => ({
+    data: { items: [], total: 0 },
+    isPending: false,
+    isError: false,
+  }),
+  useVibeDocumentsQuery: () => ({
+    data: { items: [], total: 0 },
+    isPending: false,
+    isError: false,
+  }),
   useUpsertPromptChunkMutation: () => mocks.upsert,
   useDeletePromptChunkMutation: () => mocks.remove,
   useCompilePromptPreviewMutation: () => mocks.compile,
@@ -67,6 +83,28 @@ describe("Resources dialogs", () => {
     expect(screen.getByRole("img", { name: "No prompt chunks" })).toBeInTheDocument();
     expect(screen.queryByText("No prompt chunks")).not.toBeInTheDocument();
   });
+
+  it("switches between information-dense list rows and preview-first grid cards", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={createAtelierQueryClient()}>
+        <ResourcesPage />
+      </QueryClientProvider>,
+    );
+
+    const listView = screen.getByRole("button", { name: "List view" });
+    const gridView = screen.getByRole("button", { name: "Grid view" });
+    expect(listView).toHaveAttribute("aria-pressed", "true");
+    expect(gridView).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("cinematic lighting")).toBeInTheDocument();
+
+    await user.click(gridView);
+
+    expect(listView).toHaveAttribute("aria-pressed", "false");
+    expect(gridView).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("cinematic lighting")).not.toBeInTheDocument();
+    expect(screen.getByText("No preview")).toBeInTheDocument();
+  });
 });
 
 function renderWorkspace(newRequest: number) {
@@ -82,6 +120,7 @@ function workspace(newRequest: number, chunks: ReadonlyArray<PromptChunkDto> = C
         error={null}
         search=""
         newRequest={newRequest}
+        viewMode="list"
       />
     </QueryClientProvider>
   );
