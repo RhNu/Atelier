@@ -2,15 +2,15 @@ import { AppButton, AppModal } from "@/components/ui";
 import type { GalleryItemDto } from "@/types";
 
 export function GalleryDeleteConfirmation({
-  targetId,
-  target,
+  targetIds,
+  targets,
   deleting,
   error,
   onClose,
   onConfirm,
 }: {
-  targetId: string | null;
-  target: GalleryItemDto | null;
+  targetIds: string[];
+  targets: GalleryItemDto[];
   deleting: boolean;
   error: string | null;
   onClose: () => void;
@@ -18,16 +18,27 @@ export function GalleryDeleteConfirmation({
 }) {
   const { t } = useTranslation("gallery");
   const { t: translateCommon } = useTranslation("common");
+  const targetId = targetIds[0] ?? null;
+  const target = targets[0] ?? null;
+  const isBatch = targetIds.length > 1;
   return (
-    <AppModal open={Boolean(targetId)} title={t("deleteTitle")} onClose={onClose}>
+    <AppModal
+      open={targetIds.length > 0}
+      title={isBatch ? t("deleteBatchTitle") : t("deleteTitle")}
+      onClose={onClose}
+    >
       <div className="grid gap-4">
         <div className="grid gap-2 text-sm text-app-text">
-          <p>
-            {t("deleteBefore")} <span className="font-semibold text-white">{targetId}</span>{" "}
-            {t("deleteAfter")}
-          </p>
+          {isBatch ? (
+            <p>{t("deleteBatchPrompt", { count: targetIds.length })}</p>
+          ) : (
+            <p>
+              {t("deleteBefore")} <span className="font-semibold text-white">{targetId}</span>{" "}
+              {t("deleteAfter")}
+            </p>
+          )}
           <p className="text-app-muted">{t("deleteWarning")}</p>
-          {target ? (
+          {!isBatch && target ? (
             <p className="text-xs text-app-muted">{t("artifactId", { id: target.artifact_id })}</p>
           ) : null}
         </div>

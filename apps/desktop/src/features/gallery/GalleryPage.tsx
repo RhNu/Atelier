@@ -16,9 +16,41 @@ import {
   matchesSafetyFilter,
 } from "./gallery-utils";
 import { useGalleryItemCommands } from "./useGalleryItemCommands";
+import { useGallerySelection } from "./useGallerySelection";
+
+function GalleryPagination({
+  offset,
+  total,
+  onPrevious,
+  onNext,
+}: {
+  offset: number;
+  total: number;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  const { t } = useTranslation("gallery");
+  return (
+    <footer className="flex items-center justify-between border-t border-app-border px-3 py-2 text-sm text-app-muted">
+      <span>
+        {t("pageOf", {
+          page: Math.floor(offset / PAGE_LIMIT) + 1,
+          total: Math.max(1, Math.ceil(total / PAGE_LIMIT)),
+        })}
+      </span>
+      <div className="flex gap-2">
+        <AppButton variant="secondary" onClick={onPrevious} disabled={offset === 0}>
+          {t("previous")}
+        </AppButton>
+        <AppButton variant="secondary" onClick={onNext} disabled={offset + PAGE_LIMIT >= total}>
+          {t("next")}
+        </AppButton>
+      </div>
+    </footer>
+  );
+}
 
 export function GalleryPage() {
-  const { t } = useTranslation("gallery");
   const [offset, setOffset] = useState(0);
   const [artifactKind, setArtifactKind] = useState("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
@@ -50,14 +82,22 @@ export function GalleryPage() {
   const blurSensitive =
     settingsQuery.data?.frontend.gallery.blur_sensitive_images === true && !settingsQuery.isError;
   const total = galleryQuery.data?.total ?? 0;
-  const canGoPrevious = offset > 0;
-  const canGoNext = offset + PAGE_LIMIT < total;
-  const clearSelection = useCallback(() => setSelectedItemId(null), []);
+  const selection = useGallerySelection(visibleItems);
+  const clearSelection = selection.clear;
+  const handleDeleteSuccess = useCallback(
+    (deletedItemIds: string[]) => {
+      clearSelection();
+      setSelectedItemId((current) =>
+        current && deletedItemIds.includes(current) ? null : current,
+      );
+    },
+    [clearSelection],
+  );
   const commands = useGalleryItemCommands({
     selectedItem,
     visibleItems,
     overrideValue,
-    onDeleteSuccess: clearSelection,
+    onDeleteSuccess: handleDeleteSuccess,
   });
 
   useEffect(() => {
@@ -90,6 +130,11 @@ export function GalleryPage() {
     [],
   );
   const nextPage = useCallback(() => setOffset((current) => current + PAGE_LIMIT), []);
+  const openBatchDeleteConfirmation = commands.openBatchDeleteConfirmation;
+  const deleteSelectedItems = useCallback(
+    () => openBatchDeleteConfirmation(selection.selectedIds),
+    [openBatchDeleteConfirmation, selection.selectedIds],
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -112,30 +157,26 @@ export function GalleryPage() {
               error={galleryQuery.error}
               items={visibleItems}
               selectedItemId={selectedItemId}
+              selectedItemIds={selection.selectedItemIds}
               blurSensitive={blurSensitive}
               onSelect={setSelectedItemId}
+              onToggleSelection={selection.toggleItem}
+              onToggleAll={selection.toggleAll}
+              onDeleteSelected={deleteSelectedItems}
+              deleting={commands.deleting}
             />
           </div>
-          <footer className="flex items-center justify-between border-t border-app-border px-3 py-2 text-sm text-app-muted">
-            <span>
-              {t("pageOf", {
-                page: Math.floor(offset / PAGE_LIMIT) + 1,
-                total: Math.max(1, Math.ceil(total / PAGE_LIMIT)),
-              })}
-            </span>
-            <div className="flex gap-2">
-              <AppButton variant="secondary" onClick={previousPage} disabled={!canGoPrevious}>
-                {t("previous")}
-              </AppButton>
-              <AppButton variant="secondary" onClick={nextPage} disabled={!canGoNext}>
-                {t("next")}
-              </AppButton>
-            </div>
-          </footer>
+          <GalleryPagination
+            offset={offset}
+            total={total}
+            onPrevious={previousPage}
+            onNext={nextPage}
+          />
         </AppPanel>
 
         <GalleryInspector
           item={selectedItem}
+          items={visibleItems}
           blurSensitive={blurSensitive}
           overrideValue={overrideValue}
           onOverrideChange={setOverrideValue}
@@ -148,12 +189,13 @@ export function GalleryPage() {
           deleting={commands.deleting}
           handoffPending={commands.handoffPending}
           commandError={commands.commandError}
+          onSelectItem={setSelectedItemId}
         />
       </div>
 
       <GalleryDeleteConfirmation
-        targetId={commands.deleteTargetId}
-        target={commands.deleteTarget}
+        targetIds={commands.deleteTargetIds}
+        targets={commands.deleteTargets}
         deleting={commands.deleting}
         error={commands.deleteError}
         onClose={commands.closeDeleteConfirmation}

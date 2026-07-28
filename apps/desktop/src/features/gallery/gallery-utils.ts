@@ -69,7 +69,7 @@ export function displayGalleryModelName(modelName: string | null): string | null
 
 export function displayGalleryArtifactKind(
   artifactKind: string,
-  translate: (key: string) => string,
+  translate: (key: "generatedImages" | "directorResults") => string,
 ): string {
   switch (artifactKind) {
     case "generated_image":
@@ -83,7 +83,7 @@ export function displayGalleryArtifactKind(
 
 export function displayGallerySource(
   sourceKind: GallerySourceKindDto,
-  translate: (key: string) => string,
+  translate: (key: "generation" | "director") => string,
 ): string {
   return translate(sourceKind === "generation" ? "generation" : "director");
 }

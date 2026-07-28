@@ -18,6 +18,7 @@ import { GallerySafetyDetails } from "./GallerySafetyDetails";
 
 type GalleryInspectorProps = {
   item: GalleryItemDto | null;
+  items: GalleryItemDto[];
   blurSensitive: boolean;
   overrideValue: string;
   onOverrideChange: (value: string) => void;
@@ -30,6 +31,7 @@ type GalleryInspectorProps = {
   deleting: boolean;
   handoffPending: boolean;
   commandError: string | null;
+  onSelectItem: (itemId: string) => void;
 };
 
 function DetailRow({ label, value }: { label: string; value: string | number | null }) {
@@ -141,11 +143,42 @@ function InspectorActions({
 
 export function GalleryInspector(props: GalleryInspectorProps) {
   const { t } = useTranslation("gallery");
-  const { item, blurSensitive } = props;
+  const { item, items, blurSensitive, onSelectItem } = props;
   const pushToast = useToastStore((state) => state.push);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const openLightbox = useCallback(() => setLightboxOpen(true), []);
   const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+  const selectedIndex = item
+    ? items.findIndex((candidate) => candidate.item_id === item.item_id)
+    : -1;
+  const selectPreviousItem = useCallback(() => {
+    if (selectedIndex > 0) {
+      onSelectItem(items[selectedIndex - 1].item_id);
+    }
+  }, [items, onSelectItem, selectedIndex]);
+  const selectNextItem = useCallback(() => {
+    if (selectedIndex >= 0 && selectedIndex < items.length - 1) {
+      onSelectItem(items[selectedIndex + 1].item_id);
+    }
+  }, [items, onSelectItem, selectedIndex]);
+
+  useEffect(() => {
+    if (!lightboxOpen) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        selectPreviousItem();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        selectNextItem();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightboxOpen, selectNextItem, selectPreviousItem]);
+
   useEffect(() => {
     if (props.commandError) {
       pushToast({ level: "error", title: t("actionFailed"), message: props.commandError });
@@ -174,7 +207,7 @@ export function GalleryInspector(props: GalleryInspectorProps) {
         <button
           type="button"
           aria-label={t("enlargeImage")}
-          className="cursor-zoom-in"
+          className="cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-app-panel"
           onClick={openLightbox}
         >
           <GalleryItemImage

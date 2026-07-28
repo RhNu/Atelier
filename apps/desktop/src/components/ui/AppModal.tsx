@@ -92,7 +92,7 @@ export function AppModal({
         aria-modal="true"
         aria-labelledby={titleId}
         className={[
-          "relative m-0 grid w-full overflow-hidden border border-app-border bg-app-panel p-0 text-left text-app-text shadow-app-panel",
+          "relative m-0 grid w-full overflow-hidden border border-app-border bg-app-panel p-0 text-left text-app-text shadow-app-panel outline-none",
           hideHeader ? "grid-rows-[minmax(0,1fr)]" : "grid-rows-[auto_minmax(0,1fr)]",
           size === "fullscreen"
             ? "h-[calc(100svh-2rem)] max-h-none max-w-[calc(100vw-2rem)]"

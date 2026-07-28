@@ -26,16 +26,19 @@ export function useGalleryItemCommands({
   selectedItem: GalleryItemDto | null;
   visibleItems: GalleryItemDto[];
   overrideValue: string;
-  onDeleteSuccess: () => void;
+  onDeleteSuccess: (deletedItemIds: string[]) => void;
 }) {
-  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetIds, setDeleteTargetIds] = useState<string[]>([]);
   const setSafetyOverrideMutation = useSetGallerySafetyOverrideMutation();
   const deleteGalleryItemsMutation = useDeleteGalleryItemsMutation();
   const saveImageMutation = useSaveGalleryImageMutation();
   const imageReferenceMutation = useGalleryImageReferenceMutation();
-  const deleteTarget =
-    visibleItems.find((item) => item.item_id === deleteTargetId) ??
-    (deleteTargetId === selectedItem?.item_id ? selectedItem : null);
+  const deleteTargets = deleteTargetIds.flatMap((targetId) => {
+    const target =
+      visibleItems.find((item) => item.item_id === targetId) ??
+      (targetId === selectedItem?.item_id ? selectedItem : null);
+    return target ? [target] : [];
+  });
   const commandMutationError =
     setSafetyOverrideMutation.error ?? saveImageMutation.error ?? imageReferenceMutation.error;
 
@@ -90,32 +93,43 @@ export function useGalleryItemCommands({
   const openDeleteConfirmation = useCallback(() => {
     if (selectedItem) {
       resetCommandErrors();
-      setDeleteTargetId(selectedItem.item_id);
+      setDeleteTargetIds([selectedItem.item_id]);
     }
   }, [resetCommandErrors, selectedItem]);
 
+  const openBatchDeleteConfirmation = useCallback(
+    (itemIds: string[]) => {
+      if (itemIds.length > 0) {
+        resetCommandErrors();
+        setDeleteTargetIds(itemIds);
+      }
+    },
+    [resetCommandErrors],
+  );
+
   const closeDeleteConfirmation = useCallback(() => {
     if (!deleteGalleryItemsMutation.isPending) {
-      setDeleteTargetId(null);
+      setDeleteTargetIds([]);
     }
   }, [deleteGalleryItemsMutation.isPending]);
 
   const confirmDelete = useCallback(() => {
-    if (!deleteTargetId) {
+    if (deleteTargetIds.length === 0) {
       return;
     }
 
     resetCommandErrors();
     deleteGalleryItemsMutation.mutate(
-      { item_ids: [deleteTargetId] },
+      { item_ids: deleteTargetIds },
       {
         onSuccess: () => {
-          setDeleteTargetId(null);
-          onDeleteSuccess();
+          const deletedItemIds = deleteTargetIds;
+          setDeleteTargetIds([]);
+          onDeleteSuccess(deletedItemIds);
         },
       },
     );
-  }, [deleteGalleryItemsMutation, deleteTargetId, onDeleteSuccess, resetCommandErrors]);
+  }, [deleteGalleryItemsMutation, deleteTargetIds, onDeleteSuccess, resetCommandErrors]);
 
   return {
     applyingOverride: setSafetyOverrideMutation.isPending,
@@ -125,13 +139,14 @@ export function useGalleryItemCommands({
     deleteError: deleteGalleryItemsMutation.error
       ? formatError(deleteGalleryItemsMutation.error)
       : null,
-    deleteTarget,
-    deleteTargetId,
+    deleteTargetIds,
+    deleteTargets,
     deleting: deleteGalleryItemsMutation.isPending,
     exportSelected,
     exporting: saveImageMutation.isPending,
     handoffPending: imageReferenceMutation.isPending,
     openDeleteConfirmation,
+    openBatchDeleteConfirmation,
     applyOverride,
     sendToDirector,
   };

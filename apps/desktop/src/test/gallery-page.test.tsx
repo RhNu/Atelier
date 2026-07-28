@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createAtelierQueryClient } from "../app/query-client";
@@ -225,6 +225,7 @@ describe("GalleryPage", () => {
     const { user } = setup();
 
     const previewButton = await screen.findByRole("button", { name: "Enlarge image" });
+    expect(previewButton).toHaveClass("outline-none", "focus-visible:ring-brand-400");
     await user.click(previewButton);
     expect(screen.getByRole("dialog", { name: "Image preview" })).toBeInTheDocument();
     expect(await screen.findByAltText("Enlarged gallery image")).toBeInTheDocument();
@@ -234,6 +235,44 @@ describe("GalleryPage", () => {
 
     await user.click(previewButton);
     expect(screen.getByRole("dialog", { name: "Image preview" })).toBeInTheDocument();
+  });
+
+  it("moves between enlarged images with arrow keys without wrapping at either end", async () => {
+    const { user } = setup();
+
+    await user.click(await screen.findByRole("button", { name: "Enlarge image" }));
+    expect(await screen.findByAltText("Enlarged gallery image")).toHaveAttribute(
+      "src",
+      "data:image/png;base64,image-resource:safe-item:original:preview",
+    );
+
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    expect(screen.getByAltText("Enlarged gallery image")).toHaveAttribute(
+      "src",
+      "data:image/png;base64,image-resource:safe-item:original:preview",
+    );
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(screen.getByAltText("Enlarged gallery image")).toHaveAttribute(
+        "src",
+        "data:image/png;base64,image-resource:sensitive-item:original:preview",
+      ),
+    );
+
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(screen.getByAltText("Enlarged gallery image")).toHaveAttribute(
+      "src",
+      "data:image/png;base64,image-resource:sensitive-item:original:preview",
+    );
+
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    await waitFor(() =>
+      expect(screen.getByAltText("Enlarged gallery image")).toHaveAttribute(
+        "src",
+        "data:image/png;base64,image-resource:safe-item:original:preview",
+      ),
+    );
   });
 
   it("filters hidden items, updates safety overrides, and exports the preferred resource", async () => {
@@ -306,6 +345,34 @@ describe("GalleryPage", () => {
     expect(mocks.galleryApi.deleteItems).toHaveBeenCalledWith({
       item_ids: ["safe-item"],
     });
+  });
+
+  it("selects all visible images and deletes them as one batch", async () => {
+    const { user } = setup();
+
+    const selectAll = await screen.findByRole("checkbox", { name: "Select all" });
+    await user.click(screen.getByRole("checkbox", { name: "Select safe-item for batch actions" }));
+    expect(selectAll).toBePartiallyChecked();
+    expect(screen.getByRole("button", { name: "Delete selected (1)" })).toBeEnabled();
+
+    await user.click(selectAll);
+
+    expect(
+      screen.getByRole("checkbox", { name: "Select safe-item for batch actions" }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: "Select sensitive-item for batch actions" }),
+    ).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Delete selected (2)" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete selected gallery items" });
+    expect(within(dialog).getByText("Delete 2 selected gallery items permanently?")).toBeVisible();
+    await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
+
+    expect(mocks.galleryApi.deleteItems).toHaveBeenCalledWith({
+      item_ids: ["safe-item", "sensitive-item"],
+    });
+    await waitFor(() => expect(selectAll).not.toBeChecked());
   });
 
   it("keeps the selected item visible when hard delete fails", async () => {

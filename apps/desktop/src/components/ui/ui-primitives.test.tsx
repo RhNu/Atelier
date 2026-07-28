@@ -140,7 +140,7 @@ describe("UI primitives", () => {
     const dialog = screen.getByRole("dialog", { name: "Vibe library" });
     expect(dialog.parentElement).toBe(document.body.lastElementChild);
     expect(dialog.parentElement).toHaveClass("fixed", "inset-0", "grid", "place-items-center");
-    expect(dialog).toHaveClass("relative", "m-0", "grid", "p-0");
+    expect(dialog).toHaveClass("relative", "m-0", "grid", "p-0", "outline-none");
 
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
