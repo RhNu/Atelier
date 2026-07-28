@@ -25,6 +25,7 @@ import { useTranslation } from "react-i18next";
 
 import { AppButton, AppIconButton, AppModal, AppPanel, ResourceImage } from "@/components/ui";
 
+import { shortGenerationStatus, translateGenerationStatus } from "../generation-status";
 import type {
   GenerationBatchView,
   GenerationRequestUnit,
@@ -306,7 +307,7 @@ function RequestPreviewSurface({
           </span>
           {selectedRequest ? (
             <span className="ml-2 text-xs text-app-muted">
-              {selectedRequest.status} ·{" "}
+              {translateGenerationStatus(t, selectedRequest.status)} ·{" "}
               {t("sampleCount", { count: selectedRequest.expectedSamples })}
             </span>
           ) : null}
@@ -414,6 +415,7 @@ function RequestCursorUnit({
   selected: boolean;
   onSelect: (jobId: string) => void;
 }) {
+  const { t } = useTranslation("generation");
   const handleSelect = useCallback(() => onSelect(request.jobId), [onSelect, request.jobId]);
   return (
     <button
@@ -441,7 +443,9 @@ function RequestCursorUnit({
       </span>
       <span className="flex items-center justify-between gap-1 text-[10px] text-app-muted">
         <span>R{request.requestIndex + 1}</span>
-        <span className={statusTextClass(request.status)}>{shortStatus(request.status)}</span>
+        <span className={statusTextClass(request.status)}>
+          {translateGenerationStatus(t, shortGenerationStatus(request.status))}
+        </span>
       </span>
     </button>
   );
@@ -477,6 +481,7 @@ function SampleGridButton({
   sample: GenerationSampleSlot;
   onFocusSample: (jobId: string, sampleIndex: number) => void;
 }) {
+  const { t } = useTranslation("generation");
   const handleFocus = useCallback(
     () => onFocusSample(request.jobId, sample.sampleIndex),
     [onFocusSample, request.jobId, sample.sampleIndex],
@@ -494,7 +499,7 @@ function SampleGridButton({
         className="h-full min-h-[220px] w-full"
       />
       <span className="absolute right-1 bottom-1 border border-app-border bg-black/75 px-1.5 py-0.5 text-[10px] text-app-text">
-        S{sample.sampleIndex + 1} · {sample.state}
+        S{sample.sampleIndex + 1} · {translateGenerationStatus(t, sample.state)}
       </span>
     </button>
   );
@@ -527,7 +532,10 @@ function FocusedSample({
         className="h-full min-h-[360px] w-full"
       />
       <span className="absolute right-2 bottom-2 border border-app-border bg-black/75 px-2 py-1 text-xs text-app-text">
-        {t("sampleState", { sample: sample.sampleIndex + 1, state: sample.state })}
+        {t("sampleState", {
+          sample: sample.sampleIndex + 1,
+          state: translateGenerationStatus(t, sample.state),
+        })}
       </span>
     </button>
   );
@@ -544,6 +552,7 @@ function SampleVisual({
   className: string;
   crop?: boolean;
 }) {
+  const { t } = useTranslation("generation");
   const style = crop ? CROPPED_PREVIEW_STYLE : undefined;
   if (sample.resource) {
     return (
@@ -559,7 +568,14 @@ function SampleVisual({
   if (sample.streamSrc) {
     return <ResourceImage src={sample.streamSrc} alt={alt} className={className} style={style} />;
   }
-  return <ResourceImage src={null} alt="" className={className} fallbackLabel={sample.state} />;
+  return (
+    <ResourceImage
+      src={null}
+      alt=""
+      className={className}
+      fallbackLabel={translateGenerationStatus(t, sample.state)}
+    />
+  );
 }
 
 function PreviewEmptyState({ message }: { message: string }) {
@@ -586,10 +602,6 @@ function requestCursorGridClass(count: number): string {
 function requestCursorSampleClass(count: number, index: number): string {
   const spanClass = count === 3 && index === 0 ? "row-span-2" : "";
   return `h-full min-h-0 w-full bg-app-panel text-[9px] ${spanClass}`;
-}
-
-function shortStatus(status: string): string {
-  return status === "partially_succeeded" ? "partial" : status;
 }
 
 function statusTextClass(status: string): string {

@@ -1172,7 +1172,7 @@ describe("GeneratePage queue and preview behavior", () => {
     );
     const historyRail = screen.getByRole("complementary", { name: "Generation history" });
     expect(within(historyRail).getByText("1girl")).toBeInTheDocument();
-    expect(within(historyRail).getByText(/succeeded/)).toBeInTheDocument();
+    expect(within(historyRail).getByText("Succeeded", { selector: "span" })).toBeInTheDocument();
   });
 
   it("runs batch, request, and sample-level history actions", async () => {

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { AppIconButton, AppPanel, AppSelect } from "@/components/ui";
 import type { GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto } from "@/types";
 
+import { translateGenerationStatus } from "../generation-status";
 import { GenerationResourceImage } from "./GenerationResourceImage";
 
 type HistoryStatusFilter = "all" | GenerationBatchHistoryStatusDto;
@@ -220,7 +221,7 @@ function GenerationHistoryBatch({
           })}
         </span>
         <span className={`mt-1 block text-[11px] ${statusTextClass(batch.status)}`}>
-          {batch.status}
+          {translateGenerationStatus(t, batch.status)}
         </span>
         {batch.last_error ? (
           <span className="mt-1 block truncate text-[11px] text-rose-100">{batch.last_error}</span>
