@@ -299,7 +299,7 @@ where
         let jobs = request
             .job_ids
             .iter()
-            .zip(submitted.into_iter())
+            .zip(submitted)
             .map(|(job_id, payload)| SubmitGenerationBatchJob {
                 job_id: JobId::new(job_id.clone()),
                 request: payload.request,

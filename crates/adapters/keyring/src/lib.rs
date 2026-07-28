@@ -2,7 +2,8 @@
 
 use async_trait::async_trait;
 use atelier_secrets::{SecretRecordId, SecretStore, SecretValue, SecretsError, SecretsResult};
-use keyring_core::{Entry, Error as KeyringCoreError};
+use keyring::Entry;
+use keyring_core::Error as KeyringCoreError;
 
 pub const SERVICE_NAME: &str = "atelier";
 
@@ -55,9 +56,8 @@ impl KeyringSecretStore<NativeKeyringBackend> {
     /// Creates a secret store backed by the platform native credential store.
     ///
     /// # Errors
-    /// Returns an error when the native keyring store cannot be selected.
-    pub fn native() -> SecretsResult<Self> {
-        NativeKeyringBackend::ensure_native()?;
+    /// This currently never returns an error; the result type is retained for API compatibility.
+    pub const fn native() -> SecretsResult<Self> {
         Ok(Self::with_backend(NativeKeyringBackend))
     }
 }
@@ -102,13 +102,6 @@ where
 #[derive(Copy, Clone, Debug, Default)]
 pub struct NativeKeyringBackend;
 
-impl NativeKeyringBackend {
-    fn ensure_native() -> SecretsResult<()> {
-        keyring::use_native_store(false)
-            .map_err(|error| SecretsError::secret_store(error.to_string()))
-    }
-}
-
 impl KeyringBackend for NativeKeyringBackend {
     fn write_password(
         &self,
@@ -116,21 +109,18 @@ impl KeyringBackend for NativeKeyringBackend {
         account: &str,
         password: &str,
     ) -> Result<(), KeyringBackendError> {
-        Self::ensure_native().map_err(|error| KeyringBackendError::Store(error.to_string()))?;
         Entry::new(service, account)?
             .set_password(password)
             .map_err(Into::into)
     }
 
     fn read_password(&self, service: &str, account: &str) -> Result<String, KeyringBackendError> {
-        Self::ensure_native().map_err(|error| KeyringBackendError::Store(error.to_string()))?;
         Entry::new(service, account)?
             .get_password()
             .map_err(Into::into)
     }
 
     fn delete_password(&self, service: &str, account: &str) -> Result<bool, KeyringBackendError> {
-        Self::ensure_native().map_err(|error| KeyringBackendError::Store(error.to_string()))?;
         match Entry::new(service, account)?.delete_credential() {
             Ok(()) => Ok(true),
             Err(KeyringCoreError::NoEntry) => Ok(false),

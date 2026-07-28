@@ -206,7 +206,7 @@ where
             resource_id: ResourceId::new(format!(
                 "vibe-encoding-cache:{}:{}:{}:{}",
                 request.vibe_id.as_str(),
-                &request.source.content_hash,
+                request.source.content_hash,
                 request.settings.model.vibe_model_key(),
                 request.settings.information_extracted_key()
             )),
