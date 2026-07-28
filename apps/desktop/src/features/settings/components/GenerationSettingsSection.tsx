@@ -1,4 +1,4 @@
-import { RotateCcw, Save } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -23,16 +23,12 @@ import { CheckboxField, NumberField, SectionHeader, SelectField } from "./Settin
 export function GenerationSettingsSection({
   draft,
   updateDraft,
-  saveSettings,
   resetSettings,
-  saving,
   resetting,
 }: {
   draft: WorkspaceSettingsDto;
   updateDraft: (draft: WorkspaceSettingsDto) => void;
-  saveSettings: (settings: WorkspaceSettingsDto) => void;
   resetSettings: () => void;
-  saving: boolean;
   resetting: boolean;
 }) {
   const { t } = useTranslation("settings");
@@ -55,24 +51,12 @@ export function GenerationSettingsSection({
     },
     [generation, updateGeneration],
   );
-  const save = useCallback(() => {
-    saveSettings(draft);
-  }, [draft, saveSettings]);
-
   return (
     <AppPanel variant="section" className="flex h-full min-h-0 flex-col overflow-hidden">
-      <SectionHeader
-        kicker={t("generation")}
-        title={t("generationDefaults")}
-        description={t("generationDescriptionLong")}
-      >
+      <SectionHeader title={t("generation")}>
         <AppButton variant="ghost" disabled={resetting} onClick={resetSettings}>
           <RotateCcw aria-hidden="true" className="size-4" />
           {t("resetWorkspaceSettings")}
-        </AppButton>
-        <AppButton disabled={saving} onClick={save}>
-          <Save aria-hidden="true" className="size-4" />
-          {t("saveGenerationDefaults")}
         </AppButton>
       </SectionHeader>
       <GenerationFields

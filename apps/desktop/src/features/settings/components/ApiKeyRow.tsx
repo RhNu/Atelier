@@ -62,7 +62,6 @@ function ApiKeyIdentity({ item }: { item: ApiKeyRecordDto }) {
           </span>
         ) : null}
       </div>
-      <p className="mt-1 text-xs break-all text-app-muted">ID {item.id}</p>
     </div>
   );
 }

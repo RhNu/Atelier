@@ -5,24 +5,10 @@ import { AppSelect } from "@/components/ui";
 
 import { parseNumberInput } from "../settings-utils";
 
-export function SectionHeader({
-  kicker,
-  title,
-  description,
-  children,
-}: {
-  kicker: string;
-  title: string;
-  description: string;
-  children?: ReactNode;
-}) {
+export function SectionHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-app-border px-4 py-3">
-      <div>
-        <p className="text-xs font-semibold text-brand-200 uppercase">{kicker}</p>
-        <h2 className="mt-1 text-base font-semibold text-white">{title}</h2>
-        <p className="mt-1 text-sm text-app-muted">{description}</p>
-      </div>
+      <h2 className="text-base font-semibold text-white">{title}</h2>
       {children ? <div className="flex items-center gap-2">{children}</div> : null}
     </header>
   );

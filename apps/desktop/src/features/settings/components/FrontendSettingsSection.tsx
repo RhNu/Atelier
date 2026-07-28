@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppPanel, LanguageSelect } from "@/components/ui";
+import { AppPanel, LanguageSelect } from "@/components/ui";
 import type { GlobalSettingsDto } from "@/types";
 
 import { CheckboxField, SectionHeader } from "./SettingsControls";
@@ -9,16 +9,9 @@ import { CheckboxField, SectionHeader } from "./SettingsControls";
 type FrontendSettingsSectionProps = {
   draft: GlobalSettingsDto;
   updateDraft: (draft: GlobalSettingsDto) => void;
-  saveSettings: (settings: GlobalSettingsDto) => void;
-  saving: boolean;
 };
 
-export function FrontendSettingsSection({
-  draft,
-  updateDraft,
-  saveSettings,
-  saving,
-}: FrontendSettingsSectionProps) {
+export function FrontendSettingsSection({ draft, updateDraft }: FrontendSettingsSectionProps) {
   const { t } = useTranslation("settings");
   const updateLanguage = useCallback(
     (language: GlobalSettingsDto["frontend"]["language"]) => {
@@ -54,21 +47,9 @@ export function FrontendSettingsSection({
     [draft, updateDraft],
   );
 
-  const handleSave = useCallback(() => {
-    saveSettings(draft);
-  }, [draft, saveSettings]);
-
   return (
     <AppPanel variant="section" className="h-full min-h-0 overflow-hidden">
-      <SectionHeader
-        kicker={t("frontend")}
-        title={t("frontendTitle")}
-        description={t("frontendDescription")}
-      >
-        <AppButton onClick={handleSave} disabled={saving}>
-          {saving ? t("savingFrontend") : t("saveFrontend")}
-        </AppButton>
-      </SectionHeader>
+      <SectionHeader title={t("interface")} />
       <div className="grid gap-4 p-3">
         <section className="grid gap-2">
           <h3 className="text-xs font-semibold text-app-muted uppercase">{t("languageGroup")}</h3>

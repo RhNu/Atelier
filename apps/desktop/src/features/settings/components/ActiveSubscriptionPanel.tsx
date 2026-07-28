@@ -28,7 +28,7 @@ export function ActiveSubscriptionPanel({
       ? formatError(error)
       : pending
         ? t("checkingSubscription")
-        : t("subscriptionUpToDate");
+        : null;
   return (
     <section className="mb-3 border border-app-border bg-app-surface/45">
       <header className="flex min-h-10 items-center justify-between gap-3 border-b border-app-border px-3 py-2">
@@ -36,7 +36,7 @@ export function ActiveSubscriptionPanel({
           <h3 className="shrink-0 text-sm font-semibold text-app-text">
             {t("activeSubscription")}
           </h3>
-          <span className="truncate text-xs text-app-muted">{status}</span>
+          {status ? <span className="truncate text-xs text-app-muted">{status}</span> : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {refreshing ? (
@@ -71,13 +71,9 @@ function SubscriptionSummary({
   const { t, i18n } = useTranslation("settings");
   const { t: translateCommon } = useTranslation("common");
   return (
-    <dl className="grid grid-cols-2 divide-x divide-y divide-app-border text-sm xl:grid-cols-4 xl:divide-y-0">
-      <CompactMetric label={t("tier")} value={summary?.tier_name ?? "—"} />
+    <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 text-sm">
+      <CompactMetric label={t("tier")} value={formatTier(summary?.tier_name) ?? "—"} />
       <CompactMetric label="Anlas" value={summary ? `${summary.anlas_balance} Anlas` : "—"} />
-      <CompactMetric
-        label={t("opusAccess")}
-        value={summary ? (summary.is_opus ? translateCommon("yes") : translateCommon("no")) : "—"}
-      />
       <CompactMetric
         label={t("expires")}
         value={
@@ -97,9 +93,14 @@ function SubscriptionSummary({
 
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 px-3 py-2">
+    <div className="flex min-w-0 items-baseline gap-2">
       <dt className="text-[10px] text-app-muted uppercase">{label}</dt>
-      <dd className="mt-0.5 truncate text-sm font-semibold text-app-text">{value}</dd>
+      <dd className="truncate text-sm font-semibold text-app-text">{value}</dd>
     </div>
   );
+}
+
+function formatTier(tier: string | undefined): string | undefined {
+  if (!tier) return undefined;
+  return tier.charAt(0).toUpperCase() + tier.slice(1);
 }

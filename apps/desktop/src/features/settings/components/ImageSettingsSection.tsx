@@ -1,8 +1,7 @@
-import { Save } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppPanel } from "@/components/ui";
+import { AppPanel } from "@/components/ui";
 import type { WorkspaceSettingsDto } from "@/types";
 
 import { isPositiveInteger } from "../settings-utils";
@@ -11,13 +10,9 @@ import { NumberField, SectionHeader } from "./SettingsControls";
 export function ImageSettingsSection({
   draft,
   updateDraft,
-  saveSettings,
-  saving,
 }: {
   draft: WorkspaceSettingsDto;
   updateDraft: (draft: WorkspaceSettingsDto) => void;
-  saveSettings: (settings: WorkspaceSettingsDto) => void;
-  saving: boolean;
 }) {
   const { t } = useTranslation("settings");
   const variants = draft.image_variants;
@@ -38,22 +33,9 @@ export function ImageSettingsSection({
     (value: number) => updateVariant("preview_long_edge", value),
     [updateVariant],
   );
-  const save = useCallback(() => {
-    saveSettings(draft);
-  }, [draft, saveSettings]);
-
   return (
     <AppPanel variant="section" className="flex h-full min-h-0 flex-col overflow-hidden">
-      <SectionHeader
-        kicker={t("images")}
-        title={t("imageVariants")}
-        description={t("imagesDescriptionLong")}
-      >
-        <AppButton disabled={saving || !isValid} onClick={save}>
-          <Save aria-hidden="true" className="size-4" />
-          {t("saveImageVariants")}
-        </AppButton>
-      </SectionHeader>
+      <SectionHeader title={t("images")} />
       <div className="grid gap-3 p-3 md:grid-cols-2">
         <NumberField
           label={t("thumbnailLongEdge")}

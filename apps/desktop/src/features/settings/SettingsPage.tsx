@@ -40,71 +40,87 @@ export function SettingsPage() {
   const [globalDraft, setGlobalDraft] = useState<GlobalSettingsDto | null>(null);
 
   useEffect(() => {
-    if (workspaceSettingsQuery.data) {
+    if (workspaceSettingsQuery.data && workspaceDraft === null) {
       setWorkspaceDraft(cloneSettings(workspaceSettingsQuery.data));
     }
-  }, [workspaceSettingsQuery.data]);
+  }, [workspaceDraft, workspaceSettingsQuery.data]);
 
   useEffect(() => {
-    if (globalSettingsQuery.data) {
+    if (globalSettingsQuery.data && globalDraft === null) {
       setGlobalDraft(cloneGlobalSettings(globalSettingsQuery.data));
     }
-  }, [globalSettingsQuery.data]);
+  }, [globalDraft, globalSettingsQuery.data]);
 
-  const saveGenerationSettings = useCallback(
-    (settings: WorkspaceSettingsDto) => {
-      if (!workspaceSettingsQuery.data) {
-        pushToast({ level: "error", message: t("workspaceNotLoaded") });
-        return;
+  useEffect(() => {
+    const draft = workspaceDraft;
+    const saved = workspaceSettingsQuery.data;
+    if (!draft || !saved) return;
+
+    const generationChanged = JSON.stringify(draft.generation) !== JSON.stringify(saved.generation);
+    const imageVariantsChanged =
+      JSON.stringify(draft.image_variants) !== JSON.stringify(saved.image_variants);
+    const imageVariantsValid =
+      Number.isInteger(draft.image_variants.thumbnail_long_edge) &&
+      draft.image_variants.thumbnail_long_edge > 0 &&
+      Number.isInteger(draft.image_variants.preview_long_edge) &&
+      draft.image_variants.preview_long_edge > 0;
+    if (!generationChanged && (!imageVariantsChanged || !imageVariantsValid)) return;
+
+    const timer = window.setTimeout(() => {
+      const nextSettings = cloneSettings(saved);
+      if (generationChanged) {
+        nextSettings.generation = {
+          ...draft.generation,
+          size: { ...draft.generation.size },
+        };
       }
-      const nextSettings = cloneSettings(workspaceSettingsQuery.data);
-      nextSettings.generation = {
-        ...settings.generation,
-        size: { ...settings.generation.size },
-      };
-      saveWorkspaceSettings(nextSettings, updateWorkspaceMutation, setWorkspaceDraft, pushToast, t);
-    },
-    [pushToast, t, updateWorkspaceMutation, workspaceSettingsQuery.data],
-  );
-
-  const saveImageSettings = useCallback(
-    (settings: WorkspaceSettingsDto) => {
-      if (!workspaceSettingsQuery.data) {
-        pushToast({ level: "error", message: t("workspaceNotLoaded") });
-        return;
+      if (imageVariantsChanged && imageVariantsValid) {
+        nextSettings.image_variants = { ...draft.image_variants };
       }
-      const nextSettings = cloneSettings(workspaceSettingsQuery.data);
-      nextSettings.image_variants = { ...settings.image_variants };
-      saveWorkspaceSettings(nextSettings, updateWorkspaceMutation, setWorkspaceDraft, pushToast, t);
-    },
-    [pushToast, t, updateWorkspaceMutation, workspaceSettingsQuery.data],
-  );
-
-  const saveFrontendSettings = useCallback(
-    (settings: GlobalSettingsDto) => {
-      updateGlobalMutation.mutate(
-        { frontend: settings.frontend },
+      updateWorkspaceMutation.mutate(
+        { settings: nextSettings },
         {
-          onSuccess: (updatedSettings) => {
-            setGlobalDraft(cloneGlobalSettings(updatedSettings));
-            reportBackgroundPromise(
-              applyLanguagePreference(updatedSettings.frontend.language),
-              "Apply updated language preference",
-            );
-            pushToast({ level: "success", message: t("settingsSaved") });
-          },
-          onError: (error) => {
+          onError: (error) =>
             pushToast({
               level: "error",
               title: t("settingsSaveFailed"),
               message: formatError(error),
-            });
-          },
+            }),
         },
       );
-    },
-    [pushToast, t, updateGlobalMutation],
-  );
+    }, SETTINGS_AUTOSAVE_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [pushToast, t, updateWorkspaceMutation, workspaceDraft, workspaceSettingsQuery.data]);
+
+  useEffect(() => {
+    const draft = globalDraft;
+    const saved = globalSettingsQuery.data;
+    if (!draft || !saved) return;
+    if (JSON.stringify(draft.frontend) === JSON.stringify(saved.frontend)) return;
+
+    const timer = window.setTimeout(() => {
+      updateGlobalMutation.mutate(
+        { frontend: draft.frontend },
+        {
+          onSuccess: (updatedSettings) => {
+            reportBackgroundPromise(
+              applyLanguagePreference(updatedSettings.frontend.language),
+              "Apply updated language preference",
+            );
+          },
+          onError: (error) =>
+            pushToast({
+              level: "error",
+              title: t("settingsSaveFailed"),
+              message: formatError(error),
+            }),
+        },
+      );
+    }, SETTINGS_AUTOSAVE_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [globalDraft, globalSettingsQuery.data, pushToast, t, updateGlobalMutation]);
 
   const resetSettings = useCallback(() => {
     resetWorkspaceMutation.mutate(undefined, {
@@ -135,14 +151,9 @@ export function SettingsPage() {
             workspaceSettingsQuery.isError ? formatError(workspaceSettingsQuery.error) : null
           }
           globalError={globalSettingsQuery.isError ? formatError(globalSettingsQuery.error) : null}
-          savingWorkspace={updateWorkspaceMutation.isPending}
-          savingGlobal={updateGlobalMutation.isPending}
           resetting={resetWorkspaceMutation.isPending}
           updateWorkspaceDraft={setWorkspaceDraft}
           updateGlobalDraft={setGlobalDraft}
-          saveGenerationSettings={saveGenerationSettings}
-          saveImageSettings={saveImageSettings}
-          saveFrontendSettings={saveFrontendSettings}
           resetSettings={resetSettings}
         />
       </div>
@@ -150,27 +161,7 @@ export function SettingsPage() {
   );
 }
 
-type WorkspaceSettingsMutation = ReturnType<typeof useUpdateWorkspaceSettingsMutation>;
-
-function saveWorkspaceSettings(
-  settings: WorkspaceSettingsDto,
-  mutation: WorkspaceSettingsMutation,
-  setDraft: (settings: WorkspaceSettingsDto) => void,
-  pushToast: ReturnType<typeof useToastStore.getState>["push"],
-  t: ReturnType<typeof useTranslation<"settings">>["t"],
-) {
-  mutation.mutate(
-    { settings },
-    {
-      onSuccess: (updatedSettings) => {
-        setDraft(cloneSettings(updatedSettings));
-        pushToast({ level: "success", message: t("settingsSaved") });
-      },
-      onError: (error) =>
-        pushToast({ level: "error", title: t("settingsSaveFailed"), message: formatError(error) }),
-    },
-  );
-}
+const SETTINGS_AUTOSAVE_DELAY_MS = 500;
 
 function SettingsContent({
   activeSection,
@@ -183,14 +174,9 @@ function SettingsContent({
   globalPending,
   workspaceError,
   globalError,
-  savingWorkspace,
-  savingGlobal,
   resetting,
   updateWorkspaceDraft,
   updateGlobalDraft,
-  saveGenerationSettings,
-  saveImageSettings,
-  saveFrontendSettings,
   resetSettings,
 }: SettingsContentProps) {
   const { t } = useTranslation("settings");
@@ -217,14 +203,7 @@ function SettingsContent({
     if (globalPending || !globalDraft) {
       return <SettingsLoading label={t("loadingApplication")} />;
     }
-    return (
-      <FrontendSettingsSection
-        draft={globalDraft}
-        updateDraft={updateGlobalDraft}
-        saveSettings={saveFrontendSettings}
-        saving={savingGlobal}
-      />
-    );
+    return <FrontendSettingsSection draft={globalDraft} updateDraft={updateGlobalDraft} />;
   }
 
   if (workspaceError) {
@@ -238,21 +217,12 @@ function SettingsContent({
       <GenerationSettingsSection
         draft={workspaceDraft}
         updateDraft={updateWorkspaceDraft}
-        saveSettings={saveGenerationSettings}
         resetSettings={resetSettings}
-        saving={savingWorkspace}
         resetting={resetting}
       />
     );
   }
-  return (
-    <ImageSettingsSection
-      draft={workspaceDraft}
-      updateDraft={updateWorkspaceDraft}
-      saveSettings={saveImageSettings}
-      saving={savingWorkspace}
-    />
-  );
+  return <ImageSettingsSection draft={workspaceDraft} updateDraft={updateWorkspaceDraft} />;
 }
 
 type SettingsContentProps = {
@@ -266,14 +236,9 @@ type SettingsContentProps = {
   globalPending: boolean;
   workspaceError: string | null;
   globalError: string | null;
-  savingWorkspace: boolean;
-  savingGlobal: boolean;
   resetting: boolean;
   updateWorkspaceDraft: (draft: WorkspaceSettingsDto) => void;
   updateGlobalDraft: (draft: GlobalSettingsDto) => void;
-  saveGenerationSettings: (settings: WorkspaceSettingsDto) => void;
-  saveImageSettings: (settings: WorkspaceSettingsDto) => void;
-  saveFrontendSettings: (settings: GlobalSettingsDto) => void;
   resetSettings: () => void;
 };
 

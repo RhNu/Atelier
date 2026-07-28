@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createAtelierQueryClient } from "../app/query-client";
@@ -197,7 +197,7 @@ describe("SettingsPage", () => {
 
     await user.click(within(sectionNav).getByRole("button", { name: "Interface" }));
 
-    expect(screen.getByRole("heading", { name: "Frontend Preferences" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Interface" })).toBeInTheDocument();
     expect(screen.getByLabelText("Developer mode")).toBeInTheDocument();
     expect(screen.getByLabelText("Blur NSFW images")).toBeInTheDocument();
   });
@@ -244,6 +244,7 @@ describe("SettingsPage", () => {
 
     expect(await screen.findByText("Main")).toBeInTheDocument();
     expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.queryByText("ID main")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Set Backup active" }));
     expect(mocks.accountApi.setActive).toHaveBeenCalledWith({ id: "backup" });
@@ -271,6 +272,8 @@ describe("SettingsPage", () => {
     expect(mocks.accountApi.probeActive).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Opus")).toBeInTheDocument();
     expect(screen.getByText("1234 Anlas")).toBeInTheDocument();
+    expect(screen.queryByText("Opus access")).not.toBeInTheDocument();
+    expect(screen.queryByText("Subscription information is up to date.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /subscription/i })).not.toBeInTheDocument();
   });
 
@@ -309,7 +312,7 @@ describe("SettingsPage", () => {
     await user.clear(screen.getByLabelText("Steps"));
     await user.type(screen.getByLabelText("Steps"), "28");
     await user.click(screen.getByLabelText("Variety boost"));
-    await user.click(screen.getByRole("button", { name: "Save generation defaults" }));
+    await waitFor(() => expect(mocks.settingsApi.update).toHaveBeenCalled());
 
     const request = lastWorkspaceSettingsUpdate();
     expect(request.settings.generation.model).toBe("nai-diffusion-3");
@@ -325,19 +328,19 @@ describe("SettingsPage", () => {
     await user.clear(screen.getByLabelText("Thumbnail long edge"));
     await user.type(screen.getByLabelText("Thumbnail long edge"), "0");
 
-    expect(screen.getByRole("button", { name: "Save image variants" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save image variants" })).not.toBeInTheDocument();
     expect(screen.getByText("Image variant sizes must be positive integers.")).toBeInTheDocument();
 
     await user.clear(screen.getByLabelText("Thumbnail long edge"));
     await user.type(screen.getByLabelText("Thumbnail long edge"), "640");
     await user.clear(screen.getByLabelText("Preview long edge"));
     await user.type(screen.getByLabelText("Preview long edge"), "1600");
-    await user.click(screen.getByRole("button", { name: "Save image variants" }));
-
-    expect(lastWorkspaceSettingsUpdate().settings.image_variants).toEqual({
-      thumbnail_long_edge: 640,
-      preview_long_edge: 1600,
-    });
+    await waitFor(() =>
+      expect(lastWorkspaceSettingsUpdate().settings.image_variants).toEqual({
+        thumbnail_long_edge: 640,
+        preview_long_edge: 1600,
+      }),
+    );
   });
 
   it("does not persist invalid image draft values when saving generation", async () => {
@@ -349,7 +352,7 @@ describe("SettingsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Generation" }));
     await user.selectOptions(screen.getByLabelText("Model"), "nai-diffusion-3");
-    await user.click(screen.getByRole("button", { name: "Save generation defaults" }));
+    await waitFor(() => expect(mocks.settingsApi.update).toHaveBeenCalled());
 
     const request = lastWorkspaceSettingsUpdate();
     expect(request.settings.generation.model).toBe("nai-diffusion-3");
@@ -361,8 +364,7 @@ describe("SettingsPage", () => {
     const { user } = setup();
 
     await user.click(await screen.findByRole("button", { name: "Generation" }));
-    await user.click(screen.getByRole("button", { name: "Save generation defaults" }));
-
+    await user.selectOptions(screen.getByLabelText("Model"), "nai-diffusion-3");
     expect(await screen.findByText("Settings backend unavailable")).toBeInTheDocument();
   });
 
@@ -381,7 +383,7 @@ describe("SettingsPage", () => {
     await user.click(await screen.findByRole("button", { name: "Interface" }));
     await user.click(screen.getByLabelText("Developer mode"));
     await user.click(screen.getByLabelText("Blur NSFW images"));
-    await user.click(screen.getByRole("button", { name: "Save frontend preferences" }));
+    await waitFor(() => expect(mocks.globalSettingsApi.update).toHaveBeenCalled());
 
     const request = lastGlobalSettingsUpdate();
     expect(request.frontend.developer_mode).toBe(true);
@@ -393,6 +395,9 @@ describe("SettingsPage", () => {
     const { user } = setup();
 
     await user.click(await screen.findByRole("button", { name: "Workspace" }));
+    expect(screen.getByText("D:/atelier")).toBeInTheDocument();
+    expect(screen.queryByText("Schema version")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workspace lock")).not.toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "Close workspace" }));
 
     expect(mocks.closeWorkspace).toHaveBeenCalledTimes(1);

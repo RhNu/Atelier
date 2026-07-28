@@ -25,11 +25,7 @@ export function AccountSettingsSection() {
   return (
     <div className="h-full min-h-0">
       <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
-        <SectionHeader
-          kicker={t("account")}
-          title={t("accountTitle")}
-          description={t("accountDescriptionLong")}
-        >
+        <SectionHeader title={t("account")}>
           <AppButton variant="secondary" onClick={account.openCreate}>
             <Plus aria-hidden="true" className="size-4" />
             {t("addApiKey")}
