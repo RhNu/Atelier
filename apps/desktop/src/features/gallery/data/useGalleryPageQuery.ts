@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 import { runLoggedAction } from "@/app/logger";
 import {
@@ -9,7 +10,9 @@ import {
   resourceApi,
   resourceImageToDataUrl,
 } from "@/platform/atelier";
+import { useToastStore } from "@/stores/toast-store";
 import type {
+  CopyResourceImageRequestDto,
   DeleteGalleryItemsRequestDto,
   GalleryQueryDto,
   GalleryImageReferenceRequestDto,
@@ -82,6 +85,21 @@ export function useSaveGalleryImageMutation() {
   return useMutation({
     mutationFn: (request: SaveResourceImageRequestDto) =>
       runLoggedAction("Save gallery image", () => desktopApi.saveResourceImage(request)),
+  });
+}
+
+export function useCopyGalleryImageMutation() {
+  const { t } = useTranslation("gallery");
+  const pushToast = useToastStore((state) => state.push);
+  return useMutation({
+    mutationFn: (request: CopyResourceImageRequestDto) =>
+      runLoggedAction("Copy gallery image", () => desktopApi.copyResourceImage(request)),
+    onSuccess: () =>
+      pushToast({
+        level: "success",
+        title: t("copySucceeded"),
+        message: t("copySucceededMessage"),
+      }),
   });
 }
 

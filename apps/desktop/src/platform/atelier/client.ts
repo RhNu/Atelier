@@ -7,6 +7,7 @@ import type {
   CompileGenerationPromptRequestDto,
   CompiledGenerationPromptDto,
   CompiledPromptDto,
+  CopyResourceImageRequestDto,
   CreateApiKeyRequestDto,
   DeleteApiKeyRequestDto,
   DeleteApiKeyResponseDto,
@@ -143,6 +144,8 @@ export const desktopApi = {
     ),
   saveResourceImage: (request: SaveResourceImageRequestDto) =>
     invokeAtelierCommand<{ path: string } | null>(atelierCommands.saveResourceImage, { request }),
+  copyResourceImage: (request: CopyResourceImageRequestDto) =>
+    invokeAtelierCommand<void>(atelierCommands.copyResourceImage, { request }),
   saveResourceImagesZip: (request: SaveResourceImagesZipRequestDto) =>
     invokeAtelierCommand<{ path: string; exported: number } | null>(
       atelierCommands.saveResourceImagesZip,

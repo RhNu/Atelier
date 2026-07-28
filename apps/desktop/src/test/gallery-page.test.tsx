@@ -6,6 +6,7 @@ import { createAtelierQueryClient } from "../app/query-client";
 import { AppToastHost } from "../components/ui/AppToastHost";
 import { GalleryPage } from "../features/gallery";
 import type {
+  CopyResourceImageRequestDto,
   GalleryItemDto,
   GalleryPageDto,
   GalleryQueryDto,
@@ -30,6 +31,7 @@ const mocks = vi.hoisted(() => ({
     image: vi.fn<(request: GetResourceImageRequestDto) => Promise<ResourceImageDto>>(),
   },
   desktopApi: {
+    copyResourceImage: vi.fn<(request: CopyResourceImageRequestDto) => Promise<void>>(),
     saveResourceImage:
       vi.fn<(request: SaveResourceImageRequestDto) => Promise<{ path: string } | null>>(),
   },
@@ -174,6 +176,7 @@ function setup(options?: { blurSensitive?: boolean; items?: GalleryItemDto[] }) 
     mime_type: "image/png",
   }));
   mocks.desktopApi.saveResourceImage.mockResolvedValue({ path: "C:\\exports\\gallery.png" });
+  mocks.desktopApi.copyResourceImage.mockResolvedValue();
 
   return {
     user: userEvent.setup(),
@@ -297,14 +300,16 @@ describe("GalleryPage", () => {
       manual_safety_override: "hidden",
     });
 
-    await user.click(screen.getByRole("button", { name: "Export selected image" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("menuitem", { name: "PNG original" }));
     expect(mocks.desktopApi.saveResourceImage).toHaveBeenCalledWith({
       resource: { id: "resource:safe-item:original", variant_id: null },
-      suggested_file_name: "safe-item-original",
+      format: "png_original",
+      suggested_file_name: "image-270115-080000",
     });
   });
 
-  it("sanitizes export filenames and reports command failures", async () => {
+  it("copies and exports explicit formats and reports command failures", async () => {
     const unsafeItem = galleryItem("artifact:job-1:sample:0", {
       source: "generation",
       label: "safe",
@@ -313,10 +318,20 @@ describe("GalleryPage", () => {
     mocks.galleryApi.setSafetyOverride.mockRejectedValueOnce(new Error("override failed"));
 
     await screen.findByRole("button", { name: "Select artifact:job-1:sample:0" });
-    await user.click(screen.getByRole("button", { name: "Export selected image" }));
+    await user.click(screen.getByRole("button", { name: "Copy" }));
+    await user.click(screen.getByRole("menuitem", { name: "JPG" }));
+    expect(mocks.desktopApi.copyResourceImage).toHaveBeenCalledWith({
+      resource: { id: "resource:artifact:job-1:sample:0:original", variant_id: null },
+      format: "jpeg",
+    });
+    expect(await screen.findByText("Image copied")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("menuitem", { name: "PNG without metadata" }));
     expect(mocks.desktopApi.saveResourceImage).toHaveBeenCalledWith({
       resource: { id: "resource:artifact:job-1:sample:0:original", variant_id: null },
-      suggested_file_name: "artifact-job-1-sample-0-original",
+      format: "png_sanitized",
+      suggested_file_name: "image-270115-080000",
     });
 
     await user.click(screen.getByRole("button", { name: "Change safety override" }));
@@ -326,7 +341,8 @@ describe("GalleryPage", () => {
     expect(await screen.findByText("override failed")).toBeInTheDocument();
 
     mocks.desktopApi.saveResourceImage.mockRejectedValueOnce(new Error("export failed"));
-    await user.click(screen.getByRole("button", { name: "Export selected image" }));
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("menuitem", { name: "JPG" }));
     expect(await screen.findByText("export failed")).toBeInTheDocument();
     expect(screen.getByText("override failed")).toBeInTheDocument();
   });

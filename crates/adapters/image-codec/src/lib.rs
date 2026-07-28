@@ -12,6 +12,13 @@ use atelier_settings::ImageVariantSettings;
 use image::ImageEncoder;
 use thiserror::Error;
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ImageExportFormat {
+    PngOriginal,
+    PngSanitized,
+    Jpeg,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImageInfo {
     pub mime_type: String,
@@ -23,6 +30,13 @@ pub struct ImageInfo {
 pub struct EncodedImage {
     pub bytes: Vec<u8>,
     pub mime_type: String,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DecodedRgbaImage {
+    pub bytes: Vec<u8>,
     pub width: u32,
     pub height: u32,
 }
@@ -123,6 +137,51 @@ impl ImageCodec {
         settings: ImageVariantSettings,
     ) -> ImageCodecResult<EncodedImage> {
         Self::decode_source(bytes)?.build_variant(kind, settings)
+    }
+
+    /// Encodes source bytes for an explicit user-facing export format.
+    ///
+    /// PNG originals are returned byte-for-byte when the source is already PNG.
+    /// Other sources are losslessly converted to PNG at their original dimensions.
+    ///
+    /// # Errors
+    /// Returns an error when source decoding or target encoding fails.
+    pub fn encode_export(
+        bytes: &[u8],
+        format: ImageExportFormat,
+    ) -> ImageCodecResult<EncodedImage> {
+        let source_format = supported_format(bytes)?;
+        if format == ImageExportFormat::PngOriginal && source_format == image::ImageFormat::Png {
+            let info = Self::probe(bytes)?;
+            return Ok(EncodedImage {
+                bytes: bytes.to_vec(),
+                mime_type: info.mime_type,
+                width: info.width,
+                height: info.height,
+            });
+        }
+
+        let image = decode(bytes, source_format)?;
+        match format {
+            ImageExportFormat::PngOriginal | ImageExportFormat::PngSanitized => encode_png(&image),
+            ImageExportFormat::Jpeg => encode_jpeg(&image),
+        }
+    }
+
+    /// Decodes supported image bytes into row-major RGBA8 pixels.
+    ///
+    /// # Errors
+    /// Returns an error when the image is unsupported or cannot be decoded.
+    pub fn decode_rgba(bytes: &[u8]) -> ImageCodecResult<DecodedRgbaImage> {
+        let format = supported_format(bytes)?;
+        let image = decode(bytes, format)?;
+        let width = image.width();
+        let height = image.height();
+        Ok(DecodedRgbaImage {
+            bytes: image.into_rgba8().into_raw(),
+            width,
+            height,
+        })
     }
 }
 
@@ -305,6 +364,32 @@ fn encode_png(image: &image::DynamicImage) -> ImageCodecResult<EncodedImage> {
     Ok(EncodedImage {
         bytes,
         mime_type: "image/png".to_owned(),
+        width,
+        height,
+    })
+}
+
+fn encode_jpeg(image: &image::DynamicImage) -> ImageCodecResult<EncodedImage> {
+    let rgba = image.to_rgba8();
+    let width = image.width();
+    let height = image.height();
+    let mut rgb = Vec::with_capacity(rgba.len() / 4 * 3);
+    for pixel in rgba.as_raw().chunks_exact(4) {
+        let alpha = u16::from(pixel[3]);
+        let inverse_alpha = 255 - alpha;
+        for channel in &pixel[..3] {
+            let composited = (u16::from(*channel) * alpha + 255 * inverse_alpha + 127) / 255;
+            rgb.push(u8::try_from(composited).unwrap_or(255));
+        }
+    }
+
+    let mut bytes = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut bytes, 92)
+        .write_image(&rgb, width, height, image::ExtendedColorType::Rgb8)
+        .map_err(|error| ImageCodecError::new(format!("failed to encode JPEG: {error}")))?;
+    Ok(EncodedImage {
+        bytes,
+        mime_type: "image/jpeg".to_owned(),
         width,
         height,
     })

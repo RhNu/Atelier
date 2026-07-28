@@ -9,6 +9,7 @@ export const atelierCommands = {
   pickAndImportEmbeddedPngVibeDocuments: "pick_and_import_embedded_png_vibe_documents",
   saveVibeDocument: "save_vibe_document",
   saveResourceImage: "save_resource_image",
+  copyResourceImage: "copy_resource_image",
   saveResourceImagesZip: "save_resource_images_zip",
   openPath: "open_path",
   revealPath: "reveal_path",

@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
 
-import type { GalleryItemDto } from "@/types";
+import type { GalleryItemDto, ImageExportFormatDto } from "@/types";
 
 import { setDirectorHandoffInput } from "../director/state/director-handoff-store";
 import { navigateToDirector } from "../director/state/navigate-to-director";
 import {
   useDeleteGalleryItemsMutation,
+  useCopyGalleryImageMutation,
   useGalleryImageReferenceMutation,
   useSaveGalleryImageMutation,
   useSetGallerySafetyOverrideMutation,
@@ -32,6 +33,7 @@ export function useGalleryItemCommands({
   const setSafetyOverrideMutation = useSetGallerySafetyOverrideMutation();
   const deleteGalleryItemsMutation = useDeleteGalleryItemsMutation();
   const saveImageMutation = useSaveGalleryImageMutation();
+  const copyImageMutation = useCopyGalleryImageMutation();
   const imageReferenceMutation = useGalleryImageReferenceMutation();
   const deleteTargets = deleteTargetIds.flatMap((targetId) => {
     const target =
@@ -40,15 +42,20 @@ export function useGalleryItemCommands({
     return target ? [target] : [];
   });
   const commandMutationError =
-    setSafetyOverrideMutation.error ?? saveImageMutation.error ?? imageReferenceMutation.error;
+    setSafetyOverrideMutation.error ??
+    copyImageMutation.error ??
+    saveImageMutation.error ??
+    imageReferenceMutation.error;
 
   const resetCommandErrors = useCallback(() => {
     setSafetyOverrideMutation.reset();
+    copyImageMutation.reset();
     saveImageMutation.reset();
     deleteGalleryItemsMutation.reset();
     imageReferenceMutation.reset();
   }, [
     deleteGalleryItemsMutation,
+    copyImageMutation,
     imageReferenceMutation,
     saveImageMutation,
     setSafetyOverrideMutation,
@@ -64,16 +71,34 @@ export function useGalleryItemCommands({
     }
   }, [overrideValue, resetCommandErrors, selectedItem, setSafetyOverrideMutation]);
 
-  const exportSelected = useCallback(() => {
-    if (selectedItem) {
-      resetCommandErrors();
-      const asset = preferredExportAsset(selectedItem);
-      saveImageMutation.mutate({
-        resource: asset.resource,
-        suggested_file_name: suggestedGalleryExportFileName(selectedItem.item_id, asset.role),
-      });
-    }
-  }, [resetCommandErrors, saveImageMutation, selectedItem]);
+  const copySelected = useCallback(
+    (format: ImageExportFormatDto) => {
+      if (selectedItem) {
+        resetCommandErrors();
+        const asset = preferredExportAsset(selectedItem);
+        copyImageMutation.mutate({
+          resource: asset.resource,
+          format,
+        });
+      }
+    },
+    [copyImageMutation, resetCommandErrors, selectedItem],
+  );
+
+  const exportSelected = useCallback(
+    (format: ImageExportFormatDto) => {
+      if (selectedItem) {
+        resetCommandErrors();
+        const asset = preferredExportAsset(selectedItem);
+        saveImageMutation.mutate({
+          resource: asset.resource,
+          format,
+          suggested_file_name: suggestedGalleryExportFileName(selectedItem.indexed_at_ms, format),
+        });
+      }
+    },
+    [resetCommandErrors, saveImageMutation, selectedItem],
+  );
 
   const sendToDirector = useCallback(() => {
     if (selectedItem) {
@@ -136,6 +161,8 @@ export function useGalleryItemCommands({
     commandError: commandMutationError ? formatError(commandMutationError) : null,
     confirmDelete,
     closeDeleteConfirmation,
+    copying: copyImageMutation.isPending,
+    copySelected,
     deleteError: deleteGalleryItemsMutation.error
       ? formatError(deleteGalleryItemsMutation.error)
       : null,

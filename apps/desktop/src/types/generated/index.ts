@@ -16,6 +16,7 @@ export type { CompiledGenerationPromptDto } from "./CompiledGenerationPromptDto"
 export type { CompiledPromptDto } from "./CompiledPromptDto";
 export type { ControlNetConfigDto } from "./ControlNetConfigDto";
 export type { ControlNetInputDto } from "./ControlNetInputDto";
+export type { CopyResourceImageRequestDto } from "./CopyResourceImageRequestDto";
 export type { CreateApiKeyRequestDto } from "./CreateApiKeyRequestDto";
 export type { DeleteApiKeyRequestDto } from "./DeleteApiKeyRequestDto";
 export type { DeleteApiKeyResponseDto } from "./DeleteApiKeyResponseDto";
@@ -82,6 +83,7 @@ export type { GetVibeDocumentRequestDto } from "./GetVibeDocumentRequestDto";
 export type { GlobalFrontendSettingsDto } from "./GlobalFrontendSettingsDto";
 export type { GlobalGallerySettingsDto } from "./GlobalGallerySettingsDto";
 export type { GlobalSettingsDto } from "./GlobalSettingsDto";
+export type { ImageExportFormatDto } from "./ImageExportFormatDto";
 export type { ImageFormatDto } from "./ImageFormatDto";
 export type { ImageInputDto } from "./ImageInputDto";
 export type { ImageModelDto } from "./ImageModelDto";

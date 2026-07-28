@@ -1,11 +1,13 @@
 #![allow(clippy::needless_pass_by_value)]
 
 use std::{
+    borrow::Cow,
     fs,
     io::{Cursor, Write},
     path::{Path, PathBuf},
 };
 
+use arboard::ImageData;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use serde::Serialize;
@@ -15,9 +17,10 @@ use atelier_app::CommandResult;
 use atelier_app_api::{
     error::ErrorEnvelopeDto,
     resource::{
-        GetResourceImageRequestDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-        ImportImageResourceResponseDto, ReleaseImportedImageResourcesRequestDto,
-        SaveResourceImageRequestDto, SaveResourceImagesZipRequestDto,
+        CopyResourceImageRequestDto, GetResourceImageRequestDto, ImageResourceKindDto,
+        ImportImageResourceRequestDto, ImportImageResourceResponseDto,
+        ReleaseImportedImageResourcesRequestDto, SaveResourceImageRequestDto,
+        SaveResourceImagesZipRequestDto,
     },
     vibe::{
         ExportVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
@@ -29,6 +32,9 @@ use atelier_app_api::{
 };
 
 use crate::{
+    commands::resource_image::{
+        decode_clipboard_pixels, decode_resource_image, encode_resource_image,
+    },
     desktop::{DesktopState, TauriDialog, TauriPathOpener},
     desktop_system::{DesktopPaths, DesktopSystemError, DesktopSystemResult, PickFilesOptions},
 };
@@ -221,20 +227,52 @@ pub async fn save_resource_image(
             resource: request.resource,
         })
         .await?;
-    let extension = image_extension(image.mime_type.as_deref());
+    let source_bytes = decode_resource_image(&image.image_base64)?;
+    let (bytes, mime_type) =
+        encode_resource_image(&source_bytes, image.mime_type.as_deref(), request.format)?;
+    let extension = image_extension(Some(&mime_type));
     let default_file_name = resource_file_name(request.suggested_file_name, extension);
     let dialog = TauriDialog::new(state.app_handle.clone());
     let Some(path) = desktop_result(dialog.save_file(Some(&default_file_name), Some(extension)))?
     else {
         return Ok(None);
     };
-    let bytes = STANDARD
-        .decode(image.image_base64.trim())
-        .map_err(|error| ErrorEnvelopeDto::new("resource_decode_error", error.to_string()))?;
-
     desktop_result(write_file_bytes(&path, &bytes))?;
     desktop_result(state.system.allow_user_path(&path))?;
     Ok(Some(SavedDesktopFileDto { path }))
+}
+
+#[tauri::command]
+pub async fn copy_resource_image(
+    state: State<'_, DesktopState>,
+    request: CopyResourceImageRequestDto,
+) -> CommandResult<()> {
+    let image = state
+        .host
+        .get_resource_image(GetResourceImageRequestDto {
+            resource: request.resource,
+        })
+        .await?;
+    let source_bytes = decode_resource_image(&image.image_base64)?;
+    let (encoded, _) = encode_resource_image(
+        &source_bytes,
+        image.mime_type.as_deref(),
+        Some(request.format),
+    )?;
+    let pixels = decode_clipboard_pixels(&encoded)?;
+    let width = usize::try_from(pixels.width)
+        .map_err(|error| ErrorEnvelopeDto::new("resource_image_invalid", error.to_string()))?;
+    let height = usize::try_from(pixels.height)
+        .map_err(|error| ErrorEnvelopeDto::new("resource_image_invalid", error.to_string()))?;
+    let mut clipboard = arboard::Clipboard::new()
+        .map_err(|error| ErrorEnvelopeDto::new("clipboard_unavailable", error.to_string()))?;
+    clipboard
+        .set_image(ImageData {
+            width,
+            height,
+            bytes: Cow::Owned(pixels.bytes),
+        })
+        .map_err(|error| ErrorEnvelopeDto::new("clipboard_image_write", error.to_string()))
 }
 
 #[tauri::command]

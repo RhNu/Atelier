@@ -1,4 +1,5 @@
 mod desktop_io;
+mod resource_image;
 
 pub use desktop_io::*;
 

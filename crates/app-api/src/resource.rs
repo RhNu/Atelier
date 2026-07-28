@@ -65,11 +65,27 @@ pub struct GetResourceImageRequestDto {
     pub resource: ResourceRefDto,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ImageExportFormatDto {
+    PngOriginal,
+    PngSanitized,
+    Jpeg,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SaveResourceImageRequestDto {
     pub resource: ResourceRefDto,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<ImageExportFormatDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub suggested_file_name: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CopyResourceImageRequestDto {
+    pub resource: ResourceRefDto,
+    pub format: ImageExportFormatDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

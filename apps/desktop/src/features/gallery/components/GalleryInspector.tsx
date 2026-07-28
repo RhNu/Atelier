@@ -1,10 +1,9 @@
-import { Clapperboard, Download, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppModal, AppPanel, EmptyState } from "@/components/ui";
+import { AppModal, AppPanel, EmptyState } from "@/components/ui";
 import { useToastStore } from "@/stores/toast-store";
-import type { GalleryItemDto } from "@/types";
+import type { GalleryItemDto, ImageExportFormatDto } from "@/types";
 
 import {
   displayGalleryArtifactKind,
@@ -13,6 +12,7 @@ import {
   formatTimestamp,
   preferredPreviewResource,
 } from "../gallery-utils";
+import { GalleryImageActions } from "./GalleryImageActions";
 import { GalleryItemImage } from "./GalleryItemImage";
 import { GallerySafetyDetails } from "./GallerySafetyDetails";
 
@@ -23,10 +23,12 @@ type GalleryInspectorProps = {
   overrideValue: string;
   onOverrideChange: (value: string) => void;
   onApplyOverride: () => void;
-  onExport: () => void;
+  onCopy: (format: ImageExportFormatDto) => void;
+  onExport: (format: ImageExportFormatDto) => void;
   onSendToDirector: () => void;
   onDelete: () => void;
   applyingOverride: boolean;
+  copying: boolean;
   exporting: boolean;
   deleting: boolean;
   handoffPending: boolean;
@@ -103,44 +105,6 @@ function AssetDetails({ item }: { item: GalleryItemDto }) {
   );
 }
 
-function InspectorActions({
-  onExport,
-  onSendToDirector,
-  onDelete,
-  exporting,
-  deleting,
-  handoffPending,
-}: Pick<
-  GalleryInspectorProps,
-  "onExport" | "onSendToDirector" | "onDelete" | "exporting" | "deleting" | "handoffPending"
->) {
-  const { t } = useTranslation("gallery");
-
-  return (
-    <section className="grid gap-3">
-      <div className="grid grid-cols-2 gap-2">
-        <AppButton variant="secondary" onClick={onExport} disabled={exporting} className="w-full">
-          <Download aria-hidden="true" className="size-4" />
-          {t("exportImage")}
-        </AppButton>
-      </div>
-      <AppButton
-        variant="secondary"
-        onClick={onSendToDirector}
-        disabled={handoffPending}
-        className="w-full"
-      >
-        <Clapperboard aria-hidden="true" className="size-4" />
-        {t("sendDirector")}
-      </AppButton>
-      <AppButton variant="danger" onClick={onDelete} disabled={deleting} className="w-full">
-        <Trash2 aria-hidden="true" className="size-4" />
-        {t("deleteSelected")}
-      </AppButton>
-    </section>
-  );
-}
-
 export function GalleryInspector(props: GalleryInspectorProps) {
   const { t } = useTranslation("gallery");
   const { item, items, blurSensitive, onSelectItem } = props;
@@ -204,6 +168,7 @@ export function GalleryInspector(props: GalleryInspectorProps) {
         </div>
       </header>
       <div className="grid gap-4 p-4">
+        <GalleryImageActions {...props} />
         <button
           type="button"
           aria-label={t("enlargeImage")}
@@ -227,7 +192,6 @@ export function GalleryInspector(props: GalleryInspectorProps) {
           applyingOverride={props.applyingOverride}
         />
         <AssetDetails item={item} />
-        <InspectorActions {...props} />
       </div>
       <AppModal
         open={lightboxOpen}

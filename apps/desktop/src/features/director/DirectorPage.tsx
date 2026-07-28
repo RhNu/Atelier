@@ -181,6 +181,7 @@ export function DirectorPage() {
     void saveImageMutation
       .mutateAsync({
         resource: result.resource,
+        format: null,
         suggested_file_name: `${result.item_id}-${tool}`,
       })
       .catch((error: unknown) => setActionError(formatError(error)));

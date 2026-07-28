@@ -683,6 +683,7 @@ name = "atelier-desktop"
 version = "0.1.0"
 dependencies = [
  "arboard",
+ "atelier-adapter-image-codec",
  "atelier-adapter-keyring",
  "atelier-adapter-novelai",
  "atelier-adapter-safety-onnx",

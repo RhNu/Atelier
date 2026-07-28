@@ -33,6 +33,7 @@ pub fn run() {
             commands::pick_and_import_embedded_png_vibe_documents,
             commands::save_vibe_document,
             commands::save_resource_image,
+            commands::copy_resource_image,
             commands::save_resource_images_zip,
             commands::open_path,
             commands::reveal_path,

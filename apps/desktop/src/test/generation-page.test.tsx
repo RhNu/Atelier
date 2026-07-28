@@ -1218,6 +1218,7 @@ describe("GeneratePage queue and preview behavior", () => {
     expect(requestRerun?.job_id).toMatch(/^job-/u);
     expect(mocks.desktopApi.saveResourceImage).toHaveBeenCalledWith({
       resource: { id: "resource:generated:job-1:0", variant_id: null },
+      format: null,
       suggested_file_name: "request-01_sample-01",
     });
     expect(mocks.galleryApi.imageReference).toHaveBeenCalledWith({

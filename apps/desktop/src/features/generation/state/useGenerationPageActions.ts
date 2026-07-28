@@ -116,6 +116,7 @@ function useGenerationHistoryActions({
     void runLoggedAction("Save generated sample", () =>
       saveMutation.mutateAsync({
         resource,
+        format: null,
         suggested_file_name: stableSampleName(request, sample),
       }),
     ).catch((cause: unknown) => setError(formatGenerationError(cause)));

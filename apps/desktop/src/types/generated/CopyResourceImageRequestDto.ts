@@ -2,8 +2,7 @@
 import type { ImageExportFormatDto } from "./ImageExportFormatDto";
 import type { ResourceRefDto } from "./ResourceRefDto";
 
-export type SaveResourceImageRequestDto = {
+export type CopyResourceImageRequestDto = {
   resource: ResourceRefDto;
-  format: ImageExportFormatDto | null;
-  suggested_file_name: string | null;
+  format: ImageExportFormatDto;
 };

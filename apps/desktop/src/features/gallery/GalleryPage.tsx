@@ -181,10 +181,12 @@ export function GalleryPage() {
           overrideValue={overrideValue}
           onOverrideChange={setOverrideValue}
           onApplyOverride={commands.applyOverride}
+          onCopy={commands.copySelected}
           onExport={commands.exportSelected}
           onSendToDirector={commands.sendToDirector}
           onDelete={commands.openDeleteConfirmation}
           applyingOverride={commands.applyingOverride}
+          copying={commands.copying}
           exporting={commands.exporting}
           deleting={commands.deleting}
           handoffPending={commands.handoffPending}

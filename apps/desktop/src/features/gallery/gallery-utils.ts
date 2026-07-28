@@ -1,6 +1,7 @@
 import { i18n } from "@/i18n";
 import type {
   GalleryItemDto,
+  ImageExportFormatDto,
   GallerySafetyLabelDto,
   GallerySafetyOverrideDto,
   GallerySourceKindDto,
@@ -40,8 +41,6 @@ export const overrideOptions = [
   { value: "sensitive", labelKey: "sensitive" },
   { value: "hidden", labelKey: "hidden" },
 ] as const;
-
-const INVALID_FILE_NAME_CHARACTERS = /[<>:"/\\|?*]+/g;
 
 export function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Command failed";
@@ -125,13 +124,25 @@ export function preferredExportAsset(item: GalleryItemDto): VisualAssetDto {
   );
 }
 
-export function suggestedGalleryExportFileName(itemId: string, role: string): string {
-  const name = `${itemId}-${role}`
-    .replace(INVALID_FILE_NAME_CHARACTERS, "-")
-    .replace(/-+/g, "-")
-    .replace(/[. ]+$/g, "")
-    .trim();
-  return name || "gallery-image";
+export function suggestedGalleryExportFileName(
+  indexedAtMs: number,
+  format: ImageExportFormatDto,
+): string {
+  const date = new Date(indexedAtMs);
+  if (Number.isNaN(date.getTime())) {
+    return `image-${format === "jpeg" ? "jpg" : "png"}`;
+  }
+  const twoDigits = (value: number) => String(value).padStart(2, "0");
+  return [
+    "image-",
+    twoDigits(date.getUTCFullYear() % 100),
+    twoDigits(date.getUTCMonth() + 1),
+    twoDigits(date.getUTCDate()),
+    "-",
+    twoDigits(date.getUTCHours()),
+    twoDigits(date.getUTCMinutes()),
+    twoDigits(date.getUTCSeconds()),
+  ].join("");
 }
 
 export function parseSourceFilter(value: string): SourceFilter {

@@ -36,10 +36,11 @@ use atelier_app_api::prompt::{
     PromptLexiconSearchQueryDto, PromptPresetKindDto, UpsertPromptPresetRequestDto,
 };
 use atelier_app_api::resource::{
-    GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-    ImportImageResourceResponseDto, ReleaseImportedImageResourcesRequestDto,
-    ReleaseImportedImageResourcesResponseDto, ResourceImageDto, ResourceRefDto,
-    SaveResourceImageRequestDto, SaveResourceImagesZipEntryDto, SaveResourceImagesZipRequestDto,
+    CopyResourceImageRequestDto, GetResourceImageRequestDto, ImageExportFormatDto, ImageInputDto,
+    ImageResourceKindDto, ImportImageResourceRequestDto, ImportImageResourceResponseDto,
+    ReleaseImportedImageResourcesRequestDto, ReleaseImportedImageResourcesResponseDto,
+    ResourceImageDto, ResourceRefDto, SaveResourceImageRequestDto, SaveResourceImagesZipEntryDto,
+    SaveResourceImagesZipRequestDto,
 };
 use atelier_app_api::settings::{
     FrontendLanguageDto, GenerationDefaultsDto, GlobalFrontendSettingsDto,

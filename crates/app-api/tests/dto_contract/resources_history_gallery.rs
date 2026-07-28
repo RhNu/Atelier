@@ -60,12 +60,28 @@ fn image_resource_import_dtos_are_resource_catalog_oriented() {
                 id: "resource:image:1".to_owned(),
                 variant_id: None,
             },
+            format: Some(ImageExportFormatDto::PngSanitized),
             suggested_file_name: Some("job-1-sample-0".to_owned()),
         })
         .unwrap(),
         json!({
             "resource": { "id": "resource:image:1" },
+            "format": "png_sanitized",
             "suggested_file_name": "job-1-sample-0"
+        })
+    );
+    assert_eq!(
+        serde_json::to_value(CopyResourceImageRequestDto {
+            resource: ResourceRefDto {
+                id: "resource:image:1".to_owned(),
+                variant_id: None,
+            },
+            format: ImageExportFormatDto::Jpeg,
+        })
+        .unwrap(),
+        json!({
+            "resource": { "id": "resource:image:1" },
+            "format": "jpeg"
         })
     );
     assert_eq!(

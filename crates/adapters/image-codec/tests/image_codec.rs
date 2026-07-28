@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use atelier_adapter_image_codec::{
-    ImageCodec, ImageCodecVariantBuilder, ImageMetadataBlobStore, ImageSourceReader,
-    StaticImageVariantSettings,
+    ImageCodec, ImageCodecVariantBuilder, ImageExportFormat, ImageMetadataBlobStore,
+    ImageSourceReader, StaticImageVariantSettings,
 };
 use atelier_resource_catalog::{
     BlobId, BlobWriteIntent, BuildVariantRequest, ResourceBlobStore, ResourceCatalogErrorKind,
@@ -77,6 +77,40 @@ fn builds_png_sanitized_and_export_at_original_dimensions() {
             image_info("image/png", 640, 360)
         );
     }
+}
+
+#[test]
+fn exports_original_png_sanitized_png_and_jpeg_at_original_dimensions() {
+    let png = image_bytes(48, 32, ImageFormat::Png);
+    let original = ImageCodec::encode_export(&png, ImageExportFormat::PngOriginal).unwrap();
+    assert_eq!(original.bytes, png);
+    assert_eq!(original.mime_type, "image/png");
+
+    let sanitized = ImageCodec::encode_export(&png, ImageExportFormat::PngSanitized).unwrap();
+    assert_eq!(
+        ImageCodec::probe(&sanitized.bytes).unwrap(),
+        image_info("image/png", 48, 32)
+    );
+
+    let jpeg = ImageCodec::encode_export(&png, ImageExportFormat::Jpeg).unwrap();
+    assert_eq!(
+        ImageCodec::probe(&jpeg.bytes).unwrap(),
+        image_info("image/jpeg", 48, 32)
+    );
+    let pixels = ImageCodec::decode_rgba(&jpeg.bytes).unwrap();
+    assert_eq!((pixels.width, pixels.height), (48, 32));
+    assert_eq!(pixels.bytes.len(), 48 * 32 * 4);
+}
+
+#[test]
+fn png_original_losslessly_converts_non_png_sources() {
+    let webp = webp_bytes(21, 13);
+    let exported = ImageCodec::encode_export(&webp, ImageExportFormat::PngOriginal).unwrap();
+
+    assert_eq!(
+        ImageCodec::probe(&exported.bytes).unwrap(),
+        image_info("image/png", 21, 13)
+    );
 }
 
 #[test]
