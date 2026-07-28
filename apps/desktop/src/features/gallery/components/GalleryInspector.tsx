@@ -1,21 +1,20 @@
-import { Clapperboard, Download, Maximize2, ShieldCheck, Trash2 } from "lucide-react";
-import type { ChangeEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Clapperboard, Download, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppModal, AppPanel, AppSelect, EmptyState, SafetyBadge } from "@/components/ui";
+import { AppButton, AppModal, AppPanel, EmptyState } from "@/components/ui";
 import { useToastStore } from "@/stores/toast-store";
 import type { GalleryItemDto } from "@/types";
 
 import {
-  effectiveSafetyLabel,
-  formatScore,
+  displayGalleryArtifactKind,
+  displayGalleryModelName,
+  displayGallerySource,
   formatTimestamp,
-  overrideOptions,
-  preferredExportAsset,
   preferredPreviewResource,
 } from "../gallery-utils";
 import { GalleryItemImage } from "./GalleryItemImage";
+import { GallerySafetyDetails } from "./GallerySafetyDetails";
 
 type GalleryInspectorProps = {
   item: GalleryItemDto | null;
@@ -68,18 +67,11 @@ function ArtifactDetails({ item }: { item: GalleryItemDto }) {
     <section className="grid gap-2">
       <h3 className="text-sm font-semibold text-white">{t("artifact")}</h3>
       <dl className="grid gap-2">
-        <DetailRow label={t("artifact")} value={item.artifact_id} />
-        <DetailRow label={t("kind")} value={item.artifact_kind} />
-        <DetailRow label={t("source")} value={item.source_kind} />
-        <DetailRow label={t("model")} value={item.model_name} />
-        <DetailRow
-          label={t("seed", { value: "" })}
-          value={item.seed === null ? null : t("seed", { value: item.seed })}
-        />
-        <DetailRow
-          label={t("sample", { value: "" })}
-          value={item.sample_index === null ? null : t("sample", { value: item.sample_index })}
-        />
+        <DetailRow label={t("kind")} value={displayGalleryArtifactKind(item.artifact_kind, t)} />
+        <DetailRow label={t("source")} value={displayGallerySource(item.source_kind, t)} />
+        <DetailRow label={t("model")} value={displayGalleryModelName(item.model_name)} />
+        <DetailRow label={t("seedLabel")} value={item.seed} />
+        <DetailRow label={t("sampleLabel")} value={item.sample_index} />
         <DetailRow label={t("indexed")} value={formatTimestamp(item.indexed_at_ms)} />
       </dl>
     </section>
@@ -89,107 +81,42 @@ function ArtifactDetails({ item }: { item: GalleryItemDto }) {
 function AssetDetails({ item }: { item: GalleryItemDto }) {
   const { t } = useTranslation("gallery");
   return (
-    <section className="grid gap-2">
-      <h3 className="text-sm font-semibold text-white">{t("assets")}</h3>
-      <div className="grid gap-2">
+    <details className="border-t border-app-border pt-3">
+      <summary className="cursor-pointer text-sm font-semibold text-white">{t("assets")}</summary>
+      <dl className="mt-2 grid gap-1.5 text-xs">
         {item.assets.map((asset) => (
           <div
             key={`${asset.role}-${asset.resource.id}-${asset.resource.variant_id ?? "base"}`}
-            className={[
-              "grid grid-cols-[72px_minmax(0,1fr)] gap-3 border border-app-border",
-              "bg-app-surface px-3 py-2 text-sm",
-            ].join(" ")}
+            className="grid grid-cols-[72px_minmax(0,1fr)] gap-3"
           >
-            <span className="font-semibold text-app-text">{asset.role}</span>
-            <span className="truncate text-app-muted">{asset.resource.id}</span>
+            <dt className="font-semibold text-app-text">{asset.role}</dt>
+            <dd className="break-all text-app-muted">
+              {asset.resource.id}
+              {asset.resource.variant_id ? ` (${asset.resource.variant_id})` : ""}
+            </dd>
           </div>
         ))}
-      </div>
-    </section>
-  );
-}
-
-function SafetyDetails({ item }: { item: GalleryItemDto }) {
-  const { t } = useTranslation("gallery");
-  const nsfwScore = formatScore("NSFW", item.safety?.nsfw_score ?? null);
-  const safeScore = formatScore("Safe", item.safety?.safe_score ?? null);
-
-  return (
-    <section className="grid gap-2">
-      <h3 className="text-sm font-semibold text-white">{t("safety")}</h3>
-      <dl className="grid gap-2">
-        <DetailRow label={t("label")} value={effectiveSafetyLabel(item)} />
-        <DetailRow label="NSFW" value={nsfwScore} />
-        <DetailRow label={t("safe")} value={safeScore} />
-        <DetailRow label={t("model")} value={item.safety?.model_id ?? null} />
-        <DetailRow label={t("version")} value={item.safety?.scorer_version ?? null} />
       </dl>
-      {item.safety?.raw_scores.length ? (
-        <div className="grid gap-1 border border-app-border bg-app-surface p-3">
-          {item.safety.raw_scores.map((score) => (
-            <p
-              key={`${score.label}-${score.score}`}
-              className="flex justify-between gap-3 text-xs text-app-muted"
-            >
-              <span>{score.label}</span>
-              <span>{score.score.toFixed(2)}</span>
-            </p>
-          ))}
-        </div>
-      ) : null}
-    </section>
+    </details>
   );
 }
 
 function InspectorActions({
-  item,
-  overrideValue,
-  onOverrideChange,
-  onApplyOverride,
   onExport,
   onSendToDirector,
   onDelete,
-  applyingOverride,
   exporting,
   deleting,
   handoffPending,
-}: GalleryInspectorProps & { item: GalleryItemDto }) {
+}: Pick<
+  GalleryInspectorProps,
+  "onExport" | "onSendToDirector" | "onDelete" | "exporting" | "deleting" | "handoffPending"
+>) {
   const { t } = useTranslation("gallery");
-  const localizedOverrides = useMemo(
-    () => overrideOptions.map((option) => ({ ...option, label: t(option.labelKey) })),
-    [t],
-  );
-  const handleOverrideChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => onOverrideChange(event.target.value),
-    [onOverrideChange],
-  );
-  const exportAsset = preferredExportAsset(item);
 
   return (
     <section className="grid gap-3">
-      <label
-        htmlFor="gallery-safety-override"
-        className="grid gap-1 text-sm font-semibold text-app-text"
-      >
-        {t("safetyOverride")}
-        <AppSelect
-          id="gallery-safety-override"
-          aria-label={t("safetyOverride")}
-          options={localizedOverrides}
-          value={overrideValue}
-          onChange={handleOverrideChange}
-        />
-      </label>
       <div className="grid grid-cols-2 gap-2">
-        <AppButton
-          variant="secondary"
-          onClick={onApplyOverride}
-          disabled={applyingOverride}
-          className="w-full"
-        >
-          <ShieldCheck aria-hidden="true" className="size-4" />
-          {t("applyOverride")}
-        </AppButton>
         <AppButton variant="secondary" onClick={onExport} disabled={exporting} className="w-full">
           <Download aria-hidden="true" className="size-4" />
           {t("exportImage")}
@@ -208,7 +135,6 @@ function InspectorActions({
         <Trash2 aria-hidden="true" className="size-4" />
         {t("deleteSelected")}
       </AppButton>
-      <p className="text-xs text-app-muted">{t("exportTarget", { role: exportAsset.role })}</p>
     </section>
   );
 }
@@ -240,42 +166,48 @@ export function GalleryInspector(props: GalleryInspectorProps) {
       <header className="border-b border-app-border px-4 py-3">
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-brand-200 uppercase">{t("details")}</p>
-            <h2 className="truncate text-base font-semibold text-white">{item.item_id}</h2>
+            <h2 className="text-base font-semibold text-white">{t("details")}</h2>
           </div>
-          <SafetyBadge label={effectiveSafetyLabel(item)} />
         </div>
       </header>
       <div className="grid gap-4 p-4">
         <button
           type="button"
-          aria-label={t("enlargeItem", { id: item.item_id })}
+          aria-label={t("enlargeImage")}
           className="cursor-zoom-in"
           onClick={openLightbox}
         >
           <GalleryItemImage
             item={item}
             resource={preferredPreviewResource(item)}
-            alt={t("detailPreview", { id: item.item_id })}
+            alt={t("galleryDetailImageAlt")}
             className="aspect-square w-full border border-app-border bg-app-bg"
             blurSensitive={blurSensitive}
           />
         </button>
-        <AppButton variant="secondary" onClick={openLightbox}>
-          <Maximize2 aria-hidden="true" className="size-4" />
-          {t("enlargeImage")}
-        </AppButton>
         <ArtifactDetails item={item} />
+        <GallerySafetyDetails
+          item={item}
+          overrideValue={props.overrideValue}
+          onOverrideChange={props.onOverrideChange}
+          onApplyOverride={props.onApplyOverride}
+          applyingOverride={props.applyingOverride}
+        />
         <AssetDetails item={item} />
-        <SafetyDetails item={item} />
-        <InspectorActions {...props} item={item} />
+        <InspectorActions {...props} />
       </div>
-      <AppModal open={lightboxOpen} title={item.item_id} size="fullscreen" onClose={closeLightbox}>
-        <div className="flex h-full min-h-0 items-center justify-center bg-black/40">
+      <AppModal
+        open={lightboxOpen}
+        title={t("imagePreview")}
+        size="fullscreen"
+        hideHeader
+        onClose={closeLightbox}
+      >
+        <div className="flex h-full min-h-0 items-center justify-center bg-black/40 p-4">
           <GalleryItemImage
             item={item}
             resource={preferredPreviewResource(item)}
-            alt={t("enlargedPreview", { id: item.item_id })}
+            alt={t("galleryEnlargedImageAlt")}
             className="max-h-full max-w-full object-contain"
             blurSensitive={blurSensitive}
           />

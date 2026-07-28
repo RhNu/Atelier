@@ -86,6 +86,7 @@ function galleryItem(
     label?: "safe" | "sensitive" | "hidden";
     manualOverride?: "safe" | "sensitive" | "hidden" | null;
     resourceId?: string;
+    modelName?: string | null;
   },
 ): GalleryItemDto {
   const resourceId = options.resourceId ?? `resource:${itemId}:original`;
@@ -116,7 +117,7 @@ function galleryItem(
     indexed_at_ms: 1_800_000_000_000,
     seed: 1234,
     sample_index: 0,
-    model_name: "nai-diffusion-4-5-full",
+    model_name: options.modelName === undefined ? "nai-diffusion-4-5-full" : options.modelName,
     safety: {
       scan_state: "scanned",
       risk_band: label === "sensitive" ? "high" : "low",
@@ -149,6 +150,7 @@ function setup(options?: { blurSensitive?: boolean; items?: GalleryItemDto[] }) 
         artifactKind: "director_result",
         label: "hidden",
         manualOverride: "hidden",
+        modelName: null,
       }),
     ],
     total: options?.items?.length ?? 3,
@@ -193,10 +195,10 @@ describe("GalleryPage", () => {
   it("renders gallery images, hides manual hidden items by default, and shows item details", async () => {
     const { user } = setup();
 
-    expect(await screen.findByText("safe-item")).toBeInTheDocument();
-    expect(screen.getByText("sensitive-item")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Select safe-item" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select sensitive-item" })).toBeInTheDocument();
     expect(screen.queryByText("hidden-item")).not.toBeInTheDocument();
-    expect(await screen.findByAltText("safe-item preview")).toHaveAttribute(
+    expect((await screen.findAllByAltText("Gallery image"))[0]).toHaveAttribute(
       "src",
       "data:image/png;base64,image-resource:safe-item:original:thumbnail",
     );
@@ -204,50 +206,52 @@ describe("GalleryPage", () => {
     await user.click(screen.getByRole("button", { name: "Select sensitive-item" }));
 
     const details = screen.getByRole("complementary", { name: "Gallery item details" });
-    expect(within(details).getByText("sensitive-item")).toBeInTheDocument();
-    expect(within(details).getByText("nai-diffusion-4-5-full")).toBeInTheDocument();
-    expect(within(details).getByText("Seed 1234")).toBeInTheDocument();
+    expect(within(details).getByText("NAI Diffusion 4.5 Full")).toBeInTheDocument();
+    expect(within(details).getByText("1234")).toBeInTheDocument();
     expect(within(details).getByText("NSFW 0.91")).toBeInTheDocument();
-    expect(within(details).getByText("open_nsfw@onnx")).toBeInTheDocument();
-    expect(within(details).getByText("original")).toBeInTheDocument();
+    expect(within(details).queryByText("open_nsfw@onnx")).not.toBeInTheDocument();
+    expect(within(details).queryByText("nai-diffusion-4-5-full")).not.toBeInTheDocument();
   });
 
   it("uses the persisted SFW preference to blur sensitive images", async () => {
     setup({ blurSensitive: true });
 
-    const sensitiveImage = await screen.findByAltText("sensitive-item preview");
+    const sensitiveImage = (await screen.findAllByAltText("Gallery image"))[1];
     expect(sensitiveImage).toHaveClass("blur-md");
-    expect(screen.getByAltText("safe-item preview")).not.toHaveClass("blur-md");
+    expect((await screen.findAllByAltText("Gallery image"))[0]).not.toHaveClass("blur-md");
   });
 
   it("opens the selected image in a fullscreen lightbox from the preview and button", async () => {
     const { user } = setup();
 
-    const preview = await screen.findByAltText("safe-item detail preview");
-    await user.click(preview);
-    expect(screen.getByRole("dialog", { name: "safe-item" })).toBeInTheDocument();
-    expect(await screen.findByAltText("safe-item enlarged preview")).toBeInTheDocument();
+    const previewButton = await screen.findByRole("button", { name: "Enlarge image" });
+    await user.click(previewButton);
+    expect(screen.getByRole("dialog", { name: "Image preview" })).toBeInTheDocument();
+    expect(await screen.findByAltText("Enlarged gallery image")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("dialog", { name: "safe-item" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Image preview" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Enlarge image" }));
-    expect(screen.getByRole("dialog", { name: "safe-item" })).toBeInTheDocument();
+    await user.click(previewButton);
+    expect(screen.getByRole("dialog", { name: "Image preview" })).toBeInTheDocument();
   });
 
   it("filters hidden items, updates safety overrides, and exports the preferred resource", async () => {
     const { user } = setup();
 
-    await screen.findByText("safe-item");
+    await screen.findByRole("button", { name: "Select safe-item" });
     await user.selectOptions(screen.getByLabelText("Safety filter"), "hidden");
     await waitForLastGalleryQuery({ safety_label: "hidden" });
-    expect(await screen.findByRole("button", { name: "Select hidden-item" })).toBeInTheDocument();
+    const hiddenCard = await screen.findByRole("button", { name: "Select hidden-item" });
+    expect(within(hiddenCard).getByText("Director results")).toBeInTheDocument();
     expect(screen.queryByText("safe-item")).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText("Safety filter"), "all");
     await user.click(await screen.findByRole("button", { name: "Select safe-item" }));
-    await user.selectOptions(screen.getByLabelText("Safety override"), "hidden");
-    await user.click(screen.getByRole("button", { name: "Apply safety override" }));
+    await user.click(screen.getByRole("button", { name: "Change safety override" }));
+    const overrideDialog = screen.getByRole("dialog", { name: "Safety override" });
+    await user.selectOptions(within(overrideDialog).getByLabelText("Safety override"), "hidden");
+    await user.click(within(overrideDialog).getByRole("button", { name: "Apply safety override" }));
 
     expect(mocks.galleryApi.setSafetyOverride).toHaveBeenCalledWith({
       item_id: "safe-item",
@@ -276,8 +280,10 @@ describe("GalleryPage", () => {
       suggested_file_name: "artifact-job-1-sample-0-original",
     });
 
-    await user.selectOptions(screen.getByLabelText("Safety override"), "hidden");
-    await user.click(screen.getByRole("button", { name: "Apply safety override" }));
+    await user.click(screen.getByRole("button", { name: "Change safety override" }));
+    const overrideDialog = screen.getByRole("dialog", { name: "Safety override" });
+    await user.selectOptions(within(overrideDialog).getByLabelText("Safety override"), "hidden");
+    await user.click(within(overrideDialog).getByRole("button", { name: "Apply safety override" }));
     expect(await screen.findByText("override failed")).toBeInTheDocument();
 
     mocks.desktopApi.saveResourceImage.mockRejectedValueOnce(new Error("export failed"));
@@ -322,7 +328,7 @@ describe("GalleryPage", () => {
     expect(screen.getByRole("button", { name: "Select safe-item" })).toBeInTheDocument();
     expect(
       within(screen.getByRole("complementary", { name: "Gallery item details" })).getByText(
-        "safe-item",
+        "Generated images",
       ),
     ).toBeInTheDocument();
   });

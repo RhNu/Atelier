@@ -99,7 +99,6 @@ export function GalleryPage() {
             artifactKind={artifactKind}
             sourceFilter={sourceFilter}
             safetyFilter={safetyFilter}
-            total={total}
             offset={offset}
             onArtifactChange={changeArtifact}
             onSourceChange={changeSource}

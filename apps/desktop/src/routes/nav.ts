@@ -14,11 +14,21 @@ export type RouteNavItem = {
   icon: LucideIcon;
 };
 
-export const routeNavItems: ReadonlyArray<RouteNavItem> = [
+export const primaryRouteNavItems: ReadonlyArray<RouteNavItem> = [
   { to: "/generate", labelKey: "nav.generate", icon: WandSparkles },
   { to: "/director", labelKey: "nav.director", icon: Clapperboard },
   { to: "/resources", labelKey: "nav.resources", icon: Boxes },
   { to: "/lexicon", labelKey: "nav.lexicon", icon: BookOpen },
   { to: "/gallery", labelKey: "nav.gallery", icon: Images },
-  { to: "/settings", labelKey: "nav.settings", icon: Settings },
+];
+
+export const settingsNavItem: RouteNavItem = {
+  to: "/settings",
+  labelKey: "nav.settings",
+  icon: Settings,
+};
+
+export const routeNavItems: ReadonlyArray<RouteNavItem> = [
+  ...primaryRouteNavItems,
+  settingsNavItem,
 ];

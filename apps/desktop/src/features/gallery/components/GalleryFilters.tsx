@@ -17,7 +17,6 @@ type GalleryFiltersProps = {
   artifactKind: string;
   sourceFilter: SourceFilter;
   safetyFilter: SafetyFilter;
-  total: number;
   offset: number;
   onArtifactChange: (value: string) => void;
   onSourceChange: (value: SourceFilter) => void;
@@ -29,7 +28,6 @@ export function GalleryFilters({
   artifactKind,
   sourceFilter,
   safetyFilter,
-  total,
   offset,
   onArtifactChange,
   onSourceChange,
@@ -66,14 +64,10 @@ export function GalleryFilters({
   );
 
   return (
-    <div className="grid gap-3 border-b border-app-border p-3 lg:grid-cols-[1fr_180px_180px_180px_auto]">
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-white">{t("indexedImages", { count: total })}</p>
-        <p className="text-xs text-app-muted">{t("hiddenHint")}</p>
-      </div>
+    <div className="flex flex-wrap items-end justify-end gap-3 border-b border-app-border p-3">
       <label
         htmlFor="gallery-artifact-filter"
-        className="grid gap-1 text-xs font-semibold text-app-muted"
+        className="grid w-[180px] gap-1 text-xs font-semibold text-app-muted"
       >
         {t("artifact")}
         <AppSelect
@@ -86,7 +80,7 @@ export function GalleryFilters({
       </label>
       <label
         htmlFor="gallery-source-filter"
-        className="grid gap-1 text-xs font-semibold text-app-muted"
+        className="grid w-[180px] gap-1 text-xs font-semibold text-app-muted"
       >
         {t("source")}
         <AppSelect
@@ -99,7 +93,7 @@ export function GalleryFilters({
       </label>
       <label
         htmlFor="gallery-safety-filter"
-        className="grid gap-1 text-xs font-semibold text-app-muted"
+        className="grid w-[180px] gap-1 text-xs font-semibold text-app-muted"
       >
         {t("safety")}
         <AppSelect
@@ -110,7 +104,7 @@ export function GalleryFilters({
           onChange={handleSafetyChange}
         />
       </label>
-      <AppButton variant="ghost" onClick={onResetPage} disabled={offset === 0}>
+      <AppButton variant="ghost" className="h-9" onClick={onResetPage} disabled={offset === 0}>
         {translateCommon("reset")}
       </AppButton>
     </div>

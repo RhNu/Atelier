@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { frontendLogger, reportBackgroundPromise } from "../app/logger";
 import { AppButton, AppPanel, AppToastHost, LanguageSelect } from "../components/ui";
-import { routeNavItems, type RouteNavItem } from "../routes/nav";
+import { primaryRouteNavItems, settingsNavItem, type RouteNavItem } from "../routes/nav";
 import type { FrontendLanguageDto, WorkspaceRestoreFailureDto, WorkspaceStatusDto } from "../types";
 
 export type AppShellProps = {
@@ -176,17 +176,26 @@ export function AppShell({
           </AppPanel>
         </main>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-[64px_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-cols-[48px_minmax(0,1fr)]">
           <nav
             aria-label={t("workspaceSections")}
-            className="flex min-h-0 flex-col items-center gap-2 border-r border-app-border bg-app-panel px-2 py-3"
+            className="flex min-h-0 flex-col border-r border-app-border bg-app-panel"
           >
-            {routeNavItems.map((item) => {
-              const active = activePath === item.to;
-              return (
-                <RouteNavLink key={item.to} active={active} item={item} onNavigate={onNavigate} />
-              );
-            })}
+            <div className="flex min-h-0 flex-1 flex-col">
+              {primaryRouteNavItems.map((item) => {
+                const active = activePath === item.to;
+                return (
+                  <RouteNavLink key={item.to} active={active} item={item} onNavigate={onNavigate} />
+                );
+              })}
+            </div>
+            <div className="border-t border-app-border">
+              <RouteNavLink
+                active={activePath === settingsNavItem.to}
+                item={settingsNavItem}
+                onNavigate={onNavigate}
+              />
+            </div>
           </nav>
 
           <main className="min-h-0 min-w-0 overflow-hidden">{children}</main>
@@ -222,10 +231,10 @@ function RouteNavLink({
       aria-label={label}
       aria-current={active ? "page" : undefined}
       className={[
-        "grid size-10 place-items-center border transition-colors",
+        "relative flex h-11 w-full items-center justify-center border-y border-transparent transition-colors",
         active
-          ? "border-brand-400/70 bg-brand-500/20 text-brand-100"
-          : "border-transparent text-app-muted hover:bg-app-surface hover:text-app-text",
+          ? "border-app-border bg-app-bg text-brand-100 before:absolute before:inset-y-2 before:right-0 before:w-0.5 before:bg-brand-400"
+          : "text-app-muted hover:bg-app-surface hover:text-app-text",
       ].join(" ")}
       title={label}
       onClick={handleClick}

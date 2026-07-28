@@ -8,6 +8,8 @@ import type {
   VisualAssetDto,
 } from "@/types";
 
+import { generationModelDisplayNames } from "../generation/model/generation-options";
+
 export const PAGE_LIMIT = 24;
 
 export type SafetyFilter = "all" | GallerySafetyLabelDto;
@@ -52,16 +54,38 @@ export function formatTimestamp(value: number): string {
   }).format(new Date(value));
 }
 
-export function formatScore(label: string, value: number | null): string | null {
-  if (value === null) {
+export function effectiveSafetyLabel(item: GalleryItemDto): GallerySafetyLabelDto | "unknown" {
+  return item.safety?.effective_label ?? item.manual_safety_override ?? "unknown";
+}
+
+export function displayGalleryModelName(modelName: string | null): string | null {
+  if (!modelName) {
     return null;
   }
 
-  return `${label} ${value.toFixed(2)}`;
+  const displayNames: Record<string, string> = generationModelDisplayNames;
+  return displayNames[modelName] ?? modelName;
 }
 
-export function effectiveSafetyLabel(item: GalleryItemDto): GallerySafetyLabelDto | "unknown" {
-  return item.safety?.effective_label ?? item.manual_safety_override ?? "unknown";
+export function displayGalleryArtifactKind(
+  artifactKind: string,
+  translate: (key: string) => string,
+): string {
+  switch (artifactKind) {
+    case "generated_image":
+      return translate("generatedImages");
+    case "director_result":
+      return translate("directorResults");
+    default:
+      return artifactKind;
+  }
+}
+
+export function displayGallerySource(
+  sourceKind: GallerySourceKindDto,
+  translate: (key: string) => string,
+): string {
+  return translate(sourceKind === "generation" ? "generation" : "director");
 }
 
 export function matchesSafetyFilter(item: GalleryItemDto, filter: SafetyFilter): boolean {

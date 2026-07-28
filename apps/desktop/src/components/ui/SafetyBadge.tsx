@@ -2,9 +2,10 @@ import type { GallerySafetyLabelDto } from "@/types";
 
 type SafetyBadgeProps = {
   label?: GallerySafetyLabelDto | "unknown" | null;
+  displayLabel?: string;
 };
 
-export function SafetyBadge({ label = "unknown" }: SafetyBadgeProps) {
+export function SafetyBadge({ label = "unknown", displayLabel }: SafetyBadgeProps) {
   const normalized = label ?? "unknown";
   const classes =
     normalized === "hidden"
@@ -22,7 +23,7 @@ export function SafetyBadge({ label = "unknown" }: SafetyBadgeProps) {
         classes,
       ].join(" ")}
     >
-      {normalized.toUpperCase()}
+      {displayLabel ?? normalized.toUpperCase()}
     </span>
   );
 }
