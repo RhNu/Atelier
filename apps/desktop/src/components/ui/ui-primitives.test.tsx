@@ -106,6 +106,39 @@ describe("UI primitives", () => {
     expect(screen.getByRole("button", { name: "Remove" })).toHaveClass("size-8");
   });
 
+  it("portals help layers and supports edge-aware alignment", () => {
+    render(
+      <AppHelpMarker
+        label="Aligned help"
+        content="This tooltip stays inside the viewport."
+        align="start"
+      />,
+    );
+
+    const marker = screen.getByRole("button", { name: "Aligned help" }).parentElement;
+    if (!marker) {
+      throw new Error("Help marker wrapper was not rendered.");
+    }
+    Object.defineProperty(marker, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        bottom: 40,
+        height: 20,
+        left: 100,
+        right: 120,
+        top: 20,
+        width: 20,
+      }),
+    });
+
+    fireEvent.mouseEnter(marker);
+
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip.parentElement).toBe(document.body);
+    expect(tooltip).toHaveClass("fixed", "!block");
+    expect(tooltip).toHaveStyle({ left: "100px", top: "44px" });
+  });
+
   it("supports grouped selects, container sizing, and icon-only empty states", () => {
     render(
       <>

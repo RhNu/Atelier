@@ -22,7 +22,7 @@ export function GuidanceSection({
           <h3 className="truncate text-[11px] font-bold tracking-wider text-app-muted uppercase">
             {title}
           </h3>
-          {help ? <AppHelpMarker label={`${title} help`} content={help} /> : null}
+          {help ? <AppHelpMarker label={`${title} help`} content={help} align="start" /> : null}
         </div>
         {actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}
       </header>
