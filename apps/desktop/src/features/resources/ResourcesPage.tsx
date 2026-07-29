@@ -35,7 +35,7 @@ export function ResourcesPage() {
     { value: "vibe", label: "Vibe" },
   ] as const;
   const [tab, setTab] = useState<ResourceTab>("chunks");
-  const [viewMode, setViewMode] = useState<ResourceViewMode>("list");
+  const [viewMode, setViewMode] = useState<ResourceViewMode>("grid");
   const [search, setSearch] = useState("");
   const [includeHiddenVibes, setIncludeHiddenVibes] = useState(false);
   const [newRequest, setNewRequest] = useState(0);

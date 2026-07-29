@@ -84,7 +84,7 @@ describe("Resources dialogs", () => {
     expect(screen.queryByText("No prompt chunks")).not.toBeInTheDocument();
   });
 
-  it("switches between information-dense list rows and preview-first grid cards", async () => {
+  it("defaults to preview-first grid cards and switches to information-dense list rows", async () => {
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={createAtelierQueryClient()}>
@@ -94,16 +94,16 @@ describe("Resources dialogs", () => {
 
     const listView = screen.getByRole("button", { name: "List view" });
     const gridView = screen.getByRole("button", { name: "Grid view" });
+    expect(listView).toHaveAttribute("aria-pressed", "false");
+    expect(gridView).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("No preview")).toBeInTheDocument();
+
+    await user.click(listView);
+
     expect(listView).toHaveAttribute("aria-pressed", "true");
     expect(gridView).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("cinematic lighting")).toBeInTheDocument();
-
-    await user.click(gridView);
-
-    expect(listView).toHaveAttribute("aria-pressed", "false");
-    expect(gridView).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByText("cinematic lighting")).not.toBeInTheDocument();
-    expect(screen.getByText("No preview")).toBeInTheDocument();
+    expect(screen.queryByText("No preview")).not.toBeInTheDocument();
   });
 });
 
