@@ -252,42 +252,6 @@ fn workspace_scoped_resource_is_not_marked_delete_pending_on_last_release() {
 }
 
 #[test]
-fn explicit_unowned_mark_handles_legacy_workspace_scoped_outputs() {
-    block_on(async {
-        let repository = FakeRepository::default();
-        let blob_store = FakeBlobStore::default();
-        let catalog = test_catalog(repository.clone(), blob_store);
-        let owner = ResourceOwner::new(ResourceOwnerKind::DirectorRun, "run-1");
-        let reference = catalog
-            .register_resource(RegisterResourceRequest {
-                resource_id: ResourceId::new("legacy-director"),
-                kind: ResourceKind::DirectorResult,
-                lifecycle: ResourceLifecycle::WorkspaceScoped,
-                owner: owner.clone(),
-                relation: ResourceRelation::Primary,
-                blob: BlobWriteIntent::Bytes(vec![9]),
-            })
-            .await
-            .unwrap();
-
-        catalog
-            .detach_owner(&reference.id, &owner, ResourceRelation::Primary)
-            .await
-            .unwrap();
-        let marked = catalog
-            .mark_delete_pending_if_unowned(&reference.id)
-            .await
-            .unwrap();
-
-        assert!(marked);
-        assert_eq!(
-            repository.records()[&reference.id].state,
-            ResourceState::DeletePending
-        );
-    });
-}
-
-#[test]
 fn cleanup_delete_pending_removes_resource_variants_and_unshared_blobs() {
     block_on(async {
         let repository = FakeRepository::default();

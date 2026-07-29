@@ -7,7 +7,7 @@ use std::time::Duration;
 use rusqlite::Connection;
 
 use crate::error::{DatabaseError, DatabaseResult};
-use crate::migration::run_migrations;
+use crate::schema::initialize_or_validate_schema;
 
 #[derive(Clone)]
 pub struct DatabaseConnection {
@@ -27,10 +27,10 @@ impl std::fmt::Debug for DatabaseConnection {
 }
 
 impl DatabaseConnection {
-    /// Opens a file-backed `SQLite` database and applies migrations.
+    /// Opens a file-backed `SQLite` database and initializes or validates its schema.
     ///
     /// # Errors
-    /// Returns an error when the database file cannot be opened or migrated.
+    /// Returns an error when the database file cannot be opened or uses an unsupported schema.
     pub fn open(path: impl AsRef<Path>) -> DatabaseResult<Self> {
         if let Some(parent) = path.as_ref().parent()
             && !parent.as_os_str().is_empty()
@@ -40,17 +40,17 @@ impl DatabaseConnection {
         }
         let connection = Connection::open(path)?;
         let this = Self::from_connection(connection)?;
-        this.run_migrations()?;
+        this.initialize_or_validate_schema()?;
         Ok(this)
     }
 
-    /// Opens an in-memory `SQLite` database and applies migrations.
+    /// Opens an in-memory `SQLite` database and initializes its schema.
     ///
     /// # Errors
-    /// Returns an error when migrations fail.
+    /// Returns an error when schema initialization fails.
     pub fn open_memory() -> DatabaseResult<Self> {
         let this = Self::from_connection(Connection::open_in_memory()?)?;
-        this.run_migrations()?;
+        this.initialize_or_validate_schema()?;
         Ok(this)
     }
 
@@ -68,13 +68,9 @@ impl DatabaseConnection {
         })
     }
 
-    /// Applies database migrations. This operation is idempotent.
-    ///
-    /// # Errors
-    /// Returns an error when migration SQL fails.
-    pub fn run_migrations(&self) -> DatabaseResult<()> {
+    fn initialize_or_validate_schema(&self) -> DatabaseResult<()> {
         let mut connection = self.lock()?;
-        run_migrations(&mut connection)
+        initialize_or_validate_schema(&mut connection)
     }
 
     pub(crate) fn lock(&self) -> DatabaseResult<MutexGuard<'_, Connection>> {

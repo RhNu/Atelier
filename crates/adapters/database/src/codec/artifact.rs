@@ -113,55 +113,49 @@ impl From<ArtifactMetadataDto> for ArtifactMetadata {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-enum EmbeddedMetadataWarningDto {
-    Legacy(String),
-    Structured {
-        code: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        keyword: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        message: Option<String>,
-    },
+struct EmbeddedMetadataWarningDto {
+    code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    keyword: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
 }
 
 impl From<&EmbeddedMetadataWarning> for EmbeddedMetadataWarningDto {
     fn from(value: &EmbeddedMetadataWarning) -> Self {
         match value {
-            EmbeddedMetadataWarning::InvalidCommentJson => Self::Structured {
+            EmbeddedMetadataWarning::InvalidCommentJson => Self {
                 code: "invalid_comment_json".to_owned(),
                 keyword: None,
                 message: None,
             },
-            EmbeddedMetadataWarning::InvalidTextChunk { keyword, message } => Self::Structured {
+            EmbeddedMetadataWarning::InvalidTextChunk { keyword, message } => Self {
                 code: "invalid_text_chunk".to_owned(),
                 keyword: Some(keyword.clone()),
                 message: Some(message.clone()),
             },
-            EmbeddedMetadataWarning::Unknown(value) => Self::Legacy(value.clone()),
+            EmbeddedMetadataWarning::Unknown(value) => Self {
+                code: "unknown".to_owned(),
+                keyword: None,
+                message: Some(value.clone()),
+            },
         }
     }
 }
 
 impl EmbeddedMetadataWarningDto {
     fn into_domain(self) -> EmbeddedMetadataWarning {
-        match self {
-            Self::Legacy(value) if value == "invalid_comment_json" => {
-                EmbeddedMetadataWarning::InvalidCommentJson
+        if self.code == "invalid_comment_json" {
+            EmbeddedMetadataWarning::InvalidCommentJson
+        } else if self.code == "invalid_text_chunk" {
+            EmbeddedMetadataWarning::InvalidTextChunk {
+                keyword: self.keyword.unwrap_or_default(),
+                message: self.message.unwrap_or_default(),
             }
-            Self::Legacy(value) => EmbeddedMetadataWarning::Unknown(value),
-            Self::Structured { code, .. } if code == "invalid_comment_json" => {
-                EmbeddedMetadataWarning::InvalidCommentJson
-            }
-            Self::Structured {
-                code,
-                keyword,
-                message,
-            } if code == "invalid_text_chunk" => EmbeddedMetadataWarning::InvalidTextChunk {
-                keyword: keyword.unwrap_or_default(),
-                message: message.unwrap_or_default(),
-            },
-            Self::Structured { code, .. } => EmbeddedMetadataWarning::Unknown(code),
+        } else if self.code == "unknown" {
+            EmbeddedMetadataWarning::Unknown(self.message.unwrap_or_default())
+        } else {
+            EmbeddedMetadataWarning::Unknown(self.code)
         }
     }
 }

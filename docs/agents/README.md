@@ -26,7 +26,7 @@ The retained documents are:
 - `project-intent.md`: product boundary, durable design preferences, and non-goals.
 - `architecture.md`: backend layering, ownership, I/O boundaries, and current workspace shape.
 - `frontend-architecture.md`: frontend boundaries, state ownership, visual system, and testing rules.
-- `prompt-preset-model.md`: current prompt-preset compatibility and editor model decision.
+- `prompt-preset-model.md`: current prompt-preset persistence and editor model decision.
 
 Do not add short-lived implementation plans or feature snapshots here. When a decision becomes a
 durable constraint, update the closest retained document or add a focused record only if it cannot

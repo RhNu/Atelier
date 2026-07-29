@@ -1,6 +1,6 @@
 use super::{
     BlobId, Deserialize, Digest, Error, OpenOptions, Path, ResourceCatalogError, ResourceMetadata,
-    ResourceResult, Serialize, Sha256, StagedBlobToken, SystemTime, UNIX_EPOCH,
+    ResourceResult, Serialize, Sha256, StagedBlobToken, SystemTime, UNIX_EPOCH, WORKSPACE_FORMAT,
     WORKSPACE_SCHEMA_VERSION, WorkspaceError, WorkspaceRelativePath, WorkspaceResult,
     WorkspaceSlot, Write, fs, io,
 };
@@ -8,9 +8,16 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 static STAGING_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StoredManifest {
+    pub(super) format: String,
     pub(super) schema_version: u32,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct UntrustedStoredManifest {
+    pub(super) format: Option<String>,
+    pub(super) schema_version: Option<u32>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -195,5 +202,6 @@ pub fn unique_staged_blob_token() -> StagedBlobToken {
 }
 
 const _: () = {
+    assert!(!WORKSPACE_FORMAT.is_empty());
     assert!(WORKSPACE_SCHEMA_VERSION == 1);
 };

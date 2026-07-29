@@ -98,7 +98,11 @@ impl From<atelier_workspace::WorkspaceError> for AppError {
 
 impl From<atelier_adapter_database::DatabaseError> for AppError {
     fn from(error: atelier_adapter_database::DatabaseError) -> Self {
-        Self::new("database", error.to_string())
+        let code = match error.kind() {
+            atelier_adapter_database::DatabaseErrorKind::Database => "database",
+            atelier_adapter_database::DatabaseErrorKind::UnsupportedSchema => "unsupported_schema",
+        };
+        Self::new(code, error.to_string())
     }
 }
 

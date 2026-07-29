@@ -5,7 +5,6 @@ use atelier_prompt_resources::{
     UpsertPromptPresetRequest,
 };
 use futures_executor::block_on;
-use rusqlite::Connection;
 
 #[test]
 fn prompt_repository_crud_rewrites_references_and_blocks_referenced_delete() {
@@ -113,47 +112,6 @@ fn prompt_repository_preserves_an_empty_replace_behavior() {
 
         assert_eq!(reloaded.prompt_behavior, replace(""));
     });
-}
-
-#[test]
-fn prompt_behavior_migration_infers_modes_for_legacy_presets() {
-    let temp = tempfile::tempdir().unwrap();
-    let path = temp.path().join("atelier.sqlite3");
-    let connection = Connection::open(&path).unwrap();
-    connection
-        .execute_batch(
-            r"
-            CREATE TABLE schema_migrations (
-                version INTEGER PRIMARY KEY,
-                applied_at_ms INTEGER NOT NULL DEFAULT 0
-            );
-            INSERT INTO schema_migrations(version) VALUES (1), (2), (3), (4), (5), (6), (7);
-            CREATE TABLE prompt_presets (
-                preset_id TEXT PRIMARY KEY, preset_kind TEXT NOT NULL, name TEXT NOT NULL,
-                category TEXT, description TEXT, sort_order INTEGER NOT NULL,
-                enabled INTEGER NOT NULL, before_text TEXT NOT NULL, after_text TEXT NOT NULL,
-                replace_text TEXT NOT NULL, uc_before_text TEXT NOT NULL,
-                uc_after_text TEXT NOT NULL, uc_replace_text TEXT NOT NULL,
-                quality_override TEXT, uc_preset_override TEXT, preview_resource_id TEXT,
-                preview_variant_id TEXT, created_at_ms INTEGER NOT NULL,
-                updated_at_ms INTEGER NOT NULL
-            );
-            INSERT INTO prompt_presets VALUES (
-                'legacy', 'main', 'Legacy', NULL, NULL, 0, 0,
-                'ignored', 'ignored', 'replacement', 'uc-before', 'uc-after', '',
-                NULL, NULL, NULL, NULL, 1, 1
-            );
-            ",
-        )
-        .unwrap();
-    drop(connection);
-
-    let repository =
-        DatabasePromptResourceRepository::new(DatabaseConnection::open(&path).unwrap());
-    let preset = block_on(repository.list_presets(None)).unwrap().remove(0);
-
-    assert_eq!(preset.prompt_behavior, replace("replacement"));
-    assert_eq!(preset.uc_behavior, surround("uc-before", "uc-after"));
 }
 
 #[test]

@@ -118,8 +118,10 @@ Adapters are the boundary for real I/O:
 
 Persistence and secret boundaries are adapter contracts:
 
-- `adapters/database` owns SQLite schema, migrations, and adapter-local JSON DTOs; feature and
-  application models must not become persistence schemas through serialization derives.
+- `adapters/database` owns the SQLite schema, exact format/version validation, and adapter-local
+  JSON DTOs. New databases are created directly at the current schema; older or unknown schemas
+  are rejected rather than migrated or repaired. Feature and application models must not become
+  persistence schemas through serialization derives.
 - `features/secrets` stores only key metadata through the database port. Secret values go through
   `SecretStore` and the keyring adapter, and must not appear in SQLite, API responses, events,
   history, logs, or diagnostics.

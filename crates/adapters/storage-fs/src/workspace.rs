@@ -1,8 +1,8 @@
 use super::{
-    OpenOptions, PathBuf, StoredManifest, WorkspaceError, WorkspaceLayout, WorkspaceLock,
-    WorkspaceLockLease, WorkspaceManifest, WorkspaceRelativePath, WorkspaceResult, WorkspaceRoot,
-    WorkspaceSlot, WorkspaceStore, async_trait, create_dir_all, fs, storage_path_for,
-    workspace_fs_error, write_json,
+    OpenOptions, PathBuf, StoredManifest, UntrustedStoredManifest, WorkspaceError, WorkspaceLayout,
+    WorkspaceLock, WorkspaceLockLease, WorkspaceManifest, WorkspaceRelativePath, WorkspaceResult,
+    WorkspaceRoot, WorkspaceSlot, WorkspaceStore, async_trait, create_dir_all, fs,
+    storage_path_for, workspace_fs_error, write_json,
 };
 use std::fs::TryLockError;
 
@@ -38,6 +38,26 @@ impl WorkspaceStore for FileSystemWorkspaceStore {
         root: &WorkspaceRoot,
         layout: &WorkspaceLayout,
     ) -> WorkspaceResult<WorkspaceManifest> {
+        let manifest_path = root.join_relative(&storage_path_for(WorkspaceSlot::ManifestFile));
+        if manifest_path.exists() {
+            return self.load_manifest(root, layout).await;
+        }
+        if root.as_path().exists() {
+            let mut entries = fs::read_dir(root.as_path())
+                .map_err(|source| workspace_fs_error(root.as_path(), source))?;
+            if entries
+                .next()
+                .transpose()
+                .map_err(|source| workspace_fs_error(root.as_path(), source))?
+                .is_some()
+            {
+                return Err(WorkspaceError::unsupported_schema(format!(
+                    "workspace directory `{}` is not empty and has no Atelier manifest",
+                    root.as_path().display()
+                )));
+            }
+        }
+
         create_dir_all(root.as_path())?;
         for slot in layout.directory_slots() {
             create_dir_all(&root.join_relative(&storage_path_for(*slot)))?;
@@ -49,12 +69,9 @@ impl WorkspaceStore for FileSystemWorkspaceStore {
             create_dir_all(parent)?;
         }
 
-        let manifest_path = root.join_relative(&storage_path_for(WorkspaceSlot::ManifestFile));
-        if manifest_path.exists() {
-            return self.load_manifest(root, layout).await;
-        }
         let manifest = WorkspaceManifest::default();
         let stored = StoredManifest {
+            format: manifest.format.clone(),
             schema_version: manifest.schema_version,
         };
         write_json(&manifest_path, &stored)?;
@@ -68,10 +85,11 @@ impl WorkspaceStore for FileSystemWorkspaceStore {
     ) -> WorkspaceResult<WorkspaceManifest> {
         let path = root.join_relative(&storage_path_for(WorkspaceSlot::ManifestFile));
         let text = fs::read_to_string(&path).map_err(|source| workspace_fs_error(&path, source))?;
-        let stored: StoredManifest = serde_json::from_str(&text)
+        let stored: UntrustedStoredManifest = serde_json::from_str(&text)
             .map_err(|source| WorkspaceError::storage(source.to_string()))?;
         WorkspaceManifest {
-            schema_version: stored.schema_version,
+            format: stored.format.unwrap_or_else(|| "<missing>".to_owned()),
+            schema_version: stored.schema_version.unwrap_or(0),
         }
         .validate()
     }

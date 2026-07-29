@@ -11,8 +11,8 @@ use atelier_adapter_database::{
 };
 use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactReplayManifest,
-    ArtifactRepository, ArtifactResult, ArtifactService, ArtifactSource, RegisterArtifactRequest,
-    VisualAssetRef, VisualAssetRole,
+    ArtifactRepository, ArtifactResult, ArtifactService, ArtifactSource, EmbeddedMetadataWarning,
+    RegisterArtifactRequest, VisualAssetRef, VisualAssetRole,
 };
 use atelier_gallery::{
     GalleryIndex, GalleryItem, GalleryItemId, GalleryQuery, GalleryResult, GallerySafetyOverride,
@@ -53,10 +53,10 @@ use rusqlite::Connection;
 
 #[path = "database/gallery_and_workflow.rs"]
 mod gallery_and_workflow;
-#[path = "database/migrations_and_keys.rs"]
-mod migrations_and_keys;
 #[path = "database/resources_and_payloads.rs"]
 mod resources_and_payloads;
+#[path = "database/schema_and_keys.rs"]
+mod schema_and_keys;
 
 fn generated_resource(id: &str, bytes: Vec<u8>) -> RegisterResourceRequest {
     RegisterResourceRequest {

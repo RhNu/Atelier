@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Atelier",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "identifier": "dev.rhynia.atelier",
   "build": {
     "frontendDist": "../dist",
@@ -47,7 +47,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "resources": {
       "resources/": ""
     },

@@ -131,29 +131,6 @@ where
         })
     }
 
-    /// Marks a ready resource as delete-pending when it has no owner links.
-    ///
-    /// This is an explicit cleanup operation for legacy records whose lifecycle
-    /// was not auto-releasable when created.
-    ///
-    /// # Errors
-    /// Returns an error when the resource is not ready or catalog persistence
-    /// fails.
-    pub async fn mark_delete_pending_if_unowned(
-        &self,
-        resource_id: &ResourceId,
-    ) -> ResourceResult<bool> {
-        self.ready_record(resource_id).await?;
-        let mut tx = self.repository.begin_transaction().await?;
-        let remaining_owner_links = tx.count_owner_links(resource_id).await?;
-        let marked = remaining_owner_links == 0;
-        if marked {
-            tx.mark_delete_pending(resource_id).await?;
-        }
-        tx.commit().await?;
-        Ok(marked)
-    }
-
     /// Returns a ready resource record for an opaque reference.
     ///
     /// # Errors

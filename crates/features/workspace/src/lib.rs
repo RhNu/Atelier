@@ -10,4 +10,4 @@ pub use error::{WorkspaceError, WorkspaceErrorKind, WorkspaceResult};
 pub use layout::{WorkspaceLayout, WorkspaceSlot};
 pub use paths::{WorkspaceRelativePath, WorkspaceRoot};
 pub use ports::{WorkspaceLock, WorkspaceLockLease, WorkspaceStore};
-pub use version::{WORKSPACE_SCHEMA_VERSION, WorkspaceManifest};
+pub use version::{WORKSPACE_FORMAT, WORKSPACE_SCHEMA_VERSION, WorkspaceManifest};

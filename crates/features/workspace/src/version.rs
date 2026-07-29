@@ -1,13 +1,16 @@
+pub const WORKSPACE_FORMAT: &str = "atelier-workspace";
 pub const WORKSPACE_SCHEMA_VERSION: u32 = 1;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkspaceManifest {
+    pub format: String,
     pub schema_version: u32,
 }
 
 impl Default for WorkspaceManifest {
     fn default() -> Self {
         Self {
+            format: WORKSPACE_FORMAT.to_owned(),
             schema_version: WORKSPACE_SCHEMA_VERSION,
         }
     }
@@ -19,12 +22,14 @@ impl WorkspaceManifest {
     /// # Errors
     /// Returns an error when the manifest version is not supported.
     pub fn validate(self) -> crate::WorkspaceResult<Self> {
-        if self.schema_version == WORKSPACE_SCHEMA_VERSION {
+        if self.format == WORKSPACE_FORMAT && self.schema_version == WORKSPACE_SCHEMA_VERSION {
             Ok(self)
         } else {
-            Err(crate::WorkspaceError::unsupported_version(
-                self.schema_version,
-            ))
+            Err(crate::WorkspaceError::unsupported_schema(format!(
+                "unsupported workspace schema `{}` version {}; expected `{WORKSPACE_FORMAT}` \
+                 version {WORKSPACE_SCHEMA_VERSION}",
+                self.format, self.schema_version
+            )))
         }
     }
 }

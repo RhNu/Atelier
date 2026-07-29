@@ -30,7 +30,17 @@ fn initialize_creates_workspace_manifest_and_internal_directories() {
             .await
             .unwrap();
 
+        assert_eq!(manifest.format, "atelier-workspace");
         assert_eq!(manifest.schema_version, 1);
+        let stored: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(
+                root.join_relative(&storage_path(WorkspaceSlot::ManifestFile)),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(stored["format"], "atelier-workspace");
+        assert_eq!(stored["schema_version"], 1);
         assert!(
             root.join_relative(&storage_path(WorkspaceSlot::ManifestFile))
                 .exists()
@@ -53,6 +63,49 @@ fn initialize_creates_workspace_manifest_and_internal_directories() {
                 .unwrap()
                 .is_dir()
         );
+    });
+}
+
+#[test]
+fn initialize_rejects_nonempty_unmarked_directory_without_modifying_it() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let root = WorkspaceRoot::new(temp.path());
+        let sentinel = temp.path().join("old-data.bin");
+        std::fs::write(&sentinel, b"old").unwrap();
+
+        let error = FileSystemWorkspaceStore::new()
+            .initialize(&root, &WorkspaceLayout)
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.kind, WorkspaceErrorKind::UnsupportedSchema);
+        assert_eq!(std::fs::read(&sentinel).unwrap(), b"old");
+        assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
+    });
+}
+
+#[test]
+fn initialize_rejects_old_or_unknown_manifests_without_creating_directories() {
+    block_on(async {
+        for manifest in [
+            r#"{"schema_version":1}"#,
+            r#"{"format":"atelier-workspace","schema_version":0}"#,
+            r#"{"format":"atelier-workspace","schema_version":2}"#,
+            r#"{"format":"another-workspace","schema_version":1}"#,
+        ] {
+            let temp = tempfile::tempdir().unwrap();
+            std::fs::write(temp.path().join("workspace.json"), manifest).unwrap();
+            let root = WorkspaceRoot::new(temp.path());
+
+            let error = FileSystemWorkspaceStore::new()
+                .initialize(&root, &WorkspaceLayout)
+                .await
+                .unwrap_err();
+
+            assert_eq!(error.kind, WorkspaceErrorKind::UnsupportedSchema);
+            assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
+        }
     });
 }
 

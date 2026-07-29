@@ -62,6 +62,33 @@ fn bootstrap_preserves_failed_recent_workspace_for_retry() {
 }
 
 #[test]
+fn bootstrap_rejects_old_workspace_schema_without_mutating_it() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let manifest_path = temp.path().join("workspace.json");
+        let old_manifest = r#"{"schema_version":1}"#;
+        std::fs::write(&manifest_path, old_manifest).unwrap();
+        let root = temp.path().to_path_buf();
+        let host = test_host_with_global_settings(GlobalSettings {
+            last_workspace: Some(root.clone()),
+            ..GlobalSettings::default()
+        });
+
+        let bootstrap = host.bootstrap_app().await.unwrap();
+
+        assert!(bootstrap.workspace.is_none());
+        let failure = bootstrap.restore_failure.unwrap();
+        assert_eq!(failure.root, root);
+        assert_eq!(failure.error.code, "unsupported_schema");
+        assert_eq!(
+            std::fs::read_to_string(&manifest_path).unwrap(),
+            old_manifest
+        );
+        assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
+    });
+}
+
+#[test]
 fn account_and_prompt_chunk_commands_share_session() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();

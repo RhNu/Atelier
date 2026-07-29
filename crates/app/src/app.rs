@@ -84,7 +84,7 @@ impl
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// migrations, keyring setup, or embedded lexicon loading fails.
+    /// schema validation, keyring setup, or embedded lexicon loading fails.
     pub async fn open_workspace(request: OpenWorkspaceRequestDto) -> AppResult<Self> {
         Self::open_workspace_with_dependencies(
             request.root,
@@ -104,7 +104,7 @@ where
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// migrations, or embedded lexicon loading fails.
+    /// schema validation or embedded lexicon loading fails.
     pub async fn open_workspace_with_dependencies(
         root: PathBuf,
         secrets: S,
@@ -123,7 +123,7 @@ where
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// migrations, or embedded lexicon loading fails.
+    /// schema validation or embedded lexicon loading fails.
     pub async fn open_workspace_with_dependencies_and_safety_scanner(
         root: PathBuf,
         secrets: S,
@@ -151,7 +151,7 @@ where
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// migrations, or embedded lexicon loading fails.
+    /// schema validation or embedded lexicon loading fails.
     pub async fn open_workspace_with_dependencies_and_extractor(
         root: PathBuf,
         secrets: S,
@@ -168,7 +168,7 @@ where
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// migrations, or embedded lexicon loading fails.
+    /// schema validation or embedded lexicon loading fails.
     pub async fn open_workspace_with_dependencies_and_extractor_and_safety_scanner(
         root: PathBuf,
         secrets: S,

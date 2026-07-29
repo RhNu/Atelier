@@ -2,9 +2,16 @@ use thiserror::Error;
 
 pub type DatabaseResult<T> = Result<T, DatabaseError>;
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum DatabaseErrorKind {
+    Database,
+    UnsupportedSchema,
+}
+
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 #[error("database: {message}")]
 pub struct DatabaseError {
+    kind: DatabaseErrorKind,
     message: String,
 }
 
@@ -12,8 +19,22 @@ impl DatabaseError {
     #[must_use]
     pub fn new(message: impl Into<String>) -> Self {
         Self {
+            kind: DatabaseErrorKind::Database,
             message: message.into(),
         }
+    }
+
+    #[must_use]
+    pub fn unsupported_schema(message: impl Into<String>) -> Self {
+        Self {
+            kind: DatabaseErrorKind::UnsupportedSchema,
+            message: message.into(),
+        }
+    }
+
+    #[must_use]
+    pub const fn kind(&self) -> DatabaseErrorKind {
+        self.kind
     }
 }
 

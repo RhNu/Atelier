@@ -10,16 +10,16 @@ pub(crate) mod generation_codec;
 mod generation_draft;
 mod generation_payload;
 mod job_history;
-mod migration;
 mod prompt_resources;
 mod resource_catalog;
+mod schema;
 mod settings;
 mod vibe;
 
 pub use api_keys::DatabaseApiKeyRegistryStore;
 pub use artifacts::DatabaseArtifactRepository;
 pub use connection::DatabaseConnection;
-pub use error::{DatabaseError, DatabaseResult};
+pub use error::{DatabaseError, DatabaseErrorKind, DatabaseResult};
 pub use gallery::{DatabaseGalleryIndex, GalleryHardDeletePlan, GalleryTransientOwner};
 pub use generation_draft::DatabaseGenerationDraftRepository;
 pub use generation_payload::DatabaseGenerationPayloadStore;

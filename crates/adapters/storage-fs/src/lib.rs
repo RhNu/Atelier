@@ -11,9 +11,9 @@ use atelier_resource_catalog::{
     ResourceKind, ResourceMetadata, ResourceRef, ResourceResult, StagedBlob, StagedBlobToken,
 };
 use atelier_workspace::{
-    WORKSPACE_SCHEMA_VERSION, WorkspaceError, WorkspaceLayout, WorkspaceLock, WorkspaceLockLease,
-    WorkspaceManifest, WorkspaceRelativePath, WorkspaceResult, WorkspaceRoot, WorkspaceSlot,
-    WorkspaceStore,
+    WORKSPACE_FORMAT, WORKSPACE_SCHEMA_VERSION, WorkspaceError, WorkspaceLayout, WorkspaceLock,
+    WorkspaceLockLease, WorkspaceManifest, WorkspaceRelativePath, WorkspaceResult, WorkspaceRoot,
+    WorkspaceSlot, WorkspaceStore,
 };
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
@@ -26,10 +26,11 @@ mod support;
 mod workspace;
 
 use support::{
-    StagedBlobSidecar, StoredManifest, create_dir_all, parse_sha256_blob_id, read_sidecar,
-    remove_file_if_exists, resource_fs_error, sha256_hex, storage_path_for,
-    unique_staged_blob_token, validate_staged_part_matches_sidecar, validate_token,
-    workspace_fs_error, write_json, write_json_resource_exclusive, write_staging_part,
+    StagedBlobSidecar, StoredManifest, UntrustedStoredManifest, create_dir_all,
+    parse_sha256_blob_id, read_sidecar, remove_file_if_exists, resource_fs_error, sha256_hex,
+    storage_path_for, unique_staged_blob_token, validate_staged_part_matches_sidecar,
+    validate_token, workspace_fs_error, write_json, write_json_resource_exclusive,
+    write_staging_part,
 };
 
 pub use resource::{FileSystemResourceBlobStore, FileSystemResourceContentReader, ResourceContent};

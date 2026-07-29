@@ -16,6 +16,7 @@ use atelier_settings::{
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 
+const JSON_FORMAT: &str = "atelier-global-settings";
 const JSON_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug)]
@@ -107,6 +108,7 @@ impl GlobalSettingsRepository for FileSystemGlobalSettingsRepository {
 
 #[derive(Debug, Deserialize, Serialize)]
 struct StoredGlobalSettings {
+    format: String,
     schema_version: u32,
     last_workspace: Option<PathBuf>,
     frontend: StoredGlobalFrontendSettings,
@@ -115,6 +117,7 @@ struct StoredGlobalSettings {
 impl StoredGlobalSettings {
     fn from_domain(settings: &GlobalSettings) -> Self {
         Self {
+            format: JSON_FORMAT.to_owned(),
             schema_version: JSON_SCHEMA_VERSION,
             last_workspace: settings.last_workspace.clone(),
             frontend: StoredGlobalFrontendSettings::from_domain(settings.frontend),
@@ -122,10 +125,11 @@ impl StoredGlobalSettings {
     }
 
     fn into_domain(self) -> Result<GlobalSettings, String> {
-        if self.schema_version != JSON_SCHEMA_VERSION {
+        if self.format != JSON_FORMAT || self.schema_version != JSON_SCHEMA_VERSION {
             return Err(format!(
-                "unsupported global settings schema version {}",
-                self.schema_version
+                "unsupported global settings schema `{}` version {}; expected `{JSON_FORMAT}` \
+                 version {JSON_SCHEMA_VERSION}",
+                self.format, self.schema_version
             ));
         }
         Ok(GlobalSettings {
@@ -137,9 +141,7 @@ impl StoredGlobalSettings {
 
 #[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
 struct StoredGlobalFrontendSettings {
-    #[serde(default)]
     language: StoredFrontendLanguage,
-    #[serde(default)]
     developer_mode: bool,
     gallery: StoredGlobalGallerySettings,
 }

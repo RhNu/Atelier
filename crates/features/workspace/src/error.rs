@@ -7,7 +7,7 @@ pub enum WorkspaceErrorKind {
     InvalidPath,
     Locked,
     Storage,
-    UnsupportedVersion,
+    UnsupportedSchema,
 }
 
 impl std::fmt::Display for WorkspaceErrorKind {
@@ -16,7 +16,7 @@ impl std::fmt::Display for WorkspaceErrorKind {
             Self::InvalidPath => "invalid_path",
             Self::Locked => "locked",
             Self::Storage => "storage",
-            Self::UnsupportedVersion => "unsupported_version",
+            Self::UnsupportedSchema => "unsupported_schema",
         };
         f.write_str(value)
     }
@@ -57,10 +57,7 @@ impl WorkspaceError {
     }
 
     #[must_use]
-    pub fn unsupported_version(version: u32) -> Self {
-        Self::new(
-            WorkspaceErrorKind::UnsupportedVersion,
-            format!("unsupported workspace schema version {version}"),
-        )
+    pub fn unsupported_schema(message: impl Into<String>) -> Self {
+        Self::new(WorkspaceErrorKind::UnsupportedSchema, message)
     }
 }

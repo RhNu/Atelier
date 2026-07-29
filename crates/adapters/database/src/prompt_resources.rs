@@ -327,19 +327,18 @@ fn upsert_preset(connection: &impl SqlExecutor, preset: &PromptPreset) -> Prompt
         .execute_sql(
             r"
             INSERT INTO prompt_presets(
-                preset_id, preset_kind, name, category, description, sort_order, enabled,
-                prompt_mode, uc_mode, before_text, after_text, replace_text, uc_before_text,
+                preset_id, preset_kind, name, category, description, sort_order, prompt_mode,
+                uc_mode, before_text, after_text, replace_text, uc_before_text,
                 uc_after_text, uc_replace_text, quality_override, uc_preset_override,
                 preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
             ON CONFLICT(preset_id) DO UPDATE SET
                 preset_kind = excluded.preset_kind,
                 name = excluded.name,
                 category = excluded.category,
                 description = excluded.description,
                 sort_order = excluded.sort_order,
-                enabled = excluded.enabled,
                 prompt_mode = excluded.prompt_mode,
                 uc_mode = excluded.uc_mode,
                 before_text = excluded.before_text,
@@ -361,7 +360,6 @@ fn upsert_preset(connection: &impl SqlExecutor, preset: &PromptPreset) -> Prompt
                 preset.category.as_deref(),
                 preset.description.as_deref(),
                 preset.order,
-                true,
                 prompt_mode,
                 uc_mode,
                 before,
@@ -434,8 +432,8 @@ fn prompt_chunk_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptChun
 fn prompt_preset_select(where_clause: &str) -> String {
     format!(
         r"
-        SELECT preset_id, preset_kind, name, category, description, sort_order, enabled,
-               prompt_mode, uc_mode, before_text, after_text, replace_text, uc_before_text,
+        SELECT preset_id, preset_kind, name, category, description, sort_order, prompt_mode,
+               uc_mode, before_text, after_text, replace_text, uc_before_text,
                uc_after_text, uc_replace_text, quality_override, uc_preset_override,
                preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms
         FROM prompt_presets {where_clause}
@@ -444,20 +442,20 @@ fn prompt_preset_select(where_clause: &str) -> String {
 }
 
 fn prompt_preset_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptPreset> {
-    let preview_resource_id = row.get::<_, Option<String>>(17)?;
-    let preview_variant_id = row.get::<_, Option<String>>(18)?;
+    let preview_resource_id = row.get::<_, Option<String>>(16)?;
+    let preview_variant_id = row.get::<_, Option<String>>(17)?;
     let prompt_behavior = prompt_behavior_from_fields(
-        &row.get::<_, String>(7)?,
+        &row.get::<_, String>(6)?,
+        row.get(8)?,
         row.get(9)?,
         row.get(10)?,
-        row.get(11)?,
     )
     .map_err(to_sql_error)?;
     let uc_behavior = prompt_behavior_from_fields(
-        &row.get::<_, String>(8)?,
+        &row.get::<_, String>(7)?,
+        row.get(11)?,
         row.get(12)?,
         row.get(13)?,
-        row.get(14)?,
     )
     .map_err(to_sql_error)?;
     Ok(PromptPreset {
@@ -469,13 +467,13 @@ fn prompt_preset_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptPre
         order: row.get(5)?,
         prompt_behavior,
         uc_behavior,
-        quality_override: row.get(15)?,
-        uc_preset_override: row.get(16)?,
+        quality_override: row.get(14)?,
+        uc_preset_override: row.get(15)?,
         preview_thumb: preview_resource_id.map(|id| {
             ResourceRef::new(ResourceId::new(id), preview_variant_id.map(VariantId::new))
         }),
-        created_at_ms: i64_to_u64(row.get(19)?)?,
-        updated_at_ms: i64_to_u64(row.get(20)?)?,
+        created_at_ms: i64_to_u64(row.get(18)?)?,
+        updated_at_ms: i64_to_u64(row.get(19)?)?,
     })
 }
 

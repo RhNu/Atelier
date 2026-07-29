@@ -1,6 +1,6 @@
 use atelier_workspace::{
-    WORKSPACE_SCHEMA_VERSION, WorkspaceLayout, WorkspaceManifest, WorkspaceRelativePath,
-    WorkspaceRoot, WorkspaceSlot,
+    WORKSPACE_FORMAT, WORKSPACE_SCHEMA_VERSION, WorkspaceLayout, WorkspaceManifest,
+    WorkspaceRelativePath, WorkspaceRoot, WorkspaceSlot,
 };
 
 #[test]
@@ -55,6 +55,8 @@ fn workspace_root_joins_only_controlled_relative_paths() {
 fn manifest_defaults_to_current_schema_version() {
     let manifest = WorkspaceManifest::default();
 
+    assert_eq!(WORKSPACE_FORMAT, "atelier-workspace");
+    assert_eq!(manifest.format, WORKSPACE_FORMAT);
     assert_eq!(WORKSPACE_SCHEMA_VERSION, 1);
     assert_eq!(manifest.schema_version, WORKSPACE_SCHEMA_VERSION);
 }
