@@ -118,10 +118,7 @@ where
             .app
             .inner
             .prompt_presets
-            .list_presets(
-                request.kind.map(prompt_preset_kind_to_domain),
-                request.include_disabled,
-            )
+            .list_presets(request.kind.map(prompt_preset_kind_to_domain))
             .await?;
         let total = presets.len();
         let start = request.offset.min(total);

@@ -91,13 +91,11 @@ impl PromptResourceReader for MemoryPromptResourceRepository {
     async fn list_presets(
         &self,
         kind: Option<PromptPresetKind>,
-        include_disabled: bool,
     ) -> PromptResourceResult<Vec<PromptPreset>> {
         Ok(self
             .presets()
             .into_iter()
             .filter(|preset| kind.is_none_or(|kind| preset.kind == kind))
-            .filter(|preset| include_disabled || preset.enabled)
             .collect())
     }
 }
@@ -140,36 +138,7 @@ impl PromptResourceRepository for MemoryPromptResourceRepository {
             );
         }
         for preset in state.presets.values_mut() {
-            preset.before = atelier_prompt_resources::rewrite_chunk_references(
-                &preset.before,
-                old_key,
-                &chunk.key,
-            );
-            preset.after = atelier_prompt_resources::rewrite_chunk_references(
-                &preset.after,
-                old_key,
-                &chunk.key,
-            );
-            preset.replace = atelier_prompt_resources::rewrite_chunk_references(
-                &preset.replace,
-                old_key,
-                &chunk.key,
-            );
-            preset.uc_before = atelier_prompt_resources::rewrite_chunk_references(
-                &preset.uc_before,
-                old_key,
-                &chunk.key,
-            );
-            preset.uc_after = atelier_prompt_resources::rewrite_chunk_references(
-                &preset.uc_after,
-                old_key,
-                &chunk.key,
-            );
-            preset.uc_replace = atelier_prompt_resources::rewrite_chunk_references(
-                &preset.uc_replace,
-                old_key,
-                &chunk.key,
-            );
+            preset.rewrite_chunk_references(old_key, &chunk.key);
         }
         drop(state);
         Ok(())

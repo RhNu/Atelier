@@ -27,7 +27,6 @@ pub trait PromptResourceReader: Send + Sync {
     async fn list_presets(
         &self,
         kind: Option<PromptPresetKind>,
-        include_disabled: bool,
     ) -> PromptResourceResult<Vec<PromptPreset>>;
 }
 

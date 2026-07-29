@@ -180,13 +180,8 @@ where
             category: normalize_optional_text(request.category),
             description: normalize_optional_text(request.description),
             order: request.order,
-            enabled: request.enabled,
-            before: request.before,
-            after: request.after,
-            replace: request.replace,
-            uc_before: request.uc_before,
-            uc_after: request.uc_after,
-            uc_replace: request.uc_replace,
+            prompt_behavior: request.prompt_behavior,
+            uc_behavior: request.uc_behavior,
             quality_override: normalize_optional_text(request.quality_override),
             uc_preset_override: normalize_optional_text(request.uc_preset_override),
             preview_thumb: request.preview_thumb,
@@ -215,9 +210,8 @@ where
     pub async fn list_presets(
         &self,
         kind: Option<PromptPresetKind>,
-        include_disabled: bool,
     ) -> PromptResourceResult<Vec<PromptPreset>> {
-        let mut presets = self.repository.list_presets(kind, include_disabled).await?;
+        let mut presets = self.repository.list_presets(kind).await?;
         presets.sort_by(|left, right| {
             left.order
                 .cmp(&right.order)

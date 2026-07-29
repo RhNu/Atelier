@@ -2,8 +2,9 @@ mod support;
 
 use atelier_prompt_resources::{
     CompileCharacterPromptRequest, CompileGenerationPromptRequest, PromptChunkKey,
-    PromptChunkService, PromptCompiler, PromptPresetKind, PromptPresetService,
-    PromptResourceErrorKind, UpsertPromptChunkRequest, UpsertPromptPresetRequest,
+    PromptChunkService, PromptCompiler, PromptPresetBehavior, PromptPresetKind,
+    PromptPresetService, PromptResourceErrorKind, UpsertPromptChunkRequest,
+    UpsertPromptPresetRequest,
 };
 use futures_executor::block_on;
 use support::MemoryPromptResourceRepository;
@@ -28,7 +29,7 @@ fn preset_service_manages_main_and_character_presets() {
             .unwrap();
 
         let main = service
-            .list_presets(Some(PromptPresetKind::Main), false)
+            .list_presets(Some(PromptPresetKind::Main))
             .await
             .unwrap();
         assert_eq!(
@@ -39,7 +40,7 @@ fn preset_service_manages_main_and_character_presets() {
         );
         assert_eq!(
             service
-                .list_presets(Some(PromptPresetKind::Character), false)
+                .list_presets(Some(PromptPresetKind::Character))
                 .await
                 .unwrap()
                 .len(),
@@ -81,16 +82,15 @@ fn compiler_applies_presets_and_expands_chunks_inside_preset_fields() {
 
         let preset_service = PromptPresetService::new(repository.clone());
         let mut main_request = preset_request(None, PromptPresetKind::Main, "Main", 0);
-        main_request.before = "$chunk(lighting)".to_owned();
-        main_request.after = "sharp focus".to_owned();
-        main_request.uc_before = "bad anatomy".to_owned();
+        main_request.prompt_behavior = surround("$chunk(lighting)", "sharp focus");
+        main_request.uc_behavior = surround("bad anatomy", "");
         main_request.quality_override = Some("qualityTagsV4".to_owned());
         main_request.uc_preset_override = Some("heavy".to_owned());
         let main = preset_service.upsert_preset(main_request).await.unwrap();
 
         let mut character_request = preset_request(None, PromptPresetKind::Character, "Hero", 0);
-        character_request.before = "red hair".to_owned();
-        character_request.uc_after = "extra arms".to_owned();
+        character_request.prompt_behavior = surround("red hair", "");
+        character_request.uc_behavior = surround("", "extra arms");
         let character = preset_service
             .upsert_preset(character_request)
             .await
@@ -130,6 +130,32 @@ fn compiler_applies_presets_and_expands_chunks_inside_preset_fields() {
 }
 
 #[test]
+fn compiler_uses_explicit_replace_behavior_without_surround_fields() {
+    block_on(async {
+        let repository = MemoryPromptResourceRepository::default();
+        let service = PromptPresetService::new(repository.clone());
+        let mut request = preset_request(None, PromptPresetKind::Main, "Replace", 0);
+        request.prompt_behavior = PromptPresetBehavior::Replace {
+            text: "replacement prompt".to_owned(),
+        };
+        let preset = service.upsert_preset(request).await.unwrap();
+
+        let result = PromptCompiler::new(repository)
+            .compile_generation_prompt(CompileGenerationPromptRequest {
+                main_preset_id: Some(preset.id),
+                prompt: "original prompt".to_owned(),
+                negative_prompt: String::new(),
+                characters: Vec::new(),
+                max_depth: 8,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.prompt, "replacement prompt");
+    });
+}
+
+#[test]
 fn chunk_rename_rewrites_preset_fields() {
     block_on(async {
         let repository = MemoryPromptResourceRepository::default();
@@ -147,7 +173,7 @@ fn chunk_rename_rewrites_preset_fields() {
             .unwrap();
         let preset_service = PromptPresetService::new(repository.clone());
         let mut request = preset_request(None, PromptPresetKind::Main, "Uses chunk", 0);
-        request.before = "$chunk(old-key)".to_owned();
+        request.prompt_behavior = surround("$chunk(old-key)", "");
         let preset = preset_service.upsert_preset(request).await.unwrap();
 
         chunk_service
@@ -167,7 +193,7 @@ fn chunk_rename_rewrites_preset_fields() {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(rewritten.before, "$chunk(new-key)");
+        assert_eq!(rewritten.prompt_behavior, surround("$chunk(new-key)", ""));
     });
 }
 
@@ -189,7 +215,7 @@ fn preset_references_block_chunk_delete() {
             .await
             .unwrap();
         let mut request = preset_request(None, PromptPresetKind::Main, "Main", 0);
-        request.before = "$chunk(lighting)".to_owned();
+        request.prompt_behavior = surround("$chunk(lighting)", "");
         preset_service.upsert_preset(request).await.unwrap();
 
         let error = chunk_service.delete_chunk(&chunk.id).await.unwrap_err();
@@ -211,15 +237,17 @@ fn preset_request(
         category: None,
         description: None,
         order,
-        enabled: true,
-        before: String::new(),
-        after: String::new(),
-        replace: String::new(),
-        uc_before: String::new(),
-        uc_after: String::new(),
-        uc_replace: String::new(),
+        prompt_behavior: surround("", ""),
+        uc_behavior: surround("", ""),
         quality_override: None,
         uc_preset_override: None,
         preview_thumb: None,
+    }
+}
+
+fn surround(before: &str, after: &str) -> PromptPresetBehavior {
+    PromptPresetBehavior::Surround {
+        before: before.to_owned(),
+        after: after.to_owned(),
     }
 }

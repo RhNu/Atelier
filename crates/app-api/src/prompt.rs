@@ -26,6 +26,14 @@ pub enum PromptPresetKindDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "mode", rename_all = "snake_case")]
+#[ts(tag = "mode", rename_all = "snake_case")]
+pub enum PromptPresetBehaviorDto {
+    Surround { before: String, after: String },
+    Replace { text: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptPresetDto {
     pub preset_id: String,
     pub kind: PromptPresetKindDto,
@@ -35,13 +43,8 @@ pub struct PromptPresetDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub order: i32,
-    pub enabled: bool,
-    pub before: String,
-    pub after: String,
-    pub replace: String,
-    pub uc_before: String,
-    pub uc_after: String,
-    pub uc_replace: String,
+    pub prompt_behavior: PromptPresetBehaviorDto,
+    pub uc_behavior: PromptPresetBehaviorDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quality_override: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -63,13 +66,8 @@ pub struct UpsertPromptPresetRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub order: i32,
-    pub enabled: bool,
-    pub before: String,
-    pub after: String,
-    pub replace: String,
-    pub uc_before: String,
-    pub uc_after: String,
-    pub uc_replace: String,
+    pub prompt_behavior: PromptPresetBehaviorDto,
+    pub uc_behavior: PromptPresetBehaviorDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quality_override: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -118,7 +116,6 @@ pub struct PromptChunkPageDto {
 pub struct ListPromptPresetsRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<PromptPresetKindDto>,
-    pub include_disabled: bool,
     pub offset: usize,
     pub limit: usize,
 }

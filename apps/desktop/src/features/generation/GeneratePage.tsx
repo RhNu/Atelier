@@ -95,13 +95,11 @@ export function GeneratePage() {
   });
   const mainPresetsQuery = usePromptPresetsQuery({
     kind: "main",
-    include_disabled: false,
     offset: 0,
     limit: 200,
   });
   const characterPresetsQuery = usePromptPresetsQuery({
     kind: "character",
-    include_disabled: false,
     offset: 0,
     limit: 200,
   });

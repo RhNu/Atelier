@@ -53,9 +53,7 @@ export function AdvancedGenerationInputs({
   const characterPresetOptions = useMemo(
     () => [
       { value: "", label: t("noCharacterPreset") },
-      ...characterPresets
-        .filter((preset) => preset.enabled)
-        .map((preset) => ({ value: preset.preset_id, label: preset.name })),
+      ...characterPresets.map((preset) => ({ value: preset.preset_id, label: preset.name })),
     ],
     [characterPresets, t],
   );

@@ -80,9 +80,7 @@ export const GenerationPromptPanel = forwardRef<
         value: "",
         label: mainPresetsPending ? t("loadingPresets") : t("noMainPreset"),
       },
-      ...mainPresets
-        .filter((preset) => preset.enabled)
-        .map((preset) => ({ value: preset.preset_id, label: preset.name })),
+      ...mainPresets.map((preset) => ({ value: preset.preset_id, label: preset.name })),
     ],
     [mainPresets, mainPresetsPending, t],
   );

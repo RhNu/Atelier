@@ -23,8 +23,8 @@ pub use functions::{
 };
 pub use model::{
     ChunkReference, DeletePromptChunkResult, DeletePromptPresetResult, PromptChunk, PromptChunkId,
-    PromptChunkKey, PromptPreset, PromptPresetId, PromptPresetKind, UpsertPromptChunkRequest,
-    UpsertPromptPresetRequest,
+    PromptChunkKey, PromptPreset, PromptPresetBehavior, PromptPresetId, PromptPresetKind,
+    UpsertPromptChunkRequest, UpsertPromptPresetRequest,
 };
 pub use ports::{PromptResourceReader, PromptResourceRepository};
 pub use references::{chunk_references_in_text, rewrite_chunk_references};

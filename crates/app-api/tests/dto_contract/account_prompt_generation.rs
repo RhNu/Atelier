@@ -173,14 +173,12 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
     assert_eq!(
         serde_json::to_value(ListPromptPresetsRequestDto {
             kind: Some(PromptPresetKindDto::Main),
-            include_disabled: false,
             offset: 0,
             limit: 50,
         })
         .unwrap(),
         json!({
             "kind": "main",
-            "include_disabled": false,
             "offset": 0,
             "limit": 50
         })
@@ -193,13 +191,14 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
             category: None,
             description: None,
             order: 0,
-            enabled: true,
-            before: "red hair".to_owned(),
-            after: String::new(),
-            replace: String::new(),
-            uc_before: String::new(),
-            uc_after: "extra arms".to_owned(),
-            uc_replace: String::new(),
+            prompt_behavior: PromptPresetBehaviorDto::Surround {
+                before: "red hair".to_owned(),
+                after: String::new(),
+            },
+            uc_behavior: PromptPresetBehaviorDto::Surround {
+                before: String::new(),
+                after: "extra arms".to_owned(),
+            },
             quality_override: None,
             uc_preset_override: None,
             preview: None,
@@ -209,13 +208,16 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
             "kind": "character",
             "name": "Hero",
             "order": 0,
-            "enabled": true,
-            "before": "red hair",
-            "after": "",
-            "replace": "",
-            "uc_before": "",
-            "uc_after": "extra arms",
-            "uc_replace": ""
+            "prompt_behavior": {
+                "mode": "surround",
+                "before": "red hair",
+                "after": ""
+            },
+            "uc_behavior": {
+                "mode": "surround",
+                "before": "",
+                "after": "extra arms"
+            }
         })
     );
 }

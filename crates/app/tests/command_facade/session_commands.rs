@@ -144,13 +144,14 @@ fn prompt_preset_commands_share_session() {
                 category: None,
                 description: None,
                 order: 0,
-                enabled: true,
-                before: "$chunk(hero)".to_owned(),
-                after: "sharp focus".to_owned(),
-                replace: String::new(),
-                uc_before: String::new(),
-                uc_after: String::new(),
-                uc_replace: String::new(),
+                prompt_behavior: PromptPresetBehaviorDto::Surround {
+                    before: "$chunk(hero)".to_owned(),
+                    after: "sharp focus".to_owned(),
+                },
+                uc_behavior: PromptPresetBehaviorDto::Surround {
+                    before: String::new(),
+                    after: String::new(),
+                },
                 quality_override: Some("qualityTagsV4".to_owned()),
                 uc_preset_override: Some("heavy".to_owned()),
                 preview: None,
@@ -162,7 +163,6 @@ fn prompt_preset_commands_share_session() {
         assert_eq!(
             host.list_prompt_presets(ListPromptPresetsRequestDto {
                 kind: Some(PromptPresetKindDto::Main),
-                include_disabled: false,
                 offset: 0,
                 limit: 10,
             })

@@ -48,13 +48,11 @@ export function ResourcesPage() {
   const chunksQuery = usePromptChunksQuery({ offset: 0, limit: 200 });
   const mainPresetsQuery = usePromptPresetsQuery({
     kind: "main",
-    include_disabled: true,
     offset: 0,
     limit: 200,
   });
   const characterPresetsQuery = usePromptPresetsQuery({
     kind: "character",
-    include_disabled: true,
     offset: 0,
     limit: 200,
   });

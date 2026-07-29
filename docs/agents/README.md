@@ -25,6 +25,7 @@ For task-specific context, read only the relevant decision records:
 - `sqlite-database-adapter.md`: SQLite adapter choice, schema scope, and adapter-local DTO boundary.
 - `secrets-keyring-pipeline.md`: API key registry, keyring storage, explicit subscription probe, and resolver-backed NovelAI adapter.
 - `prompt-lexicon-workflow.md`: prompt lexicon source assets, Rust `xtask` build/check workflow, v1 generated schema, and `nait` source notes.
+- `prompt-preset-model.md`: explicit preset prompt behavior, removed enabled semantics, SQLite compatibility, and frontend editor draft boundary.
 - `safety-onnx-adapter.md`: host-provided OpenNSFW ONNX model/runtime loading, scanner injection, and license/source boundary.
 - `frontend-workbench-foundation.md`: desktop frontend shell, generated app-api TypeScript contracts, Tailwind theme tokens, and `nait` visual reference boundary.
 - `global-settings-workspace-restore.md`: user-level settings persistence, last-workspace restore behavior, and app/workspace runtime scope separation.

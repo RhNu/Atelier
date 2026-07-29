@@ -190,13 +190,8 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
                 category: None,
                 description: None,
                 order: 0,
-                enabled: true,
-                before: "$chunk(lighting)".to_owned(),
-                after: "sharp focus".to_owned(),
-                replace: String::new(),
-                uc_before: "bad anatomy".to_owned(),
-                uc_after: String::new(),
-                uc_replace: String::new(),
+                prompt_behavior: surround("$chunk(lighting)", "sharp focus"),
+                uc_behavior: surround("bad anatomy", ""),
                 quality_override: None,
                 uc_preset_override: Some("heavy".to_owned()),
                 preview: None,
@@ -212,13 +207,8 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
                 category: None,
                 description: None,
                 order: 0,
-                enabled: true,
-                before: "red hair".to_owned(),
-                after: String::new(),
-                replace: String::new(),
-                uc_before: String::new(),
-                uc_after: "extra arms".to_owned(),
-                uc_replace: String::new(),
+                prompt_behavior: surround("red hair", ""),
+                uc_behavior: surround("", "extra arms"),
                 quality_override: None,
                 uc_preset_override: None,
                 preview: None,
@@ -285,13 +275,8 @@ fn generation_estimate_applies_character_prompt_presets() {
                 category: None,
                 description: None,
                 order: 0,
-                enabled: true,
-                before: "red hair".to_owned(),
-                after: String::new(),
-                replace: String::new(),
-                uc_before: String::new(),
-                uc_after: String::new(),
-                uc_replace: String::new(),
+                prompt_behavior: surround("red hair", ""),
+                uc_behavior: surround("", ""),
                 quality_override: None,
                 uc_preset_override: None,
                 preview: None,
@@ -494,4 +479,11 @@ fn resource_backed_generation_inputs_are_resolved_before_novelai_submission() {
         assert_eq!(generated.len(), 1);
         assert_eq!(generated[0].i2i.as_ref().unwrap().image, "AQID");
     });
+}
+
+fn surround(before: &str, after: &str) -> atelier_app_api::prompt::PromptPresetBehaviorDto {
+    atelier_app_api::prompt::PromptPresetBehaviorDto::Surround {
+        before: before.to_owned(),
+        after: after.to_owned(),
+    }
 }

@@ -19,8 +19,8 @@ use atelier_app_api::prompt::{
     CompiledPromptDto, PromptChunkDto, PromptFunctionTraceEntryDto, PromptLexiconCatalogDto,
     PromptLexiconCategorySummaryDto, PromptLexiconEntryDto, PromptLexiconListQueryDto,
     PromptLexiconPageDto, PromptLexiconStatsDto, PromptLexiconSubcategorySummaryDto,
-    PromptPresetDto, PromptPresetKindDto, PromptTraceDto, UpsertPromptChunkRequestDto,
-    UpsertPromptPresetRequestDto,
+    PromptPresetBehaviorDto, PromptPresetDto, PromptPresetKindDto, PromptTraceDto,
+    UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
 };
 use atelier_app_api::resource::ResourceRefDto;
 use atelier_app_api::settings::{
@@ -52,8 +52,8 @@ use atelier_prompt_lexicon::{
 };
 use atelier_prompt_resources::{
     CompiledPrompt, PromptChunk, PromptChunkId, PromptChunkKey, PromptFunctionTraceEntry,
-    PromptPreset, PromptPresetId, PromptPresetKind, PromptTrace, UpsertPromptChunkRequest,
-    UpsertPromptPresetRequest,
+    PromptPreset, PromptPresetBehavior, PromptPresetId, PromptPresetKind, PromptTrace,
+    UpsertPromptChunkRequest, UpsertPromptPresetRequest,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
 use atelier_safety::{SafetyAssessment, SafetyLabel, SafetyRiskBand};

@@ -2,7 +2,7 @@ use rusqlite::{Connection, params};
 
 use crate::error::DatabaseResult;
 
-const CURRENT_SCHEMA_VERSION: i64 = 7;
+const CURRENT_SCHEMA_VERSION: i64 = 8;
 const API_KEY_REGISTRY_SQL: &str = r"
 CREATE TABLE IF NOT EXISTS api_key_records (
     id TEXT PRIMARY KEY,
@@ -143,6 +143,8 @@ CREATE TABLE IF NOT EXISTS prompt_presets (
     description TEXT,
     sort_order INTEGER NOT NULL,
     enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+    prompt_mode TEXT NOT NULL CHECK (prompt_mode IN ('surround', 'replace')),
+    uc_mode TEXT NOT NULL CHECK (uc_mode IN ('surround', 'replace')),
     before_text TEXT NOT NULL,
     after_text TEXT NOT NULL,
     replace_text TEXT NOT NULL,
@@ -159,6 +161,23 @@ CREATE TABLE IF NOT EXISTS prompt_presets (
 
 CREATE INDEX IF NOT EXISTS idx_prompt_presets_kind_order
     ON prompt_presets(preset_kind, sort_order, name, preset_id);
+";
+
+const PROMPT_PRESET_BEHAVIOR_SQL: &str = r"
+ALTER TABLE prompt_presets ADD COLUMN prompt_mode TEXT NOT NULL DEFAULT 'surround'
+    CHECK (prompt_mode IN ('surround', 'replace'));
+ALTER TABLE prompt_presets ADD COLUMN uc_mode TEXT NOT NULL DEFAULT 'surround'
+    CHECK (uc_mode IN ('surround', 'replace'));
+
+UPDATE prompt_presets
+SET prompt_mode = CASE
+        WHEN trim(replace_text) = '' THEN 'surround'
+        ELSE 'replace'
+    END,
+    uc_mode = CASE
+        WHEN trim(uc_replace_text) = '' THEN 'surround'
+        ELSE 'replace'
+    END;
 ";
 
 const SETTINGS_SQL: &str = r"
@@ -331,6 +350,7 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
     let v4_applied = migration_applied(connection, 4)?;
     let v5_applied = migration_applied(connection, 5)?;
     let v6_applied = migration_applied(connection, 6)?;
+    let v7_applied = migration_applied(connection, 7)?;
 
     let tx = connection.transaction()?;
     // Recreate any missing idempotent v1 objects as well as trusting the marker. This also
@@ -377,8 +397,11 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
             [],
         )?;
     }
-    if v4_applied {
+    if v4_applied && !v7_applied {
         tx.execute_batch(GENERATION_BATCH_HISTORY_SQL)?;
+    }
+    if !column_exists(&tx, "prompt_presets", "prompt_mode")? {
+        tx.execute_batch(PROMPT_PRESET_BEHAVIOR_SQL)?;
     }
     tx.execute_batch(GENERATION_BATCH_HISTORY_INDEX_SQL)?;
     tx.execute(
@@ -397,4 +420,15 @@ fn migration_applied(connection: &Connection, version: i64) -> DatabaseResult<bo
             |row| row.get(0),
         )
         .map_err(Into::into)
+}
+
+fn column_exists(connection: &Connection, table: &str, column: &str) -> DatabaseResult<bool> {
+    let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
+    let mut rows = statement.query([])?;
+    while let Some(row) = rows.next()? {
+        if row.get::<_, String>(1)? == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }

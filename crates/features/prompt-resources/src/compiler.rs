@@ -6,8 +6,8 @@ use atelier_prompt::{ExtensionCall, parse_prompt};
 use crate::functions::{PromptFunctionContext, PromptFunctionRegistry, PromptFunctionTraceEntry};
 use crate::text::{ExpandedPromptFragment, render_expanded_prompt_fragments};
 use crate::{
-    PromptPreset, PromptPresetId, PromptPresetKind, PromptResourceError, PromptResourceReader,
-    PromptResourceResult,
+    PromptPreset, PromptPresetBehavior, PromptPresetId, PromptPresetKind, PromptResourceError,
+    PromptResourceReader, PromptResourceResult,
 };
 
 const DEFAULT_MAX_EXPANSION_DEPTH: usize = 16;
@@ -250,14 +250,6 @@ where
         let preset = self
             .require_preset(preset_id, PromptPresetKind::Main)
             .await?;
-        if !preset.enabled {
-            return Ok(AppliedMainPromptFields {
-                prompt,
-                negative_prompt,
-                quality_override: None,
-                uc_preset_override: None,
-            });
-        }
         trace_used_preset(trace, &preset);
         let fields = apply_preset_fields(&prompt, &negative_prompt, &preset);
         Ok(AppliedMainPromptFields {
@@ -282,12 +274,6 @@ where
         let preset = self
             .require_preset(preset_id, PromptPresetKind::Character)
             .await?;
-        if !preset.enabled {
-            return Ok(AppliedPromptFields {
-                prompt: character.prompt,
-                negative_prompt: character.negative_prompt,
-            });
-        }
         trace_used_preset(trace, &preset);
         Ok(apply_preset_fields(
             &character.prompt,
@@ -428,18 +414,16 @@ where
     }
 }
 
-fn apply_prompt_preset(base: &str, before: &str, after: &str, replace: &str) -> String {
-    let body = if replace.trim().is_empty() {
-        base
-    } else {
-        replace
-    };
-    render_expanded_prompt_fragments(
-        [before, body, after]
-            .into_iter()
-            .filter(|fragment| !fragment.trim().is_empty())
-            .map(|fragment| ExpandedPromptFragment::expansion(fragment.to_owned())),
-    )
+fn apply_prompt_behavior(base: &str, behavior: &PromptPresetBehavior) -> String {
+    match behavior {
+        PromptPresetBehavior::Surround { before, after } => render_expanded_prompt_fragments(
+            [before.as_str(), base, after.as_str()]
+                .into_iter()
+                .filter(|fragment| !fragment.trim().is_empty())
+                .map(|fragment| ExpandedPromptFragment::expansion(fragment.to_owned())),
+        ),
+        PromptPresetBehavior::Replace { text } => text.clone(),
+    }
 }
 
 fn apply_preset_fields(
@@ -448,13 +432,8 @@ fn apply_preset_fields(
     preset: &PromptPreset,
 ) -> AppliedPromptFields {
     AppliedPromptFields {
-        prompt: apply_prompt_preset(prompt, &preset.before, &preset.after, &preset.replace),
-        negative_prompt: apply_prompt_preset(
-            negative_prompt,
-            &preset.uc_before,
-            &preset.uc_after,
-            &preset.uc_replace,
-        ),
+        prompt: apply_prompt_behavior(prompt, &preset.prompt_behavior),
+        negative_prompt: apply_prompt_behavior(negative_prompt, &preset.uc_behavior),
     }
 }
 

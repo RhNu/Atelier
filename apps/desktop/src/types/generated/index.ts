@@ -115,6 +115,7 @@ export type { PromptLexiconPageDto } from "./PromptLexiconPageDto";
 export type { PromptLexiconSearchQueryDto } from "./PromptLexiconSearchQueryDto";
 export type { PromptLexiconStatsDto } from "./PromptLexiconStatsDto";
 export type { PromptLexiconSubcategorySummaryDto } from "./PromptLexiconSubcategorySummaryDto";
+export type { PromptPresetBehaviorDto } from "./PromptPresetBehaviorDto";
 export type { PromptPresetDto } from "./PromptPresetDto";
 export type { PromptPresetKindDto } from "./PromptPresetKindDto";
 export type { PromptPresetPageDto } from "./PromptPresetPageDto";

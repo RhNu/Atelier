@@ -2,9 +2,9 @@
 
 use async_trait::async_trait;
 use atelier_prompt_resources::{
-    ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptPreset, PromptPresetId,
-    PromptPresetKind, PromptResourceError, PromptResourceReader, PromptResourceRepository,
-    PromptResourceResult, rewrite_chunk_references,
+    ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptPreset, PromptPresetBehavior,
+    PromptPresetId, PromptPresetKind, PromptResourceError, PromptResourceReader,
+    PromptResourceRepository, PromptResourceResult, rewrite_chunk_references,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
 use rusqlite::{OptionalExtension, Params, params};
@@ -85,20 +85,11 @@ impl PromptResourceReader for DatabasePromptResourceRepository {
     async fn list_presets(
         &self,
         kind: Option<PromptPresetKind>,
-        include_disabled: bool,
     ) -> PromptResourceResult<Vec<PromptPreset>> {
         let connection = self.connection.lock().map_err(prompt_error)?;
-        let (where_clause, kind_text) = match kind {
-            Some(kind) if include_disabled => {
-                ("WHERE preset_kind = ?1", Some(preset_kind_to_str(kind)))
-            }
-            Some(kind) => (
-                "WHERE preset_kind = ?1 AND enabled = 1",
-                Some(preset_kind_to_str(kind)),
-            ),
-            None if include_disabled => ("", None),
-            None => ("WHERE enabled = 1", None),
-        };
+        let (where_clause, kind_text) = kind.map_or(("", None), |kind| {
+            ("WHERE preset_kind = ?1", Some(preset_kind_to_str(kind)))
+        });
         let mut statement = connection
             .prepare(
                 prompt_preset_select(&format!(
@@ -236,7 +227,7 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
             })
             .collect::<Vec<_>>();
         references.extend(
-            self.list_presets(None, true)
+            self.list_presets(None)
                 .await?
                 .into_iter()
                 .filter(|preset| preset.references_chunk(key))
@@ -330,16 +321,18 @@ fn upsert_chunk(connection: &impl SqlExecutor, chunk: &PromptChunk) -> PromptRes
 }
 
 fn upsert_preset(connection: &impl SqlExecutor, preset: &PromptPreset) -> PromptResourceResult<()> {
+    let (prompt_mode, before, after, replace) = preset_behavior_fields(&preset.prompt_behavior);
+    let (uc_mode, uc_before, uc_after, uc_replace) = preset_behavior_fields(&preset.uc_behavior);
     connection
         .execute_sql(
             r"
             INSERT INTO prompt_presets(
                 preset_id, preset_kind, name, category, description, sort_order, enabled,
-                before_text, after_text, replace_text, uc_before_text, uc_after_text,
-                uc_replace_text, quality_override, uc_preset_override,
+                prompt_mode, uc_mode, before_text, after_text, replace_text, uc_before_text,
+                uc_after_text, uc_replace_text, quality_override, uc_preset_override,
                 preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
             ON CONFLICT(preset_id) DO UPDATE SET
                 preset_kind = excluded.preset_kind,
                 name = excluded.name,
@@ -347,6 +340,8 @@ fn upsert_preset(connection: &impl SqlExecutor, preset: &PromptPreset) -> Prompt
                 description = excluded.description,
                 sort_order = excluded.sort_order,
                 enabled = excluded.enabled,
+                prompt_mode = excluded.prompt_mode,
+                uc_mode = excluded.uc_mode,
                 before_text = excluded.before_text,
                 after_text = excluded.after_text,
                 replace_text = excluded.replace_text,
@@ -366,13 +361,15 @@ fn upsert_preset(connection: &impl SqlExecutor, preset: &PromptPreset) -> Prompt
                 preset.category.as_deref(),
                 preset.description.as_deref(),
                 preset.order,
-                preset.enabled,
-                preset.before,
-                preset.after,
-                preset.replace,
-                preset.uc_before,
-                preset.uc_after,
-                preset.uc_replace,
+                true,
+                prompt_mode,
+                uc_mode,
+                before,
+                after,
+                replace,
+                uc_before,
+                uc_after,
+                uc_replace,
                 preset.quality_override.as_deref(),
                 preset.uc_preset_override.as_deref(),
                 preset.preview_thumb.as_ref().map(|value| value.id.as_str()),
@@ -438,8 +435,8 @@ fn prompt_preset_select(where_clause: &str) -> String {
     format!(
         r"
         SELECT preset_id, preset_kind, name, category, description, sort_order, enabled,
-               before_text, after_text, replace_text, uc_before_text, uc_after_text,
-               uc_replace_text, quality_override, uc_preset_override,
+               prompt_mode, uc_mode, before_text, after_text, replace_text, uc_before_text,
+               uc_after_text, uc_replace_text, quality_override, uc_preset_override,
                preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms
         FROM prompt_presets {where_clause}
         "
@@ -447,8 +444,22 @@ fn prompt_preset_select(where_clause: &str) -> String {
 }
 
 fn prompt_preset_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptPreset> {
-    let preview_resource_id = row.get::<_, Option<String>>(15)?;
-    let preview_variant_id = row.get::<_, Option<String>>(16)?;
+    let preview_resource_id = row.get::<_, Option<String>>(17)?;
+    let preview_variant_id = row.get::<_, Option<String>>(18)?;
+    let prompt_behavior = prompt_behavior_from_fields(
+        &row.get::<_, String>(7)?,
+        row.get(9)?,
+        row.get(10)?,
+        row.get(11)?,
+    )
+    .map_err(to_sql_error)?;
+    let uc_behavior = prompt_behavior_from_fields(
+        &row.get::<_, String>(8)?,
+        row.get(12)?,
+        row.get(13)?,
+        row.get(14)?,
+    )
+    .map_err(to_sql_error)?;
     Ok(PromptPreset {
         id: PromptPresetId::new(row.get::<_, String>(0)?),
         kind: preset_kind_from_str(&row.get::<_, String>(1)?).map_err(to_sql_error)?,
@@ -456,21 +467,38 @@ fn prompt_preset_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptPre
         category: row.get(3)?,
         description: row.get(4)?,
         order: row.get(5)?,
-        enabled: row.get(6)?,
-        before: row.get(7)?,
-        after: row.get(8)?,
-        replace: row.get(9)?,
-        uc_before: row.get(10)?,
-        uc_after: row.get(11)?,
-        uc_replace: row.get(12)?,
-        quality_override: row.get(13)?,
-        uc_preset_override: row.get(14)?,
+        prompt_behavior,
+        uc_behavior,
+        quality_override: row.get(15)?,
+        uc_preset_override: row.get(16)?,
         preview_thumb: preview_resource_id.map(|id| {
             ResourceRef::new(ResourceId::new(id), preview_variant_id.map(VariantId::new))
         }),
-        created_at_ms: i64_to_u64(row.get(17)?)?,
-        updated_at_ms: i64_to_u64(row.get(18)?)?,
+        created_at_ms: i64_to_u64(row.get(19)?)?,
+        updated_at_ms: i64_to_u64(row.get(20)?)?,
     })
+}
+
+fn preset_behavior_fields(behavior: &PromptPresetBehavior) -> (&'static str, &str, &str, &str) {
+    match behavior {
+        PromptPresetBehavior::Surround { before, after } => ("surround", before, after, ""),
+        PromptPresetBehavior::Replace { text } => ("replace", "", "", text),
+    }
+}
+
+fn prompt_behavior_from_fields(
+    mode: &str,
+    before: String,
+    after: String,
+    replace: String,
+) -> PromptResourceResult<PromptPresetBehavior> {
+    match mode {
+        "surround" => Ok(PromptPresetBehavior::Surround { before, after }),
+        "replace" => Ok(PromptPresetBehavior::Replace { text: replace }),
+        _ => Err(PromptResourceError::repository(format!(
+            "unknown prompt preset behavior `{mode}`"
+        ))),
+    }
 }
 
 fn prompt_preset_text_fields(

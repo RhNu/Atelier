@@ -5,10 +5,10 @@ use super::{
     PromptLexiconEntryDto, PromptLexiconListPage, PromptLexiconListQuery,
     PromptLexiconListQueryDto, PromptLexiconMatchField, PromptLexiconMatchRank,
     PromptLexiconPageDto, PromptLexiconStatsDto, PromptLexiconSubcategorySummaryDto, PromptPreset,
-    PromptPresetDto, PromptPresetId, PromptPresetKind, PromptPresetKindDto, PromptTrace,
-    PromptTraceDto, UpsertPromptChunkRequest, UpsertPromptChunkRequestDto,
-    UpsertPromptPresetRequest, UpsertPromptPresetRequestDto, resource_ref_from_dto,
-    resource_ref_to_dto,
+    PromptPresetBehavior, PromptPresetBehaviorDto, PromptPresetDto, PromptPresetId,
+    PromptPresetKind, PromptPresetKindDto, PromptTrace, PromptTraceDto, UpsertPromptChunkRequest,
+    UpsertPromptChunkRequestDto, UpsertPromptPresetRequest, UpsertPromptPresetRequestDto,
+    resource_ref_from_dto, resource_ref_to_dto,
 };
 pub fn prompt_chunk_to_dto(chunk: &PromptChunk) -> PromptChunkDto {
     PromptChunkDto {
@@ -31,13 +31,8 @@ pub fn prompt_preset_to_dto(preset: &PromptPreset) -> PromptPresetDto {
         category: preset.category.clone(),
         description: preset.description.clone(),
         order: preset.order,
-        enabled: preset.enabled,
-        before: preset.before.clone(),
-        after: preset.after.clone(),
-        replace: preset.replace.clone(),
-        uc_before: preset.uc_before.clone(),
-        uc_after: preset.uc_after.clone(),
-        uc_replace: preset.uc_replace.clone(),
+        prompt_behavior: prompt_preset_behavior_to_dto(&preset.prompt_behavior),
+        uc_behavior: prompt_preset_behavior_to_dto(&preset.uc_behavior),
         quality_override: preset.quality_override.clone(),
         uc_preset_override: preset.uc_preset_override.clone(),
         preview: preset.preview_thumb.as_ref().map(resource_ref_to_dto),
@@ -56,16 +51,32 @@ pub fn upsert_prompt_preset_to_domain(
         category: request.category,
         description: request.description,
         order: request.order,
-        enabled: request.enabled,
-        before: request.before,
-        after: request.after,
-        replace: request.replace,
-        uc_before: request.uc_before,
-        uc_after: request.uc_after,
-        uc_replace: request.uc_replace,
+        prompt_behavior: prompt_preset_behavior_to_domain(request.prompt_behavior),
+        uc_behavior: prompt_preset_behavior_to_domain(request.uc_behavior),
         quality_override: request.quality_override,
         uc_preset_override: request.uc_preset_override,
         preview_thumb: request.preview.map(resource_ref_from_dto),
+    }
+}
+
+fn prompt_preset_behavior_to_domain(value: PromptPresetBehaviorDto) -> PromptPresetBehavior {
+    match value {
+        PromptPresetBehaviorDto::Surround { before, after } => {
+            PromptPresetBehavior::Surround { before, after }
+        }
+        PromptPresetBehaviorDto::Replace { text } => PromptPresetBehavior::Replace { text },
+    }
+}
+
+fn prompt_preset_behavior_to_dto(value: &PromptPresetBehavior) -> PromptPresetBehaviorDto {
+    match value {
+        PromptPresetBehavior::Surround { before, after } => PromptPresetBehaviorDto::Surround {
+            before: before.clone(),
+            after: after.clone(),
+        },
+        PromptPresetBehavior::Replace { text } => {
+            PromptPresetBehaviorDto::Replace { text: text.clone() }
+        }
     }
 }
 

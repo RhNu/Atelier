@@ -2,7 +2,7 @@ use atelier_prompt::{FunctionValue, parse_prompt};
 use atelier_resource_catalog::ResourceRef;
 
 use crate::PromptResourceError;
-use crate::references::chunk_references_in_text;
+use crate::references::{chunk_references_in_text, rewrite_chunk_references};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PromptChunkId(String);
@@ -120,6 +120,36 @@ pub enum PromptPresetKind {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PromptPresetBehavior {
+    Surround { before: String, after: String },
+    Replace { text: String },
+}
+
+impl PromptPresetBehavior {
+    #[must_use]
+    pub fn references_chunk(&self, key: &PromptChunkKey) -> bool {
+        match self {
+            Self::Surround { before, after } => [before, after]
+                .into_iter()
+                .any(|text| chunk_references_in_text(text, key)),
+            Self::Replace { text } => chunk_references_in_text(text, key),
+        }
+    }
+
+    pub fn rewrite_chunk_references(&mut self, old_key: &PromptChunkKey, new_key: &PromptChunkKey) {
+        match self {
+            Self::Surround { before, after } => {
+                *before = rewrite_chunk_references(before, old_key, new_key);
+                *after = rewrite_chunk_references(after, old_key, new_key);
+            }
+            Self::Replace { text } => {
+                *text = rewrite_chunk_references(text, old_key, new_key);
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PromptPreset {
     pub id: PromptPresetId,
     pub kind: PromptPresetKind,
@@ -127,13 +157,8 @@ pub struct PromptPreset {
     pub category: Option<String>,
     pub description: Option<String>,
     pub order: i32,
-    pub enabled: bool,
-    pub before: String,
-    pub after: String,
-    pub replace: String,
-    pub uc_before: String,
-    pub uc_after: String,
-    pub uc_replace: String,
+    pub prompt_behavior: PromptPresetBehavior,
+    pub uc_behavior: PromptPresetBehavior,
     pub quality_override: Option<String>,
     pub uc_preset_override: Option<String>,
     pub preview_thumb: Option<ResourceRef>,
@@ -144,16 +169,13 @@ pub struct PromptPreset {
 impl PromptPreset {
     #[must_use]
     pub fn references_chunk(&self, key: &PromptChunkKey) -> bool {
-        [
-            self.before.as_str(),
-            self.after.as_str(),
-            self.replace.as_str(),
-            self.uc_before.as_str(),
-            self.uc_after.as_str(),
-            self.uc_replace.as_str(),
-        ]
-        .into_iter()
-        .any(|text| chunk_references_in_text(text, key))
+        self.prompt_behavior.references_chunk(key) || self.uc_behavior.references_chunk(key)
+    }
+
+    pub fn rewrite_chunk_references(&mut self, old_key: &PromptChunkKey, new_key: &PromptChunkKey) {
+        self.prompt_behavior
+            .rewrite_chunk_references(old_key, new_key);
+        self.uc_behavior.rewrite_chunk_references(old_key, new_key);
     }
 }
 
@@ -165,13 +187,8 @@ pub struct UpsertPromptPresetRequest {
     pub category: Option<String>,
     pub description: Option<String>,
     pub order: i32,
-    pub enabled: bool,
-    pub before: String,
-    pub after: String,
-    pub replace: String,
-    pub uc_before: String,
-    pub uc_after: String,
-    pub uc_replace: String,
+    pub prompt_behavior: PromptPresetBehavior,
+    pub uc_behavior: PromptPresetBehavior,
     pub quality_override: Option<String>,
     pub uc_preset_override: Option<String>,
     pub preview_thumb: Option<ResourceRef>,

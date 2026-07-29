@@ -7,7 +7,7 @@ import { ResourcesPage } from "../features/resources";
 import { ChunkWorkspace } from "../features/resources/components/ChunkWorkspace";
 import { PresetWorkspace } from "../features/resources/components/PresetWorkspace";
 import type { PromptChunkDto, PromptPresetDto } from "../types";
-import { promptEditorText } from "./prompt-editor-test-utils";
+import { promptEditorText, typeInPromptEditor } from "./prompt-editor-test-utils";
 
 const mocks = vi.hoisted(() => ({
   upsert: { isPending: false, mutateAsync: vi.fn<() => Promise<never>>() },
@@ -65,13 +65,8 @@ const preset: PromptPresetDto = {
   category: "Characters",
   description: "Reusable hero details",
   order: 2,
-  enabled: true,
-  before: "hero",
-  after: "",
-  replace: "",
-  uc_before: "",
-  uc_after: "",
-  uc_replace: "",
+  prompt_behavior: { mode: "surround", before: "hero", after: "" },
+  uc_behavior: { mode: "surround", before: "", after: "" },
   quality_override: null,
   uc_preset_override: null,
   preview: null,
@@ -122,19 +117,28 @@ describe("Resources dialogs", () => {
     expect(advanced).not.toHaveAttribute("open");
   });
 
-  it("switches an empty prompt replacement through the secondary behavior tabs", async () => {
+  it("preserves both prompt behavior buffers while switching tabs", async () => {
     const user = userEvent.setup();
     renderPresetWorkspace();
 
     await user.click(screen.getByRole("button", { name: /Hero/ }));
     expect(screen.getByLabelText("Before")).toBeInTheDocument();
     expect(screen.getByLabelText("After")).toBeInTheDocument();
+    typeInPromptEditor(screen.getByLabelText("After"), "detailed");
 
     await user.click(screen.getByRole("tab", { name: "Replace entirely" }));
 
     expect(screen.getByLabelText("Replace")).toBeInTheDocument();
     expect(screen.queryByLabelText("Before")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("After")).not.toBeInTheDocument();
+    typeInPromptEditor(screen.getByLabelText("Replace"), "villain");
+
+    await user.click(screen.getByRole("tab", { name: "Add before / after" }));
+    expect(promptEditorText(screen.getByLabelText("Before"))).toBe("hero");
+    expect(promptEditorText(screen.getByLabelText("After"))).toBe("detailed");
+
+    await user.click(screen.getByRole("tab", { name: "Replace entirely" }));
+    expect(promptEditorText(screen.getByLabelText("Replace"))).toBe("villain");
   });
 
   it("uses an icon-only placeholder for an empty resource list", () => {

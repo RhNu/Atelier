@@ -49,7 +49,6 @@ export const resources = {
   preset: "预设",
   editPreset: "编辑{{kind}}",
   newPreset: "新建{{kind}}",
-  enabledDescription: "启用后，在生成时选择该预设即可将其内容应用到提示词。",
   presetPreview: "预设预览",
   before: "前置",
   after: "后置",

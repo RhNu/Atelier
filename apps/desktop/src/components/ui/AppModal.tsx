@@ -18,6 +18,7 @@ type AppModalProps = {
   open: boolean;
   title: string;
   size?: "default" | "fullscreen";
+  density?: "default" | "compact";
   hideHeader?: boolean;
   contentClassName?: string;
   children: ReactNode;
@@ -28,6 +29,7 @@ export function AppModal({
   open,
   title,
   size = "default",
+  density = "default",
   hideHeader = false,
   contentClassName = "",
   children,
@@ -113,7 +115,12 @@ export function AppModal({
             />
           </>
         ) : (
-          <header className="flex items-center justify-between border-b border-app-border px-3 py-2">
+          <header
+            className={[
+              "flex items-center justify-between border-b border-app-border",
+              density === "compact" ? "px-3 py-2" : "px-4 py-3",
+            ].join(" ")}
+          >
             <h2 id={titleId} className="text-sm font-semibold text-app-text">
               {title}
             </h2>
@@ -121,9 +128,11 @@ export function AppModal({
           </header>
         )}
         <div
-          className={["min-h-0 overflow-y-auto", hideHeader ? "" : "p-3", contentClassName].join(
-            " ",
-          )}
+          className={[
+            "min-h-0 overflow-y-auto",
+            hideHeader ? "" : density === "compact" ? "p-3" : "p-4",
+            contentClassName,
+          ].join(" ")}
         >
           {children}
         </div>

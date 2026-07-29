@@ -3,7 +3,6 @@ import type { PromptPresetKindDto } from "./PromptPresetKindDto";
 
 export type ListPromptPresetsRequestDto = {
   kind: PromptPresetKindDto | null;
-  include_disabled: boolean;
   offset: number;
   limit: number;
 };

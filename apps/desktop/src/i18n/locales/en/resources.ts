@@ -46,7 +46,6 @@ export const resources = {
   preset: "Preset",
   editPreset: "Edit {{kind}}",
   newPreset: "New {{kind}}",
-  enabledDescription: "Enabled presets are included when selected for a generation.",
   presetPreview: "Preset preview",
   before: "Before",
   after: "After",
