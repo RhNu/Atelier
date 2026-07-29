@@ -282,17 +282,20 @@ describe("GalleryPage", () => {
     const { user } = setup();
 
     await screen.findByRole("button", { name: "Select safe-item" });
-    await user.selectOptions(screen.getByLabelText("Safety filter"), "hidden");
+    await user.click(screen.getByLabelText("Safety filter"));
+    await user.click(screen.getByRole("option", { name: "Hidden" }));
     await waitForLastGalleryQuery({ safety_label: "hidden" });
     const hiddenCard = await screen.findByRole("button", { name: "Select hidden-item" });
     expect(within(hiddenCard).getByText("Director results")).toBeInTheDocument();
     expect(screen.queryByText("safe-item")).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Safety filter"), "all");
+    await user.click(screen.getByLabelText("Safety filter"));
+    await user.click(screen.getByRole("option", { name: "Safe + sensitive" }));
     await user.click(await screen.findByRole("button", { name: "Select safe-item" }));
     await user.click(screen.getByRole("button", { name: "Change safety override" }));
     const overrideDialog = screen.getByRole("dialog", { name: "Safety override" });
-    await user.selectOptions(within(overrideDialog).getByLabelText("Safety override"), "hidden");
+    await user.click(within(overrideDialog).getByLabelText("Safety override"));
+    await user.click(screen.getByRole("option", { name: "Hidden" }));
     await user.click(within(overrideDialog).getByRole("button", { name: "Apply safety override" }));
 
     expect(mocks.galleryApi.setSafetyOverride).toHaveBeenCalledWith({
@@ -336,7 +339,8 @@ describe("GalleryPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Change safety override" }));
     const overrideDialog = screen.getByRole("dialog", { name: "Safety override" });
-    await user.selectOptions(within(overrideDialog).getByLabelText("Safety override"), "hidden");
+    await user.click(within(overrideDialog).getByLabelText("Safety override"));
+    await user.click(screen.getByRole("option", { name: "Hidden" }));
     await user.click(within(overrideDialog).getByRole("button", { name: "Apply safety override" }));
     expect(await screen.findByText("override failed")).toBeInTheDocument();
 

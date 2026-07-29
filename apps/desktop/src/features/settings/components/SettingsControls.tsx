@@ -108,17 +108,12 @@ export function SelectField({
   options: ReadonlyArray<{ value: string; label: string }>;
   onChange: (value: string) => void;
 }) {
-  const handleChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      onChange(event.target.value);
-    },
-    [onChange],
-  );
+  const handleChange = useCallback((nextValue: string) => onChange(nextValue), [onChange]);
 
   return (
     <label className="grid gap-2 text-xs font-semibold text-app-muted uppercase">
       {label}
-      <AppSelect aria-label={label} value={value} options={options} onChange={handleChange} />
+      <AppSelect aria-label={label} value={value} options={options} onValueChange={handleChange} />
     </label>
   );
 }

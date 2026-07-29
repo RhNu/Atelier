@@ -1,15 +1,7 @@
 import type { TFunction } from "i18next";
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 import { Settings2 } from "lucide-react";
-import {
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-  type ChangeEvent,
-} from "react";
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppSelect, AppTabs } from "@/components/ui";
@@ -123,7 +115,7 @@ export const GenerationPromptPanel = forwardRef<
           aria-label={t("model")}
           value={draft.model}
           options={MODEL_OPTIONS}
-          onChange={(event) => onPatch({ model: toImageModel(event.target.value) })}
+          onValueChange={(value) => onPatch({ model: toImageModel(value) })}
           onBlur={onFlush}
         />
       </label>
@@ -164,7 +156,7 @@ export const GenerationPromptPanel = forwardRef<
                   aria-label={t("ucPreset")}
                   value={draft.ucPreset}
                   options={ucPresetOptions}
-                  onChange={(event) => onPatch({ ucPreset: toUcPreset(event.target.value) })}
+                  onValueChange={(value) => onPatch({ ucPreset: toUcPreset(value) })}
                   onBlur={onFlush}
                 />
               </label>
@@ -196,9 +188,7 @@ export const GenerationPromptPanel = forwardRef<
           aria-label={t("mainPreset")}
           value={draft.mainPresetId ?? ""}
           options={mainPresetOptions}
-          onChange={(event: ChangeEvent<HTMLSelectElement>) =>
-            onPatch({ mainPresetId: event.target.value || null })
-          }
+          onValueChange={(value) => onPatch({ mainPresetId: value || null })}
           onBlur={onFlush}
         />
       </label>

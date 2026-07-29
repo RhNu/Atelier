@@ -306,7 +306,8 @@ describe("SettingsPage", () => {
     const { user } = setup();
 
     await user.click(await screen.findByRole("button", { name: "Generation" }));
-    await user.selectOptions(screen.getByLabelText("Model"), "nai-diffusion-3");
+    await user.click(screen.getByLabelText("Model"));
+    await user.click(screen.getByRole("option", { name: "NAI Diffusion 3" }));
     await user.clear(screen.getByLabelText("Width"));
     await user.type(screen.getByLabelText("Width"), "1024");
     await user.clear(screen.getByLabelText("Steps"));
@@ -351,7 +352,8 @@ describe("SettingsPage", () => {
     await user.type(screen.getByLabelText("Thumbnail long edge"), "0");
 
     await user.click(screen.getByRole("button", { name: "Generation" }));
-    await user.selectOptions(screen.getByLabelText("Model"), "nai-diffusion-3");
+    await user.click(screen.getByLabelText("Model"));
+    await user.click(screen.getByRole("option", { name: "NAI Diffusion 3" }));
     await waitFor(() => expect(mocks.settingsApi.update).toHaveBeenCalled());
 
     const request = lastWorkspaceSettingsUpdate();
@@ -364,7 +366,8 @@ describe("SettingsPage", () => {
     const { user } = setup();
 
     await user.click(await screen.findByRole("button", { name: "Generation" }));
-    await user.selectOptions(screen.getByLabelText("Model"), "nai-diffusion-3");
+    await user.click(screen.getByLabelText("Model"));
+    await user.click(screen.getByRole("option", { name: "NAI Diffusion 3" }));
     expect(await screen.findByText("Settings backend unavailable")).toBeInTheDocument();
   });
 

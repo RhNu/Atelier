@@ -1,5 +1,5 @@
 /* eslint-disable react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
-import { useCallback, useMemo, useState, type ChangeEvent } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppSelect } from "@/components/ui";
@@ -54,8 +54,8 @@ export function GenerationParamsPanel({
   const selectedPreset = forceCustom ? "custom" : matchedPreset;
 
   const handlePresetChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const preset = SIZE_PRESETS.find((item) => item.value === event.target.value);
+    (value: string) => {
+      const preset = SIZE_PRESETS.find((item) => item.value === value);
       if (!preset) {
         setForceCustom(true);
         return;
@@ -76,7 +76,7 @@ export function GenerationParamsPanel({
         <AppSelect
           aria-label={t("sizePreset")}
           value={selectedPreset}
-          onChange={handlePresetChange}
+          onValueChange={handlePresetChange}
           containerClassName="!w-40 shrink-0"
           className="h-9 min-w-0 px-3 pr-7 text-sm"
           options={[

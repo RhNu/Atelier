@@ -187,8 +187,8 @@ export function DirectorPage() {
       .catch((error: unknown) => setActionError(formatError(error)));
   }, [result, saveImageMutation, tool]);
 
-  const handleSafetyChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    setSafetyOverride(event.target.value);
+  const handleSafetyChange = useCallback((value: string) => {
+    setSafetyOverride(value);
   }, []);
 
   const handleApplySafety = useCallback(() => {

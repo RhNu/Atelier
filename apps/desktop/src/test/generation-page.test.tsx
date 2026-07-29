@@ -658,9 +658,13 @@ describe("GeneratePage", () => {
     expect(await screen.findByDisplayValue("832")).toBeInTheDocument();
     expect(screen.getByDisplayValue("1216")).toBeInTheDocument();
     expect(screen.getByLabelText("Model")).toHaveValue("nai-diffusion-4-5-full");
+    await user.click(screen.getByLabelText("Size preset"));
     expect(screen.getByRole("group", { name: "Normal" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Portrait (832×1216)" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Size preset").parentElement).toHaveClass("!w-40", "shrink-0");
+    expect(screen.getByRole("combobox", { name: "Size preset" }).parentElement).toHaveClass(
+      "!w-40",
+      "shrink-0",
+    );
     expect(screen.getByTestId("generation-settings-sidebar")).toHaveStyle({ width: "360px" });
     await user.click(screen.getByRole("button", { name: /Steps 23/u }));
     expect(screen.getByLabelText("Steps")).toHaveValue("23");
@@ -875,7 +879,8 @@ describe("GeneratePage", () => {
       },
     });
 
-    await user.selectOptions(await screen.findByLabelText("Main preset"), "preset-main");
+    await user.click(await screen.findByLabelText("Main preset"));
+    await user.click(screen.getByRole("option", { name: "Main stack" }));
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));

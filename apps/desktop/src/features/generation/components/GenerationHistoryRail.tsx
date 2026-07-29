@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Download, ImageIcon, RotateCcw, Trash2 } from "lucide-react";
-import { useCallback, useMemo, type ChangeEvent } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppIconButton, AppPanel, AppSelect } from "@/components/ui";
@@ -77,8 +77,8 @@ export function GenerationHistoryRail({
   const canPrevious = offset > 0;
   const canNext = offset + limit < total;
   const handleStatusChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      if (isHistoryStatusFilter(event.target.value)) onStatusFilterChange(event.target.value);
+    (value: string) => {
+      if (isHistoryStatusFilter(value)) onStatusFilterChange(value);
     },
     [onStatusFilterChange],
   );
@@ -97,7 +97,7 @@ export function GenerationHistoryRail({
           id="generation-history-filter"
           aria-label={t("filterHistory")}
           value={statusFilter}
-          onChange={handleStatusChange}
+          onValueChange={handleStatusChange}
           className="h-7 w-28 px-2 pr-6 text-xs"
           options={statusOptions}
         />

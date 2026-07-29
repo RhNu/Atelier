@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ChangeEvent } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { FrontendLanguageDto } from "@/types";
@@ -23,8 +23,8 @@ export function LanguageSelect({ value, disabled, onChange, compact }: LanguageS
     [t],
   );
   const handleChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const language = parseFrontendLanguage(event.target.value);
+    (value: string) => {
+      const language = parseFrontendLanguage(value);
       if (language) onChange(language);
     },
     [onChange],
@@ -39,7 +39,7 @@ export function LanguageSelect({ value, disabled, onChange, compact }: LanguageS
         aria-label={t("language")}
         value={value}
         disabled={disabled}
-        onChange={handleChange}
+        onValueChange={handleChange}
         className="h-8 px-2 pr-7 text-xs"
         options={options}
       />

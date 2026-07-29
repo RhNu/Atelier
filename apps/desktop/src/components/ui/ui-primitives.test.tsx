@@ -1,8 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Sparkles } from "lucide-react";
+import { useCallback, useState } from "react";
 
 import { AppButton } from "./AppButton";
+import { AppCombobox } from "./AppCombobox";
 import { AppHelpMarker } from "./AppHelpMarker";
 import { AppIconButton } from "./AppIconButton";
 import { AppModal } from "./AppModal";
@@ -25,6 +27,26 @@ const groupedSelectItems = [
   },
   { value: "custom", label: "Custom" },
 ] as const;
+const comboboxSuggestions = ["Characters", "Lighting", "Style"] as const;
+
+function ComboboxFixture({ onValueChange }: { onValueChange: (value: string) => void }) {
+  const [value, setValue] = useState("");
+  const handleValueChange = useCallback(
+    (nextValue: string) => {
+      setValue(nextValue);
+      onValueChange(nextValue);
+    },
+    [onValueChange],
+  );
+  return (
+    <AppCombobox
+      aria-label="Category"
+      value={value}
+      suggestions={comboboxSuggestions}
+      onValueChange={handleValueChange}
+    />
+  );
+}
 
 describe("UI primitives", () => {
   it("renders accessible command and icon buttons", async () => {
@@ -139,7 +161,9 @@ describe("UI primitives", () => {
     expect(tooltip).toHaveStyle({ left: "100px", top: "44px" });
   });
 
-  it("supports grouped selects, container sizing, and icon-only empty states", () => {
+  it("supports styled grouped selects, container sizing, and icon-only empty states", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn<(value: string) => void>();
     render(
       <>
         <AppSelect
@@ -147,18 +171,41 @@ describe("UI primitives", () => {
           value="portrait"
           containerClassName="!w-40"
           options={groupedSelectItems}
+          onValueChange={onValueChange}
         />
         <EmptyState title="Empty inbox" iconOnly />
         <AppHelpMarker label="Hover help" content="Hover-only details" hoverOnly />
       </>,
     );
 
+    const select = screen.getByRole("combobox", { name: "Size preset" });
+    expect(select.parentElement).toHaveClass("!w-40");
+    await user.click(select);
     expect(screen.getByRole("group", { name: "Standard" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Size preset").parentElement).toHaveClass("!w-40");
+    expect(screen.getByRole("listbox", { name: "Size preset" })).toHaveClass(
+      "bg-app-panel",
+      "border-app-border",
+    );
+    await user.click(screen.getByRole("option", { name: "Custom" }));
+    expect(onValueChange).toHaveBeenCalledWith("custom");
     expect(screen.getByRole("img", { name: "Empty inbox" })).toBeInTheDocument();
     expect(screen.queryByText("Empty inbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Hover help" })).not.toBeInTheDocument();
     expect(screen.getByRole("tooltip")).not.toHaveClass("group-focus-within:block");
+  });
+
+  it("filters editable combobox suggestions and accepts free text", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn<(value: string) => void>();
+    render(<ComboboxFixture onValueChange={onValueChange} />);
+
+    const combobox = screen.getByRole("combobox", { name: "Category" });
+    await user.type(combobox, "li");
+    expect(screen.getByRole("option", { name: "Lighting" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Characters" })).not.toBeInTheDocument();
+
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(onValueChange).toHaveBeenLastCalledWith("Lighting");
   });
 
   it("centers modal dialogs in a viewport portal and closes them with Escape", () => {

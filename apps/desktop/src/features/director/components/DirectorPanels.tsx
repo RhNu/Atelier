@@ -178,7 +178,7 @@ export function DirectorRunPanel({
   onRefresh: () => void;
   onRun: () => void;
   onSave: () => void;
-  onSafetyChange: (event: ChangeEvent<HTMLSelectElement>) => void;
+  onSafetyChange: (value: string) => void;
   onApplySafety: () => void;
 }) {
   const { t } = useTranslation("director");
@@ -301,7 +301,7 @@ function ResultActions({
   savePending: boolean;
   safetyPending: boolean;
   onSave: () => void;
-  onSafetyChange: (event: ChangeEvent<HTMLSelectElement>) => void;
+  onSafetyChange: (value: string) => void;
   onApplySafety: () => void;
 }) {
   const { t } = useTranslation("director");
@@ -343,7 +343,7 @@ function ResultActions({
               aria-label={t("safetyOverride")}
               value={safetyOverride}
               options={safetyOptions}
-              onChange={onSafetyChange}
+              onValueChange={onSafetyChange}
             />
           </label>
           <AppButton variant="secondary" onClick={onApplySafety} disabled={safetyPending}>

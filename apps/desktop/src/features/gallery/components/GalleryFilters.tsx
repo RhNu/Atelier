@@ -1,4 +1,3 @@
-import type { ChangeEvent } from "react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -49,17 +48,15 @@ export function GalleryFilters({
     [t],
   );
   const handleArtifactChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => onArtifactChange(event.target.value),
+    (value: string) => onArtifactChange(value),
     [onArtifactChange],
   );
   const handleSourceChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) =>
-      onSourceChange(parseSourceFilter(event.target.value)),
+    (value: string) => onSourceChange(parseSourceFilter(value)),
     [onSourceChange],
   );
   const handleSafetyChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) =>
-      onSafetyChange(parseSafetyFilter(event.target.value)),
+    (value: string) => onSafetyChange(parseSafetyFilter(value)),
     [onSafetyChange],
   );
 
@@ -75,7 +72,7 @@ export function GalleryFilters({
           aria-label={t("artifactFilter")}
           options={localizedArtifacts}
           value={artifactKind}
-          onChange={handleArtifactChange}
+          onValueChange={handleArtifactChange}
         />
       </label>
       <label
@@ -88,7 +85,7 @@ export function GalleryFilters({
           aria-label={t("sourceFilter")}
           options={localizedSources}
           value={sourceFilter}
-          onChange={handleSourceChange}
+          onValueChange={handleSourceChange}
         />
       </label>
       <label
@@ -101,7 +98,7 @@ export function GalleryFilters({
           aria-label={t("safetyFilter")}
           options={localizedSafety}
           value={safetyFilter}
-          onChange={handleSafetyChange}
+          onValueChange={handleSafetyChange}
         />
       </label>
       <AppButton variant="ghost" className="h-9" onClick={onResetPage} disabled={offset === 0}>

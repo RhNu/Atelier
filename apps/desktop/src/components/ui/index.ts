@@ -1,4 +1,5 @@
 export { AppButton } from "./AppButton";
+export { AppCombobox } from "./AppCombobox";
 export { AppHelpMarker } from "./AppHelpMarker";
 export { AppIconButton } from "./AppIconButton";
 export { AppModal } from "./AppModal";

@@ -1,5 +1,4 @@
 import { ShieldCheck } from "lucide-react";
-import type { ChangeEvent } from "react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -32,10 +31,6 @@ export function GallerySafetyDetails({
   );
   const openOverrideDialog = useCallback(() => setOverrideDialogOpen(true), []);
   const closeOverrideDialog = useCallback(() => setOverrideDialogOpen(false), []);
-  const handleOverrideChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => onOverrideChange(event.target.value),
-    [onOverrideChange],
-  );
   const handleApplyOverride = useCallback(() => {
     onApplyOverride();
     closeOverrideDialog();
@@ -76,7 +71,7 @@ export function GallerySafetyDetails({
               aria-label={t("safetyOverride")}
               options={localizedOverrides}
               value={overrideValue}
-              onChange={handleOverrideChange}
+              onValueChange={onOverrideChange}
             />
           </label>
           <div className="flex justify-end gap-2">

@@ -304,7 +304,7 @@ function SelectControl({
         aria-label={label}
         value={value}
         options={options}
-        onChange={(event) => onChange(event.target.value)}
+        onValueChange={onChange}
         onBlur={onBlur}
       />
     </label>

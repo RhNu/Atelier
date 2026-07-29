@@ -1,7 +1,5 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
-import { type ChangeEvent, useId } from "react";
-
-import { AppSelect } from "@/components/ui";
+import { AppCombobox, AppSelect } from "@/components/ui";
 import { NaiPromptEditor } from "@/features/prompt-editor";
 
 export function TextInput({
@@ -37,26 +35,16 @@ export function CategoryInput({
   suggestions: ReadonlyArray<string>;
   onChange: (value: string) => void;
 }) {
-  const suggestionsId = useId();
   return (
     <label className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
       {label}
-      <input
+      <AppCombobox
         aria-label={label}
-        list={suggestions.length > 0 ? suggestionsId : undefined}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-9 border border-app-border bg-black/20 px-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
+        suggestions={suggestions}
+        onValueChange={onChange}
+        className="normal-case"
       />
-      {suggestions.length > 0 ? (
-        <datalist id={suggestionsId}>
-          {suggestions.map((suggestion) => (
-            <option key={suggestion} value={suggestion}>
-              {suggestion}
-            </option>
-          ))}
-        </datalist>
-      ) : null}
     </label>
   );
 }
@@ -169,11 +157,10 @@ export function SelectField({
   options: ReadonlyArray<{ value: string; label: string }>;
   onChange: (value: string) => void;
 }) {
-  const handleChange = (event: ChangeEvent<HTMLSelectElement>) => onChange(event.target.value);
   return (
     <label className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
       {label}
-      <AppSelect aria-label={label} value={value} options={options} onChange={handleChange} />
+      <AppSelect aria-label={label} value={value} options={options} onValueChange={onChange} />
     </label>
   );
 }

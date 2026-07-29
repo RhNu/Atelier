@@ -110,8 +110,12 @@ describe("Resources dialogs", () => {
     expect(screen.getByRole("dialog", { name: "Edit Character Preset" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Enabled")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Description")).toBeInstanceOf(HTMLTextAreaElement);
-    expect(screen.getByLabelText("Category")).toHaveAttribute("list");
-    expect(screen.getByDisplayValue("Characters")).toBeInTheDocument();
+    const category = screen.getByRole("combobox", { name: "Category" });
+    expect(category).toHaveAttribute("aria-autocomplete", "list");
+    expect(category).toHaveValue("Characters");
+    await user.click(category);
+    expect(screen.getByRole("listbox", { name: "Category" })).toHaveClass("bg-app-panel");
+    expect(screen.getByRole("option", { name: "Style" })).toBeInTheDocument();
 
     const advanced = screen.getByText("Advanced settings").closest("details");
     expect(advanced).not.toHaveAttribute("open");
