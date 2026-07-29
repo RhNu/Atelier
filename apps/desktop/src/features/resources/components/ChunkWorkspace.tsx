@@ -23,6 +23,7 @@ import {
   type ResourceViewMode,
 } from "../resource-model";
 import {
+  CategoryInput,
   CompiledPreview,
   EditorActions,
   EditorPanel,
@@ -41,6 +42,7 @@ export function ChunkWorkspace({
   search,
   newRequest,
   viewMode,
+  categorySuggestions,
 }: {
   chunks: ReadonlyArray<PromptChunkDto>;
   pending: boolean;
@@ -48,6 +50,7 @@ export function ChunkWorkspace({
   search: string;
   newRequest: number;
   viewMode: ResourceViewMode;
+  categorySuggestions: ReadonlyArray<string>;
 }) {
   const { t } = useTranslation("resources");
   const filtered = useMemo(
@@ -140,17 +143,12 @@ export function ChunkWorkspace({
         onClose={() => setEditorOpen(false)}
       >
         <EditorPanel
-          title={t("promptChunk")}
           error={errorMessage}
           actions={
             <EditorActions
               canDelete={Boolean(draft.chunk_id)}
               saving={upsertMutation.isPending}
               deleting={deleteMutation.isPending}
-              onNew={() => {
-                setDraft(blankChunkDraft());
-                setPreview(null);
-              }}
               onSave={save}
               onDelete={remove}
             />
@@ -188,9 +186,10 @@ export function ChunkWorkspace({
           ) : null}
           {editorTab === "details" ? (
             <>
-              <TextInput
+              <CategoryInput
                 label={t("category")}
                 value={draft.category ?? ""}
+                suggestions={categorySuggestions}
                 onChange={(category) => setDraft({ ...draft, category: nullableText(category) })}
               />
               <TextArea

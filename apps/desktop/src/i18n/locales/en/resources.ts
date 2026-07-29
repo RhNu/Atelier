@@ -41,6 +41,7 @@ export const resources = {
   characterPreset: "Character Preset",
   name: "Name",
   order: "Order",
+  advancedSettings: "Advanced settings",
   enabled: "Enabled",
   preset: "Preset",
   editPreset: "Edit {{kind}}",

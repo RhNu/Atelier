@@ -113,7 +113,7 @@ export function AppModal({
             />
           </>
         ) : (
-          <header className="flex items-center justify-between border-b border-app-border px-4 py-3">
+          <header className="flex items-center justify-between border-b border-app-border px-3 py-2">
             <h2 id={titleId} className="text-sm font-semibold text-app-text">
               {title}
             </h2>
@@ -121,7 +121,7 @@ export function AppModal({
           </header>
         )}
         <div
-          className={["min-h-0 overflow-y-auto", hideHeader ? "" : "p-4", contentClassName].join(
+          className={["min-h-0 overflow-y-auto", hideHeader ? "" : "p-3", contentClassName].join(
             " ",
           )}
         >

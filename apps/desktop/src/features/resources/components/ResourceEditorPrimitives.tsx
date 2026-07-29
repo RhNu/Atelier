@@ -1,6 +1,6 @@
 /* eslint-disable max-lines, react-perf/jsx-no-new-function-as-prop */
 import { Plus, Save, Search, Trash2 } from "lucide-react";
-import { Children, type ChangeEvent, type ReactNode } from "react";
+import { Children, type ChangeEvent, type ReactNode, useId } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel, AppSelect, EmptyState, ResourceImage } from "@/components/ui";
@@ -134,28 +134,25 @@ export function ResourceListButton({
 }
 
 export function EditorPanel({
-  title,
   error,
   actions,
   children,
 }: {
-  title: string;
   error: string | null;
   actions: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div className="grid gap-4">
-      <header className="flex items-center justify-between gap-3 border-b border-app-border pb-3">
-        <h2 className="text-sm font-semibold text-white">{title}</h2>
-        {actions}
-      </header>
+    <div className="grid gap-3">
       {error ? (
         <p className="border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-100">
           {error}
         </p>
       ) : null}
       <div className="grid gap-3">{children}</div>
+      <footer className="flex items-center justify-end border-t border-app-border pt-3">
+        {actions}
+      </footer>
     </div>
   );
 }
@@ -164,32 +161,33 @@ export function EditorActions({
   canDelete,
   saving,
   deleting,
-  onNew,
   onSave,
   onDelete,
 }: {
   canDelete: boolean;
   saving: boolean;
   deleting: boolean;
-  onNew: () => void;
   onSave: () => void;
   onDelete: () => void;
 }) {
-  const { t } = useTranslation("resources");
   const { t: translateCommon } = useTranslation("common");
   return (
-    <div className="flex gap-2">
-      <AppButton variant="ghost" onClick={onNew}>
-        <Plus aria-hidden="true" className="size-4" />
-        {t("new")}
-      </AppButton>
-      <AppButton variant="secondary" onClick={onSave} disabled={saving}>
-        <Save aria-hidden="true" className="size-4" />
-        {translateCommon("save")}
-      </AppButton>
-      <AppButton variant="danger" onClick={onDelete} disabled={!canDelete || deleting}>
-        <Trash2 aria-hidden="true" className="size-4" />
-        {translateCommon("delete")}
+    <div className="flex w-full items-center justify-between gap-2">
+      <span>
+        {canDelete ? (
+          <AppButton variant="danger" onClick={onDelete} disabled={deleting || saving}>
+            <Trash2 aria-hidden="true" className="size-4" />
+            {translateCommon("delete")}
+          </AppButton>
+        ) : null}
+      </span>
+      <AppButton onClick={onSave} disabled={saving || deleting}>
+        {canDelete ? (
+          <Save aria-hidden="true" className="size-4" />
+        ) : (
+          <Plus aria-hidden="true" className="size-4" />
+        )}
+        {saving ? translateCommon("saving") : translateCommon(canDelete ? "save" : "create")}
       </AppButton>
     </div>
   );
@@ -263,6 +261,41 @@ export function TextInput({
   );
 }
 
+export function CategoryInput({
+  label,
+  value,
+  suggestions,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  suggestions: ReadonlyArray<string>;
+  onChange: (value: string) => void;
+}) {
+  const suggestionsId = useId();
+  return (
+    <label className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
+      {label}
+      <input
+        aria-label={label}
+        list={suggestions.length > 0 ? suggestionsId : undefined}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-9 border border-app-border bg-black/20 px-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
+      />
+      {suggestions.length > 0 ? (
+        <datalist id={suggestionsId}>
+          {suggestions.map((suggestion) => (
+            <option key={suggestion} value={suggestion}>
+              {suggestion}
+            </option>
+          ))}
+        </datalist>
+      ) : null}
+    </label>
+  );
+}
+
 export function NumberInput({
   label,
   value,
@@ -325,7 +358,7 @@ export function PromptTextArea({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
+    <label className="grid gap-1 text-xs font-semibold text-app-muted">
       {label}
       <NaiPromptEditor
         aria-label={label}

@@ -93,6 +93,7 @@ export function normalizePresetDraft(draft: PresetDraft, kind: PromptPresetKindD
     ...draft,
     kind,
     name: draft.name.trim(),
+    enabled: true,
     category: nullableText(draft.category ?? ""),
     description: nullableText(draft.description ?? ""),
     quality_override: kind === "main" ? nullableText(draft.quality_override ?? "") : null,
@@ -116,6 +117,12 @@ export function presetPreviewSource(draft: PresetDraft): string {
 export function nullableText(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+export function categorySuggestions(values: ReadonlyArray<string | null>): string[] {
+  return [...new Set(values.flatMap((value) => (value?.trim() ? [value.trim()] : [])))].sort(
+    (left, right) => left.localeCompare(right),
+  );
 }
 
 export function matchesSearch(search: string, ...values: Array<string | null>): boolean {

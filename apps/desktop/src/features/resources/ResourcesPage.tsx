@@ -14,7 +14,13 @@ import {
   usePromptPresetsQuery,
   useVibeDocumentsQuery,
 } from "./data/useResourcesData";
-import { formatError, parseTab, type ResourceTab, type ResourceViewMode } from "./resource-model";
+import {
+  categorySuggestions,
+  formatError,
+  parseTab,
+  type ResourceTab,
+  type ResourceViewMode,
+} from "./resource-model";
 
 const EMPTY_CHUNKS: ReadonlyArray<PromptChunkDto> = [];
 const EMPTY_PRESETS: ReadonlyArray<PromptPresetDto> = [];
@@ -61,6 +67,13 @@ export function ResourcesPage() {
   const handleNew = useCallback(() => setNewRequest((value) => value + 1), []);
   const handleListView = useCallback(() => setViewMode("list"), []);
   const handleGridView = useCallback(() => setViewMode("grid"), []);
+  const chunkCategories = categorySuggestions(
+    (chunksQuery.data?.items ?? EMPTY_CHUNKS).map((chunk) => chunk.category),
+  );
+  const presetCategories = categorySuggestions([
+    ...(mainPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => preset.category),
+    ...(characterPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => preset.category),
+  ]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -111,6 +124,7 @@ export function ResourcesPage() {
             search={search}
             newRequest={newRequest}
             viewMode={viewMode}
+            categorySuggestions={chunkCategories}
           />
         ) : null}
         {tab === "main-presets" ? (
@@ -122,6 +136,7 @@ export function ResourcesPage() {
             search={search}
             newRequest={newRequest}
             viewMode={viewMode}
+            categorySuggestions={presetCategories}
           />
         ) : null}
         {tab === "character-presets" ? (
@@ -133,6 +148,7 @@ export function ResourcesPage() {
             search={search}
             newRequest={newRequest}
             viewMode={viewMode}
+            categorySuggestions={presetCategories}
           />
         ) : null}
         {tab === "vibe" ? (

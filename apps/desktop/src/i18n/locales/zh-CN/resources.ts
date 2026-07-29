@@ -44,6 +44,7 @@ export const resources = {
   characterPreset: "角色预设",
   name: "名称",
   order: "顺序",
+  advancedSettings: "高级设置",
   enabled: "启用",
   preset: "预设",
   editPreset: "编辑{{kind}}",

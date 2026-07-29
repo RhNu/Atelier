@@ -25,7 +25,7 @@ import {
   type ResourceViewMode,
 } from "../resource-model";
 import {
-  CheckboxField,
+  CategoryInput,
   CompiledPreview,
   EditorActions,
   EditorPanel,
@@ -34,6 +34,7 @@ import {
   ResourceList,
   ResourceListButton,
   SelectField,
+  TextArea,
   TextInput,
 } from "./ResourceEditorPrimitives";
 import { ResourcePreviewEditor } from "./ResourcePreviewEditor";
@@ -46,6 +47,7 @@ export function PresetWorkspace({
   search,
   newRequest,
   viewMode,
+  categorySuggestions,
 }: {
   kind: PromptPresetKindDto;
   presets: ReadonlyArray<PromptPresetDto>;
@@ -54,6 +56,7 @@ export function PresetWorkspace({
   search: string;
   newRequest: number;
   viewMode: ResourceViewMode;
+  categorySuggestions: ReadonlyArray<string>;
 }) {
   const { t } = useTranslation("resources");
   const filtered = useMemo(
@@ -128,7 +131,7 @@ export function PresetWorkspace({
             key={preset.preset_id}
             selected={draft.preset_id === preset.preset_id}
             title={preset.name}
-            detail={`${preset.enabled ? t("enabled") : t("disabled")} · ${preset.category ?? t("preset")}`}
+            detail={preset.category ?? t("preset")}
             description={
               preset.description ??
               preset.replace ??
@@ -155,52 +158,48 @@ export function PresetWorkspace({
         onClose={() => setEditorOpen(false)}
       >
         <EditorPanel
-          title={mainPreset ? t("mainPreset") : t("characterPreset")}
           error={errorMessage}
           actions={
             <EditorActions
               canDelete={Boolean(draft.preset_id)}
               saving={upsertMutation.isPending}
               deleting={deleteMutation.isPending}
-              onNew={() => {
-                setDraft(blankPresetDraft(kind));
-                setPreview(null);
-              }}
               onSave={save}
               onDelete={remove}
             />
           }
         >
-          <div className="grid grid-cols-2 gap-3">
-            <TextInput
-              label={t("name")}
-              value={draft.name}
-              onChange={(name) => setDraft({ ...draft, name })}
-            />
-            <NumberInput
-              label={t("order")}
-              value={draft.order}
-              onChange={(order) => setDraft({ ...draft, order })}
-            />
-          </div>
-          <CheckboxField
-            label={t("enabled")}
-            checked={draft.enabled}
-            onChange={(enabled) => setDraft({ ...draft, enabled })}
-          />
-          <p className="-mt-2 text-xs text-app-muted">{t("enabledDescription")}</p>
           <TextInput
+            label={t("name")}
+            value={draft.name}
+            onChange={(name) => setDraft({ ...draft, name })}
+          />
+          <CategoryInput
             label={t("category")}
             value={draft.category ?? ""}
+            suggestions={categorySuggestions}
             onChange={(category) => setDraft({ ...draft, category: nullableText(category) })}
           />
-          <TextInput
+          <TextArea
             label={t("description")}
             value={draft.description ?? ""}
+            minRows="min-h-24"
             onChange={(description) =>
               setDraft({ ...draft, description: nullableText(description) })
             }
           />
+          <details className="group border border-app-border bg-black/10">
+            <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-app-muted hover:text-app-text">
+              {t("advancedSettings")}
+            </summary>
+            <div className="border-t border-app-border p-3">
+              <NumberInput
+                label={t("order")}
+                value={draft.order}
+                onChange={(order) => setDraft({ ...draft, order })}
+              />
+            </div>
+          </details>
           <PresetFields
             draft={draft}
             setDraft={setDraft}
@@ -249,8 +248,43 @@ function PresetFields({
 }) {
   const { t } = useTranslation("resources");
   const [tab, setTab] = useState("prompt");
-  const positiveMode = draft.replace.trim() ? "replace" : "surround";
-  const ucMode = draft.uc_replace.trim() ? "replace" : "surround";
+  const [positiveMode, setPositiveMode] = useState<"surround" | "replace">(
+    draft.replace.trim() ? "replace" : "surround",
+  );
+  const [ucMode, setUcMode] = useState<"surround" | "replace">(
+    draft.uc_replace.trim() ? "replace" : "surround",
+  );
+
+  function changePositiveMode(value: string) {
+    const mode = value === "replace" ? "replace" : "surround";
+    setPositiveMode(mode);
+    setDraft((current) =>
+      mode === "replace"
+        ? {
+            ...current,
+            before: "",
+            after: "",
+            replace: current.replace || current.before,
+          }
+        : { ...current, replace: "" },
+    );
+  }
+
+  function changeUcMode(value: string) {
+    const mode = value === "replace" ? "replace" : "surround";
+    setUcMode(mode);
+    setDraft((current) =>
+      mode === "replace"
+        ? {
+            ...current,
+            uc_before: "",
+            uc_after: "",
+            uc_replace: current.uc_replace || current.uc_before,
+          }
+        : { ...current, uc_replace: "" },
+    );
+  }
+
   return (
     <>
       <AppTabs
@@ -266,21 +300,18 @@ function PresetFields({
       />
       {tab === "prompt" ? (
         <>
-          <SelectField
-            label={t("promptBehavior")}
-            value={positiveMode}
-            options={[
-              { value: "surround", label: t("beforeAfterMode") },
-              { value: "replace", label: t("replaceMode") },
-            ]}
-            onChange={(mode) =>
-              setDraft(
-                mode === "replace"
-                  ? { ...draft, before: "", after: "", replace: draft.replace || draft.before }
-                  : { ...draft, replace: "" },
-              )
-            }
-          />
+          <div className="grid gap-1">
+            <span className="text-xs font-semibold text-app-muted">{t("promptBehavior")}</span>
+            <AppTabs
+              label={t("promptBehavior")}
+              value={positiveMode}
+              tabs={[
+                { value: "surround", label: t("beforeAfterMode") },
+                { value: "replace", label: t("replaceMode") },
+              ]}
+              onChange={changePositiveMode}
+            />
+          </div>
           {positiveMode === "replace" ? (
             <PromptTextArea
               label={t("replace")}
@@ -305,26 +336,18 @@ function PresetFields({
       ) : null}
       {tab === "uc" ? (
         <>
-          <SelectField
-            label={t("promptBehavior")}
-            value={ucMode}
-            options={[
-              { value: "surround", label: t("beforeAfterMode") },
-              { value: "replace", label: t("replaceMode") },
-            ]}
-            onChange={(mode) =>
-              setDraft(
-                mode === "replace"
-                  ? {
-                      ...draft,
-                      uc_before: "",
-                      uc_after: "",
-                      uc_replace: draft.uc_replace || draft.uc_before,
-                    }
-                  : { ...draft, uc_replace: "" },
-              )
-            }
-          />
+          <div className="grid gap-1">
+            <span className="text-xs font-semibold text-app-muted">{t("promptBehavior")}</span>
+            <AppTabs
+              label={t("promptBehavior")}
+              value={ucMode}
+              tabs={[
+                { value: "surround", label: t("beforeAfterMode") },
+                { value: "replace", label: t("replaceMode") },
+              ]}
+              onChange={changeUcMode}
+            />
+          </div>
           {ucMode === "replace" ? (
             <PromptTextArea
               label={t("ucReplace")}

@@ -5,7 +5,8 @@ import userEvent from "@testing-library/user-event";
 import { createAtelierQueryClient } from "../app/query-client";
 import { ResourcesPage } from "../features/resources";
 import { ChunkWorkspace } from "../features/resources/components/ChunkWorkspace";
-import type { PromptChunkDto } from "../types";
+import { PresetWorkspace } from "../features/resources/components/PresetWorkspace";
+import type { PromptChunkDto, PromptPresetDto } from "../types";
 import { promptEditorText } from "./prompt-editor-test-utils";
 
 const mocks = vi.hoisted(() => ({
@@ -38,6 +39,8 @@ vi.mock("../features/resources/data/useResourcesData", () => ({
   }),
   useUpsertPromptChunkMutation: () => mocks.upsert,
   useDeletePromptChunkMutation: () => mocks.remove,
+  useUpsertPromptPresetMutation: () => mocks.upsert,
+  useDeletePromptPresetMutation: () => mocks.remove,
   useCompilePromptPreviewMutation: () => mocks.compile,
   useImportResourcePreviewMutation: () => mocks.preview,
   useResourceImageQuery: () => ({ data: undefined }),
@@ -54,6 +57,29 @@ const chunk: PromptChunkDto = {
   updated_at_ms: 1,
 };
 const CHUNKS = [chunk];
+const CHUNK_CATEGORIES = ["Style"];
+const preset: PromptPresetDto = {
+  preset_id: "preset-1",
+  kind: "character",
+  name: "Hero",
+  category: "Characters",
+  description: "Reusable hero details",
+  order: 2,
+  enabled: true,
+  before: "hero",
+  after: "",
+  replace: "",
+  uc_before: "",
+  uc_after: "",
+  uc_replace: "",
+  quality_override: null,
+  uc_preset_override: null,
+  preview: null,
+  created_at_ms: 1,
+  updated_at_ms: 1,
+};
+const PRESETS = [preset];
+const PRESET_CATEGORIES = ["Characters", "Style"];
 
 describe("Resources dialogs", () => {
   it("keeps the Library primary and opens editing in a dialog", async () => {
@@ -74,7 +100,41 @@ describe("Resources dialogs", () => {
     view.rerender(workspace(1));
 
     expect(screen.getByRole("dialog", { name: "New prompt chunk" })).toBeInTheDocument();
+    expect(screen.getAllByText("New prompt chunk")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "New" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
     expect(promptEditorText(screen.getByLabelText("Content"))).toBe("");
+  });
+
+  it("uses compact preset metadata and keeps order in advanced settings", async () => {
+    const user = userEvent.setup();
+    renderPresetWorkspace();
+
+    await user.click(screen.getByRole("button", { name: /Hero/ }));
+
+    expect(screen.getByRole("dialog", { name: "Edit Character Preset" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Enabled")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Description")).toBeInstanceOf(HTMLTextAreaElement);
+    expect(screen.getByLabelText("Category")).toHaveAttribute("list");
+    expect(screen.getByDisplayValue("Characters")).toBeInTheDocument();
+
+    const advanced = screen.getByText("Advanced settings").closest("details");
+    expect(advanced).not.toHaveAttribute("open");
+  });
+
+  it("switches an empty prompt replacement through the secondary behavior tabs", async () => {
+    const user = userEvent.setup();
+    renderPresetWorkspace();
+
+    await user.click(screen.getByRole("button", { name: /Hero/ }));
+    expect(screen.getByLabelText("Before")).toBeInTheDocument();
+    expect(screen.getByLabelText("After")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Replace entirely" }));
+
+    expect(screen.getByLabelText("Replace")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Before")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("After")).not.toBeInTheDocument();
   });
 
   it("uses an icon-only placeholder for an empty resource list", () => {
@@ -121,7 +181,25 @@ function workspace(newRequest: number, chunks: ReadonlyArray<PromptChunkDto> = C
         search=""
         newRequest={newRequest}
         viewMode="list"
+        categorySuggestions={CHUNK_CATEGORIES}
       />
     </QueryClientProvider>
+  );
+}
+
+function renderPresetWorkspace() {
+  return render(
+    <QueryClientProvider client={createAtelierQueryClient()}>
+      <PresetWorkspace
+        kind="character"
+        presets={PRESETS}
+        pending={false}
+        error={null}
+        search=""
+        newRequest={0}
+        viewMode="list"
+        categorySuggestions={PRESET_CATEGORIES}
+      />
+    </QueryClientProvider>,
   );
 }
