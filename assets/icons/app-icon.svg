@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 24 24" fill="none">
   <title>Atelier Prompt Frame</title>
-  <path fill="#000" d="M0 0h24v24H0z"/>
+  <rect x="0.5" y="0.5" width="23" height="23" rx="2" fill="#000"/>
   <g stroke="#fff" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 4H5v6l-2 2 2 2v6h3"/>
     <path d="M16 4h3v6l2 2-2 2v6h-3"/>
