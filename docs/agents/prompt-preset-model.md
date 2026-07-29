@@ -2,6 +2,8 @@
 
 Date: 2026-07-29
 
+Status: Current compatibility guidance.
+
 Prompt presets are explicitly selected during generation. They do not carry a
 separate enabled state.
 

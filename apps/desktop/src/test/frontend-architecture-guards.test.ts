@@ -20,10 +20,7 @@ const REQUIRED_FRONTEND_AREAS = [
   "src/routes",
 ] as const;
 
-const REQUIRED_FRONTEND_DOCS = [
-  "docs/agents/frontend-architecture.md",
-  "docs/agents/frontend-workbench-foundation.md",
-] as const;
+const REQUIRED_FRONTEND_DOCS = ["docs/agents/frontend-architecture.md"] as const;
 
 const QUERY_HOOK_ALLOWED_PATH_PATTERNS = [
   /^src\/features\/[^/]+\/data\//u,

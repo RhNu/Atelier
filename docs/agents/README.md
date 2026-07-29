@@ -1,6 +1,8 @@
 # Agent Docs
 
-This directory keeps project intent, architecture guidance, and decision records for Atelier.
+This directory keeps the small set of long-lived guidance documents for Atelier. Implementation
+details belong in the code and tests; source and license provenance belongs in `CREDITS.md` and the
+relevant asset directories.
 
 ## Read Guide
 
@@ -19,18 +21,16 @@ For frontend work in `apps/desktop`, also read:
 
 1. `frontend-architecture.md`
 
-For task-specific context, read only the relevant decision records:
+The retained documents are:
 
-- `kernel-generation-workflow.md`: implemented `kernel` generation, streaming, Vibe, and precise-reference workflow boundaries.
-- `sqlite-database-adapter.md`: SQLite adapter choice, schema scope, and adapter-local DTO boundary.
-- `secrets-keyring-pipeline.md`: API key registry, keyring storage, explicit subscription probe, and resolver-backed NovelAI adapter.
-- `prompt-lexicon-workflow.md`: prompt lexicon source assets, Rust `xtask` build/check workflow, v1 generated schema, and `nait` source notes.
-- `prompt-preset-model.md`: explicit preset prompt behavior, removed enabled semantics, SQLite compatibility, and frontend editor draft boundary.
-- `safety-onnx-adapter.md`: host-provided OpenNSFW ONNX model/runtime loading, scanner injection, and license/source boundary.
-- `frontend-workbench-foundation.md`: desktop frontend shell, generated app-api TypeScript contracts, Tailwind theme tokens, and `nait` visual reference boundary.
-- `global-settings-workspace-restore.md`: user-level settings persistence, last-workspace restore behavior, and app/workspace runtime scope separation.
-- `generate-workbench-draft.md`: Generate sidebar workbench layout, workspace draft persistence, and draft resource ownership.
-- `generation-preview-batch-history.md`: batch/request/sample preview hierarchy, follow/pin selection, batch-level History, and ZIP export boundaries.
+- `project-intent.md`: product boundary, durable design preferences, and non-goals.
+- `architecture.md`: backend layering, ownership, I/O boundaries, and current workspace shape.
+- `frontend-architecture.md`: frontend boundaries, state ownership, visual system, and testing rules.
+- `prompt-preset-model.md`: current prompt-preset compatibility and editor model decision.
+
+Do not add short-lived implementation plans or feature snapshots here. When a decision becomes a
+durable constraint, update the closest retained document or add a focused record only if it cannot
+be expressed there.
 
 ## Current Consensus
 

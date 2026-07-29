@@ -1,6 +1,6 @@
 # Atelier
 
-Atelier is an early desktop creative workspace for NovelAI image workflows.
+Atelier is a desktop creative workspace for NovelAI image workflows.
 
 The project is intentionally NovelAI-specific. It should preserve clear feature boundaries, use `novelai-bridge` for NovelAI API integration, and avoid turning into a generic AI image tool.
 
@@ -40,7 +40,7 @@ Before completing pnpm frontend work, confirm `pnpm fmt:check`, `pnpm lint`, and
 - `crates/features/`: feature-owned domain models, rules, ports, and tests.
 - `crates/kernel/`: runtime state and cross-feature workflow orchestration.
 - `crates/adapters/`: concrete I/O implementations for storage, database, image codecs, keyring, NovelAI, and optional safety scanning.
-- `docs/agents/`: project intent, architecture overview, and decision records.
+- `docs/agents/`: project intent and the small set of current architecture guidance documents.
 - `xtask/`: local maintenance checks such as line-budget enforcement.
 
 Tauri should stay thin, but it owns platform desktop host glue such as native dialogs, selected local file reads/writes, open/reveal guards, notifications, and bundled resource path resolution. Domain behavior belongs in feature crates, `kernel`, host-neutral application code, or adapters according to the architecture notes.

@@ -116,6 +116,14 @@ Adapters are the boundary for real I/O:
 - `safety-onnx`: optional OpenNSFW-style ONNX safety scanner built from host-provided model/runtime paths.
 - `settings-fs`: user-level global settings stored below the desktop host-provided application configuration directory.
 
+Persistence and secret boundaries are adapter contracts:
+
+- `adapters/database` owns SQLite schema, migrations, and adapter-local JSON DTOs; feature and
+  application models must not become persistence schemas through serialization derives.
+- `features/secrets` stores only key metadata through the database port. Secret values go through
+  `SecretStore` and the keyring adapter, and must not appear in SQLite, API responses, events,
+  history, logs, or diagnostics.
+
 Desktop host glue lives inside `apps/desktop/src-tauri`, not a reusable adapter crate. The frontend should invoke Tauri commands that perform picker, read, write, and host actions together; it should not directly read arbitrary user files through frontend filesystem capabilities.
 
 External library types should not leak upward into feature crates, `kernel`, or `app-api`.
