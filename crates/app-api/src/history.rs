@@ -47,16 +47,25 @@ impl Default for RunHistoryQueryDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum RunHistoryOutputStateDto {
+    Available,
+    Deleted,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct RunHistoryOutputDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sample_index: Option<u32>,
     pub artifact_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub item_id: Option<String>,
-    pub resource: ResourceRefDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource: Option<ResourceRefDto>,
     pub asset_role: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variant_kind: Option<String>,
+    pub state: RunHistoryOutputStateDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -161,6 +170,7 @@ pub struct GenerationHistoryBatchDto {
     pub completed_request_count: usize,
     pub expected_sample_count: u32,
     pub completed_sample_count: usize,
+    pub available_sample_count: usize,
     pub outputs: Vec<RunHistoryOutputDto>,
 }
 

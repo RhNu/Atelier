@@ -64,4 +64,12 @@ where
     pub async fn delete_artifacts(&self, ids: &[ArtifactId]) -> ArtifactResult<usize> {
         self.repository.delete_artifacts(ids).await
     }
+
+    /// Loads an artifact by id.
+    ///
+    /// # Errors
+    /// Returns an error when repository access or decoding fails.
+    pub async fn get_artifact(&self, id: &ArtifactId) -> ArtifactResult<Option<ArtifactRecord>> {
+        self.repository.get_artifact(id).await
+    }
 }

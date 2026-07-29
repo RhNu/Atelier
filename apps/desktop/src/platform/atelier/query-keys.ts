@@ -56,6 +56,7 @@ export const queryKeys = {
   gallery: {
     root: () => ["workspace", "gallery"] as const,
     list: (query: GalleryQueryKeyInput) => ["workspace", "gallery", "list", query] as const,
+    detail: (itemId: string | null) => ["workspace", "gallery", "detail", itemId] as const,
   },
   prompt: {
     root: () => ["workspace", "prompt"] as const,

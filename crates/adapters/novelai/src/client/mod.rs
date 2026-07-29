@@ -4,9 +4,11 @@ use atelier_director::{
 };
 use atelier_generation::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
-    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
-    ImageFormat, ImageModel, ImageSize, ImageStreamEvent, ImageStreamResult, Img2ImgRequest,
-    NoiseSchedule, NovelAiGenerationClient, Sampler, StreamMode, UcPreset,
+    GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
+    GenerateImageStreamResult, GeneratedImage, GeneratedImageMetadata,
+    GeneratedImageMetadataInspector, GeneratedImageMetadataWarning, GenerationResult, ImageFormat,
+    ImageModel, ImageSize, ImageStreamEvent, Img2ImgRequest, NoiseSchedule,
+    NovelAiGenerationClient, ParsedGeneratedImageMetadata, Sampler, StreamMode, UcPreset,
 };
 use atelier_secrets::{
     SecretResolver, SecretValue, SecretsError, SubscriptionClient, SubscriptionProbeClient,
@@ -42,7 +44,7 @@ pub use resolver::ResolverBackedNovelAiAdapter;
 pub use subscription::NovelAiSubscriptionProbeClient;
 
 use mapping::{
-    from_bridge_generated_image, from_bridge_stream_chunk, from_bridge_subscription,
-    map_secrets_error, to_bridge_director_request, to_bridge_encode_vibe_request,
-    to_bridge_generate_request, to_bridge_stream_request,
+    from_bridge_generated_image, from_bridge_generated_image_metadata, from_bridge_stream_chunk,
+    from_bridge_subscription, map_secrets_error, to_bridge_director_request,
+    to_bridge_encode_vibe_request, to_bridge_generate_request, to_bridge_stream_request,
 };

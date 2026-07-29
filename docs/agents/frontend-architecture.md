@@ -79,6 +79,9 @@ Atelier uses a dark desktop workbench style:
 - Thin global icon rail for primary routes.
 - Hard-edged panels and controls with borders, restrained shadows, and compact spacing.
 - Dense information layout for repeated creative work.
+- Generation task history uses a compact thumbnail Grid. Viewing one task and selecting many tasks
+  for cleanup are separate states; task tiles use corner badges for selection, status, available
+  outputs, and completed requests.
 - Toolbars, tabs, segmented controls, icon buttons, select menus, checkboxes, and numeric inputs for clear controls.
 - No rounded corners, decorative orbs, marketing-style landing pages, or single-page catch-all settings surfaces.
 - No nested card stacks. Use full-height split layouts, panel columns, or section navigation instead.

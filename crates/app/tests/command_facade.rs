@@ -24,7 +24,7 @@ use atelier_app_api::generation::{
     QueueDirectiveDto, RunGenerationJobRequestDto, SaveGenerationDraftRequestDto,
     SubmitGenerationRequestDto,
 };
-use atelier_app_api::history::RunHistoryQueryDto;
+use atelier_app_api::history::{RunHistoryOutputStateDto, RunHistoryQueryDto};
 use atelier_app_api::prompt::{
     CompileGenerationPromptRequestDto, DeletePromptChunkRequestDto, GetPromptChunkRequestDto,
     ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptLexiconSearchQueryDto,
@@ -50,8 +50,9 @@ use atelier_director::{
     DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
 use atelier_generation::{
-    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationClientError,
-    GenerationResult, ImageStreamResult, NovelAiGenerationClient,
+    GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
+    GenerateImageStreamResult, GeneratedImage, GeneratedImageMetadata, GenerationClientError,
+    GenerationResult, NovelAiGenerationClient, ParsedGeneratedImageMetadata,
 };
 use atelier_secrets::{
     SecretRecordId, SecretStore, SecretValue, SecretsResult, SubscriptionClient,
@@ -311,7 +312,7 @@ impl NovelAiGenerationClient for RecordingClient {
     async fn generate(
         &self,
         _request: GenerateImageRequest,
-    ) -> GenerationResult<Vec<GeneratedImage>> {
+    ) -> GenerationResult<GenerateImageResult> {
         let should_rate_limit = {
             let mut attempts = self.attempts.lock().unwrap();
             let should_rate_limit = self.rate_limit_first_generate && *attempts == 0;
@@ -325,18 +326,30 @@ impl NovelAiGenerationClient for RecordingClient {
                 "slow down",
             ));
         }
-        Ok(vec![GeneratedImage {
-            bytes: vec![1, 2, 3],
-            mime_type: Some("image/png".to_owned()),
-            seed: Some(42),
-        }])
+        Ok(GenerateImageResult {
+            resolved_seed: 42,
+            images: vec![GeneratedImage {
+                bytes: vec![1, 2, 3],
+                mime_type: Some("image/png".to_owned()),
+                metadata: GeneratedImageMetadata::Parsed(ParsedGeneratedImageMetadata {
+                    prompt: Some("1girl".to_owned()),
+                    negative_prompt: None,
+                    seed: Some(42),
+                    metadata_json: r#"{"seed":42}"#.to_owned(),
+                    warnings: Vec::new(),
+                }),
+            }],
+        })
     }
 
     async fn generate_stream(
         &self,
         _request: GenerateImageStreamRequest,
-    ) -> GenerationResult<ImageStreamResult> {
-        Ok(Box::pin(futures_util::stream::empty()))
+    ) -> GenerationResult<GenerateImageStreamResult> {
+        Ok(GenerateImageStreamResult {
+            resolved_seed: 42,
+            stream: Box::pin(futures_util::stream::empty()),
+        })
     }
 }
 

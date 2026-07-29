@@ -76,6 +76,42 @@ describe("generation preview model", () => {
     expect(selectDefaultRequest(view, "job-1", "job-2")?.jobId).toBe("job-1");
     expect(selectDefaultRequest(view, null, "job-2")?.jobId).toBe("job-2");
   });
+
+  it("lets durable deleted output state override a stale resource preview", () => {
+    const detail = historyDetail();
+    detail.requests[0]?.outputs.push({
+      sample_index: 0,
+      artifact_id: "artifact-deleted",
+      item_id: "gallery-deleted",
+      resource: { id: "resource-deleted", variant_id: null },
+      asset_role: "original",
+      variant_kind: "original",
+      state: "deleted",
+    });
+    const view = buildGenerationBatchView({
+      batchId: "batch-1",
+      status: undefined,
+      detail,
+      previews: {
+        [generationPreviewKey("batch-1", "job-1", 0)]: {
+          kind: "resource",
+          batchId: "batch-1",
+          jobId: "job-1",
+          sampleIndex: 0,
+          artifactId: "artifact-deleted",
+          galleryItemId: "gallery-deleted",
+          resource: { id: "resource-deleted", variant_id: null },
+          sequence: 9,
+        },
+      },
+    });
+
+    expect(view?.requests[0]?.samples[0]).toMatchObject({
+      state: "deleted",
+      resource: null,
+      galleryItemId: null,
+    });
+  });
 });
 
 function historyDetail(): GenerationHistoryBatchDetailDto {
@@ -92,6 +128,7 @@ function historyDetail(): GenerationHistoryBatchDetailDto {
       completed_request_count: 1,
       expected_sample_count: 6,
       completed_sample_count: 0,
+      available_sample_count: 0,
       outputs: [],
     },
     requests: [

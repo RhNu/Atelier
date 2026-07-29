@@ -99,13 +99,21 @@ function useGenerationHistoryActions({
     ).catch((cause: unknown) => setError(formatGenerationError(cause)));
   }, [deleteMutation, onRequestDeleted, selectedRequest?.runId, setError]);
 
+  const handleDeleteBatches = useCallback(
+    (batchIds: ReadonlyArray<string>) => {
+      if (batchIds.length === 0 || deleteBatchMutation.isPending) return;
+      setError(null);
+      void runLoggedAction("Delete generation batches", () =>
+        deleteBatchMutation.mutateAsync([...batchIds]).then(onBatchDeleted),
+      ).catch((cause: unknown) => setError(formatGenerationError(cause)));
+    },
+    [deleteBatchMutation, onBatchDeleted, setError],
+  );
+
   const handleDeleteBatch = useCallback(() => {
-    if (!batch || deleteBatchMutation.isPending) return;
-    setError(null);
-    void runLoggedAction("Delete generation batch", () =>
-      deleteBatchMutation.mutateAsync([batch.batchId]).then(onBatchDeleted),
-    ).catch((cause: unknown) => setError(formatGenerationError(cause)));
-  }, [batch, deleteBatchMutation, onBatchDeleted, setError]);
+    if (!batch) return;
+    handleDeleteBatches([batch.batchId]);
+  }, [batch, handleDeleteBatches]);
 
   const handleSaveSample = useCallback(() => {
     if (!selectedSample?.resource || !selectedRequest) return;
@@ -150,6 +158,7 @@ function useGenerationHistoryActions({
 
   return {
     handleDeleteBatch,
+    handleDeleteBatches,
     handleDeleteRequest,
     handleExportBatch,
     handleExportRequest,

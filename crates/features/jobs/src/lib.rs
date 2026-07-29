@@ -11,7 +11,7 @@ pub use model::{
     GenerationBatchHistoryRecord, GenerationBatchHistoryStatus, JobBatch, JobEvent, JobEventKind,
     JobFailureImpact, JobId, JobKind, JobPayloadRef, JobQueueSnapshot, JobRecord, JobStatus,
     QueueCommand, QueueDelay, QueueDirective, RetryPolicy, RunHistoryKind, RunHistoryQuery,
-    RunHistoryRecord, RunHistoryStatus, RunOutputRecord, SubmitJob,
+    RunHistoryRecord, RunHistoryStatus, RunOutputRecord, RunOutputState, SubmitJob,
 };
 pub use ports::{JobEventSink, JobQueueRepository, JobRepository, RunHistoryRepository};
 pub use queue::JobQueue;

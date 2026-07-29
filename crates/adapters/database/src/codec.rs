@@ -2,7 +2,8 @@
 
 use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactReplayManifest,
-    ArtifactSource, VisualAssetRef, VisualAssetRole,
+    ArtifactSource, EmbeddedMetadataStatus, EmbeddedMetadataWarning, VisualAssetRef,
+    VisualAssetRole,
 };
 use atelier_gallery::{GalleryItem, GalleryItemId, GallerySafetyOverride, GallerySourceKind};
 use atelier_resource_catalog::{
@@ -26,7 +27,9 @@ mod resource;
 mod scalars;
 mod vibe;
 
-use artifact::{ArtifactMetadataDto, ArtifactSourceDto, VisualAssetRefDto};
+use artifact::{
+    ArtifactMetadataDto, ArtifactReplayManifestDto, ArtifactSourceDto, VisualAssetRefDto,
+};
 use gallery::{visual_asset_role_as_str, visual_asset_role_from_str};
 
 pub use artifact::ArtifactRecordDto;

@@ -81,11 +81,11 @@ fn generation_events_and_gallery_commands_share_session() {
         );
         assert_eq!(reference.asset_role, "original");
 
-        assert_gallery_delete_removes_indexed_outputs(&host, item_id).await;
+        assert_gallery_delete_marks_indexed_outputs_deleted(&host, item_id).await;
     });
 }
 
-async fn assert_gallery_delete_removes_indexed_outputs(
+async fn assert_gallery_delete_marks_indexed_outputs_deleted(
     host: &AtelierRuntime<MemorySecretStore, RecordingFactory>,
     item_id: String,
 ) {
@@ -145,10 +145,12 @@ async fn assert_gallery_delete_removes_indexed_outputs(
         })
         .await
         .unwrap();
-    assert!(history_after_delete.items.iter().all(|item| {
-        item.outputs
-            .iter()
-            .all(|output| output.item_id.as_deref() != Some(item_id.as_str()))
+    assert!(history_after_delete.items.iter().any(|item| {
+        item.outputs.iter().any(|output| {
+            output.state == RunHistoryOutputStateDto::Deleted
+                && output.item_id.is_none()
+                && output.resource.is_none()
+        })
     }));
 }
 

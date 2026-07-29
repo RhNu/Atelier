@@ -1,8 +1,9 @@
 use super::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
     DirectorTool, EncodeVibeRequest, GenerateImageRequest, GenerateImageStreamRequest,
-    GeneratedImage, ImageFormat, ImageModel, ImageSize, ImageStreamEvent, Img2ImgRequest,
-    NoiseSchedule, NovelAiBridgeError, RunDirectorToolRequest, Sampler, SecretsError, StreamMode,
+    GeneratedImage, GeneratedImageMetadata, GeneratedImageMetadataWarning, ImageFormat, ImageModel,
+    ImageSize, ImageStreamEvent, Img2ImgRequest, NoiseSchedule, NovelAiBridgeError,
+    ParsedGeneratedImageMetadata, RunDirectorToolRequest, Sampler, SecretsError, StreamMode,
     SubscriptionSummary, UcPreset, VibeModel, bridge,
 };
 
@@ -81,7 +82,52 @@ pub(super) fn from_bridge_generated_image(image: bridge::GeneratedImage) -> Gene
     GeneratedImage {
         bytes: image.bytes,
         mime_type: image.mime_type,
-        seed: image.seed,
+        metadata: from_bridge_generated_image_metadata(image.metadata),
+    }
+}
+
+pub(super) fn from_bridge_generated_image_metadata(
+    metadata: bridge::GeneratedImageMetadata,
+) -> GeneratedImageMetadata {
+    match metadata {
+        bridge::GeneratedImageMetadata::Parsed(metadata) => {
+            let metadata_json = match serde_json::to_string(metadata.as_ref()) {
+                Ok(value) => value,
+                Err(error) => {
+                    return GeneratedImageMetadata::Invalid {
+                        message: error.to_string(),
+                    };
+                }
+            };
+            GeneratedImageMetadata::Parsed(ParsedGeneratedImageMetadata {
+                prompt: metadata.prompt.clone(),
+                negative_prompt: metadata.negative_prompt.clone(),
+                seed: metadata.seed,
+                metadata_json,
+                warnings: metadata
+                    .warnings
+                    .iter()
+                    .map(|warning| match warning {
+                        bridge::PngMetadataWarning::InvalidCommentJson => {
+                            GeneratedImageMetadataWarning::InvalidCommentJson
+                        }
+                        bridge::PngMetadataWarning::InvalidTextChunk { keyword, message } => {
+                            GeneratedImageMetadataWarning::InvalidTextChunk {
+                                keyword: keyword.clone(),
+                                message: message.clone(),
+                            }
+                        }
+                    })
+                    .collect(),
+            })
+        }
+        bridge::GeneratedImageMetadata::NotPresent => GeneratedImageMetadata::NotPresent,
+        bridge::GeneratedImageMetadata::UnsupportedFormat => {
+            GeneratedImageMetadata::UnsupportedFormat
+        }
+        bridge::GeneratedImageMetadata::Invalid { message } => {
+            GeneratedImageMetadata::Invalid { message }
+        }
     }
 }
 

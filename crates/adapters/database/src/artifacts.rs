@@ -3,7 +3,7 @@ use atelier_artifacts::{
     ArtifactError, ArtifactId, ArtifactRecord, ArtifactRepository, ArtifactResult,
 };
 use atelier_gallery::GallerySourceKind;
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 
 use crate::codec::{ArtifactRecordDto, JsonCodec, artifact_kind_as_str, source_kind_as_str};
 use crate::connection::DatabaseConnection;
@@ -57,6 +57,21 @@ impl ArtifactRepository for DatabaseArtifactRepository {
             )
             .map(|_| ())
             .map_err(sql_error)
+    }
+
+    async fn get_artifact(&self, id: &ArtifactId) -> ArtifactResult<Option<ArtifactRecord>> {
+        let connection = self.connection.lock().map_err(artifact_error)?;
+        let json = connection
+            .query_row(
+                "SELECT record_json FROM artifacts WHERE artifact_id = ?1",
+                params![id.as_str()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(sql_error)?;
+        drop(connection);
+        json.map(|json| ArtifactRecordDto::decode_domain(&json).map_err(artifact_error))
+            .transpose()
     }
 
     async fn delete_artifacts(&self, ids: &[ArtifactId]) -> ArtifactResult<usize> {

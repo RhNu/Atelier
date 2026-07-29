@@ -10,7 +10,7 @@ use atelier_app_api::history::{
 };
 use atelier_jobs::{
     BatchId, JobId, JobPayloadRef, JobQueueSnapshot, RunHistoryKind, RunHistoryRecord,
-    RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
+    RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState,
 };
 use atelier_kernel::{
     GenerationPayloadStore, SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationWork,
@@ -108,10 +108,20 @@ where
         for record in records {
             let outputs = self.preferred_batch_outputs(&record.batch_id).await?;
             let completed_sample_count = outputs.len();
+            let available_sample_count = outputs
+                .iter()
+                .filter(|output| output.state == RunOutputState::Available)
+                .count();
             items.push(generation_history_batch_to_dto(
                 record,
                 completed_sample_count,
-                outputs.into_iter().take(4).map(run_output_to_dto).collect(),
+                available_sample_count,
+                outputs
+                    .into_iter()
+                    .filter(|output| output.state == RunOutputState::Available)
+                    .take(4)
+                    .map(run_output_to_dto)
+                    .collect(),
             ));
         }
         Ok(generation_history_page_to_dto(
@@ -147,10 +157,15 @@ where
         }
         let aggregate = aggregate_generation_batch(&request.batch_id, &records);
         let completed_sample_count = batch_outputs.len();
+        let available_sample_count = batch_outputs
+            .iter()
+            .filter(|output| output.state == RunOutputState::Available)
+            .count();
         Ok(GenerationHistoryBatchDetailDto {
             batch: generation_history_batch_to_dto(
                 aggregate,
                 completed_sample_count,
+                available_sample_count,
                 batch_outputs.into_iter().map(run_output_to_dto).collect(),
             ),
             requests,
@@ -334,7 +349,7 @@ where
         let aggregate = aggregate_generation_batch(&request.batch_id, &rerun_records);
         Ok(RerunGenerationHistoryBatchResponseDto {
             directive,
-            batch: generation_history_batch_to_dto(aggregate, 0, Vec::new()),
+            batch: generation_history_batch_to_dto(aggregate, 0, 0, Vec::new()),
         })
     }
 

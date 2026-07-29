@@ -77,16 +77,24 @@ fn maps_bridge_generated_image_to_domain() {
     let image = from_bridge_generated_image(novelai_bridge::GeneratedImage {
         bytes: vec![1, 2, 3],
         mime_type: Some("image/png".to_owned()),
-        seed: Some(99),
+        metadata: novelai_bridge::GeneratedImageMetadata::Parsed(Box::new(
+            novelai_bridge::PngMetadata {
+                prompt: Some("1girl".to_owned()),
+                seed: Some(99),
+                ..novelai_bridge::PngMetadata::default()
+            },
+        )),
     });
 
+    assert_eq!(image.bytes, vec![1, 2, 3]);
+    assert_eq!(image.mime_type.as_deref(), Some("image/png"));
+    assert_eq!(image.seed(), Some(99));
     assert_eq!(
-        image,
-        GeneratedImage {
-            bytes: vec![1, 2, 3],
-            mime_type: Some("image/png".to_owned()),
-            seed: Some(99),
-        }
+        image
+            .metadata
+            .parsed()
+            .and_then(|metadata| metadata.prompt.as_deref()),
+        Some("1girl")
     );
 }
 
@@ -465,19 +473,25 @@ impl NovelAiGenerationClient for RecordingClient {
     async fn generate(
         &self,
         _request: GenerateImageRequest,
-    ) -> GenerationResult<Vec<GeneratedImage>> {
-        Ok(vec![GeneratedImage {
-            bytes: vec![1, 2, 3],
-            mime_type: Some("image/png".to_owned()),
-            seed: Some(1),
-        }])
+    ) -> GenerationResult<GenerateImageResult> {
+        Ok(GenerateImageResult {
+            resolved_seed: 1,
+            images: vec![GeneratedImage {
+                bytes: vec![1, 2, 3],
+                mime_type: Some("image/png".to_owned()),
+                metadata: GeneratedImageMetadata::NotPresent,
+            }],
+        })
     }
 
     async fn generate_stream(
         &self,
         _request: GenerateImageStreamRequest,
-    ) -> GenerationResult<ImageStreamResult> {
-        Ok(Box::pin(futures_util::stream::empty()))
+    ) -> GenerationResult<GenerateImageStreamResult> {
+        Ok(GenerateImageStreamResult {
+            resolved_seed: 1,
+            stream: Box::pin(futures_util::stream::empty()),
+        })
     }
 }
 

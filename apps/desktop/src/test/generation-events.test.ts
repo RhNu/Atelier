@@ -150,6 +150,31 @@ describe("generation event store", () => {
     ).toBeDefined();
   });
 
+  it("follows a newly submitted batch even when an older batch was pinned", () => {
+    useGenerationEventStore.getState().selectBatch("history-batch");
+    recordGenerationEvent(
+      event({
+        kind: "batch_submitted",
+        batch_id: "new-batch",
+      }),
+    );
+
+    expect(useGenerationEventStore.getState()).toMatchObject({
+      liveBatchId: "new-batch",
+      viewBatchId: "new-batch",
+      selectedJobId: null,
+      focusedSampleIndex: null,
+      focusMode: "follow",
+    });
+
+    recordGenerationEvent(streamChunk("new-batch", "new-job", 0, "frame", 2));
+    expect(useGenerationEventStore.getState()).toMatchObject({
+      viewBatchId: "new-batch",
+      selectedJobId: "new-job",
+      focusMode: "follow",
+    });
+  });
+
   it("keeps the preview map bounded to the configured 8 by 4 slots", () => {
     for (let index = 0; index < 40; index += 1) {
       recordGenerationEvent(streamChunk("batch-1", `job-${index}`, 0, String(index), index + 1));

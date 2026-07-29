@@ -2,7 +2,7 @@ use rusqlite::{Connection, params};
 
 use crate::error::DatabaseResult;
 
-const CURRENT_SCHEMA_VERSION: i64 = 8;
+const CURRENT_SCHEMA_VERSION: i64 = 10;
 const API_KEY_REGISTRY_SQL: &str = r"
 CREATE TABLE IF NOT EXISTS api_key_records (
     id TEXT PRIMARY KEY,
@@ -228,10 +228,15 @@ CREATE TABLE IF NOT EXISTS run_outputs (
     sample_index INTEGER,
     artifact_id TEXT NOT NULL,
     item_id TEXT,
-    resource_id TEXT NOT NULL,
+    resource_id TEXT,
     variant_id TEXT,
     asset_role TEXT NOT NULL,
     variant_kind TEXT,
+    output_state TEXT NOT NULL DEFAULT 'available'
+        CHECK (
+            (output_state = 'available' AND resource_id IS NOT NULL)
+            OR output_state = 'deleted'
+        ),
     FOREIGN KEY (run_id) REFERENCES run_history(run_id) ON DELETE CASCADE
 );
 
@@ -246,6 +251,11 @@ CREATE INDEX IF NOT EXISTS idx_run_history_generation_batch_order
     ON run_history(run_kind, batch_id, request_index, run_id);
 CREATE INDEX IF NOT EXISTS idx_run_outputs_sample
     ON run_outputs(run_id, sample_index, artifact_id);
+";
+
+const RUN_OUTPUT_LIFECYCLE_SQL: &str = r"
+ALTER TABLE run_outputs ADD COLUMN output_state TEXT NOT NULL DEFAULT 'available'
+    CHECK (output_state IN ('available', 'deleted'));
 ";
 
 const GENERATION_BATCH_HISTORY_SQL: &str = r"
@@ -320,6 +330,81 @@ CREATE INDEX idx_gallery_items_effective_safety_label
     ON gallery_items(effective_safety_label);
 ";
 
+const RUN_OUTPUT_TOMBSTONES_SQL: &str = r"
+CREATE TABLE run_outputs_v10 (
+    run_id TEXT NOT NULL,
+    sample_index INTEGER,
+    artifact_id TEXT NOT NULL,
+    item_id TEXT,
+    resource_id TEXT,
+    variant_id TEXT,
+    asset_role TEXT NOT NULL,
+    variant_kind TEXT,
+    output_state TEXT NOT NULL DEFAULT 'available'
+        CHECK (
+            (output_state = 'available' AND resource_id IS NOT NULL)
+            OR output_state = 'deleted'
+        ),
+    FOREIGN KEY (run_id) REFERENCES run_history(run_id) ON DELETE CASCADE
+);
+
+INSERT INTO run_outputs_v10(
+    run_id,
+    sample_index,
+    artifact_id,
+    item_id,
+    resource_id,
+    variant_id,
+    asset_role,
+    variant_kind,
+    output_state
+)
+SELECT
+    run_id,
+    sample_index,
+    artifact_id,
+    CASE WHEN output_state = 'deleted' THEN NULL ELSE item_id END,
+    CASE WHEN output_state = 'deleted' THEN NULL ELSE resource_id END,
+    CASE WHEN output_state = 'deleted' THEN NULL ELSE variant_id END,
+    asset_role,
+    variant_kind,
+    output_state
+FROM run_outputs;
+
+DROP TABLE run_outputs;
+ALTER TABLE run_outputs_v10 RENAME TO run_outputs;
+
+CREATE UNIQUE INDEX idx_run_outputs_unique
+    ON run_outputs(run_id, artifact_id, resource_id, asset_role, COALESCE(variant_id, ''))
+    WHERE output_state = 'available';
+CREATE INDEX idx_run_outputs_run
+    ON run_outputs(run_id);
+CREATE INDEX idx_run_outputs_sample
+    ON run_outputs(run_id, sample_index, artifact_id);
+
+UPDATE gallery_items
+SET item_json = json_remove(item_json, '$.metadata.embedded_metadata_json')
+WHERE json_extract(item_json, '$.metadata.embedded_metadata_json') IS NOT NULL;
+
+UPDATE gallery_items
+SET item_json = json_set(
+    item_json,
+    '$.replay',
+    (
+        SELECT json(json_extract(artifacts.record_json, '$.replay'))
+        FROM artifacts
+        WHERE artifacts.artifact_id = gallery_items.artifact_id
+    )
+)
+WHERE json_extract(item_json, '$.replay') IS NULL
+  AND EXISTS (
+      SELECT 1
+      FROM artifacts
+      WHERE artifacts.artifact_id = gallery_items.artifact_id
+        AND json_extract(artifacts.record_json, '$.replay') IS NOT NULL
+  );
+";
+
 pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
     connection.execute_batch(
         r"
@@ -340,6 +425,9 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
         connection.execute_batch(PROMPT_RESOURCES_SQL)?;
         connection.execute_batch(SETTINGS_SQL)?;
         connection.execute_batch(JOB_HISTORY_SQL)?;
+        if !column_exists(connection, "run_outputs", "output_state")? {
+            connection.execute_batch(RUN_OUTPUT_LIFECYCLE_SQL)?;
+        }
         connection.execute_batch(GENERATION_BATCH_HISTORY_INDEX_SQL)?;
         return Ok(());
     }
@@ -403,7 +491,10 @@ pub fn run_migrations(connection: &mut Connection) -> DatabaseResult<()> {
     if !column_exists(&tx, "prompt_presets", "prompt_mode")? {
         tx.execute_batch(PROMPT_PRESET_BEHAVIOR_SQL)?;
     }
-    tx.execute_batch(GENERATION_BATCH_HISTORY_INDEX_SQL)?;
+    if !column_exists(&tx, "run_outputs", "output_state")? {
+        tx.execute_batch(RUN_OUTPUT_LIFECYCLE_SQL)?;
+    }
+    tx.execute_batch(RUN_OUTPUT_TOMBSTONES_SQL)?;
     tx.execute(
         "INSERT OR IGNORE INTO schema_migrations(version) VALUES (?1)",
         params![CURRENT_SCHEMA_VERSION],

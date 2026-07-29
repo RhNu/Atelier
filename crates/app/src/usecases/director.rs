@@ -1,8 +1,8 @@
 use super::{
     AppError, AppResult, DirectorToolResultDto, ImageInputDto, NovelAiClientFactory,
     RunDirectorTool, RunDirectorToolRequest, RunDirectorToolRequestDto, RunHistoryKind,
-    RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord, SecretStore,
-    SecretsErrorKind, WorkspaceSession, director_tool_to_domain, gallery_item_to_dto,
+    RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState,
+    SecretStore, SecretsErrorKind, WorkspaceSession, director_tool_to_domain, gallery_item_to_dto,
     resource_ref_from_dto, resource_ref_to_dto, resource_variant_kind_as_str, unix_timestamp_ms,
     visual_asset_role_as_str,
 };
@@ -86,7 +86,7 @@ where
                     sample_index: None,
                     artifact_id: result.artifact_id.as_str().to_owned(),
                     item_id: Some(result.item.id.as_str().to_owned()),
-                    resource_id: asset.resource.id.as_str().to_owned(),
+                    resource_id: Some(asset.resource.id.as_str().to_owned()),
                     variant_id: asset
                         .resource
                         .variant_id
@@ -97,6 +97,7 @@ where
                         .variant_kind
                         .map(resource_variant_kind_as_str)
                         .map(str::to_owned),
+                    state: RunOutputState::Available,
                 })
                 .await
                 .map_err(|error| AppError::new("run_history", error.to_string()))?;

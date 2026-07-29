@@ -288,16 +288,23 @@ pub struct RunHistoryRecord {
     pub recoverable: bool,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum RunOutputState {
+    Available,
+    Deleted,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunOutputRecord {
     pub run_id: String,
     pub sample_index: Option<u32>,
     pub artifact_id: String,
     pub item_id: Option<String>,
-    pub resource_id: String,
+    pub resource_id: Option<String>,
     pub variant_id: Option<String>,
     pub asset_role: String,
     pub variant_kind: Option<String>,
+    pub state: RunOutputState,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

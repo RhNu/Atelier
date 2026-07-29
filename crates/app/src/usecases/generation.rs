@@ -11,7 +11,7 @@ use super::{
     GenerationHistoryUpdate, GenerationStatusDto, GenerationWorkRequest, GenerationWorkRequestDto,
     ImageInputDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId, NovelAiClientFactory,
     PromptPresetId, QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus,
-    RunOutputRecord, SecretStore, SecretsErrorKind, SubmitGenerationBatch,
+    RunOutputRecord, RunOutputState, SecretStore, SecretsErrorKind, SubmitGenerationBatch,
     SubmitGenerationBatchJob, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
     SubmitGenerationRequestDto, WorkspaceSession, character_reference_type_to_domain,
     characters_to_domain, generation_status_to_dto, generation_work_title, image_format_to_domain,
@@ -551,7 +551,7 @@ where
                             sample_index: item.metadata.sample_index,
                             artifact_id: item.artifact_id.as_str().to_owned(),
                             item_id: Some(item.id.as_str().to_owned()),
-                            resource_id: asset.resource.id.as_str().to_owned(),
+                            resource_id: Some(asset.resource.id.as_str().to_owned()),
                             variant_id: asset
                                 .resource
                                 .variant_id
@@ -562,6 +562,7 @@ where
                                 .variant_kind
                                 .map(resource_variant_kind_as_str)
                                 .map(str::to_owned),
+                            state: RunOutputState::Available,
                         })
                         .await
                         .map_err(|error| AppError::new("run_history", error.to_string()))?;

@@ -1,7 +1,7 @@
 use atelier_app_api::gallery::{
     DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceDto,
-    GalleryImageReferenceRequestDto, GalleryItemDto, GalleryPageDto, GalleryQueryDto,
-    SetGallerySafetyOverrideRequestDto,
+    GalleryImageReferenceRequestDto, GalleryItemDetailDto, GalleryItemDetailRequestDto,
+    GalleryItemDto, GalleryPageDto, GalleryQueryDto, SetGallerySafetyOverrideRequestDto,
 };
 
 use crate::commands::{AtelierRuntime, CommandResult};
@@ -18,6 +18,17 @@ where
     /// Returns an error envelope when no workspace is open or gallery storage fails.
     pub async fn query_gallery(&self, request: GalleryQueryDto) -> CommandResult<GalleryPageDto> {
         Self::command_result(self.current_session()?.gallery().query(request).await)
+    }
+
+    /// Loads heavyweight metadata for one selected gallery item.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or the item cannot be read.
+    pub async fn get_gallery_item_detail(
+        &self,
+        request: GalleryItemDetailRequestDto,
+    ) -> CommandResult<GalleryItemDetailDto> {
+        Self::command_result(self.current_session()?.gallery().detail(request).await)
     }
 
     /// Sets or clears a manual gallery safety override.

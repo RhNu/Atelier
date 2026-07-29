@@ -8,7 +8,7 @@ use atelier_jobs::{
     GenerationBatchHistoryRecord, GenerationBatchHistoryStatus, JobBatch, JobId, JobKind,
     JobPayloadRef, JobQueueError, JobQueueRepository, JobQueueSnapshot, JobRecord, JobResult,
     JobStatus, QueueDelay, RetryPolicy, RunHistoryKind, RunHistoryQuery, RunHistoryRecord,
-    RunHistoryRepository, RunHistoryStatus, RunOutputRecord,
+    RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState,
 };
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};

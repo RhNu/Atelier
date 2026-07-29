@@ -45,7 +45,7 @@ use atelier_generation::{
 };
 use atelier_jobs::{
     BatchId, JobId, JobStatus, RunHistoryKind, RunHistoryRecord, RunHistoryRepository,
-    RunHistoryStatus, RunOutputRecord,
+    RunHistoryStatus, RunOutputRecord, RunOutputState,
 };
 use atelier_kernel::{
     EnsureVibeEncoding, ExportVibeDocument, GenerationWorkRequest, ImportEmbeddedPngVibeDocument,

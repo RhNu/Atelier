@@ -14,5 +14,6 @@ export type GenerationHistoryBatchDto = {
   completed_request_count: number;
   expected_sample_count: number;
   completed_sample_count: number;
+  available_sample_count: number;
   outputs: Array<RunHistoryOutputDto>;
 };

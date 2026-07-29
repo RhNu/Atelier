@@ -1,12 +1,19 @@
-import { ChevronLeft, ChevronRight, Download, ImageIcon, RotateCcw, Trash2 } from "lucide-react";
+import {
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  RotateCcw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppIconButton, AppPanel, AppSelect } from "@/components/ui";
 import type { GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto } from "@/types";
 
-import { translateGenerationStatus } from "../generation-status";
-import { GenerationResourceImage } from "./GenerationResourceImage";
+import { GenerationHistoryBatch } from "./GenerationHistoryBatch";
 
 type HistoryStatusFilter = "all" | GenerationBatchHistoryStatusDto;
 
@@ -28,6 +35,7 @@ type GenerationHistoryRailProps = {
   pending: boolean;
   error: string | null;
   selectedBatchId: string | null;
+  selectedBatchIds: ReadonlySet<string>;
   statusFilter: HistoryStatusFilter;
   offset: number;
   limit: number;
@@ -36,6 +44,9 @@ type GenerationHistoryRailProps = {
   deletePending: boolean;
   exportPending: boolean;
   onSelect: (batchId: string) => void;
+  onToggleSelection: (batchId: string) => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
   onStatusFilterChange: (status: HistoryStatusFilter) => void;
   onPreviousPage: () => void;
   onNextPage: () => void;
@@ -49,6 +60,7 @@ export function GenerationHistoryRail({
   pending,
   error,
   selectedBatchId,
+  selectedBatchIds,
   statusFilter,
   offset,
   limit,
@@ -57,6 +69,9 @@ export function GenerationHistoryRail({
   deletePending,
   exportPending,
   onSelect,
+  onToggleSelection,
+  onSelectAll,
+  onClearSelection,
   onStatusFilterChange,
   onPreviousPage,
   onNextPage,
@@ -103,6 +118,20 @@ export function GenerationHistoryRail({
         />
         <div className="flex items-center gap-1">
           <AppIconButton
+            icon={CheckCheck}
+            label={t("selectAllBatches")}
+            size="sm"
+            disabled={batches.length === 0}
+            onClick={onSelectAll}
+          />
+          <AppIconButton
+            icon={X}
+            label={t("clearBatchSelection")}
+            size="sm"
+            disabled={selectedBatchIds.size === 0}
+            onClick={onClearSelection}
+          />
+          <AppIconButton
             icon={RotateCcw}
             label={t("rerunSelectedBatch")}
             size="sm"
@@ -118,27 +147,34 @@ export function GenerationHistoryRail({
           />
           <AppIconButton
             icon={Trash2}
-            label={t("deleteSelectedBatch")}
+            label={t("deleteSelectedBatches")}
             size="sm"
             variant="danger"
-            disabled={!selectedBatch || deletePending}
+            disabled={selectedBatchIds.size === 0 || deletePending}
             onClick={onDeleteSelected}
           />
         </div>
       </header>
+      {selectedBatchIds.size > 0 ? (
+        <div className="border-b border-app-border bg-brand-500/10 px-2 py-1 text-[11px] text-brand-100">
+          {t("selectedBatchCount", { count: selectedBatchIds.size })}
+        </div>
+      ) : null}
       <div className="min-h-0 flex-1 overflow-auto p-1">
         {pending ? <p className="p-2 text-sm text-app-muted">{t("loadingHistory")}</p> : null}
         {error ? <p className="p-2 text-sm text-rose-100">{error}</p> : null}
         {!pending && !error && batches.length === 0 ? (
           <p className="p-4 text-center text-sm text-app-muted">{t("noBatches")}</p>
         ) : null}
-        <div className="grid gap-1">
+        <div className="grid grid-cols-2 gap-1">
           {batches.map((batch) => (
             <GenerationHistoryBatch
               key={batch.batch_id}
               batch={batch}
               selected={selectedBatchId === batch.batch_id}
+              checked={selectedBatchIds.has(batch.batch_id)}
               onSelect={onSelect}
+              onToggleSelection={onToggleSelection}
             />
           ))}
         </div>
@@ -166,71 +202,6 @@ export function GenerationHistoryRail({
   );
 }
 
-function GenerationHistoryBatch({
-  batch,
-  selected,
-  onSelect,
-}: {
-  batch: GenerationHistoryBatchDto;
-  selected: boolean;
-  onSelect: (batchId: string) => void;
-}) {
-  const { t } = useTranslation("generation");
-  const handleSelect = useCallback(() => onSelect(batch.batch_id), [batch.batch_id, onSelect]);
-  return (
-    <button
-      type="button"
-      onClick={handleSelect}
-      className={[
-        "grid grid-cols-[52px_minmax(0,1fr)] gap-2 border bg-app-surface/75 p-2 text-left transition-colors",
-        selected ? "border-brand-400/70" : "border-app-border hover:border-brand-400/60",
-      ].join(" ")}
-    >
-      <span className="grid h-13 w-13 grid-cols-2 grid-rows-2 gap-px overflow-hidden border border-app-border bg-black/30">
-        {batch.outputs.length ? (
-          batch.outputs
-            .slice(0, 4)
-            .map((output, index) => (
-              <GenerationResourceImage
-                key={`${output.artifact_id}:${output.sample_index ?? index}`}
-                resource={output.resource}
-                alt={t("batchOutput", { index: index + 1 })}
-                className="h-full min-h-0 w-full bg-app-panel text-[8px]"
-                fallbackLabel=""
-              />
-            ))
-        ) : (
-          <span className="col-span-2 row-span-2 flex items-center justify-center text-app-muted">
-            <ImageIcon aria-hidden="true" className="size-5" />
-          </span>
-        )}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold text-app-text">
-          {batch.title ?? t("generationBatch")}
-        </span>
-        <span className="mt-1 block text-xs text-app-muted">
-          {t("completedRequests", {
-            completed: batch.completed_request_count,
-            total: batch.request_count,
-          })}{" "}
-          ·{" "}
-          {t("completedSamples", {
-            completed: batch.completed_sample_count,
-            total: batch.expected_sample_count,
-          })}
-        </span>
-        <span className={`mt-1 block text-[11px] ${statusTextClass(batch.status)}`}>
-          {translateGenerationStatus(t, batch.status)}
-        </span>
-        {batch.last_error ? (
-          <span className="mt-1 block truncate text-[11px] text-rose-100">{batch.last_error}</span>
-        ) : null}
-      </span>
-    </button>
-  );
-}
-
 function isHistoryStatusFilter(value: string): value is HistoryStatusFilter {
   return HISTORY_STATUS_OPTIONS.some((option) => option.value === value);
 }
@@ -238,12 +209,4 @@ function isHistoryStatusFilter(value: string): value is HistoryStatusFilter {
 function formatHistoryRange(offset: number, limit: number, total: number): string {
   if (total === 0) return "0 batches";
   return `${offset + 1}-${Math.min(offset + limit, total)} of ${total}`;
-}
-
-function statusTextClass(status: GenerationBatchHistoryStatusDto): string {
-  if (status === "failed") return "text-rose-200";
-  if (status === "succeeded") return "text-emerald-200";
-  if (status === "partially_succeeded") return "text-amber-200";
-  if (status === "running") return "text-brand-200";
-  return "text-app-muted";
 }

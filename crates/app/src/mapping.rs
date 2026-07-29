@@ -1,9 +1,10 @@
 use atelier_app_api::account::{ApiKeyRecordDto, SubscriptionSummaryDto};
 use atelier_app_api::gallery::{
-    GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItemDto, GalleryPageDto,
-    GalleryQueryDto, GallerySafetyDto, GallerySafetyLabelDto, GallerySafetyOverrideDto,
-    GallerySafetyRiskBandDto, GallerySafetyScanStateDto, GallerySafetyScoreDto,
-    GallerySourceKindDto, VisualAssetDto,
+    GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItemDto,
+    GalleryMetadataStatusDto, GalleryMetadataWarningCodeDto, GalleryMetadataWarningDto,
+    GalleryPageDto, GalleryQueryDto, GallerySafetyDto, GallerySafetyLabelDto,
+    GallerySafetyOverrideDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
+    GallerySafetyScoreDto, GallerySourceKindDto, VisualAssetDto,
 };
 use atelier_app_api::generation::{
     GenerationPlanContextDto, GenerationRequestStatusDto, GenerationStatusDto, ImageFormatDto,
@@ -13,7 +14,7 @@ use atelier_app_api::generation::{
 use atelier_app_api::history::{
     GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto, GenerationHistoryPageDto,
     GenerationHistoryQueryDto, RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto,
-    RunHistoryPageDto, RunHistoryQueryDto, RunHistoryStatusDto,
+    RunHistoryOutputStateDto, RunHistoryPageDto, RunHistoryQueryDto, RunHistoryStatusDto,
 };
 use atelier_app_api::prompt::{
     CompiledPromptDto, PromptChunkDto, PromptFunctionTraceEntryDto, PromptLexiconCatalogDto,
@@ -31,7 +32,9 @@ use atelier_app_api::vibe::{
     EnsuredVibeEncodingDto, ExportedVibeDocumentDto, ImportedVibeDocumentsDto,
     VibeDocumentEntryDto, VibeEncodingConfigDto, VibeExportFormatDto, VibeModelDto,
 };
-use atelier_artifacts::{ArtifactKind, VisualAssetRole};
+use atelier_artifacts::{
+    ArtifactKind, EmbeddedMetadataStatus, EmbeddedMetadataWarning, VisualAssetRole,
+};
 use atelier_gallery::{
     GalleryImageReference, GalleryItem, GalleryQuery, GallerySafetyOverride, GallerySourceKind,
     ImageReferenceTarget,
@@ -43,7 +46,7 @@ use atelier_generation::{
 use atelier_jobs::{
     ActiveJobBatchSnapshot, BatchStatus, GenerationBatchHistoryQuery, GenerationBatchHistoryRecord,
     GenerationBatchHistoryStatus, QueueDelay, QueueDirective, RunHistoryKind, RunHistoryQuery,
-    RunHistoryRecord, RunHistoryStatus, RunOutputRecord,
+    RunHistoryRecord, RunHistoryStatus, RunOutputRecord, RunOutputState,
 };
 use atelier_kernel::{EnsuredVibeEncoding, ExportedVibeDocument, ImportedVibeDocuments};
 use atelier_prompt_lexicon::{

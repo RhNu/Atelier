@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use atelier_artifacts::{ArtifactRecord, ArtifactResult, RegisterArtifactRequest};
 use atelier_director::NovelAiDirectorClient;
 use atelier_gallery::{GalleryItem, GalleryResult};
-use atelier_generation::NovelAiGenerationClient;
+use atelier_generation::{GeneratedImageMetadataInspector, NovelAiGenerationClient};
 use atelier_jobs::JobPayloadRef;
 use atelier_precise_reference::{PreciseReferenceImage, PreciseReferenceResult};
 use atelier_prompt_resources::{CompilePromptRequest, CompiledPrompt, PromptResourceResult};
@@ -45,7 +45,9 @@ pub trait GenerationPayloadStore: Send + Sync {
 }
 
 #[async_trait]
-pub trait KernelGenerationPorts: NovelAiGenerationClient + Send + Sync {
+pub trait KernelGenerationPorts:
+    NovelAiGenerationClient + GeneratedImageMetadataInspector + Send + Sync
+{
     async fn compile_prompt(
         &self,
         request: CompilePromptRequest,

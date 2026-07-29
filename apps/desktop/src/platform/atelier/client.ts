@@ -28,6 +28,8 @@ import type {
   ExportVibeDocumentRequestDto,
   GalleryImageReferenceDto,
   GalleryImageReferenceRequestDto,
+  GalleryItemDetailDto,
+  GalleryItemDetailRequestDto,
   GalleryItemDto,
   GalleryPageDto,
   GalleryQueryDto,
@@ -324,6 +326,8 @@ export const vibeApi = {
 export const galleryApi = {
   list: (request: GalleryQueryDto) =>
     invokeAtelierCommand<GalleryPageDto>(atelierCommands.queryGallery, { request }),
+  detail: (request: GalleryItemDetailRequestDto) =>
+    invokeAtelierCommand<GalleryItemDetailDto>(atelierCommands.getGalleryItemDetail, { request }),
   setSafetyOverride: (request: SetGallerySafetyOverrideRequestDto) =>
     invokeAtelierCommand<GalleryItemDto>(atelierCommands.setGallerySafetyOverride, { request }),
   deleteItems: (request: DeleteGalleryItemsRequestDto) =>

@@ -19,8 +19,10 @@ use atelier_gallery::{
     GalleryService, GallerySourceKind,
 };
 use atelier_generation::{
-    GenerateImageRequest, GeneratedImage, GenerationPlanContext, GenerationResult, ImageModel,
-    ImageSize, ImageStreamResult, NovelAiGenerationClient, plan_generation_request,
+    GenerateImageRequest, GenerateImageResult, GenerateImageStreamResult, GeneratedImage,
+    GeneratedImageMetadata, GeneratedImageMetadataInspector, GenerationPlanContext,
+    GenerationResult, ImageModel, ImageSize, NovelAiGenerationClient, ParsedGeneratedImageMetadata,
+    plan_generation_request,
 };
 use atelier_jobs::{BatchId, JobId, JobPayloadRef};
 use atelier_kernel::{
@@ -76,10 +78,12 @@ fn artifact_record(id: &str, seed: i64, source: ArtifactSource) -> ArtifactRecor
         source,
         primary_resource: resource.clone(),
         metadata: ArtifactMetadata {
+            request_seed: Some(seed),
             seed: Some(seed),
             sample_index: Some(0),
             model_name: Some("nai-diffusion-4-5-full".to_owned()),
             extensions: BTreeMap::from([("prompt".to_owned(), "1girl".to_owned())]),
+            ..ArtifactMetadata::default()
         },
         replay: Some(ArtifactReplayManifest {
             payload_ref: Some(format!("generation-submitted:{id}")),
@@ -262,20 +266,42 @@ impl NovelAiGenerationClient for DatabaseWorkflowPorts {
     async fn generate(
         &self,
         _request: GenerateImageRequest,
-    ) -> GenerationResult<Vec<GeneratedImage>> {
+    ) -> GenerationResult<GenerateImageResult> {
         *self.generated.lock().unwrap() += 1;
-        Ok(vec![GeneratedImage {
-            bytes: vec![1, 2, 3],
-            mime_type: Some("image/png".to_owned()),
-            seed: Some(99),
-        }])
+        Ok(GenerateImageResult {
+            resolved_seed: 99,
+            images: vec![GeneratedImage {
+                bytes: vec![1, 2, 3],
+                mime_type: Some("image/png".to_owned()),
+                metadata: GeneratedImageMetadata::Parsed(ParsedGeneratedImageMetadata {
+                    prompt: Some("1girl".to_owned()),
+                    negative_prompt: None,
+                    seed: Some(99),
+                    metadata_json: r#"{"seed":99}"#.to_owned(),
+                    warnings: Vec::new(),
+                }),
+            }],
+        })
     }
 
     async fn generate_stream(
         &self,
         _request: atelier_generation::GenerateImageStreamRequest,
-    ) -> GenerationResult<ImageStreamResult> {
-        Ok(Box::pin(futures_util::stream::empty()))
+    ) -> GenerationResult<GenerateImageStreamResult> {
+        Ok(GenerateImageStreamResult {
+            resolved_seed: 99,
+            stream: Box::pin(futures_util::stream::empty()),
+        })
+    }
+}
+
+impl GeneratedImageMetadataInspector for DatabaseWorkflowPorts {
+    fn inspect_generated_image_metadata(
+        &self,
+        _bytes: &[u8],
+        _mime_type: Option<&str>,
+    ) -> GeneratedImageMetadata {
+        GeneratedImageMetadata::UnsupportedFormat
     }
 }
 

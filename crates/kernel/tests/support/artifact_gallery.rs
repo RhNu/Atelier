@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use atelier_artifacts::{
-    ArtifactRecord, ArtifactRepository, ArtifactResourceReader, ArtifactResult,
+    ArtifactId, ArtifactRecord, ArtifactRepository, ArtifactResourceReader, ArtifactResult,
 };
 use atelier_gallery::{GalleryIndex, GalleryItem, GalleryItemId, GalleryResult};
 use atelier_resource_catalog::{ResourceMetadata, ResourceRecord, ResourceRef, ResourceState};
@@ -16,6 +16,16 @@ impl ArtifactRepository for MemoryKernelPorts {
             .artifacts
             .insert(record.id.as_str().to_owned(), record);
         Ok(())
+    }
+
+    async fn get_artifact(&self, id: &ArtifactId) -> ArtifactResult<Option<ArtifactRecord>> {
+        Ok(self
+            .state
+            .lock()
+            .unwrap()
+            .artifacts
+            .get(id.as_str())
+            .cloned())
     }
 
     async fn delete_artifacts(

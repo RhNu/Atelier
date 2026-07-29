@@ -14,6 +14,7 @@ export type GenerationSampleState =
   | "ready"
   | "failed"
   | "stopped"
+  | "deleted"
   | "missing";
 
 export type GenerationSampleSlot = {
@@ -201,6 +202,17 @@ function buildSampleSlot(
   output: RunHistoryOutputDto | undefined,
   preview: GenerationPreview | undefined,
 ): GenerationSampleSlot {
+  if (output?.state === "deleted") {
+    return {
+      sampleIndex,
+      state: "deleted",
+      streamSrc: null,
+      resource: null,
+      artifactId: output.artifact_id,
+      galleryItemId: null,
+      updatedSequence: 0,
+    };
+  }
   if (preview?.kind === "resource") {
     return {
       sampleIndex,
@@ -212,7 +224,7 @@ function buildSampleSlot(
       updatedSequence: preview.sequence,
     };
   }
-  if (output) {
+  if (output?.state === "available" && output.resource) {
     return {
       sampleIndex,
       state: "ready",

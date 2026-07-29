@@ -23,12 +23,16 @@ pub use error::{
 pub use estimate::{AnlasEstimate, AnlasEstimateInput, estimate_anlas_cost};
 pub use model::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
-    ControlNetInput, GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, ImageFormat,
-    ImageModel, ImageSize, ImageStreamEvent, Img2ImgRequest, NoiseSchedule, Sampler, StreamMode,
-    UcPreset,
+    ControlNetInput, GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
+    GeneratedImage, GeneratedImageMetadata, GeneratedImageMetadataWarning, ImageFormat, ImageModel,
+    ImageSize, ImageStreamEvent, Img2ImgRequest, NoiseSchedule, ParsedGeneratedImageMetadata,
+    Sampler, StreamMode, UcPreset,
 };
 pub use normalize::normalize_generate_request;
-pub use ports::{GenerationResult, ImageStreamResult, NovelAiGenerationClient};
+pub use ports::{
+    GenerateImageStreamResult, GeneratedImageMetadataInspector, GenerationResult,
+    ImageStreamResult, NovelAiGenerationClient,
+};
 pub use request_plan::{
     GenerationOutputMode, GenerationPlanContext, GenerationRequestPlan, SeedMode,
     plan_generation_request, plan_generation_stream_request,

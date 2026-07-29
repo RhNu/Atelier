@@ -4,8 +4,11 @@ use super::{
     gallery_query_to_domain, image_reference_target_to_domain, safety_override_to_domain,
 };
 use atelier_adapter_database::{GalleryHardDeletePlan, GalleryTransientOwner};
-use atelier_app_api::gallery::{DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto};
-use atelier_artifacts::ArtifactSource;
+use atelier_app_api::gallery::{
+    DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryItemDetailDto,
+    GalleryItemDetailRequestDto,
+};
+use atelier_artifacts::{ArtifactId, ArtifactSource};
 use atelier_gallery::GalleryItem;
 
 pub struct GalleryUseCases<'a, S, F, E> {
@@ -38,6 +41,34 @@ where
             .await
             .map_err(AppError::from)?;
         Ok(gallery_page_to_dto(items, offset, limit, total))
+    }
+
+    pub async fn detail(
+        &self,
+        request: GalleryItemDetailRequestDto,
+    ) -> AppResult<GalleryItemDetailDto> {
+        let item_id = GalleryItemId::new(&request.item_id);
+        let item = self
+            .app
+            .inner
+            .gallery
+            .get_items(&[item_id])
+            .await?
+            .into_iter()
+            .next()
+            .ok_or_else(|| AppError::new("not_found", "gallery item does not exist"))?;
+        let artifact = self
+            .app
+            .inner
+            .artifacts
+            .get_artifact(&ArtifactId::new(item.artifact_id.as_str()))
+            .await
+            .map_err(|error| AppError::new("artifact", error.to_string()))?;
+        Ok(GalleryItemDetailDto {
+            item_id: request.item_id,
+            embedded_metadata_json: artifact
+                .and_then(|artifact| artifact.metadata.embedded_metadata_json),
+        })
     }
 
     pub async fn set_safety_override(

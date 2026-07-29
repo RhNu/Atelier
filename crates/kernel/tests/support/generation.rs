@@ -2,8 +2,9 @@ use async_trait::async_trait;
 use atelier_artifacts::{ArtifactError, ArtifactRecord, ArtifactResult, RegisterArtifactRequest};
 use atelier_gallery::{GalleryItem, GalleryResult};
 use atelier_generation::{
-    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
-    ImageStreamResult, NovelAiGenerationClient,
+    GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
+    GenerateImageStreamResult, GeneratedImageMetadata, GeneratedImageMetadataInspector,
+    GenerationResult, NovelAiGenerationClient,
 };
 use atelier_kernel::{
     GenerationPayloadStore, KernelGenerationPorts, PreparedGenerationPayload,
@@ -188,24 +189,50 @@ impl NovelAiGenerationClient for MemoryKernelPorts {
     async fn generate(
         &self,
         request: GenerateImageRequest,
-    ) -> GenerationResult<Vec<GeneratedImage>> {
+    ) -> GenerationResult<GenerateImageResult> {
         let mut state = self.state.lock().unwrap();
+        let resolved_seed = if request.seed == 0 {
+            4242
+        } else {
+            request.seed
+        };
         state.operations.push("generate".to_owned());
         state.generated_requests.push(request);
         if let Some(error) = state.fail_generate.clone() {
             return Err(error);
         }
-        Ok(state.generated_images.clone())
+        Ok(GenerateImageResult {
+            resolved_seed,
+            images: state.generated_images.clone(),
+        })
     }
 
     async fn generate_stream(
         &self,
         request: GenerateImageStreamRequest,
-    ) -> GenerationResult<ImageStreamResult> {
+    ) -> GenerationResult<GenerateImageStreamResult> {
         let mut state = self.state.lock().unwrap();
+        let resolved_seed = if request.base.seed == 0 {
+            4242
+        } else {
+            request.base.seed
+        };
         state.operations.push("generate_stream".to_owned());
         state.stream_requests.push(request);
         let items = state.stream_items.drain(..).collect::<Vec<_>>();
-        Ok(Box::pin(stream::iter(items)))
+        Ok(GenerateImageStreamResult {
+            resolved_seed,
+            stream: Box::pin(stream::iter(items)),
+        })
+    }
+}
+
+impl GeneratedImageMetadataInspector for MemoryKernelPorts {
+    fn inspect_generated_image_metadata(
+        &self,
+        _bytes: &[u8],
+        _mime_type: Option<&str>,
+    ) -> GeneratedImageMetadata {
+        GeneratedImageMetadata::UnsupportedFormat
     }
 }

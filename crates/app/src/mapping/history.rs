@@ -2,8 +2,9 @@ use super::{
     GenerationBatchHistoryQuery, GenerationBatchHistoryRecord, GenerationBatchHistoryStatus,
     GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto, GenerationHistoryPageDto,
     GenerationHistoryQueryDto, ResourceRefDto, RunHistoryItemDto, RunHistoryKind,
-    RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto, RunHistoryQuery, RunHistoryQueryDto,
-    RunHistoryRecord, RunHistoryStatus, RunHistoryStatusDto, RunOutputRecord,
+    RunHistoryKindDto, RunHistoryOutputDto, RunHistoryOutputStateDto, RunHistoryPageDto,
+    RunHistoryQuery, RunHistoryQueryDto, RunHistoryRecord, RunHistoryStatus, RunHistoryStatusDto,
+    RunOutputRecord, RunOutputState,
 };
 
 pub const fn run_history_kind_to_dto(value: RunHistoryKind) -> RunHistoryKindDto {
@@ -106,6 +107,7 @@ pub fn generation_history_query_to_domain(
 pub fn generation_history_batch_to_dto(
     record: GenerationBatchHistoryRecord,
     completed_sample_count: usize,
+    available_sample_count: usize,
     outputs: Vec<RunHistoryOutputDto>,
 ) -> GenerationHistoryBatchDto {
     GenerationHistoryBatchDto {
@@ -120,6 +122,7 @@ pub fn generation_history_batch_to_dto(
         completed_request_count: record.completed_request_count,
         expected_sample_count: record.expected_sample_count,
         completed_sample_count,
+        available_sample_count,
         outputs,
     }
 }
@@ -178,11 +181,15 @@ pub fn run_output_to_dto(value: RunOutputRecord) -> RunHistoryOutputDto {
         sample_index: value.sample_index,
         artifact_id: value.artifact_id,
         item_id: value.item_id,
-        resource: ResourceRefDto {
-            id: value.resource_id,
+        resource: value.resource_id.map(|id| ResourceRefDto {
+            id,
             variant_id: value.variant_id,
-        },
+        }),
         asset_role: value.asset_role,
         variant_kind: value.variant_kind,
+        state: match value.state {
+            RunOutputState::Available => RunHistoryOutputStateDto::Available,
+            RunOutputState::Deleted => RunHistoryOutputStateDto::Deleted,
+        },
     }
 }

@@ -1,8 +1,8 @@
 use super::{
-    ArtifactId, ArtifactMetadataDto, ArtifactSourceDto, DatabaseError, DatabaseResult, Deserialize,
-    GalleryItem, GalleryItemId, ImageSafetyScore, JSON_SCHEMA_VERSION, JsonCodec, ResourceRefDto,
-    SafetyAssessment, SafetyModelScore, Serialize, VisualAssetRefDto, VisualAssetRole,
-    artifact_kind_as_str, artifact_kind_from_str, decode_error, ensure_schema,
+    ArtifactId, ArtifactMetadataDto, ArtifactReplayManifestDto, ArtifactSourceDto, DatabaseError,
+    DatabaseResult, Deserialize, GalleryItem, GalleryItemId, ImageSafetyScore, JSON_SCHEMA_VERSION,
+    JsonCodec, ResourceRefDto, SafetyAssessment, SafetyModelScore, Serialize, VisualAssetRefDto,
+    VisualAssetRole, artifact_kind_as_str, artifact_kind_from_str, decode_error, ensure_schema,
     safety_override_as_str, safety_override_from_str,
 };
 
@@ -92,6 +92,8 @@ pub struct GalleryItemDto {
     primary_resource: ResourceRefDto,
     assets: Vec<VisualAssetRefDto>,
     metadata: ArtifactMetadataDto,
+    #[serde(default)]
+    replay: Option<ArtifactReplayManifestDto>,
     safety_assessment: Option<SafetyAssessmentDto>,
     manual_safety_override: Option<String>,
     indexed_at_ms: u64,
@@ -108,6 +110,7 @@ impl JsonCodec<GalleryItem> for GalleryItemDto {
             primary_resource: ResourceRefDto::from(&value.primary_resource),
             assets: value.assets.iter().map(VisualAssetRefDto::from).collect(),
             metadata: ArtifactMetadataDto::from(&value.metadata),
+            replay: value.replay.as_ref().map(ArtifactReplayManifestDto::from),
             safety_assessment: value
                 .safety_assessment
                 .as_ref()
@@ -134,6 +137,7 @@ impl JsonCodec<GalleryItem> for GalleryItemDto {
                 .map(VisualAssetRefDto::into_domain)
                 .collect::<DatabaseResult<Vec<_>>>()?,
             metadata: self.metadata.into(),
+            replay: self.replay.map(Into::into),
             safety_assessment: self
                 .safety_assessment
                 .map(SafetyAssessmentDto::into_domain)

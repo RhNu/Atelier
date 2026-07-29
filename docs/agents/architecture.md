@@ -142,6 +142,23 @@ Any durable binary or semi-structured resource must go through `resource-catalog
 
 Feature crates may store `ResourceRef` plus feature-owned metadata. They should not create long-lived resource directories, encode physical path rules, or maintain private binary indexes.
 
+## Generation Output Ownership
+
+Generation history, Artifacts, and Gallery entries describe different facts and must not be treated
+as interchangeable owners:
+
+- A generation batch is the durable task created by one Generate action. Its request records and
+  expected output slots remain valid history even when an output is later deleted.
+- An Artifact owns the durable output provenance, including the request-level resolved seed,
+  per-image embedded seed, replay prompt snapshots, and best-effort NovelAI metadata diagnostics.
+- A Gallery item is an index/projection over an Artifact. It is not the source of generation
+  provenance.
+- Hard-deleting a Gallery item may remove its Artifact and unreferenced resource blobs, but the
+  corresponding generation output record becomes a deleted tombstone instead of disappearing or
+  retaining a loadable resource reference.
+- Deleting generation task history does not implicitly delete Artifacts or Gallery entries. Output
+  deletion must remain an explicit Gallery/Artifact action.
+
 ## Verification Boundary
 
 Feature and kernel tests should run without Tauri, real filesystem access, real NovelAI access, or OS keyring access whenever possible. Real adapters should have focused contract or integration tests and preserve fake or in-memory replacements.

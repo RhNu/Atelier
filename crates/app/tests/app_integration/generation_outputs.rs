@@ -129,6 +129,14 @@ fn valid_generated_images_get_best_effort_gallery_variants() {
             .unwrap();
         assert_eq!(gallery.items.len(), 1);
         let item = &gallery.items[0];
+        assert_eq!(item.request_seed, Some(42));
+        assert_eq!(item.seed, Some(42));
+        assert_eq!(item.prompt.as_deref(), Some("1girl"));
+        assert_eq!(item.negative_prompt.as_deref(), Some("lowres"));
+        assert_eq!(
+            item.embedded_metadata_status,
+            Some(atelier_app_api::gallery::GalleryMetadataStatusDto::Parsed)
+        );
         assert_eq!(
             item.assets
                 .iter()

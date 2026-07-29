@@ -1,9 +1,9 @@
 use super::{
     ArtifactId, ArtifactMetadata, ArtifactRecord, ArtifactReplayManifest, ArtifactSource,
-    DatabaseError, DatabaseResult, Deserialize, JSON_SCHEMA_VERSION, JsonCodec, ResourceRefDto,
-    Serialize, VisualAssetRef, artifact_kind_as_str, artifact_kind_from_str, ensure_schema,
-    variant_kind_as_str, variant_kind_from_str, visual_asset_role_as_str,
-    visual_asset_role_from_str,
+    DatabaseError, DatabaseResult, Deserialize, EmbeddedMetadataStatus, EmbeddedMetadataWarning,
+    JSON_SCHEMA_VERSION, JsonCodec, ResourceRefDto, Serialize, VisualAssetRef,
+    artifact_kind_as_str, artifact_kind_from_str, ensure_schema, variant_kind_as_str,
+    variant_kind_from_str, visual_asset_role_as_str, visual_asset_role_from_str,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -42,18 +42,46 @@ impl VisualAssetRefDto {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(super) struct ArtifactMetadataDto {
+    #[serde(default)]
+    request_seed: Option<i64>,
     seed: Option<i64>,
     sample_index: Option<u32>,
     model_name: Option<String>,
+    #[serde(default)]
+    embedded_metadata_status: Option<String>,
+    #[serde(default)]
+    embedded_prompt: Option<String>,
+    #[serde(default)]
+    embedded_negative_prompt: Option<String>,
+    #[serde(default)]
+    embedded_metadata_json: Option<String>,
+    #[serde(default)]
+    embedded_metadata_error: Option<String>,
+    #[serde(default)]
+    embedded_metadata_warnings: Vec<EmbeddedMetadataWarningDto>,
     extensions: std::collections::BTreeMap<String, String>,
 }
 
 impl From<&ArtifactMetadata> for ArtifactMetadataDto {
     fn from(value: &ArtifactMetadata) -> Self {
         Self {
+            request_seed: value.request_seed,
             seed: value.seed,
             sample_index: value.sample_index,
             model_name: value.model_name.clone(),
+            embedded_metadata_status: value
+                .embedded_metadata_status
+                .map(embedded_metadata_status_as_str)
+                .map(str::to_owned),
+            embedded_prompt: value.embedded_prompt.clone(),
+            embedded_negative_prompt: value.embedded_negative_prompt.clone(),
+            embedded_metadata_json: value.embedded_metadata_json.clone(),
+            embedded_metadata_error: value.embedded_metadata_error.clone(),
+            embedded_metadata_warnings: value
+                .embedded_metadata_warnings
+                .iter()
+                .map(EmbeddedMetadataWarningDto::from)
+                .collect(),
             extensions: value.extensions.clone(),
         }
     }
@@ -62,11 +90,97 @@ impl From<&ArtifactMetadata> for ArtifactMetadataDto {
 impl From<ArtifactMetadataDto> for ArtifactMetadata {
     fn from(value: ArtifactMetadataDto) -> Self {
         Self {
+            request_seed: value.request_seed,
             seed: value.seed,
             sample_index: value.sample_index,
             model_name: value.model_name,
+            embedded_metadata_status: value
+                .embedded_metadata_status
+                .as_deref()
+                .map(embedded_metadata_status_from_str),
+            embedded_prompt: value.embedded_prompt,
+            embedded_negative_prompt: value.embedded_negative_prompt,
+            embedded_metadata_json: value.embedded_metadata_json,
+            embedded_metadata_error: value.embedded_metadata_error,
+            embedded_metadata_warnings: value
+                .embedded_metadata_warnings
+                .into_iter()
+                .map(EmbeddedMetadataWarningDto::into_domain)
+                .collect(),
             extensions: value.extensions,
         }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+enum EmbeddedMetadataWarningDto {
+    Legacy(String),
+    Structured {
+        code: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        keyword: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
+    },
+}
+
+impl From<&EmbeddedMetadataWarning> for EmbeddedMetadataWarningDto {
+    fn from(value: &EmbeddedMetadataWarning) -> Self {
+        match value {
+            EmbeddedMetadataWarning::InvalidCommentJson => Self::Structured {
+                code: "invalid_comment_json".to_owned(),
+                keyword: None,
+                message: None,
+            },
+            EmbeddedMetadataWarning::InvalidTextChunk { keyword, message } => Self::Structured {
+                code: "invalid_text_chunk".to_owned(),
+                keyword: Some(keyword.clone()),
+                message: Some(message.clone()),
+            },
+            EmbeddedMetadataWarning::Unknown(value) => Self::Legacy(value.clone()),
+        }
+    }
+}
+
+impl EmbeddedMetadataWarningDto {
+    fn into_domain(self) -> EmbeddedMetadataWarning {
+        match self {
+            Self::Legacy(value) if value == "invalid_comment_json" => {
+                EmbeddedMetadataWarning::InvalidCommentJson
+            }
+            Self::Legacy(value) => EmbeddedMetadataWarning::Unknown(value),
+            Self::Structured { code, .. } if code == "invalid_comment_json" => {
+                EmbeddedMetadataWarning::InvalidCommentJson
+            }
+            Self::Structured {
+                code,
+                keyword,
+                message,
+            } if code == "invalid_text_chunk" => EmbeddedMetadataWarning::InvalidTextChunk {
+                keyword: keyword.unwrap_or_default(),
+                message: message.unwrap_or_default(),
+            },
+            Self::Structured { code, .. } => EmbeddedMetadataWarning::Unknown(code),
+        }
+    }
+}
+
+const fn embedded_metadata_status_as_str(value: EmbeddedMetadataStatus) -> &'static str {
+    match value {
+        EmbeddedMetadataStatus::Parsed => "parsed",
+        EmbeddedMetadataStatus::NotPresent => "not_present",
+        EmbeddedMetadataStatus::UnsupportedFormat => "unsupported_format",
+        EmbeddedMetadataStatus::Invalid => "invalid",
+    }
+}
+
+fn embedded_metadata_status_from_str(value: &str) -> EmbeddedMetadataStatus {
+    match value {
+        "parsed" => EmbeddedMetadataStatus::Parsed,
+        "not_present" => EmbeddedMetadataStatus::NotPresent,
+        "unsupported_format" => EmbeddedMetadataStatus::UnsupportedFormat,
+        _ => EmbeddedMetadataStatus::Invalid,
     }
 }
 

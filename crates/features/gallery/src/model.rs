@@ -1,6 +1,6 @@
 use atelier_artifacts::{
-    ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactSource, VisualAssetRef,
-    VisualAssetRole,
+    ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactReplayManifest,
+    ArtifactSource, VisualAssetRef, VisualAssetRole,
 };
 use atelier_resource_catalog::{ResourceRef, ResourceVariantKind};
 use atelier_safety::{SafetyAssessment, SafetyLabel};
@@ -57,6 +57,7 @@ pub struct GalleryItem {
     pub primary_resource: ResourceRef,
     pub assets: Vec<VisualAssetRef>,
     pub metadata: ArtifactMetadata,
+    pub replay: Option<ArtifactReplayManifest>,
     pub safety_assessment: Option<SafetyAssessment>,
     pub manual_safety_override: Option<GallerySafetyOverride>,
     pub indexed_at_ms: u64,
@@ -69,6 +70,8 @@ impl GalleryItem {
         indexed_at_ms: u64,
         safety_assessment: Option<SafetyAssessment>,
     ) -> Self {
+        let mut metadata = artifact.metadata;
+        metadata.embedded_metadata_json = None;
         Self {
             id: GalleryItemId::from_artifact_id(&artifact.id),
             artifact_id: artifact.id,
@@ -76,7 +79,8 @@ impl GalleryItem {
             source: artifact.source,
             primary_resource: artifact.primary_resource,
             assets: artifact.assets,
-            metadata: artifact.metadata,
+            metadata,
+            replay: artifact.replay,
             safety_assessment,
             manual_safety_override: None,
             indexed_at_ms,

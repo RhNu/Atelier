@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use atelier_generation::{
     CharacterPosition, GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage,
-    GenerationClientError, GenerationPlanContext, ImageModel, ImageStreamEvent,
+    GeneratedImageMetadata, GenerationClientError, GenerationPlanContext, ImageModel,
+    ImageStreamEvent, ParsedGeneratedImageMetadata,
 };
 use atelier_jobs::{BatchId, JobId, JobStatus, QueueDelay, QueueDirective, RetryPolicy};
 use atelier_kernel::{
@@ -16,6 +17,23 @@ use base64::Engine;
 use futures_executor::block_on;
 
 use support::MemoryKernelPorts;
+
+fn generated_image(bytes: Vec<u8>, seed: Option<i64>) -> GeneratedImage {
+    let metadata = seed.map_or(GeneratedImageMetadata::NotPresent, |seed| {
+        GeneratedImageMetadata::Parsed(ParsedGeneratedImageMetadata {
+            prompt: Some("1girl".to_owned()),
+            negative_prompt: None,
+            seed: Some(seed),
+            metadata_json: format!(r#"{{"seed":{seed}}}"#),
+            warnings: Vec::new(),
+        })
+    });
+    GeneratedImage {
+        bytes,
+        mime_type: Some("image/png".to_owned()),
+        metadata,
+    }
+}
 
 #[test]
 fn submit_generation_work_only_enqueues_payload() {
@@ -142,11 +160,7 @@ fn image_generation_compiles_plans_persists_and_indexes_samples() {
     block_on(async {
         let ports = MemoryKernelPorts::default()
             .with_expanded_prompt("expanded prompt")
-            .with_generated_images(vec![GeneratedImage {
-                bytes: vec![1, 2, 3],
-                mime_type: Some("image/png".to_owned()),
-                seed: Some(77),
-            }]);
+            .with_generated_images(vec![generated_image(vec![1, 2, 3], Some(77))]);
         let mut runtime = KernelRuntime::new(ports.clone());
         let job_id = JobId::new("job-1");
 
@@ -176,7 +190,13 @@ fn image_generation_compiles_plans_persists_and_indexes_samples() {
             ResourceKind::GeneratedImage
         );
         let artifact = &ports.artifacts()["artifact:job-1:sample:0"];
+        assert_eq!(artifact.metadata.request_seed, Some(4242));
         assert_eq!(artifact.metadata.seed, Some(77));
+        assert_eq!(
+            artifact.metadata.embedded_metadata_status,
+            Some(atelier_artifacts::EmbeddedMetadataStatus::Parsed)
+        );
+        assert_eq!(artifact.metadata.embedded_prompt.as_deref(), Some("1girl"));
         assert_eq!(artifact.metadata.sample_index, Some(0));
         assert_eq!(
             artifact.replay.as_ref().unwrap().prompt_snapshot.as_deref(),
@@ -204,11 +224,7 @@ fn generation_workflow_compiles_negative_and_character_prompt_scopes() {
             .with_compiled_prompt("$chunk(uc)", "expanded uc")
             .with_compiled_prompt("$chunk(hero)", "expanded hero")
             .with_compiled_prompt("$chunk(hero_uc)", "expanded hero uc")
-            .with_generated_images(vec![GeneratedImage {
-                bytes: vec![1],
-                mime_type: None,
-                seed: None,
-            }]);
+            .with_generated_images(vec![generated_image(vec![1], None)]);
         let mut runtime = KernelRuntime::new(ports.clone());
         let job_id = JobId::new("job-compile-scopes");
 
@@ -280,6 +296,13 @@ fn streaming_generation_emits_chunks_and_persists_only_latest_sample_frames() {
             vec![2, 2, 2]
         );
         assert_eq!(resources["resource:job-stream:stream:1"].bytes, vec![3]);
+        let stream_artifact = &ports.artifacts()["artifact:job-stream:stream:0"];
+        assert_eq!(stream_artifact.metadata.request_seed, Some(4242));
+        assert_eq!(stream_artifact.metadata.seed, None);
+        assert_eq!(
+            stream_artifact.metadata.embedded_metadata_status,
+            Some(atelier_artifacts::EmbeddedMetadataStatus::UnsupportedFormat)
+        );
         let stream_events = ports
             .events()
             .into_iter()
@@ -328,11 +351,7 @@ fn streaming_generation_error_uses_queue_failure_policy_without_persisting_frame
 fn safety_failure_degrades_gallery_indexing_without_failing_job() {
     block_on(async {
         let ports = MemoryKernelPorts::default()
-            .with_generated_images(vec![GeneratedImage {
-                bytes: vec![1],
-                mime_type: None,
-                seed: None,
-            }])
+            .with_generated_images(vec![generated_image(vec![1], None)])
             .failing_safety();
         let mut runtime = KernelRuntime::new(ports.clone());
         let job_id = JobId::new("job-1");
@@ -363,11 +382,7 @@ fn safety_failure_degrades_gallery_indexing_without_failing_job() {
 fn gallery_failure_marks_current_job_failed_and_returns_error() {
     block_on(async {
         let ports = MemoryKernelPorts::default()
-            .with_generated_images(vec![GeneratedImage {
-                bytes: vec![1],
-                mime_type: None,
-                seed: None,
-            }])
+            .with_generated_images(vec![generated_image(vec![1], None)])
             .failing_gallery();
         let mut runtime = KernelRuntime::new(ports);
         let job_id = JobId::new("job-1");
@@ -390,11 +405,7 @@ fn gallery_failure_marks_current_job_failed_and_returns_error() {
 fn resource_failure_marks_current_job_failed_and_returns_error() {
     block_on(async {
         let ports = MemoryKernelPorts::default()
-            .with_generated_images(vec![GeneratedImage {
-                bytes: vec![1],
-                mime_type: None,
-                seed: None,
-            }])
+            .with_generated_images(vec![generated_image(vec![1], None)])
             .failing_resource();
         let mut runtime = KernelRuntime::new(ports);
         let job_id = JobId::new("job-1");
@@ -417,11 +428,7 @@ fn resource_failure_marks_current_job_failed_and_returns_error() {
 fn artifact_failure_marks_current_job_failed_and_returns_error() {
     block_on(async {
         let ports = MemoryKernelPorts::default()
-            .with_generated_images(vec![GeneratedImage {
-                bytes: vec![1],
-                mime_type: None,
-                seed: None,
-            }])
+            .with_generated_images(vec![generated_image(vec![1], None)])
             .failing_artifact();
         let mut runtime = KernelRuntime::new(ports);
         let job_id = JobId::new("job-1");

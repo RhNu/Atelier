@@ -65,6 +65,18 @@ pub struct GalleryItemDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seed: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_seed: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub negative_prompt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedded_metadata_status: Option<GalleryMetadataStatusDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedded_metadata_error: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub embedded_metadata_warnings: Vec<GalleryMetadataWarningDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sample_index: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_name: Option<String>,
@@ -72,6 +84,44 @@ pub struct GalleryItemDto {
     pub safety: Option<GallerySafetyDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manual_safety_override: Option<GallerySafetyOverrideDto>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum GalleryMetadataStatusDto {
+    Parsed,
+    NotPresent,
+    UnsupportedFormat,
+    Invalid,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum GalleryMetadataWarningCodeDto {
+    InvalidCommentJson,
+    InvalidTextChunk,
+    Unknown,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct GalleryMetadataWarningDto {
+    pub code: GalleryMetadataWarningCodeDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keyword: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct GalleryItemDetailRequestDto {
+    pub item_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct GalleryItemDetailDto {
+    pub item_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedded_metadata_json: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

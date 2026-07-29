@@ -1,10 +1,12 @@
 use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactReplayManifest, ArtifactSource,
-    RegisterArtifactRequest, VisualAssetRef, VisualAssetRole,
+    EmbeddedMetadataStatus, EmbeddedMetadataWarning, RegisterArtifactRequest, VisualAssetRef,
+    VisualAssetRole,
 };
 use atelier_generation::{
-    GenerateImageStreamRequest, GenerationClientError, GenerationOutputMode, GenerationRequestPlan,
-    SeedMode, plan_generation_request, plan_generation_stream_request,
+    GenerateImageStreamRequest, GeneratedImageMetadata, GeneratedImageMetadataWarning,
+    GenerationClientError, GenerationOutputMode, GenerationRequestPlan, plan_generation_request,
+    plan_generation_stream_request,
 };
 use atelier_jobs::{JobFailureImpact, JobId, QueueDelay, QueueDirective, RetryPolicy};
 use atelier_prompt_resources::{CompilePromptRequest, PromptResourceResult};
@@ -200,19 +202,19 @@ async fn run_image_generation<P>(
 where
     P: GenerationPayloadStore + KernelClock + KernelEventSink + KernelGenerationPorts,
 {
-    let images = match runtime
+    let result = match runtime
         .ports_ref()
         .generate(plan.normalized_request.clone())
         .await
     {
-        Ok(images) => images,
+        Ok(result) => result,
         Err(error) => return handle_novelai_failure(runtime, batch_id, job_id, error).await,
     };
-    if images.is_empty() {
+    if result.images.is_empty() {
         fail_job(runtime, batch_id, job_id, "generation returned no images").await?;
         return Err(KernelError::MissingGeneratedImage);
     }
-    for (index, image) in images.into_iter().enumerate() {
+    for (index, image) in result.images.into_iter().enumerate() {
         if let Err(error) = persist_sample(
             runtime,
             PersistSample {
@@ -225,7 +227,8 @@ where
                 kind: ResourceKind::GeneratedImage,
                 id_segment: "sample",
                 bytes: image.bytes,
-                seed: image.seed,
+                request_seed: result.resolved_seed,
+                metadata: image.metadata,
             },
         )
         .await
@@ -254,7 +257,8 @@ pub struct PersistSample<'a> {
     pub kind: ResourceKind,
     pub id_segment: &'a str,
     pub bytes: Vec<u8>,
-    pub seed: Option<i64>,
+    pub request_seed: i64,
+    pub metadata: GeneratedImageMetadata,
 }
 
 pub async fn persist_sample<P>(
@@ -297,7 +301,12 @@ where
                 batch_id: Some(sample.batch_id.as_str().to_owned()),
             },
             primary_resource: resource.clone(),
-            metadata: artifact_metadata(sample.plan, sample.sample_index, sample.seed),
+            metadata: artifact_metadata(
+                sample.plan,
+                sample.sample_index,
+                sample.request_seed,
+                &sample.metadata,
+            ),
             replay: Some(ArtifactReplayManifest {
                 payload_ref: Some(submitted_payload_ref(sample.job_id).as_str().to_owned()),
                 prepared_payload_ref: Some(sample.prepared_payload_ref.as_str().to_owned()),
@@ -353,15 +362,72 @@ where
 fn artifact_metadata(
     plan: &GenerationRequestPlan,
     sample_index: u32,
-    seed: Option<i64>,
+    request_seed: i64,
+    embedded: &GeneratedImageMetadata,
 ) -> ArtifactMetadata {
+    let (seed, status, prompt, negative_prompt, metadata_json, error, warnings) = match embedded {
+        GeneratedImageMetadata::Parsed(metadata) => (
+            metadata.seed,
+            EmbeddedMetadataStatus::Parsed,
+            metadata.prompt.clone(),
+            metadata.negative_prompt.clone(),
+            Some(metadata.metadata_json.clone()),
+            None,
+            metadata
+                .warnings
+                .iter()
+                .map(|warning| match warning {
+                    GeneratedImageMetadataWarning::InvalidCommentJson => {
+                        EmbeddedMetadataWarning::InvalidCommentJson
+                    }
+                    GeneratedImageMetadataWarning::InvalidTextChunk { keyword, message } => {
+                        EmbeddedMetadataWarning::InvalidTextChunk {
+                            keyword: keyword.clone(),
+                            message: message.clone(),
+                        }
+                    }
+                })
+                .collect(),
+        ),
+        GeneratedImageMetadata::NotPresent => (
+            None,
+            EmbeddedMetadataStatus::NotPresent,
+            None,
+            None,
+            None,
+            None,
+            Vec::new(),
+        ),
+        GeneratedImageMetadata::UnsupportedFormat => (
+            None,
+            EmbeddedMetadataStatus::UnsupportedFormat,
+            None,
+            None,
+            None,
+            None,
+            Vec::new(),
+        ),
+        GeneratedImageMetadata::Invalid { message } => (
+            None,
+            EmbeddedMetadataStatus::Invalid,
+            None,
+            None,
+            None,
+            Some(message.clone()),
+            Vec::new(),
+        ),
+    };
     ArtifactMetadata {
-        seed: seed.or(match plan.seed_mode {
-            SeedMode::Fixed(seed) => Some(seed),
-            SeedMode::Auto => None,
-        }),
+        request_seed: Some(request_seed),
+        seed,
         sample_index: Some(sample_index),
         model_name: Some(plan.normalized_request.model.as_str().to_owned()),
+        embedded_metadata_status: Some(status),
+        embedded_prompt: prompt,
+        embedded_negative_prompt: negative_prompt,
+        embedded_metadata_json: metadata_json,
+        embedded_metadata_error: error,
+        embedded_metadata_warnings: warnings,
         extensions: std::collections::BTreeMap::default(),
     }
 }

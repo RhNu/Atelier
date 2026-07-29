@@ -18,6 +18,7 @@ import { GallerySafetyDetails } from "./GallerySafetyDetails";
 
 type GalleryInspectorProps = {
   item: GalleryItemDto | null;
+  metadataJson: string | null;
   items: GalleryItemDto[];
   blurSensitive: boolean;
   overrideValue: string;
@@ -74,12 +75,89 @@ function ArtifactDetails({ item }: { item: GalleryItemDto }) {
         <DetailRow label={t("kind")} value={displayGalleryArtifactKind(item.artifact_kind, t)} />
         <DetailRow label={t("source")} value={displayGallerySource(item.source_kind, t)} />
         <DetailRow label={t("model")} value={displayGalleryModelName(item.model_name)} />
-        <DetailRow label={t("seedLabel")} value={item.seed} />
+        <DetailRow label={t("outputSeed")} value={item.seed} />
+        <DetailRow label={t("requestSeed")} value={item.request_seed} />
         <DetailRow label={t("sampleLabel")} value={item.sample_index} />
         <DetailRow label={t("indexed")} value={formatTimestamp(item.indexed_at_ms)} />
       </dl>
     </section>
   );
+}
+
+function GenerationMetadataDetails({
+  item,
+  metadataJson,
+}: {
+  item: GalleryItemDto;
+  metadataJson: string | null;
+}) {
+  const { t } = useTranslation("gallery");
+  const warnings = item.embedded_metadata_warnings ?? [];
+  const metadataStatus = (() => {
+    switch (item.embedded_metadata_status) {
+      case "parsed":
+        return t("metadataStatuses.parsed");
+      case "not_present":
+        return t("metadataStatuses.notPresent");
+      case "unsupported_format":
+        return t("metadataStatuses.unsupportedFormat");
+      case "invalid":
+        return t("metadataStatuses.invalid");
+      default:
+        return null;
+    }
+  })();
+  const metadataWarnings = warnings.map((warning) => {
+    switch (warning.code) {
+      case "invalid_comment_json":
+        return t("metadataWarningsByCode.invalidCommentJson");
+      case "invalid_text_chunk":
+        return t("metadataWarningsByCode.invalidTextChunk", {
+          keyword: warning.keyword ?? "?",
+          message: warning.message ?? "",
+        });
+      case "unknown":
+        return t("metadataWarningsByCode.unknown", {
+          message: warning.message ?? "",
+        });
+    }
+  });
+  if (!item.prompt && !item.negative_prompt && !item.embedded_metadata_status && !metadataJson) {
+    return null;
+  }
+  return (
+    <section className="grid gap-2 border-t border-app-border pt-3">
+      <h3 className="text-sm font-semibold text-white">{t("generationMetadata")}</h3>
+      <dl className="grid gap-2">
+        <DetailRow label={t("prompt")} value={item.prompt} />
+        <DetailRow label={t("negativePrompt")} value={item.negative_prompt} />
+        <DetailRow label={t("metadataStatus")} value={metadataStatus} />
+        <DetailRow label={t("metadataError")} value={item.embedded_metadata_error} />
+        <DetailRow
+          label={t("metadataWarnings")}
+          value={metadataWarnings.length ? metadataWarnings.join(", ") : null}
+        />
+      </dl>
+      {metadataJson ? (
+        <details>
+          <summary className="cursor-pointer text-xs font-semibold text-app-muted">
+            {t("rawMetadata")}
+          </summary>
+          <pre className="mt-2 max-h-64 overflow-auto border border-app-border bg-black/25 p-2 text-[11px] break-all whitespace-pre-wrap text-app-muted">
+            {formatMetadataJson(metadataJson)}
+          </pre>
+        </details>
+      ) : null}
+    </section>
+  );
+}
+
+function formatMetadataJson(value: string): string {
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
+  }
 }
 
 function AssetDetails({ item }: { item: GalleryItemDto }) {
@@ -107,7 +185,7 @@ function AssetDetails({ item }: { item: GalleryItemDto }) {
 
 export function GalleryInspector(props: GalleryInspectorProps) {
   const { t } = useTranslation("gallery");
-  const { item, items, blurSensitive, onSelectItem } = props;
+  const { item, items, blurSensitive, metadataJson, onSelectItem } = props;
   const pushToast = useToastStore((state) => state.push);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const openLightbox = useCallback(() => setLightboxOpen(true), []);
@@ -184,6 +262,7 @@ export function GalleryInspector(props: GalleryInspectorProps) {
           />
         </button>
         <ArtifactDetails item={item} />
+        <GenerationMetadataDetails item={item} metadataJson={metadataJson} />
         <GallerySafetyDetails
           item={item}
           overrideValue={props.overrideValue}

@@ -1,9 +1,9 @@
 use super::{
     DatabaseConnection, GenerationBatchHistoryQuery, GenerationBatchHistoryRecord, JobResult,
     OptionalExtension, RunHistoryQuery, RunHistoryRecord, RunHistoryRepository, RunOutputRecord,
-    async_trait, generation_batch_history_status_as_str, generation_batch_history_status_from_str,
-    job_store_error, params, run_history_from_row, run_history_kind_as_str,
-    run_history_status_as_str,
+    RunOutputState, async_trait, generation_batch_history_status_as_str,
+    generation_batch_history_status_from_str, job_store_error, params, run_history_from_row,
+    run_history_kind_as_str, run_history_status_as_str,
 };
 
 #[derive(Clone, Debug)]
@@ -286,9 +286,10 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
                         resource_id,
                         variant_id,
                         asset_role,
-                        variant_kind
+                        variant_kind,
+                        output_state
                     )
-                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                     ",
                     params![
                         output.run_id,
@@ -299,6 +300,7 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
                         output.variant_id,
                         output.asset_role,
                         output.variant_kind,
+                        run_output_state_as_str(output.state),
                     ],
                 )
                 .map_err(job_store_error)?;
@@ -320,7 +322,8 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
                         resource_id,
                         variant_id,
                         asset_role,
-                        variant_kind
+                        variant_kind,
+                        output_state
                     FROM run_outputs
                     WHERE run_id = ?1
                     ORDER BY
@@ -352,6 +355,8 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
                         variant_id: row.get(5)?,
                         asset_role: row.get(6)?,
                         variant_kind: row.get(7)?,
+                        state: run_output_state_from_str(&row.get::<_, String>(8)?)
+                            .map_err(super::scalars::to_sql_decode_error)?,
                     })
                 })
                 .map_err(job_store_error)?;
@@ -361,7 +366,7 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
         Ok(outputs)
     }
 
-    async fn delete_run_outputs_by_item_ids(&self, item_ids: &[String]) -> JobResult<usize> {
+    async fn mark_run_outputs_deleted_by_item_ids(&self, item_ids: &[String]) -> JobResult<usize> {
         if item_ids.is_empty() {
             return Ok(0);
         }
@@ -373,7 +378,14 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
             for item_id in item_ids {
                 deleted += transaction
                     .execute(
-                        "DELETE FROM run_outputs WHERE item_id = ?1",
+                        r"
+                        UPDATE run_outputs
+                        SET output_state = 'deleted',
+                            item_id = NULL,
+                            resource_id = NULL,
+                            variant_id = NULL
+                        WHERE item_id = ?1
+                        ",
                         params![item_id],
                     )
                     .map_err(job_store_error)?;
@@ -381,6 +393,23 @@ impl RunHistoryRepository for DatabaseRunHistoryRepository {
             transaction.commit().map_err(job_store_error)?;
         }
         Ok(deleted)
+    }
+}
+
+const fn run_output_state_as_str(value: RunOutputState) -> &'static str {
+    match value {
+        RunOutputState::Available => "available",
+        RunOutputState::Deleted => "deleted",
+    }
+}
+
+fn run_output_state_from_str(value: &str) -> JobResult<RunOutputState> {
+    match value {
+        "available" => Ok(RunOutputState::Available),
+        "deleted" => Ok(RunOutputState::Deleted),
+        _ => Err(job_store_error(format!(
+            "unknown run output state `{value}`"
+        ))),
     }
 }
 

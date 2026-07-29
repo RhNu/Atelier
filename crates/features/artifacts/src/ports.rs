@@ -7,6 +7,8 @@ use crate::{ArtifactId, ArtifactRecord, ArtifactResult};
 pub trait ArtifactRepository: Send + Sync {
     async fn insert_artifact(&self, record: ArtifactRecord) -> ArtifactResult<()>;
 
+    async fn get_artifact(&self, id: &ArtifactId) -> ArtifactResult<Option<ArtifactRecord>>;
+
     async fn delete_artifacts(&self, ids: &[ArtifactId]) -> ArtifactResult<usize>;
 }
 

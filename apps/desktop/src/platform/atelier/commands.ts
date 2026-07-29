@@ -69,6 +69,7 @@ export const atelierCommands = {
   renameVibeDocument: "rename_vibe_document",
   setVibeDocumentHidden: "set_vibe_document_hidden",
   queryGallery: "query_gallery",
+  getGalleryItemDetail: "get_gallery_item_detail",
   setGallerySafetyOverride: "set_gallery_safety_override",
   deleteGalleryItems: "delete_gallery_items",
   galleryImageReference: "gallery_image_reference",

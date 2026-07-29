@@ -21,8 +21,9 @@ use atelier_director::{
 };
 use atelier_gallery::{GalleryError, GalleryItem, GalleryResult, GalleryService};
 use atelier_generation::{
-    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
-    ImageStreamResult, NovelAiGenerationClient,
+    GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
+    GenerateImageStreamResult, GeneratedImageMetadata, GeneratedImageMetadataInspector,
+    GenerationResult, NovelAiGenerationClient,
 };
 use atelier_kernel::{
     GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEvent, KernelEventSink,
@@ -202,15 +203,31 @@ where
     async fn generate(
         &self,
         request: GenerateImageRequest,
-    ) -> GenerationResult<Vec<GeneratedImage>> {
+    ) -> GenerationResult<GenerateImageResult> {
         self.novelai.generate(request).await
     }
 
     async fn generate_stream(
         &self,
         request: GenerateImageStreamRequest,
-    ) -> GenerationResult<ImageStreamResult> {
+    ) -> GenerationResult<GenerateImageStreamResult> {
         self.novelai.generate_stream(request).await
+    }
+}
+
+impl<S, F, E> GeneratedImageMetadataInspector for AppKernelPorts<S, F, E>
+where
+    S: SecretStore + Clone + Send + Sync,
+    F: NovelAiClientFactory + Clone + Send + Sync,
+    E: Send + Sync,
+{
+    fn inspect_generated_image_metadata(
+        &self,
+        bytes: &[u8],
+        mime_type: Option<&str>,
+    ) -> GeneratedImageMetadata {
+        self.novelai
+            .inspect_generated_image_metadata(bytes, mime_type)
     }
 }
 

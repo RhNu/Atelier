@@ -14,6 +14,7 @@ import {
   QueueControls,
 } from "./components/GeneratePageSupport";
 import { GenerationActionDock } from "./components/GenerationActionDock";
+import { GenerationHistoryDeleteConfirmation } from "./components/GenerationHistoryDeleteConfirmation";
 import { GenerationHistoryRail } from "./components/GenerationHistoryRail";
 import { GenerationParamsPanel } from "./components/GenerationParamsPanel";
 import { GenerationPreviewStage } from "./components/GenerationPreviewStage";
@@ -124,6 +125,10 @@ export function GeneratePage() {
     "all" | GenerationBatchHistoryStatusDto
   >("all");
   const [historyOffset, setHistoryOffset] = useState(0);
+  const [selectedHistoryBatchIds, setSelectedHistoryBatchIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [historyDeleteConfirmationOpen, setHistoryDeleteConfirmationOpen] = useState(false);
   const historyQuery = useGenerationHistoryQuery({
     offset: historyOffset,
     limit: HISTORY_PAGE_LIMIT,
@@ -167,14 +172,37 @@ export function GeneratePage() {
     syncActiveBatch(status?.batch_id ?? null, status?.current_job_id ?? null);
   }, [status?.batch_id, status?.current_job_id, syncActiveBatch]);
 
+  const handleBatchHistoryDeleted = useCallback(() => {
+    setSelectedHistoryBatchIds(new Set());
+    setHistoryDeleteConfirmationOpen(false);
+    resumeFollow();
+  }, [resumeFollow]);
   const generationActions = useGenerationPageActions({
     draft,
     batch: batchView,
     selectedRequest,
     selectedSample,
-    onBatchDeleted: resumeFollow,
+    onBatchDeleted: handleBatchHistoryDeleted,
     onRequestDeleted: showRequestGrid,
   });
+  const handleToggleHistoryBatch = useCallback((batchId: string) => {
+    setSelectedHistoryBatchIds((current) => {
+      const next = new Set(current);
+      if (next.has(batchId)) next.delete(batchId);
+      else next.add(batchId);
+      return next;
+    });
+  }, []);
+  const handleSelectAllHistoryBatches = useCallback(() => {
+    setSelectedHistoryBatchIds(new Set(historyBatches.map((batch) => batch.batch_id)));
+  }, [historyBatches]);
+  const handleClearHistorySelection = useCallback(() => setSelectedHistoryBatchIds(new Set()), []);
+  const handleDeleteSelectedHistoryBatches = useCallback(() => {
+    if (selectedHistoryBatchIds.size > 0) setHistoryDeleteConfirmationOpen(true);
+  }, [selectedHistoryBatchIds.size]);
+  const handleConfirmDeleteSelectedHistoryBatches = useCallback(() => {
+    generationActions.handleDeleteBatches([...selectedHistoryBatchIds]);
+  }, [generationActions, selectedHistoryBatchIds]);
   const batchStatus = status?.batch_status ?? null;
   const canPause = batchStatus === "running" || batchStatus === "waiting";
   const canResume = batchStatus === "paused";
@@ -399,6 +427,7 @@ export function GeneratePage() {
             pending={historyQuery.isPending}
             error={historyQuery.isError ? formatError(historyQuery.error) : null}
             selectedBatchId={viewBatchId}
+            selectedBatchIds={selectedHistoryBatchIds}
             statusFilter={historyStatusFilter}
             offset={historyQuery.data?.offset ?? historyOffset}
             limit={historyQuery.data?.limit ?? HISTORY_PAGE_LIMIT}
@@ -407,16 +436,24 @@ export function GeneratePage() {
             deletePending={generationActions.deletePending}
             exportPending={generationActions.zipPending}
             onSelect={selectBatch}
+            onToggleSelection={handleToggleHistoryBatch}
+            onSelectAll={handleSelectAllHistoryBatches}
+            onClearSelection={handleClearHistorySelection}
             onStatusFilterChange={(next) => {
+              setSelectedHistoryBatchIds(new Set());
               setHistoryStatusFilter(next);
               setHistoryOffset(0);
             }}
-            onPreviousPage={() =>
-              setHistoryOffset((value) => Math.max(0, value - HISTORY_PAGE_LIMIT))
-            }
-            onNextPage={() => setHistoryOffset((value) => value + HISTORY_PAGE_LIMIT)}
+            onPreviousPage={() => {
+              setSelectedHistoryBatchIds(new Set());
+              setHistoryOffset((value) => Math.max(0, value - HISTORY_PAGE_LIMIT));
+            }}
+            onNextPage={() => {
+              setSelectedHistoryBatchIds(new Set());
+              setHistoryOffset((value) => value + HISTORY_PAGE_LIMIT);
+            }}
             onRerunSelected={generationActions.handleRerunBatch}
-            onDeleteSelected={generationActions.handleDeleteBatch}
+            onDeleteSelected={handleDeleteSelectedHistoryBatches}
             onExportSelected={generationActions.handleExportBatch}
           />
         }
@@ -428,6 +465,12 @@ export function GeneratePage() {
         error={compileError}
         compiled={compiledPreview}
         onClose={() => setCompileDialogOpen(false)}
+      />
+      <GenerationHistoryDeleteConfirmation
+        count={historyDeleteConfirmationOpen ? selectedHistoryBatchIds.size : 0}
+        deleting={generationActions.deletePending}
+        onClose={() => setHistoryDeleteConfirmationOpen(false)}
+        onConfirm={handleConfirmDeleteSelectedHistoryBatches}
       />
     </div>
   );

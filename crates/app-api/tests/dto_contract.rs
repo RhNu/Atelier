@@ -26,8 +26,8 @@ use atelier_app_api::history::{
     GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto, GenerationHistoryPageDto,
     GenerationHistoryQueryDto, RerunGenerationHistoryBatchRequestDto,
     RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto, RunHistoryItemDto,
-    RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto, RunHistoryQueryDto,
-    RunHistoryStatusDto,
+    RunHistoryKindDto, RunHistoryOutputDto, RunHistoryOutputStateDto, RunHistoryPageDto,
+    RunHistoryQueryDto, RunHistoryStatusDto,
 };
 use atelier_app_api::prompt::{
     CompileGenerationCharacterPromptDto, CompileGenerationPromptRequestDto,
@@ -79,12 +79,13 @@ fn sample_run_history_item() -> RunHistoryItemDto {
             sample_index: Some(0),
             artifact_id: "artifact:job-1:sample:0".to_owned(),
             item_id: Some("gallery:job-1:sample:0".to_owned()),
-            resource: ResourceRefDto {
+            resource: Some(ResourceRefDto {
                 id: "resource:job-1:sample:0".to_owned(),
                 variant_id: Some("preview".to_owned()),
-            },
+            }),
             asset_role: "preview".to_owned(),
             variant_kind: Some("preview".to_owned()),
+            state: RunHistoryOutputStateDto::Available,
         }],
     }
 }
@@ -110,6 +111,12 @@ fn director_command_dtos_use_resource_inputs_and_gallery_results() {
             assets: Vec::new(),
             indexed_at_ms: 123,
             seed: None,
+            request_seed: None,
+            prompt: None,
+            negative_prompt: None,
+            embedded_metadata_status: None,
+            embedded_metadata_error: None,
+            embedded_metadata_warnings: Vec::new(),
             sample_index: None,
             model_name: None,
             safety: None,

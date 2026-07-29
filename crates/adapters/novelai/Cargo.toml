@@ -13,6 +13,7 @@ atelier-generation = { workspace = true }
 atelier-secrets = { workspace = true }
 atelier-vibe = { workspace = true }
 novelai-bridge = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

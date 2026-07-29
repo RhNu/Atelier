@@ -8,6 +8,8 @@ import { GalleryPage } from "../features/gallery";
 import type {
   CopyResourceImageRequestDto,
   GalleryItemDto,
+  GalleryItemDetailDto,
+  GalleryItemDetailRequestDto,
   GalleryPageDto,
   GalleryQueryDto,
   DeleteGalleryItemsRequestDto,
@@ -22,6 +24,7 @@ import type {
 const mocks = vi.hoisted(() => ({
   galleryApi: {
     list: vi.fn<(request: GalleryQueryDto) => Promise<GalleryPageDto>>(),
+    detail: vi.fn<(request: GalleryItemDetailRequestDto) => Promise<GalleryItemDetailDto>>(),
     setSafetyOverride:
       vi.fn<(request: SetGallerySafetyOverrideRequestDto) => Promise<GalleryItemDto>>(),
     deleteItems:
@@ -51,6 +54,7 @@ vi.mock("../platform/atelier", () => ({
     gallery: {
       root: () => ["gallery"],
       list: (query: GalleryQueryDto) => ["gallery", "list", query],
+      detail: (itemId: string | null) => ["gallery", "detail", itemId],
     },
     resource: {
       root: () => ["resource"],
@@ -118,6 +122,12 @@ function galleryItem(
     ],
     indexed_at_ms: 1_800_000_000_000,
     seed: 1234,
+    request_seed: 1234,
+    prompt: "1girl",
+    negative_prompt: "lowres",
+    embedded_metadata_status: "parsed",
+    embedded_metadata_error: null,
+    embedded_metadata_warnings: [],
     sample_index: 0,
     model_name: options.modelName === undefined ? "nai-diffusion-4-5-full" : options.modelName,
     safety: {
@@ -159,6 +169,10 @@ function setup(options?: { blurSensitive?: boolean; items?: GalleryItemDto[] }) 
     offset: 0,
     limit: 24,
   });
+  mocks.galleryApi.detail.mockImplementation(async (request) => ({
+    item_id: request.item_id,
+    embedded_metadata_json: '{"prompt":"1girl","seed":1234}',
+  }));
   mocks.galleryApi.setSafetyOverride.mockImplementation(async (request) =>
     galleryItem(request.item_id, {
       source: "generation",
@@ -210,7 +224,9 @@ describe("GalleryPage", () => {
 
     const details = screen.getByRole("complementary", { name: "Gallery item details" });
     expect(within(details).getByText("NAI Diffusion 4.5 Full")).toBeInTheDocument();
-    expect(within(details).getByText("1234")).toBeInTheDocument();
+    expect(within(details).getAllByText("1234")).toHaveLength(2);
+    expect(within(details).getByText("1girl")).toBeInTheDocument();
+    expect(within(details).getByText("lowres")).toBeInTheDocument();
     expect(within(details).getByText("NSFW 0.91")).toBeInTheDocument();
     expect(within(details).queryByText("open_nsfw@onnx")).not.toBeInTheDocument();
     expect(within(details).queryByText("nai-diffusion-4-5-full")).not.toBeInTheDocument();

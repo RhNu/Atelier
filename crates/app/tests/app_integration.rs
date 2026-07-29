@@ -31,8 +31,9 @@ use atelier_director::{
     RunDirectorToolRequest,
 };
 use atelier_generation::{
-    GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationResult,
-    ImageStreamEvent, ImageStreamResult, NovelAiGenerationClient,
+    GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
+    GenerateImageStreamResult, GeneratedImage, GeneratedImageMetadata, GenerationResult,
+    ImageStreamEvent, NovelAiGenerationClient, ParsedGeneratedImageMetadata,
 };
 use atelier_resource_catalog::{ResourceCatalogRepository, VariantId};
 use atelier_safety::{
@@ -283,21 +284,31 @@ impl NovelAiGenerationClient for RecordingClient {
     async fn generate(
         &self,
         request: GenerateImageRequest,
-    ) -> GenerationResult<Vec<GeneratedImage>> {
+    ) -> GenerationResult<GenerateImageResult> {
         self.generated_requests.lock().unwrap().push(request);
-        Ok(vec![GeneratedImage {
-            bytes: (*self.image_bytes).clone(),
-            mime_type: Some("image/png".to_owned()),
-            seed: Some(42),
-        }])
+        Ok(GenerateImageResult {
+            resolved_seed: 42,
+            images: vec![GeneratedImage {
+                bytes: (*self.image_bytes).clone(),
+                mime_type: Some("image/png".to_owned()),
+                metadata: GeneratedImageMetadata::Parsed(ParsedGeneratedImageMetadata {
+                    prompt: Some("1girl".to_owned()),
+                    negative_prompt: Some("lowres".to_owned()),
+                    seed: Some(42),
+                    metadata_json: r#"{"prompt":"1girl","uc":"lowres","seed":42}"#.to_owned(),
+                    warnings: Vec::new(),
+                }),
+            }],
+        })
     }
 
     async fn generate_stream(
         &self,
         _request: GenerateImageStreamRequest,
-    ) -> GenerationResult<ImageStreamResult> {
-        Ok(Box::pin(futures_util::stream::iter(vec![Ok(
-            ImageStreamEvent {
+    ) -> GenerationResult<GenerateImageStreamResult> {
+        Ok(GenerateImageStreamResult {
+            resolved_seed: 42,
+            stream: Box::pin(futures_util::stream::iter(vec![Ok(ImageStreamEvent {
                 event_type: "final".to_owned(),
                 sample_index: 0,
                 step_index: Some(0),
@@ -305,8 +316,8 @@ impl NovelAiGenerationClient for RecordingClient {
                 sigma: None,
                 image: base64::engine::general_purpose::STANDARD
                     .encode(self.image_bytes.as_slice()),
-            },
-        )])))
+            })])),
+        })
     }
 }
 

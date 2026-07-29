@@ -219,6 +219,19 @@ impl ArtifactRepository for FakeArtifactRepository {
         Ok(())
     }
 
+    async fn get_artifact(
+        &self,
+        id: &ArtifactId,
+    ) -> atelier_artifacts::ArtifactResult<Option<atelier_artifacts::ArtifactRecord>> {
+        Ok(self
+            .records
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|record| &record.id == id)
+            .cloned())
+    }
+
     async fn delete_artifacts(
         &self,
         ids: &[ArtifactId],

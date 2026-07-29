@@ -1,11 +1,12 @@
 use super::{
-    AppError, AppResult, ArtifactKind, GalleryImageReference, GalleryImageReferenceDto,
-    GalleryImageReferenceTargetDto, GalleryItem, GalleryItemDto, GalleryPageDto, GalleryQuery,
-    GalleryQueryDto, GallerySafetyDto, GallerySafetyLabelDto, GallerySafetyOverride,
-    GallerySafetyOverrideDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
-    GallerySafetyScoreDto, GallerySourceKind, GallerySourceKindDto, ImageReferenceTarget,
-    ResourceVariantKind, SafetyAssessment, SafetyLabel, SafetyRiskBand, VisualAssetDto,
-    VisualAssetRole, resource_ref_to_dto,
+    AppError, AppResult, ArtifactKind, EmbeddedMetadataStatus, EmbeddedMetadataWarning,
+    GalleryImageReference, GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItem,
+    GalleryItemDto, GalleryMetadataStatusDto, GalleryMetadataWarningCodeDto,
+    GalleryMetadataWarningDto, GalleryPageDto, GalleryQuery, GalleryQueryDto, GallerySafetyDto,
+    GallerySafetyLabelDto, GallerySafetyOverride, GallerySafetyOverrideDto,
+    GallerySafetyRiskBandDto, GallerySafetyScanStateDto, GallerySafetyScoreDto, GallerySourceKind,
+    GallerySourceKindDto, ImageReferenceTarget, ResourceVariantKind, SafetyAssessment, SafetyLabel,
+    SafetyRiskBand, VisualAssetDto, VisualAssetRole, resource_ref_to_dto,
 };
 
 pub fn gallery_query_to_domain(value: &GalleryQueryDto) -> AppResult<GalleryQuery> {
@@ -51,10 +52,65 @@ pub fn gallery_item_to_dto(value: GalleryItem) -> GalleryItemDto {
         assets: value.assets.iter().map(visual_asset_ref_to_dto).collect(),
         indexed_at_ms: value.indexed_at_ms,
         seed: value.metadata.seed,
+        request_seed: value.metadata.request_seed,
+        prompt: value.metadata.embedded_prompt.or_else(|| {
+            value
+                .replay
+                .as_ref()
+                .and_then(|replay| replay.prompt_snapshot.clone())
+        }),
+        negative_prompt: value.metadata.embedded_negative_prompt.or_else(|| {
+            value
+                .replay
+                .as_ref()
+                .and_then(|replay| replay.negative_prompt_snapshot.clone())
+        }),
+        embedded_metadata_status: value
+            .metadata
+            .embedded_metadata_status
+            .map(metadata_status_to_dto),
+        embedded_metadata_error: value.metadata.embedded_metadata_error,
+        embedded_metadata_warnings: value
+            .metadata
+            .embedded_metadata_warnings
+            .into_iter()
+            .map(metadata_warning_to_dto)
+            .collect(),
         sample_index: value.metadata.sample_index,
         model_name: value.metadata.model_name,
         safety,
         manual_safety_override: value.manual_safety_override.map(safety_override_to_dto),
+    }
+}
+
+const fn metadata_status_to_dto(value: EmbeddedMetadataStatus) -> GalleryMetadataStatusDto {
+    match value {
+        EmbeddedMetadataStatus::Parsed => GalleryMetadataStatusDto::Parsed,
+        EmbeddedMetadataStatus::NotPresent => GalleryMetadataStatusDto::NotPresent,
+        EmbeddedMetadataStatus::UnsupportedFormat => GalleryMetadataStatusDto::UnsupportedFormat,
+        EmbeddedMetadataStatus::Invalid => GalleryMetadataStatusDto::Invalid,
+    }
+}
+
+fn metadata_warning_to_dto(value: EmbeddedMetadataWarning) -> GalleryMetadataWarningDto {
+    match value {
+        EmbeddedMetadataWarning::InvalidCommentJson => GalleryMetadataWarningDto {
+            code: GalleryMetadataWarningCodeDto::InvalidCommentJson,
+            keyword: None,
+            message: None,
+        },
+        EmbeddedMetadataWarning::InvalidTextChunk { keyword, message } => {
+            GalleryMetadataWarningDto {
+                code: GalleryMetadataWarningCodeDto::InvalidTextChunk,
+                keyword: Some(keyword),
+                message: Some(message),
+            }
+        }
+        EmbeddedMetadataWarning::Unknown(message) => GalleryMetadataWarningDto {
+            code: GalleryMetadataWarningCodeDto::Unknown,
+            keyword: None,
+            message: Some(message),
+        },
     }
 }
 

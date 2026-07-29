@@ -49,10 +49,34 @@ pub enum ArtifactSource {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ArtifactMetadata {
+    /// Seed actually sent with the `NovelAI` request after resolving automatic seed selection.
+    pub request_seed: Option<i64>,
+    /// Seed recovered from metadata embedded in this specific output.
     pub seed: Option<i64>,
     pub sample_index: Option<u32>,
     pub model_name: Option<String>,
+    pub embedded_metadata_status: Option<EmbeddedMetadataStatus>,
+    pub embedded_prompt: Option<String>,
+    pub embedded_negative_prompt: Option<String>,
+    pub embedded_metadata_json: Option<String>,
+    pub embedded_metadata_error: Option<String>,
+    pub embedded_metadata_warnings: Vec<EmbeddedMetadataWarning>,
     pub extensions: BTreeMap<String, String>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum EmbeddedMetadataStatus {
+    Parsed,
+    NotPresent,
+    UnsupportedFormat,
+    Invalid,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EmbeddedMetadataWarning {
+    InvalidCommentJson,
+    InvalidTextChunk { keyword: String, message: String },
+    Unknown(String),
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

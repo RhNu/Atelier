@@ -8,7 +8,11 @@ import { GalleryDeleteConfirmation } from "./components/GalleryDeleteConfirmatio
 import { GalleryFilters } from "./components/GalleryFilters";
 import { GalleryGrid } from "./components/GalleryGrid";
 import { GalleryInspector } from "./components/GalleryInspector";
-import { useGalleryPageQuery, useGallerySettingsQuery } from "./data/useGalleryPageQuery";
+import {
+  useGalleryItemDetailQuery,
+  useGalleryPageQuery,
+  useGallerySettingsQuery,
+} from "./data/useGalleryPageQuery";
 import {
   PAGE_LIMIT,
   type SafetyFilter,
@@ -79,6 +83,7 @@ export function GalleryPage() {
   );
 
   const selectedItem = visibleItems.find((item) => item.item_id === selectedItemId) ?? null;
+  const selectedItemDetailQuery = useGalleryItemDetailQuery(selectedItem?.item_id ?? null);
   const blurSensitive =
     settingsQuery.data?.frontend.gallery.blur_sensitive_images === true && !settingsQuery.isError;
   const total = galleryQuery.data?.total ?? 0;
@@ -176,6 +181,7 @@ export function GalleryPage() {
 
         <GalleryInspector
           item={selectedItem}
+          metadataJson={selectedItemDetailQuery.data?.embedded_metadata_json ?? null}
           items={visibleItems}
           blurSensitive={blurSensitive}
           overrideValue={overrideValue}

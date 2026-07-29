@@ -267,10 +267,61 @@ pub struct GenerateImageStreamRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ParsedGeneratedImageMetadata {
+    pub prompt: Option<String>,
+    pub negative_prompt: Option<String>,
+    pub seed: Option<i64>,
+    pub metadata_json: String,
+    pub warnings: Vec<GeneratedImageMetadataWarning>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GeneratedImageMetadataWarning {
+    InvalidCommentJson,
+    InvalidTextChunk { keyword: String, message: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GeneratedImageMetadata {
+    Parsed(ParsedGeneratedImageMetadata),
+    NotPresent,
+    UnsupportedFormat,
+    Invalid { message: String },
+}
+
+impl GeneratedImageMetadata {
+    #[must_use]
+    pub const fn parsed(&self) -> Option<&ParsedGeneratedImageMetadata> {
+        match self {
+            Self::Parsed(metadata) => Some(metadata),
+            Self::NotPresent | Self::UnsupportedFormat | Self::Invalid { .. } => None,
+        }
+    }
+
+    #[must_use]
+    pub fn seed(&self) -> Option<i64> {
+        self.parsed().and_then(|metadata| metadata.seed)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GeneratedImage {
     pub bytes: Vec<u8>,
     pub mime_type: Option<String>,
-    pub seed: Option<i64>,
+    pub metadata: GeneratedImageMetadata,
+}
+
+impl GeneratedImage {
+    #[must_use]
+    pub fn seed(&self) -> Option<i64> {
+        self.metadata.seed()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GenerateImageResult {
+    pub resolved_seed: i64,
+    pub images: Vec<GeneratedImage>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

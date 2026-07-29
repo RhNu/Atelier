@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactSource, RegisterArtifactRequest,
     VisualAssetRef, VisualAssetRole,
@@ -47,9 +45,7 @@ where
             primary_resource: resource.clone(),
             metadata: ArtifactMetadata {
                 seed: output.seed,
-                sample_index: None,
-                model_name: None,
-                extensions: BTreeMap::default(),
+                ..ArtifactMetadata::default()
             },
             replay: None,
             assets: vec![VisualAssetRef {

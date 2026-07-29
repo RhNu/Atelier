@@ -93,6 +93,7 @@ pub fn run() {
             commands::rename_vibe_document,
             commands::set_vibe_document_hidden,
             commands::query_gallery,
+            commands::get_gallery_item_detail,
             commands::set_gallery_safety_override,
             commands::delete_gallery_items,
             commands::gallery_image_reference,

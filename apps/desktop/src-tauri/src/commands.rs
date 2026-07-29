@@ -14,8 +14,8 @@ use atelier_app_api::{
     event::{AppEventPageDto, EventsSinceRequestDto},
     gallery::{
         DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceDto,
-        GalleryImageReferenceRequestDto, GalleryItemDto, GalleryPageDto, GalleryQueryDto,
-        SetGallerySafetyOverrideRequestDto,
+        GalleryImageReferenceRequestDto, GalleryItemDetailDto, GalleryItemDetailRequestDto,
+        GalleryItemDto, GalleryPageDto, GalleryQueryDto, SetGallerySafetyOverrideRequestDto,
     },
     generation::{
         GenerationAnlasEstimateDto, GenerationDraftDto, GenerationEstimateRequestDto,
@@ -484,6 +484,14 @@ pub async fn query_gallery(
     request: GalleryQueryDto,
 ) -> CommandResult<GalleryPageDto> {
     state.host.query_gallery(request).await
+}
+
+#[tauri::command]
+pub async fn get_gallery_item_detail(
+    state: State<'_, DesktopState>,
+    request: GalleryItemDetailRequestDto,
+) -> CommandResult<GalleryItemDetailDto> {
+    state.host.get_gallery_item_detail(request).await
 }
 
 #[tauri::command]

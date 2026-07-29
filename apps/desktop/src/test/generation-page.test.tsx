@@ -524,6 +524,7 @@ function emptyBatchDetail(batchId: string): GenerationHistoryBatchDetailDto {
       completed_request_count: 0,
       expected_sample_count: 0,
       completed_sample_count: 0,
+      available_sample_count: 0,
       outputs: [],
     },
     requests: [],
@@ -541,6 +542,7 @@ function generationBatchFixture(): {
     resource: { id: "resource:generated:job-1:0", variant_id: null },
     asset_role: "primary",
     variant_kind: null,
+    state: "available",
   };
   const batch: GenerationHistoryBatchDto = {
     batch_id: "batch-1",
@@ -554,6 +556,7 @@ function generationBatchFixture(): {
     completed_request_count: 1,
     expected_sample_count: 1,
     completed_sample_count: 1,
+    available_sample_count: 1,
     outputs: [output],
   };
   return {
@@ -1230,6 +1233,44 @@ describe("GeneratePage queue and preview behavior", () => {
       target: "director",
     });
     expect(mocks.historyApi.deleteItems).toHaveBeenCalledWith({ run_ids: ["job-1"] });
+  });
+
+  it("selects the visible task grid and deletes batch history in bulk", async () => {
+    const fixture = generationBatchFixture();
+    const secondBatch: GenerationHistoryBatchDto = {
+      ...fixture.page.items[0],
+      batch_id: "batch-2",
+      title: "2girls",
+      outputs: [],
+      available_sample_count: 0,
+    };
+    const { user } = setup({
+      history: {
+        ...fixture.page,
+        items: [...fixture.page.items, secondBatch],
+        total: 2,
+      },
+      historyDetail: fixture.detail,
+    });
+
+    const historyRail = await screen.findByRole("complementary", {
+      name: "Generation history",
+    });
+    await user.click(
+      within(historyRail).getByRole("button", { name: "Select all visible batches" }),
+    );
+    expect(within(historyRail).getByText("2 selected")).toBeInTheDocument();
+    await user.click(
+      within(historyRail).getByRole("button", { name: "Delete selected batch histories" }),
+    );
+    expect(mocks.historyApi.deleteGenerationBatches).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Delete histories" }));
+
+    await waitFor(() =>
+      expect(mocks.historyApi.deleteGenerationBatches).toHaveBeenCalledWith({
+        batch_ids: ["batch-1", "batch-2"],
+      }),
+    );
   });
 
   it("surfaces queue command and final image failures", async () => {

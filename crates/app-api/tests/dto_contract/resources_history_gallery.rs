@@ -222,7 +222,8 @@ fn run_history_query_and_page_dtos_have_stable_shapes() {
                         "variant_id": "preview"
                     },
                     "asset_role": "preview",
-                    "variant_kind": "preview"
+                    "variant_kind": "preview",
+                    "state": "available"
                 }]
             }],
             "total": 1,
@@ -281,7 +282,8 @@ fn rerun_generation_history_dtos_have_stable_shapes() {
                         "variant_id": "preview"
                     },
                     "asset_role": "preview",
-                    "variant_kind": "preview"
+                    "variant_kind": "preview",
+                    "state": "available"
                 }]
             }
         })
@@ -317,6 +319,7 @@ fn generation_batch_history_dtos_have_stable_shapes() {
         completed_request_count: 2,
         expected_sample_count: 3,
         completed_sample_count: 2,
+        available_sample_count: 2,
         outputs: Vec::new(),
     };
     assert_eq!(
@@ -340,6 +343,7 @@ fn generation_batch_history_dtos_have_stable_shapes() {
                 "completed_request_count": 2,
                 "expected_sample_count": 3,
                 "completed_sample_count": 2,
+                "available_sample_count": 2,
                 "outputs": []
             }],
             "total": 1,

@@ -1,11 +1,12 @@
 use super::{
     DirectorResult, DirectorToolOutput, EncodeVibeRequest, EncodedVibe, GenerateImageRequest,
-    GenerateImageStreamRequest, GeneratedImage, GenerationResult, ImageStreamResult,
-    NovelAiBridgeError, NovelAiClientFactory, NovelAiDirectorClient, NovelAiGenerationClient,
-    NovelAiVibeClient, ReqwestNovelAiClientFactory, RunDirectorToolRequest, SecretResolver,
-    SubscriptionClient, SubscriptionResult, SubscriptionSummary, VibeResult, async_trait,
-    map_director_error, map_generation_error, map_secrets_error, map_subscription_error,
-    map_vibe_error,
+    GenerateImageResult, GenerateImageStreamRequest, GenerateImageStreamResult,
+    GeneratedImageMetadata, GeneratedImageMetadataInspector, GenerationResult, NovelAiBridgeError,
+    NovelAiClientFactory, NovelAiDirectorClient, NovelAiGenerationClient, NovelAiVibeClient,
+    ReqwestNovelAiClientFactory, RunDirectorToolRequest, SecretResolver, SubscriptionClient,
+    SubscriptionResult, SubscriptionSummary, VibeResult, async_trait,
+    from_bridge_generated_image_metadata, map_director_error, map_generation_error,
+    map_secrets_error, map_subscription_error, map_vibe_error,
 };
 
 #[derive(Clone, Debug)]
@@ -45,7 +46,7 @@ where
     async fn generate(
         &self,
         request: GenerateImageRequest,
-    ) -> GenerationResult<Vec<GeneratedImage>> {
+    ) -> GenerationResult<GenerateImageResult> {
         self.create_client()
             .await
             .map_err(map_generation_error)?
@@ -56,12 +57,28 @@ where
     async fn generate_stream(
         &self,
         request: GenerateImageStreamRequest,
-    ) -> GenerationResult<ImageStreamResult> {
+    ) -> GenerationResult<GenerateImageStreamResult> {
         self.create_client()
             .await
             .map_err(map_generation_error)?
             .generate_stream(request)
             .await
+    }
+}
+
+impl<R, F> GeneratedImageMetadataInspector for ResolverBackedNovelAiAdapter<R, F>
+where
+    R: SecretResolver,
+    F: NovelAiClientFactory,
+{
+    fn inspect_generated_image_metadata(
+        &self,
+        bytes: &[u8],
+        mime_type: Option<&str>,
+    ) -> GeneratedImageMetadata {
+        from_bridge_generated_image_metadata(novelai_bridge::inspect_generated_image_metadata(
+            bytes, mime_type,
+        ))
     }
 }
 

@@ -26,10 +26,12 @@ pub async fn run_stream_generation<P>(
 where
     P: GenerationPayloadStore + KernelClock + KernelEventSink + KernelGenerationPorts,
 {
-    let mut stream = match runtime.ports_ref().generate_stream(request).await {
+    let stream_result = match runtime.ports_ref().generate_stream(request).await {
         Ok(stream) => stream,
         Err(error) => return handle_novelai_failure(runtime, batch_id, job_id, error).await,
     };
+    let request_seed = stream_result.resolved_seed;
+    let mut stream = stream_result.stream;
     let mut latest_images = BTreeMap::new();
     while let Some(item) = stream.next().await {
         match item {
@@ -60,6 +62,9 @@ where
                 return Err(error);
             }
         };
+        let metadata = runtime
+            .ports_ref()
+            .inspect_generated_image_metadata(&bytes, None);
         if let Err(error) = persist_sample(
             runtime,
             PersistSample {
@@ -72,7 +77,8 @@ where
                 kind: ResourceKind::StreamFinalImage,
                 id_segment: "stream",
                 bytes,
-                seed: None,
+                request_seed,
+                metadata,
             },
         )
         .await

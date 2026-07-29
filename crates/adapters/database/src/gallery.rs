@@ -91,7 +91,14 @@ impl DatabaseGalleryIndex {
             }
             transaction
                 .execute(
-                    "DELETE FROM run_outputs WHERE item_id = ?1",
+                    r"
+                    UPDATE run_outputs
+                    SET output_state = 'deleted',
+                        item_id = NULL,
+                        resource_id = NULL,
+                        variant_id = NULL
+                    WHERE item_id = ?1
+                    ",
                     params![plan.item_id],
                 )
                 .map_err(sql_error)?;

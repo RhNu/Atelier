@@ -28,6 +28,19 @@ export function useGalleryPageQuery(query: GalleryQueryDto) {
   });
 }
 
+export function useGalleryItemDetailQuery(itemId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.gallery.detail(itemId),
+    queryFn: () => {
+      if (!itemId) {
+        throw new Error("gallery item is required");
+      }
+      return galleryApi.detail({ item_id: itemId });
+    },
+    enabled: Boolean(itemId),
+  });
+}
+
 export function useGallerySettingsQuery() {
   return useQuery({
     queryKey: queryKeys.app.globalSettings(),

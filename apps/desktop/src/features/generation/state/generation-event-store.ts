@@ -137,13 +137,13 @@ function applyGenerationEvent(
 ): Partial<GenerationEventState> {
   switch (event.kind.kind) {
     case "batch_submitted": {
-      const followingLive = state.focusMode === "follow";
       return {
         liveBatchId: event.kind.batch_id,
-        viewBatchId: followingLive ? event.kind.batch_id : state.viewBatchId,
+        viewBatchId: event.kind.batch_id,
         latestJobId: null,
-        selectedJobId: followingLive ? null : state.selectedJobId,
-        focusedSampleIndex: followingLive ? null : state.focusedSampleIndex,
+        selectedJobId: null,
+        focusedSampleIndex: null,
+        focusMode: "follow",
         previews: {},
         lastError: null,
         terminalJobId: null,

@@ -152,7 +152,10 @@ fn run_history_exposes_generation_outputs_and_reruns_as_new_jobs() {
         let image = app
             .resources()
             .get_image(GetResourceImageRequestDto {
-                resource: history.items[0].outputs[0].resource.clone(),
+                resource: history.items[0].outputs[0]
+                    .resource
+                    .clone()
+                    .expect("available output should keep its resource"),
             })
             .await
             .unwrap();

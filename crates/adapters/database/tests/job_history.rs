@@ -7,7 +7,7 @@ use atelier_jobs::{
     BatchId, BatchStatus, GenerationBatchHistoryQuery, GenerationBatchHistoryStatus,
     JobFailureImpact, JobId, JobKind, JobPayloadRef, JobQueue, JobQueueRepository, JobStatus,
     QueueDelay, RunHistoryKind, RunHistoryQuery, RunHistoryRecord, RunHistoryRepository,
-    RunHistoryStatus, RunOutputRecord, SubmitJob,
+    RunHistoryStatus, RunOutputRecord, RunOutputState, SubmitJob,
 };
 use futures_executor::block_on;
 use rusqlite::Connection;
@@ -250,6 +250,39 @@ fn run_output_upsert_replaces_records_without_variant_id() {
             repository.list_run_outputs("job-1").await.unwrap(),
             vec![output]
         );
+    });
+}
+
+#[test]
+fn deleted_run_outputs_clear_stale_gallery_and_resource_references() {
+    block_on(async {
+        let repository =
+            DatabaseRunHistoryRepository::new(DatabaseConnection::open_memory().unwrap());
+        repository
+            .upsert_run_history(generation_history())
+            .await
+            .unwrap();
+        let mut output = original_output();
+        output.item_id = Some("gallery:item-1".to_owned());
+        output.variant_id = Some("preview".to_owned());
+        repository.upsert_run_output(output).await.unwrap();
+
+        assert_eq!(
+            repository
+                .mark_run_outputs_deleted_by_item_ids(&["gallery:item-1".to_owned()])
+                .await
+                .unwrap(),
+            1
+        );
+        let tombstone = repository
+            .list_run_outputs("job-1")
+            .await
+            .unwrap()
+            .remove(0);
+        assert_eq!(tombstone.state, RunOutputState::Deleted);
+        assert_eq!(tombstone.item_id, None);
+        assert_eq!(tombstone.resource_id, None);
+        assert_eq!(tombstone.variant_id, None);
     });
 }
 
@@ -527,10 +560,11 @@ fn preview_output() -> RunOutputRecord {
         sample_index: Some(0),
         artifact_id: "artifact:job-1:sample:0".to_owned(),
         item_id: Some("artifact:artifact:job-1:sample:0".to_owned()),
-        resource_id: "resource:job-1:sample:0".to_owned(),
+        resource_id: Some("resource:job-1:sample:0".to_owned()),
         variant_id: Some("variant:job-1:preview".to_owned()),
         asset_role: "preview".to_owned(),
         variant_kind: Some("preview".to_owned()),
+        state: RunOutputState::Available,
     }
 }
 
