@@ -1,11 +1,12 @@
-import { Plus, X } from "lucide-react";
+import { Check, Loader2, Plus, X } from "lucide-react";
 import { type ReactNode, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, EmptyState } from "@/components/ui";
+import { AppButton, AppIconButton, EmptyState } from "@/components/ui";
 import type { LexiconEntityDetailDto, LexiconSearchItemDto } from "@/types";
 
 type Props = {
+  selected: boolean;
   detail: LexiconEntityDetailDto | undefined;
   pending: boolean;
   error: string | null;
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function LexiconInspector({
+  selected,
   detail,
   pending,
   error,
@@ -34,18 +36,25 @@ export function LexiconInspector({
         <h2 className="text-xs font-semibold tracking-wide text-app-text uppercase">
           {t("details")}
         </h2>
-        <AppButton
-          variant="ghost"
-          className="size-8 p-0"
-          aria-label={t("closeDetails")}
-          onClick={onClose}
-        >
-          <X aria-hidden="true" className="size-4" />
-        </AppButton>
+        {selected ? (
+          <AppIconButton
+            icon={X}
+            label={t("closeDetails")}
+            size="sm"
+            className="[&>svg]:size-5"
+            onClick={onClose}
+          />
+        ) : null}
       </header>
       <div className="min-h-0 flex-1 overflow-auto p-4">
-        {pending ? (
-          <p className="text-sm text-app-muted">{t("loadingDetails")}</p>
+        {!selected ? (
+          <EmptyState title={t("selectForDetails")} />
+        ) : pending ? (
+          <EmptyState
+            title={t("loadingDetails")}
+            icon={Loader2}
+            iconClassName="animate-spin text-brand-200"
+          />
         ) : error ? (
           <EmptyState title={t("detailsFailed")} description={error} />
         ) : detail ? (
@@ -60,7 +69,11 @@ export function LexiconInspector({
                 className="mt-3 w-full"
                 onClick={toggleEntity}
               >
-                <Plus aria-hidden="true" className="size-4" />
+                {inBasket ? (
+                  <Check aria-hidden="true" className="size-5" />
+                ) : (
+                  <Plus aria-hidden="true" className="size-5" />
+                )}
                 {inBasket ? t("removeFromBasket") : t("addToBasket")}
               </AppButton>
             </section>
@@ -94,9 +107,7 @@ export function LexiconInspector({
               </div>
             </section>
           </div>
-        ) : (
-          <EmptyState title={t("selectForDetails")} />
-        )}
+        ) : null}
       </div>
     </aside>
   );

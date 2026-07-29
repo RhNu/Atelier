@@ -99,6 +99,20 @@ beforeEach(() => {
 });
 
 describe("LexiconPage", () => {
+  it("keeps entity details in the results split layout", async () => {
+    setup();
+
+    await screen.findByText("cinematic_lighting");
+    expect(screen.getByText("Select an entity to inspect its metadata")).toBeInTheDocument();
+    expect(screen.queryByText("Loading entity details")).not.toBeInTheDocument();
+    expect(mocks.entity).not.toHaveBeenCalled();
+    expect(screen.getByRole("region", { name: "Entity details" })).toHaveClass(
+      "min-h-0",
+      "overflow-hidden",
+    );
+    expect(screen.queryByRole("dialog", { name: "Entity details" })).not.toBeInTheDocument();
+  });
+
   it("searches with local filters and switches to semantic exploration", async () => {
     const user = setup();
 
@@ -121,6 +135,8 @@ describe("LexiconPage", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "tag");
     await user.selectOptions(screen.getByLabelText("Content"), "safe");
     await user.click(screen.getByRole("tab", { name: "Semantic explore" }));
+    expect(mocks.search.mock.lastCall?.[0].mode).toBe("lexical");
+    await user.click(screen.getByRole("button", { name: "Search" }));
 
     await waitFor(() => {
       const request = mocks.search.mock.lastCall?.[0];
@@ -130,6 +146,79 @@ describe("LexiconPage", () => {
       expect(request?.filters.ratings).toEqual(["safe"]);
     });
     expect(localStorage.getItem("atelier.lexicon.rating.v1")).toBe("safe");
+  });
+
+  it("clears text separately from resetting all active filters", async () => {
+    const user = setup();
+
+    await screen.findByText("cinematic_lighting");
+    const search = screen.getByLabelText("Search the lexicon");
+    await user.type(search, "light");
+    await user.selectOptions(screen.getByLabelText("Tag group"), "lighting");
+    await user.click(screen.getByRole("button", { name: "Clear search text" }));
+
+    expect(search).toHaveValue("");
+    expect(screen.getByLabelText("Tag group")).toHaveValue("lighting");
+    await waitFor(() => {
+      const request = mocks.search.mock.lastCall?.[0];
+      expect(request?.query).toBe("");
+      expect(request?.filters.group_ids).toEqual(["lighting"]);
+    });
+
+    await user.click(screen.getByRole("button", { name: "Reset search and filters" }));
+
+    expect(screen.getByLabelText("Tag group")).toHaveValue("");
+    expect(screen.getByLabelText("Content")).toHaveValue("all");
+    expect(localStorage.getItem("atelier.lexicon.rating.v1")).toBe("all");
+  });
+
+  it("locks semantic controls while an explicitly submitted search is pending", async () => {
+    let resolveSemantic:
+      | ((value: LexiconSearchPageDto | PromiseLike<LexiconSearchPageDto>) => void)
+      | undefined;
+    const semanticResult = new Promise<LexiconSearchPageDto>((resolve) => {
+      resolveSemantic = resolve;
+    });
+    mocks.search.mockImplementation((request) =>
+      request.mode === "semantic"
+        ? semanticResult
+        : Promise.resolve({
+            items: [item],
+            total: 1,
+            offset: request.offset,
+            limit: request.limit,
+          }),
+    );
+    const user = setup();
+
+    await screen.findByText("cinematic_lighting");
+    const search = screen.getByLabelText("Search the lexicon");
+    await user.type(search, "dramatic light");
+    await user.click(screen.getByRole("tab", { name: "Semantic explore" }));
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() => expect(search).toBeDisabled());
+    expect(screen.getByRole("button", { name: "Searching…" })).toBeDisabled();
+    expect(screen.getByText("Searching the lexicon")).toBeInTheDocument();
+
+    resolveSemantic?.({ items: [item], total: 1, offset: 0, limit: 100 });
+    await waitFor(() => expect(search).toBeEnabled());
+  });
+
+  it("pages through the full filtered result count", async () => {
+    mocks.search.mockImplementation(async (request) => ({
+      items: [{ ...item, entity_id: request.offset + 123 }],
+      total: 410,
+      offset: request.offset,
+      limit: request.limit,
+    }));
+    const user = setup();
+
+    await screen.findByText("1–1 of 410");
+    await user.click(screen.getByRole("button", { name: "Next results" }));
+
+    await waitFor(() => expect(mocks.search.mock.lastCall?.[0].offset).toBe(100));
+    expect(await screen.findByText("101–101 of 410")).toBeInTheDocument();
   });
 
   it("loads details and atomically hands the basket to the generation draft", async () => {

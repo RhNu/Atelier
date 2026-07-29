@@ -111,19 +111,15 @@ impl LexiconEngine for LexiconBundle {
         if query.trim().is_empty() {
             return Ok(Vec::new());
         }
-        sqlite::lexical_candidates(&self.connection()?, query, limit, false)
+        sqlite::lexical_candidates(&self.connection()?, query, limit)
     }
 
     fn search(&self, query: &LexiconSearchQuery) -> LexiconResult<LexiconSearchPage> {
         query.validate()?;
         let connection = self.connection()?;
         let candidate_limit = query.offset.saturating_add(query.limit).clamp(200, 10_100);
-        let items = match query.mode {
-            LexiconSearchMode::Lexical => {
-                let candidates =
-                    sqlite::lexical_candidates(&connection, &query.text, candidate_limit, true)?;
-                sqlite::filter_items(&connection, candidates, &query.filters)?
-            }
+        let (items, total) = match query.mode {
+            LexiconSearchMode::Lexical => sqlite::lexical_search(&connection, query)?,
             LexiconSearchMode::Semantic => {
                 if query.text.trim().is_empty() {
                     return Err(LexiconError::invalid_request(
@@ -141,15 +137,16 @@ impl LexiconEngine for LexiconBundle {
                     })?
                     .search(&query.text, &query.filters, &context, candidate_limit)?;
                 let semantic = sqlite::filter_items(&connection, semantic, &query.filters)?;
-                anchor_exact_matches(&connection, query, semantic)?
+                let items = anchor_exact_matches(&connection, query, semantic)?;
+                let total = items.len();
+                let items = items
+                    .into_iter()
+                    .skip(query.offset)
+                    .take(query.limit)
+                    .collect();
+                (items, total)
             }
         };
-        let total = items.len();
-        let items = items
-            .into_iter()
-            .skip(query.offset)
-            .take(query.limit)
-            .collect();
         Ok(LexiconSearchPage {
             items,
             total,
@@ -172,7 +169,7 @@ fn anchor_exact_matches(
     query: &LexiconSearchQuery,
     semantic: Vec<LexiconSearchItem>,
 ) -> LexiconResult<Vec<LexiconSearchItem>> {
-    let lexical = sqlite::lexical_candidates(connection, &query.text, 50, false)?;
+    let lexical = sqlite::lexical_candidates(connection, &query.text, 50)?;
     let anchors = sqlite::filter_items(connection, lexical, &query.filters)?
         .into_iter()
         .filter(|item| {

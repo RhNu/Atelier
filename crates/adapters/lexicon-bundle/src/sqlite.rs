@@ -4,10 +4,13 @@ use std::path::Path;
 use atelier_prompt_lexicon::{
     DanbooruCategory, LexiconContentRating, LexiconEntityDetail, LexiconEntityKind, LexiconError,
     LexiconFacet, LexiconGroupSummary, LexiconMatchReason, LexiconRelatedEntity, LexiconResult,
-    LexiconSearchFilters, LexiconSearchItem, LocalizedLexiconText, ResolvedLexiconEntity,
-    canonical_comparison_key, normalized_search_text,
+    LexiconSearchItem, LocalizedLexiconText, ResolvedLexiconEntity,
 };
-use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension};
+
+mod search;
+
+pub use search::{filter_items, lexical_candidates, lexical_search};
 
 pub fn open_read_only(path: &Path) -> LexiconResult<Connection> {
     let connection = Connection::open_with_flags(
@@ -118,76 +121,6 @@ pub fn groups(connection: &Connection) -> LexiconResult<Vec<LexiconGroupSummary>
         .map_err(sql_error)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(sql_error)
-}
-
-pub fn lexical_candidates(
-    connection: &Connection,
-    query: &str,
-    candidate_limit: usize,
-    include_full_text: bool,
-) -> LexiconResult<Vec<LexiconSearchItem>> {
-    let normalized = normalized_search_text(query);
-    if normalized.is_empty() {
-        let mut statement = connection
-            .prepare(
-                "SELECT id, canonical_name, primary_translation, kind, category,
-                        post_count, rating, canonical_name, 'browse', 0.0
-                 FROM entities ORDER BY post_count DESC, canonical_name ASC LIMIT ?1",
-            )
-            .map_err(sql_error)?;
-        return statement
-            .query_map([sql_usize(candidate_limit)?], map_search_item)
-            .map_err(sql_error)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(sql_error);
-    }
-
-    let canonical = canonical_comparison_key(query);
-    let prefix = format!("{canonical}*");
-    let translation_prefix = format!("{normalized}*");
-    let sql = if include_full_text {
-        LEXICAL_SEARCH_SQL
-    } else {
-        COMPLETION_SEARCH_SQL
-    };
-    let mut statement = connection.prepare(sql).map_err(sql_error)?;
-    statement
-        .query_map(
-            params![
-                canonical,
-                normalized,
-                prefix,
-                translation_prefix,
-                sql_usize(candidate_limit)?
-            ],
-            map_search_item,
-        )
-        .map_err(sql_error)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(sql_error)
-}
-
-pub fn filter_items(
-    connection: &Connection,
-    items: Vec<LexiconSearchItem>,
-    filters: &LexiconSearchFilters,
-) -> LexiconResult<Vec<LexiconSearchItem>> {
-    let group_members = if filters.group_ids.is_empty() {
-        None
-    } else {
-        Some(group_member_ids(connection, &filters.group_ids)?)
-    };
-    Ok(items
-        .into_iter()
-        .filter(|item| filters.entity_kinds.is_empty() || filters.entity_kinds.contains(&item.kind))
-        .filter(|item| filters.categories.is_empty() || filters.categories.contains(&item.category))
-        .filter(|item| filters.ratings.is_empty() || filters.ratings.contains(&item.rating))
-        .filter(|item| {
-            group_members
-                .as_ref()
-                .is_none_or(|members| members.contains(&item.entity_id))
-        })
-        .collect())
 }
 
 pub fn details(connection: &Connection, entity_id: u64) -> LexiconResult<LexiconEntityDetail> {
@@ -401,25 +334,6 @@ fn related_entities(
         .map_err(sql_error)
 }
 
-fn group_member_ids(connection: &Connection, group_ids: &[String]) -> LexiconResult<HashSet<u64>> {
-    let mut members: Option<HashSet<u64>> = None;
-    let mut statement = connection
-        .prepare("SELECT entity_id FROM tag_group_members WHERE group_id = ?1")
-        .map_err(sql_error)?;
-    for group_id in group_ids {
-        let current = statement
-            .query_map([group_id], |row| row_u64(row, 0))
-            .map_err(sql_error)?
-            .collect::<Result<HashSet<u64>, _>>()
-            .map_err(sql_error)?;
-        members = Some(match members {
-            Some(existing) => existing.intersection(&current).copied().collect(),
-            None => current,
-        });
-    }
-    Ok(members.unwrap_or_default())
-}
-
 fn map_group(row: &rusqlite::Row<'_>) -> rusqlite::Result<LexiconGroupSummary> {
     Ok(LexiconGroupSummary {
         id: row.get(0)?,
@@ -517,52 +431,6 @@ fn sql_usize(value: usize) -> LexiconResult<i64> {
 fn sql_error(error: rusqlite::Error) -> LexiconError {
     LexiconError::query(error.to_string())
 }
-
-const COMPLETION_SEARCH_SQL: &str = "
-WITH matches AS (
-    SELECT id AS entity_id, 0 AS rank, canonical_name AS matched_text, 'canonical_exact' AS reason
-      FROM entities WHERE normalized_name = ?1
-    UNION ALL
-    SELECT entity_id, 1, alias, 'alias_exact' FROM aliases WHERE normalized_alias = ?1
-    UNION ALL
-    SELECT entity_id, 2, text, 'translation_exact' FROM translations WHERE normalized_text = ?2
-    UNION ALL
-    SELECT id, 3, canonical_name, 'canonical_prefix' FROM entities WHERE normalized_name GLOB ?3
-    UNION ALL
-    SELECT entity_id, 4, alias, 'alias_prefix' FROM aliases WHERE normalized_alias GLOB ?3
-    UNION ALL
-    SELECT entity_id, 5, text, 'translation_prefix' FROM translations WHERE normalized_text GLOB ?4
-), best AS (
-    SELECT entity_id, MIN(rank) AS rank FROM matches GROUP BY entity_id
-)
-SELECT e.id, e.canonical_name, e.primary_translation, e.kind, e.category,
-       e.post_count, e.rating, m.matched_text, m.reason,
-       CAST(100 - best.rank AS REAL)
-FROM best JOIN matches m ON m.entity_id = best.entity_id AND m.rank = best.rank
-JOIN entities e ON e.id = best.entity_id
-GROUP BY e.id ORDER BY best.rank, e.post_count DESC, e.canonical_name ASC LIMIT ?5";
-
-const LEXICAL_SEARCH_SQL: &str = "
-WITH matches AS (
-    SELECT id AS entity_id, 0 AS rank, canonical_name AS matched_text, 'canonical_exact' AS reason
-      FROM entities WHERE normalized_name = ?1
-    UNION ALL SELECT entity_id, 1, alias, 'alias_exact' FROM aliases WHERE normalized_alias = ?1
-    UNION ALL SELECT entity_id, 2, text, 'translation_exact' FROM translations WHERE normalized_text = ?2
-    UNION ALL SELECT id, 3, canonical_name, 'canonical_prefix' FROM entities WHERE normalized_name GLOB ?3
-    UNION ALL SELECT entity_id, 4, alias, 'alias_prefix' FROM aliases WHERE normalized_alias GLOB ?3
-    UNION ALL SELECT entity_id, 5, text, 'translation_prefix' FROM translations WHERE normalized_text GLOB ?4
-    UNION ALL
-    SELECT entity_id, 6, canonical_name, 'full_text'
-      FROM entity_fts WHERE entity_fts MATCH ('\"' || replace(?2, '\"', ' ') || '\" OR ' || replace(?2, '\"', ' ') || '*')
-), best AS (
-    SELECT entity_id, MIN(rank) AS rank FROM matches GROUP BY entity_id
-)
-SELECT e.id, e.canonical_name, e.primary_translation, e.kind, e.category,
-       e.post_count, e.rating, m.matched_text, m.reason,
-       CAST(100 - best.rank AS REAL)
-FROM best JOIN matches m ON m.entity_id = best.entity_id AND m.rank = best.rank
-JOIN entities e ON e.id = best.entity_id
-GROUP BY e.id ORDER BY best.rank, e.post_count DESC, e.canonical_name ASC LIMIT ?5";
 
 #[cfg(test)]
 mod tests {

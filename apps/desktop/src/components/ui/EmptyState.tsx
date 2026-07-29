@@ -1,4 +1,4 @@
-import { Inbox } from "lucide-react";
+import { Inbox, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 type EmptyStateProps = {
@@ -6,18 +6,27 @@ type EmptyStateProps = {
   description?: string;
   action?: ReactNode;
   iconOnly?: boolean;
+  icon?: LucideIcon;
+  iconClassName?: string;
 };
 
-export function EmptyState({ title, description, action, iconOnly = false }: EmptyStateProps) {
+export function EmptyState({
+  title,
+  description,
+  action,
+  iconOnly = false,
+  icon: Icon = Inbox,
+  iconClassName = "",
+}: EmptyStateProps) {
   return (
     <div
       role={iconOnly ? "img" : undefined}
       aria-label={iconOnly ? title : undefined}
       className="flex min-h-48 flex-col items-center justify-center border border-dashed border-app-border bg-app-panel/45 px-6 py-10 text-center"
     >
-      <Inbox
+      <Icon
         aria-hidden="true"
-        className={["size-10 text-app-muted/55", iconOnly ? "" : "mb-4"].join(" ")}
+        className={["size-10 text-app-muted/55", iconOnly ? "" : "mb-4", iconClassName].join(" ")}
       />
       {iconOnly ? null : <h2 className="text-base font-semibold text-app-text">{title}</h2>}
       {!iconOnly && description ? (

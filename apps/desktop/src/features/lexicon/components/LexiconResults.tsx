@@ -1,19 +1,22 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Check, Plus } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, EmptyState } from "@/components/ui";
+import { AppIconButton, EmptyState } from "@/components/ui";
 import type { LexiconSearchItemDto, LexiconSearchPageDto } from "@/types";
 
 type Props = {
   page: LexiconSearchPageDto | undefined;
   pending: boolean;
+  fetching: boolean;
+  idle: boolean;
   error: string | null;
   selectedId: number | null;
   basketIds: Set<number>;
   onInspect: (entityId: number) => void;
   onToggleBasket: (item: LexiconSearchItemDto) => void;
+  onPageChange: (offset: number) => void;
 };
 
 type RowPosition = {
@@ -27,11 +30,14 @@ const ROW_HEIGHT = 72;
 export function LexiconResults({
   page,
   pending,
+  fetching,
+  idle,
   error,
   selectedId,
   basketIds,
   onInspect,
   onToggleBasket,
+  onPageChange,
 }: Props) {
   const { t } = useTranslation("lexicon");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -68,32 +74,90 @@ export function LexiconResults({
     },
     [items.length, virtualizer],
   );
+  const changePage = useCallback(
+    (nextOffset: number) => {
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+      onPageChange(nextOffset);
+    },
+    [onPageChange],
+  );
+  const previousPage = useCallback(
+    () => changePage(Math.max(0, (page?.offset ?? 0) - (page?.limit ?? 0))),
+    [changePage, page?.limit, page?.offset],
+  );
+  const nextPage = useCallback(
+    () => changePage((page?.offset ?? 0) + (page?.limit ?? 0)),
+    [changePage, page?.limit, page?.offset],
+  );
+  if (idle) return <EmptyState title={t("semanticSearchPrompt")} />;
   if (pending && !page) {
-    return <p className="p-4 text-sm text-app-muted">{t("loadingEntries")}</p>;
+    return (
+      <EmptyState
+        title={t("loadingEntries")}
+        icon={Loader2}
+        iconClassName="animate-spin text-brand-200"
+      />
+    );
   }
   if (error) return <EmptyState title={t("queryFailed")} description={error} />;
   if (!page || page.items.length === 0) return <EmptyState title={t("noMatchingTags")} />;
 
+  const resultStart = page.offset + 1;
+  const resultEnd = page.offset + page.items.length;
+  const hasPrevious = page.offset > 0;
+  const hasNext = resultEnd < page.total;
   return (
-    <div ref={scrollRef} className="min-h-0 overflow-auto">
-      <ul className="relative w-full" style={listStyle} aria-label={t("searchResults")}>
-        {visibleRows.map((virtualItem) => {
-          const item = items[virtualItem.index];
-          if (!item) return null;
-          return (
-            <LexiconResultRow
-              key={item.entity_id}
-              position={virtualItem}
-              item={item}
-              selected={selectedId === item.entity_id}
-              inBasket={basketIds.has(item.entity_id)}
-              onInspect={onInspect}
-              onToggleBasket={onToggleBasket}
-              onMoveFocus={moveFocus}
-            />
-          );
-        })}
-      </ul>
+    <div className="flex min-h-0 flex-col">
+      <div className="flex h-8 shrink-0 items-center justify-between border-b border-app-border px-3">
+        <div className="flex items-center gap-2 text-[10px] tracking-wide text-app-muted uppercase">
+          {fetching ? <Loader2 aria-hidden="true" className="size-3.5 animate-spin" /> : null}
+          <span>
+            {t("resultSummary", { start: resultStart, end: resultEnd, total: page.total })}
+          </span>
+        </div>
+        <div className="flex items-center">
+          <AppIconButton
+            icon={ChevronLeft}
+            label={t("previousPage")}
+            size="sm"
+            disabled={fetching || !hasPrevious}
+            className="size-7 [&>svg]:size-[18px]"
+            onClick={previousPage}
+          />
+          <AppIconButton
+            icon={ChevronRight}
+            label={t("nextPage")}
+            size="sm"
+            disabled={fetching || !hasNext}
+            className="size-7 [&>svg]:size-[18px]"
+            onClick={nextPage}
+          />
+        </div>
+      </div>
+      <div
+        ref={scrollRef}
+        aria-busy={fetching}
+        className={["min-h-0 flex-1 overflow-auto", fetching ? "opacity-65" : ""].join(" ")}
+      >
+        <ul className="relative w-full" style={listStyle} aria-label={t("searchResults")}>
+          {visibleRows.map((virtualItem) => {
+            const item = items[virtualItem.index];
+            if (!item) return null;
+            return (
+              <LexiconResultRow
+                key={item.entity_id}
+                position={virtualItem}
+                item={item}
+                selected={selectedId === item.entity_id}
+                inBasket={basketIds.has(item.entity_id)}
+                onInspect={onInspect}
+                onToggleBasket={onToggleBasket}
+                onMoveFocus={moveFocus}
+              />
+            );
+          })}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -180,18 +244,14 @@ function LexiconResultRow({
           {t("posts", { value: item.post_count.toLocaleString() })}
         </p>
       </button>
-      <AppButton
-        variant={inBasket ? "secondary" : "ghost"}
-        className="size-8 p-0"
-        aria-label={inBasket ? t("removeFromBasket") : t("addToBasket")}
+      <AppIconButton
+        icon={inBasket ? Check : Plus}
+        label={inBasket ? t("removeFromBasket") : t("addToBasket")}
+        selected={inBasket}
+        size="sm"
+        className="text-brand-100 [&>svg]:size-5"
         onClick={toggle}
-      >
-        {inBasket ? (
-          <Check aria-hidden="true" className="size-4" />
-        ) : (
-          <Plus aria-hidden="true" className="size-4" />
-        )}
-      </AppButton>
+      />
     </li>
   );
 }

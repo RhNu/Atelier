@@ -11,6 +11,7 @@ type AppTabsProps<TValue extends string> = {
   tabs: ReadonlyArray<AppTabItem<TValue>>;
   onChange: (value: TValue) => void;
   label?: string;
+  className?: string;
 };
 
 export function AppTabs<TValue extends string>({
@@ -18,12 +19,13 @@ export function AppTabs<TValue extends string>({
   tabs,
   onChange,
   label = "Tabs",
+  className = "",
 }: AppTabsProps<TValue>) {
   return (
     <div
       role="tablist"
       aria-label={label}
-      className="inline-flex border border-app-border bg-black/10"
+      className={["inline-flex border border-app-border bg-black/10", className].join(" ")}
     >
       {tabs.map((tab) => (
         <AppTabButton
@@ -57,7 +59,7 @@ function AppTabButton<TValue extends string>({
       aria-selected={selected}
       disabled={tab.disabled}
       className={[
-        "h-8 border-r border-app-border px-3 text-sm transition-colors last:border-r-0",
+        "h-full min-h-8 border-r border-app-border px-3 text-sm transition-colors last:border-r-0",
         selected
           ? "bg-brand-500/20 text-brand-100"
           : "text-app-muted hover:bg-app-surface hover:text-app-text",
