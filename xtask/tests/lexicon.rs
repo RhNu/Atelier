@@ -4,6 +4,7 @@ use atelier_adapter_lexicon_bundle::LexiconBundle;
 use atelier_prompt_lexicon::{
     LexiconEngine, LexiconSearchFilters, LexiconSearchMode, LexiconSearchQuery,
 };
+use sha2::{Digest, Sha256};
 use tempfile::{TempDir, tempdir};
 use xtask::{LexiconBundleConfig, build_lexicon_bundle, validate_lexicon_bundle};
 
@@ -91,6 +92,89 @@ fn semantic_vector_dimensions_are_validated_without_loading_onnx() {
     .unwrap();
     fs::write(output.join("identity.f16"), [0_u8; 6]).unwrap();
     assert!(validate_lexicon_bundle(&output).is_err());
+}
+
+#[test]
+fn enriched_entities_and_batch_provenance_are_bundled() {
+    let (temp, input, output) = fixture();
+    let _keep_temp = temp;
+    install_enriched_fixture(&input);
+
+    build_lexicon_bundle(&LexiconBundleConfig {
+        input_dir: input,
+        output_dir: output.clone(),
+        bundle_version: "test-enriched".to_owned(),
+    })
+    .unwrap();
+    let manifest = fs::read_to_string(output.join("manifest.json")).unwrap();
+    assert!(manifest.contains("\"mode\": \"batch\""));
+    assert!(manifest.contains("\"model\": \"test-model\""));
+    let engine = LexiconBundle::open(output).unwrap();
+    let results = engine
+        .search(&LexiconSearchQuery {
+            text: "电子歌姬".to_owned(),
+            mode: LexiconSearchMode::Lexical,
+            filters: LexiconSearchFilters::default(),
+            selected_entity_ids: vec![],
+            offset: 0,
+            limit: 20,
+        })
+        .unwrap();
+    assert_eq!(results.items[0].canonical_name, "hatsune_miku");
+}
+
+#[test]
+fn enriched_entities_reject_semantic_vectors_without_matching_input_hash() {
+    let (temp, input, output) = fixture();
+    let _keep_temp = temp;
+    install_enriched_fixture(&input);
+    let semantic = input.join("semantic");
+    fs::create_dir_all(&semantic).unwrap();
+    fs::write(semantic.join("model.onnx"), "fixture").unwrap();
+    fs::write(semantic.join("tokenizer.json"), "{}").unwrap();
+    fs::write(semantic.join("LICENSE-model.txt"), "MIT").unwrap();
+    fs::write(semantic.join("identity.f16"), [0_u8; 8]).unwrap();
+    fs::write(semantic.join("knowledge.f16"), [0_u8; 8]).unwrap();
+    fs::write(
+        semantic.join("config.json"),
+        "{\"dimensions\":2,\"entity_count\":2}\n",
+    )
+    .unwrap();
+
+    let error = build_lexicon_bundle(&LexiconBundleConfig {
+        input_dir: input,
+        output_dir: output,
+        bundle_version: "test-stale-semantic".to_owned(),
+    })
+    .unwrap_err();
+    assert!(error.contains("does not bind vectors to enriched entities"));
+}
+
+fn install_enriched_fixture(input: &std::path::Path) {
+    let base = input.join("entities.jsonl");
+    let enriched = input.join("entities.enriched.jsonl");
+    let enriched_text = fs::read_to_string(&base)
+        .unwrap()
+        .replace("初音未来", "电子歌姬");
+    fs::write(&enriched, enriched_text).unwrap();
+    fs::write(
+        input.join("entities.enriched.provenance.json"),
+        format!(
+            concat!(
+                "{{\"mode\":\"batch\",\"endpoint\":\"/v1/chat/completions\",",
+                "\"model\":\"test-model\",\"prompt_hash\":\"{}\",",
+                "\"entity_count\":2,\"input_sha256\":\"{}\",\"output_sha256\":\"{}\"}}\n"
+            ),
+            "a".repeat(64),
+            sha256(&base),
+            sha256(&enriched),
+        ),
+    )
+    .unwrap();
+}
+
+fn sha256(path: &std::path::Path) -> String {
+    format!("{:x}", Sha256::digest(fs::read(path).unwrap()))
 }
 
 fn fixture() -> (TempDir, std::path::PathBuf, std::path::PathBuf) {

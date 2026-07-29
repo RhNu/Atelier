@@ -18,22 +18,41 @@ CATEGORY = {0: "general", 1: "artist", 3: "copyright", 4: "character"}
 MAIN_CATEGORIES = {"general", "copyright", "character"}
 MIN_POST_COUNT = 100
 MAX_RELATIONS_PER_ENTITY = 16
+DSO_DATA_FILES = (
+    "cooccurrence_clean.parquet",
+    "tag_aliases.parquet",
+    "tag_artist_cooc.parquet",
+    "tag_groups.json",
+    "tags_enhanced.csv",
+)
+DIRECT_DANBOORU_FILES = (
+    "danbooru-tags-source.json",
+    "tags-missing.json",
+    "tags.jsonl",
+)
 
 
-def normalize(input_dir: Path, output_dir: Path, allow_file: Path, deny_file: Path) -> None:
+def normalize(
+    input_dir: Path,
+    output_dir: Path,
+    allow_file: Path,
+    deny_file: Path,
+    dso_input_dir: Path | None = None,
+) -> None:
+    dso_input_dir = dso_input_dir or input_dir
     allow = read_string_set(allow_file)
     deny = read_string_set(deny_file)
-    raw = _read_tags(input_dir / "tags_enhanced.csv")
+    raw = _read_tags(dso_input_dir / "tags_enhanced.csv")
     for name in deny:
         raw.pop(name, None)
     tag_snapshot = _read_tag_snapshot(input_dir / "tags.jsonl")
     _merge_authoritative_tag_fields(raw, tag_snapshot)
     canonical_names = set(raw)
-    aliases = _read_aliases(input_dir / "tag_aliases.parquet", canonical_names)
+    aliases = _read_aliases(dso_input_dir / "tag_aliases.parquet", canonical_names)
     aliases_by_target: dict[str, list[str]] = defaultdict(list)
     for alias, target in aliases.items():
         aliases_by_target[target].append(alias)
-    groups_by_tag, group_records = _read_groups(input_dir / "tag_groups.json")
+    groups_by_tag, group_records = _read_groups(dso_input_dir / "tag_groups.json")
 
     main: list[Entity] = []
     cold: list[Entity] = []
@@ -63,14 +82,14 @@ def normalize(input_dir: Path, output_dir: Path, allow_file: Path, deny_file: Pa
     selected_counts = {entity.canonical_name: entity.post_count for entity in main}
     total_posts = max(selected_counts.values(), default=1)
     relations = _read_relations(
-        input_dir / "cooccurrence_clean.parquet",
+        dso_input_dir / "cooccurrence_clean.parquet",
         selected_ids,
         selected_counts,
         total_posts,
         "npmi",
     )
     artist_relations = _read_relations(
-        input_dir / "tag_artist_cooc.parquet",
+        dso_input_dir / "tag_artist_cooc.parquet",
         selected_ids,
         selected_counts,
         total_posts,
@@ -105,6 +124,22 @@ def normalize(input_dir: Path, output_dir: Path, allow_file: Path, deny_file: Pa
         use_dictionary=True,
     )
     source_metadata = _source_metadata(input_dir / "danbooru-tags-source.json")
+    dso_metadata = _source_metadata(dso_input_dir / "SOURCE.json")
+    source_paths = {
+        path.resolve(): path
+        for path in (
+            *[
+                input_dir / name
+                for name in DIRECT_DANBOORU_FILES
+                if (input_dir / name).is_file()
+            ],
+            *[
+                dso_input_dir / name
+                for name in DSO_DATA_FILES
+                if (dso_input_dir / name).is_file()
+            ],
+        )
+    }
     write_json(
         output_dir / "provenance.json",
         {
@@ -125,22 +160,20 @@ def normalize(input_dir: Path, output_dir: Path, allow_file: Path, deny_file: Pa
             "sources": [
                 _provenance_source(
                     path,
-                    source_metadata.get("retrieved_at", "local-pinned-input"),
+                    (
+                        source_metadata.get("retrieved_at", "local-pinned-input")
+                        if path.name in DIRECT_DANBOORU_FILES
+                        else dso_metadata.get("commit", "local-pinned-input")
+                    ),
                 )
-                for path in sorted(input_dir.iterdir())
-                if path.is_file()
+                for path in sorted(source_paths.values())
             ],
         },
     )
 
 
 def _provenance_source(path: Path, snapshot: str) -> dict[str, str]:
-    direct_danbooru = {
-        "danbooru-tags-source.json",
-        "tags-missing.json",
-        "tags.jsonl",
-    }
-    if path.name in direct_danbooru:
+    if path.name in DIRECT_DANBOORU_FILES:
         return {
             "id": path.name,
             "url": "https://danbooru.donmai.us/terms_of_service",

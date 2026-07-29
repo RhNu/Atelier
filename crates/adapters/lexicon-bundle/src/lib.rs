@@ -15,8 +15,8 @@ use atelier_prompt_lexicon::{
 };
 
 pub use manifest::{
-    BUNDLE_FORMAT, BUNDLE_SCHEMA_VERSION, BundleFile, LexiconBundleManifest, RankingManifest,
-    SemanticManifest, SemanticModelContract, SourceManifest,
+    BUNDLE_FORMAT, BUNDLE_SCHEMA_VERSION, BundleFile, EnrichmentManifest, LexiconBundleManifest,
+    RankingManifest, SemanticManifest, SemanticModelContract, SourceManifest,
 };
 
 pub struct LexiconBundle {

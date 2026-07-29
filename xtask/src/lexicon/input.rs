@@ -56,7 +56,20 @@ pub struct PipelineSource {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+pub struct PipelineEnrichment {
+    pub mode: String,
+    pub endpoint: String,
+    pub model: String,
+    pub prompt_hash: String,
+    pub entity_count: usize,
+    pub input_sha256: String,
+    pub output_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct SemanticConfig {
+    #[serde(default)]
+    pub entities_sha256: Option<String>,
     pub dimensions: usize,
     pub entity_count: usize,
     #[serde(default = "default_max_length")]

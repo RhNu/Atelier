@@ -5,7 +5,7 @@
 
 ## 参考清单
 
-- [`DanbooruSearchOnline`](https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline) — GPL-3.0；2026-07 Danbooru 词库重构研究。仅参考多视图检索、别名归一、NPMI 推荐和数据分层思路；Atelier 的 Python、Rust 与 TypeScript 实现均为重新实现，未复制源代码。
+- [`DanbooruSearchOnline`](https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline) — GPL-3.0；2026-07 Danbooru 词库重构研究。Atelier 的 Python、Rust 与 TypeScript 实现均为重新实现，未复制源代码。词库管线另行再分发了固定提交中的五个上游数据文件，完整许可证、来源提交和文件校验和保存在 `tools/lexicon-pipeline/sources/danbooru-search-online/`。
 - [`danbooru-tag-pipeline`](https://github.com/SuzumiyaAkizuki/danbooru-tag-pipeline) — GPL-3.0；2026-07 Danbooru 词库重构研究。仅参考精选、翻译、Wiki、分组和共现管线设计；具体来源与快照由每个 bundle 的 `manifest.json` 记录。
 - [Danbooru](https://danbooru.donmai.us/) — Danbooru 数据库条目及标签元数据；实际数据许可、API 快照时间和校验和随 bundle provenance 保存。
 - [`multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) — MIT；固定 revision `614241f622f53c4eeff9890bdc4f31cfecc418b3` 的 qint8 ONNX 模型用于本地语义检索，许可证随 bundle 打包。

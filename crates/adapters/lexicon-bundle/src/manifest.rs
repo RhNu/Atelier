@@ -18,9 +18,22 @@ pub struct LexiconBundleManifest {
     #[serde(default)]
     pub semantic: Option<SemanticManifest>,
     #[serde(default)]
+    pub enrichment: Option<EnrichmentManifest>,
+    #[serde(default)]
     pub ranking: RankingManifest,
     #[serde(default)]
     pub sources: Vec<SourceManifest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct EnrichmentManifest {
+    pub mode: String,
+    pub endpoint: String,
+    pub model: String,
+    pub prompt_hash: String,
+    pub entity_count: usize,
+    pub input_sha256: String,
+    pub output_sha256: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -163,6 +176,19 @@ impl LexiconBundleManifest {
                 "bundle_version must not be empty",
             ));
         }
+        if let Some(enrichment) = &self.enrichment
+            && (enrichment.mode != "batch"
+                || enrichment.endpoint != "/v1/chat/completions"
+                || enrichment.model.trim().is_empty()
+                || enrichment.entity_count == 0
+                || !is_sha256(&enrichment.prompt_hash)
+                || !is_sha256(&enrichment.input_sha256)
+                || !is_sha256(&enrichment.output_sha256))
+        {
+            return Err(LexiconError::invalid_bundle(
+                "invalid LLM enrichment provenance",
+            ));
+        }
         validate_file(root, &self.database)?;
         if let Some(semantic) = &self.semantic {
             if semantic.dimensions == 0 || semantic.entity_count == 0 {
@@ -245,13 +271,17 @@ fn validate_file(root: &Path, file: &BundleFile) -> LexiconResult<()> {
             path.display()
         )));
     }
-    if file.sha256.len() != 64 || !file.sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+    if !is_sha256(&file.sha256) {
         return Err(LexiconError::invalid_bundle(format!(
             "invalid SHA-256 for {}",
             file.file
         )));
     }
     Ok(())
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 fn validate_vector_file(

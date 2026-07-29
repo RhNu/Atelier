@@ -1,0 +1,46 @@
+{
+  "repository": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
+  "commit": "73dc4395bd4152b1c54450a409cec341331c9a33",
+  "commit_url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline/commit/73dc4395bd4152b1c54450a409cec341331c9a33",
+  "commit_date": "2026-07-29T04:57:34Z",
+  "upstream_directory": "origin_database",
+  "license": {
+    "spdx": "GPL-3.0",
+    "name": "LICENSE",
+    "upstream_blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+    "bytes": 35149,
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  },
+  "files": [
+    {
+      "name": "cooccurrence_clean.parquet",
+      "upstream_blob": "8fbc1b5c718b21aff9ba29861111d052a482ce46",
+      "bytes": 13231226,
+      "sha256": "76e1c030bb67189735bca27be497f1543cd145b731a6c6ee69d7316084ff4621"
+    },
+    {
+      "name": "tag_aliases.parquet",
+      "upstream_blob": "8e3e25b8c8f0c0167a7592a186a5778a9c642533",
+      "bytes": 1872030,
+      "sha256": "dd4b6a1200804107708fdd852c56aad332cf63c758c40fbcc0e2fc82a5192f96"
+    },
+    {
+      "name": "tag_artist_cooc.parquet",
+      "upstream_blob": "d8de12244eb1248f668d0488e7d3c8253e259ee8",
+      "bytes": 15491720,
+      "sha256": "6a23e3eabd46bb8671b17f11871ac61e63eb7411475b95414f33bd5895451e80"
+    },
+    {
+      "name": "tag_groups.json",
+      "upstream_blob": "1e9755990090aab0ae19fff8d369a4b6ccdca324",
+      "bytes": 1332301,
+      "sha256": "6218431c0e0d9cc2eec32a9be4813716fb0b8a544c8707c5f510a54711c65716"
+    },
+    {
+      "name": "tags_enhanced.csv",
+      "upstream_blob": "5b996947d65429a1be934c3ceff57b5028af34a6",
+      "bytes": 7120363,
+      "sha256": "f9f8547f00d6699c01519ecfd0f8e06fc39366119589a30c4eb7dcaee4f44707"
+    }
+  ]
+}

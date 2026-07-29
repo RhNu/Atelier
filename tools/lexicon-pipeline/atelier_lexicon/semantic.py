@@ -56,6 +56,7 @@ def build_semantic_assets(
         if line.strip()
     ]
     entities.sort(key=lambda entity: int(entity["id"]))
+    entities_sha256 = sha256_file(entities_path)
     output_dir.mkdir(parents=True, exist_ok=True)
     model_path = output_dir / "model.onnx"
     tokenizer_path = output_dir / "tokenizer.json"
@@ -76,7 +77,7 @@ def build_semantic_assets(
     identity = _view_map(output_dir / "identity.f16", len(entities))
     knowledge = _view_map(output_dir / "knowledge.f16", len(entities))
     checkpoint_path = output_dir / "semantic.checkpoint.json"
-    start = _checkpoint(checkpoint_path, len(entities))
+    start = _checkpoint(checkpoint_path, len(entities), entities_sha256)
 
     for offset in range(start, len(entities), batch_size):
         batch = entities[offset : offset + batch_size]
@@ -96,12 +97,17 @@ def build_semantic_assets(
         knowledge.flush()
         write_json(
             checkpoint_path,
-            {"entity_count": len(entities), "completed": offset + len(batch)},
+            {
+                "entity_count": len(entities),
+                "entities_sha256": entities_sha256,
+                "completed": offset + len(batch),
+            },
         )
 
     write_json(
         output_dir / "config.json",
         {
+            "entities_sha256": entities_sha256,
             "dimensions": DIMENSIONS,
             "entity_count": len(entities),
             "max_length": MAX_LENGTH,
@@ -160,12 +166,17 @@ def _view_map(path: Path, entity_count: int) -> np.memmap:
     return np.memmap(path, dtype="<f2", mode=mode, shape=(entity_count, DIMENSIONS))
 
 
-def _checkpoint(path: Path, entity_count: int) -> int:
+def _checkpoint(path: Path, entity_count: int, entities_sha256: str) -> int:
     if not path.is_file():
         return 0
     value = json.loads(path.read_text(encoding="utf-8"))
     if value.get("entity_count") != entity_count:
         raise ValueError("semantic checkpoint entity count changed")
+    if value.get("entities_sha256") != entities_sha256:
+        raise ValueError(
+            "semantic checkpoint was built from different entities; "
+            "remove the semantic output directory and rebuild"
+        )
     return int(value.get("completed", 0))
 
 

@@ -47,6 +47,7 @@
       "passage_prefix": "passage: "
     }
   },
+  "enrichment": null,
   "ranking": {
     "semantic_weight": 0.85,
     "context_weight": 0.1,
@@ -56,7 +57,7 @@
     {
       "id": "cooccurrence_clean.parquet",
       "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
-      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "snapshot": "73dc4395bd4152b1c54450a409cec341331c9a33",
       "sha256": "76e1c030bb67189735bca27be497f1543cd145b731a6c6ee69d7316084ff4621",
       "license": "GPL-3.0"
     },
@@ -70,21 +71,21 @@
     {
       "id": "tag_aliases.parquet",
       "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
-      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "snapshot": "73dc4395bd4152b1c54450a409cec341331c9a33",
       "sha256": "dd4b6a1200804107708fdd852c56aad332cf63c758c40fbcc0e2fc82a5192f96",
       "license": "GPL-3.0"
     },
     {
       "id": "tag_artist_cooc.parquet",
       "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
-      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "snapshot": "73dc4395bd4152b1c54450a409cec341331c9a33",
       "sha256": "6a23e3eabd46bb8671b17f11871ac61e63eb7411475b95414f33bd5895451e80",
       "license": "GPL-3.0"
     },
     {
       "id": "tag_groups.json",
       "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
-      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "snapshot": "73dc4395bd4152b1c54450a409cec341331c9a33",
       "sha256": "6218431c0e0d9cc2eec32a9be4813716fb0b8a544c8707c5f510a54711c65716",
       "license": "GPL-3.0"
     },
@@ -105,7 +106,7 @@
     {
       "id": "tags_enhanced.csv",
       "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
-      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "snapshot": "73dc4395bd4152b1c54450a409cec341331c9a33",
       "sha256": "f9f8547f00d6699c01519ecfd0f8e06fc39366119589a30c4eb7dcaee4f44707",
       "license": "GPL-3.0"
     }

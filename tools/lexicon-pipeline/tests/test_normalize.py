@@ -60,6 +60,9 @@ def test_selection_uses_real_ids_thresholds_lists_and_artist_partition(
     ]
     cold = parquet.read_table(first / "cold" / "entities.parquet").to_pylist()
     assert {row["canonical_name"] for row in cold} == {"cold", "deleted"}
+    provenance = json.loads((first / "provenance.json").read_text(encoding="utf-8"))
+    source_ids = [source["id"] for source in provenance["sources"]]
+    assert len(source_ids) == len(set(source_ids))
     for relative in [
         "entities.jsonl",
         "groups.json",

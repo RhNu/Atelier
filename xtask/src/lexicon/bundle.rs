@@ -4,8 +4,8 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use atelier_adapter_lexicon_bundle::{
-    BUNDLE_FORMAT, BUNDLE_SCHEMA_VERSION, BundleFile, LexiconBundleManifest, RankingManifest,
-    SemanticManifest, SemanticModelContract, SourceManifest,
+    BUNDLE_FORMAT, BUNDLE_SCHEMA_VERSION, BundleFile, EnrichmentManifest, LexiconBundleManifest,
+    RankingManifest, SemanticManifest, SemanticModelContract, SourceManifest,
 };
 use rusqlite::{Connection, params};
 use serde::de::DeserializeOwned;
@@ -13,7 +13,8 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 use super::input::{
-    PipelineEntity, PipelineGroup, PipelineProvenance, PipelineRelation, SemanticConfig,
+    PipelineEnrichment, PipelineEntity, PipelineGroup, PipelineProvenance, PipelineRelation,
+    SemanticConfig,
 };
 use super::schema::CREATE_SCHEMA;
 
@@ -38,7 +39,14 @@ pub struct LexiconBundleSummary {
 /// Returns an error for malformed input, inconsistent relationships, or filesystem failures.
 pub fn build_lexicon_bundle(config: &LexiconBundleConfig) -> Result<LexiconBundleSummary, String> {
     validate_bundle_version(&config.bundle_version)?;
-    let mut entities = read_jsonl::<PipelineEntity>(&config.input_dir.join("entities.jsonl"))?;
+    let base_entities_path = config.input_dir.join("entities.jsonl");
+    let enriched_entities_path = config.input_dir.join("entities.enriched.jsonl");
+    let entities_path = if enriched_entities_path.is_file() {
+        enriched_entities_path
+    } else {
+        base_entities_path.clone()
+    };
+    let mut entities = read_jsonl::<PipelineEntity>(&entities_path)?;
     entities.sort_by_key(|entity| entity.id);
     validate_entities(&entities)?;
     let mut groups =
@@ -61,7 +69,13 @@ pub fn build_lexicon_bundle(config: &LexiconBundleConfig) -> Result<LexiconBundl
         fs::remove_file(&database_path).map_err(|error| error.to_string())?;
     }
     build_database(&database_path, &entities, &groups, &relations)?;
-    let semantic = install_semantic_assets(config, entities.len())?;
+    let semantic = install_semantic_assets(
+        config,
+        entities.len(),
+        &entities_path,
+        entities_path != base_entities_path,
+    )?;
+    let enrichment = load_enrichment(config, &entities_path, entities.len())?;
     let provenance = read_json::<PipelineProvenance>(&config.input_dir.join("provenance.json"))
         .unwrap_or(PipelineProvenance { sources: vec![] });
     let manifest = LexiconBundleManifest {
@@ -70,6 +84,7 @@ pub fn build_lexicon_bundle(config: &LexiconBundleConfig) -> Result<LexiconBundl
         bundle_version: config.bundle_version.clone(),
         database: describe_file(&database_path, "lexicon.sqlite")?,
         semantic,
+        enrichment,
         ranking: RankingManifest::default(),
         sources: provenance
             .sources
@@ -274,6 +289,8 @@ fn insert_entity(
 fn install_semantic_assets(
     config: &LexiconBundleConfig,
     entity_count: usize,
+    entities_path: &Path,
+    enriched: bool,
 ) -> Result<Option<SemanticManifest>, String> {
     let source = config.input_dir.join("semantic");
     let config_path = source.join("config.json");
@@ -286,6 +303,22 @@ fn install_semantic_assets(
             "semantic entity_count {} does not match pipeline entities {entity_count}",
             semantic.entity_count
         ));
+    }
+    let entities_sha256 = sha256_file(entities_path)?;
+    match &semantic.entities_sha256 {
+        Some(expected) if expected != &entities_sha256 => {
+            return Err(
+                "semantic vectors were built from a different entities file; rebuild them"
+                    .to_owned(),
+            );
+        }
+        None if enriched => {
+            return Err(
+                "semantic config does not bind vectors to enriched entities; rebuild them"
+                    .to_owned(),
+            );
+        }
+        _ => {}
     }
     let files = [
         ("model.onnx", "model.onnx"),
@@ -329,6 +362,38 @@ fn install_semantic_assets(
     }))
 }
 
+fn load_enrichment(
+    config: &LexiconBundleConfig,
+    entities_path: &Path,
+    entity_count: usize,
+) -> Result<Option<EnrichmentManifest>, String> {
+    if entities_path.file_name().and_then(|name| name.to_str()) != Some("entities.enriched.jsonl") {
+        return Ok(None);
+    }
+    let path = config.input_dir.join("entities.enriched.provenance.json");
+    let value = read_json::<PipelineEnrichment>(&path)?;
+    if value.mode != "batch"
+        || value.endpoint != "/v1/chat/completions"
+        || value.entity_count != entity_count
+        || value.input_sha256 != sha256_file(&config.input_dir.join("entities.jsonl"))?
+        || value.output_sha256 != sha256_file(entities_path)?
+    {
+        return Err(format!(
+            "{} does not match the selected enriched entities",
+            path.display()
+        ));
+    }
+    Ok(Some(EnrichmentManifest {
+        mode: value.mode,
+        endpoint: value.endpoint,
+        model: value.model,
+        prompt_hash: value.prompt_hash,
+        entity_count: value.entity_count,
+        input_sha256: value.input_sha256,
+        output_sha256: value.output_sha256,
+    }))
+}
+
 fn describe_file(path: &Path, relative: &str) -> Result<BundleFile, String> {
     let bytes = fs::read(path).map_err(|error| error.to_string())?;
     Ok(BundleFile {
@@ -336,6 +401,11 @@ fn describe_file(path: &Path, relative: &str) -> Result<BundleFile, String> {
         sha256: format!("{:x}", Sha256::digest(&bytes)),
         size_bytes: bytes.len() as u64,
     })
+}
+
+fn sha256_file(path: &Path) -> Result<String, String> {
+    let bytes = fs::read(path).map_err(|error| error.to_string())?;
+    Ok(format!("{:x}", Sha256::digest(bytes)))
 }
 
 fn validate_entities(entities: &[PipelineEntity]) -> Result<(), String> {
