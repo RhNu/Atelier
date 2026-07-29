@@ -1,3 +1,6 @@
 [alias]
 clippy-strict = "clippy --workspace --all-targets -- -D warnings -W clippy::pedantic -W clippy::nursery -W clippy::cargo -A clippy::multiple_crate_versions"
 xtask = "run -p xtask --"
+
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-A", "linker-messages"]
