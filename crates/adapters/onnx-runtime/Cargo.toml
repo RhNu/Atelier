@@ -1,0 +1,9 @@
+[package]
+name = "atelier-adapter-onnx-runtime"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+ort = { workspace = true, features = ["std", "load-dynamic", "api-22"] }
+thiserror = { workspace = true }

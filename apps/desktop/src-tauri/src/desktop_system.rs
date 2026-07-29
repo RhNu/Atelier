@@ -103,6 +103,37 @@ impl DesktopSystem {
         Ok(None)
     }
 
+    pub fn resolve_lexicon_bundle(&self) -> DesktopSystemResult<Option<PathBuf>> {
+        if let Some(path) = env_path("ATELIER_LEXICON_BUNDLE") {
+            require_file(&path.join("manifest.json"), "lexicon manifest")?;
+            require_file(&path.join("lexicon.sqlite"), "lexicon database")?;
+            return Ok(Some(path));
+        }
+        let Some(resource_dir) = &self.paths.resource_dir else {
+            return Ok(None);
+        };
+        let root = resource_dir.join("lexicon");
+        if root.join("manifest.json").is_file() && root.join("lexicon.sqlite").is_file() {
+            Ok(Some(root))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn resolve_onnx_runtime_library(&self) -> DesktopSystemResult<Option<PathBuf>> {
+        if let Some(path) = env_path("ATELIER_ONNX_RUNTIME") {
+            require_file(&path, "ONNX Runtime library")?;
+            return Ok(Some(path));
+        }
+        let Some(resource_dir) = &self.paths.resource_dir else {
+            return Ok(None);
+        };
+        let path = resource_dir
+            .join("safety")
+            .join(runtime_library_file_name());
+        Ok(path.is_file().then_some(path))
+    }
+
     pub fn allow_user_path(&self, path: impl AsRef<Path>) -> DesktopSystemResult<()> {
         let canonical = canonicalize_existing(path.as_ref())?;
         self.user_allowed_paths

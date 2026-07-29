@@ -9,6 +9,7 @@ export {
   generationApi,
   globalSettingsApi,
   historyApi,
+  lexiconApi,
   promptApi,
   resourceApi,
   settingsApi,

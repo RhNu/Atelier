@@ -5,10 +5,8 @@ use super::{
     DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, DeletePromptPresetRequestDto,
     DeletePromptPresetResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkId, PromptChunkKey, PromptChunkPageDto,
-    PromptLexiconCatalogDto, PromptLexiconListQueryDto, PromptLexiconPageDto, PromptPresetDto,
-    PromptPresetId, PromptPresetPageDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
-    WorkspaceSession, compiled_prompt_to_dto, lexicon_catalog_to_dto, lexicon_page_to_dto,
-    lexicon_query_to_domain, lexicon_search_to_page, prompt_chunk_to_dto,
+    PromptPresetDto, PromptPresetId, PromptPresetPageDto, UpsertPromptChunkRequestDto,
+    UpsertPromptPresetRequestDto, WorkspaceSession, compiled_prompt_to_dto, prompt_chunk_to_dto,
     prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
     upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain,
 };
@@ -261,35 +259,6 @@ where
             quality_override: compiled.quality_override,
             uc_preset_override: compiled.uc_preset_override,
         })
-    }
-
-    pub fn lexicon_catalog(&self) -> PromptLexiconCatalogDto {
-        lexicon_catalog_to_dto(self.app.inner.lexicon.catalog())
-    }
-
-    pub fn lexicon_list(
-        &self,
-        query: PromptLexiconListQueryDto,
-    ) -> AppResult<PromptLexiconPageDto> {
-        self.app
-            .inner
-            .lexicon
-            .list(&lexicon_query_to_domain(query))
-            .map(lexicon_page_to_dto)
-            .map_err(AppError::from)
-    }
-
-    pub fn lexicon_search(&self, query: &str, limit: usize) -> AppResult<PromptLexiconPageDto> {
-        if limit == 0 {
-            return Err(AppError::new(
-                "invalid_request",
-                "limit must be greater than zero",
-            ));
-        }
-        Ok(lexicon_search_to_page(
-            self.app.inner.lexicon.search(query, limit),
-            limit,
-        ))
     }
 }
 

@@ -66,9 +66,19 @@ impl From<atelier_prompt_resources::PromptResourceError> for AppError {
     }
 }
 
-impl From<atelier_prompt_lexicon::PromptLexiconError> for AppError {
-    fn from(error: atelier_prompt_lexicon::PromptLexiconError) -> Self {
-        Self::new("prompt_lexicon", error.to_string())
+impl From<atelier_prompt_lexicon::LexiconError> for AppError {
+    fn from(error: atelier_prompt_lexicon::LexiconError) -> Self {
+        let code = match &error {
+            atelier_prompt_lexicon::LexiconError::Unavailable(_) => "lexicon_unavailable",
+            atelier_prompt_lexicon::LexiconError::InvalidRequest(_) => "lexicon_invalid_request",
+            atelier_prompt_lexicon::LexiconError::NotFound(_) => "lexicon_not_found",
+            atelier_prompt_lexicon::LexiconError::InvalidBundle(_) => "lexicon_invalid_bundle",
+            atelier_prompt_lexicon::LexiconError::Query(_) => "lexicon_query",
+            atelier_prompt_lexicon::LexiconError::SemanticUnavailable(_) => {
+                "lexicon_semantic_unavailable"
+            }
+        };
+        Self::new(code, error.to_string())
     }
 }
 

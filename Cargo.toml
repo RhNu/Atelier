@@ -8,6 +8,8 @@ members = [
     "crates/adapters/image-codec",
     "crates/adapters/database",
     "crates/adapters/storage-fs",
+    "crates/adapters/onnx-runtime",
+    "crates/adapters/lexicon-bundle",
     "crates/adapters/safety-onnx",
     "crates/adapters/settings-fs",
     "crates/foundation",
@@ -50,10 +52,16 @@ keyring = "4.0.1"
 keyring-core = "1.0.0"
 log = "0.4"
 logos = "0.16"
+half = "2"
+memmap2 = "0.9"
+rayon = "1"
+tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
 atelier-adapter-database = { path = "crates/adapters/database" }
 atelier-adapter-image-codec = { path = "crates/adapters/image-codec" }
 atelier-adapter-keyring = { path = "crates/adapters/keyring" }
 atelier-adapter-novelai = { path = "crates/adapters/novelai" }
+atelier-adapter-onnx-runtime = { path = "crates/adapters/onnx-runtime" }
+atelier-adapter-lexicon-bundle = { path = "crates/adapters/lexicon-bundle" }
 atelier-adapter-safety-onnx = { path = "crates/adapters/safety-onnx" }
 atelier-adapter-settings-fs = { path = "crates/adapters/settings-fs" }
 atelier-adapter-storage-fs = { path = "crates/adapters/storage-fs" }

@@ -9,7 +9,7 @@ import { Transaction } from "@codemirror/state";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { frontendLogger } from "@/app/logger";
-import type { PromptChunkDto, PromptLexiconEntryDto } from "@/types";
+import type { LexiconSearchItemDto, PromptChunkDto } from "@/types";
 
 import { fetchPromptCompletionChunks, fetchPromptCompletionTags } from "./completion-data";
 import {
@@ -98,7 +98,7 @@ async function completePrompt(
 function completionItems(
   context: PromptCompletionContext,
   chunks: PromptChunkDto[],
-  tags: PromptLexiconEntryDto[],
+  tags: LexiconSearchItemDto[],
   messages: PromptCompletionMessages,
 ): PromptCompletionItem[] {
   if (context.mode === "chunk") return chunkItems(chunks, context.query, messages);
@@ -143,14 +143,14 @@ function chunkItems(
     }));
 }
 
-function tagItem(entry: PromptLexiconEntryDto): PromptCompletionItem {
+function tagItem(entry: LexiconSearchItemDto): PromptCompletionItem {
   return {
     kind: "tag",
-    id: `tag:${entry.tag}`,
-    label: entry.tag,
-    value: entry.tag,
+    id: `tag:${entry.entity_id}`,
+    label: entry.canonical_name,
+    value: entry.canonical_name,
     detail: entry.primary_translation || entry.category,
-    rank: entry.match_rank,
+    rank: entry.match_reason,
   };
 }
 

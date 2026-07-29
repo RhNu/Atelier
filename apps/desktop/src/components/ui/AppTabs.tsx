@@ -1,19 +1,24 @@
 import { useCallback } from "react";
 
-type AppTabItem = {
-  value: string;
+type AppTabItem<TValue extends string> = {
+  value: TValue;
   label: string;
   disabled?: boolean;
 };
 
-type AppTabsProps = {
-  value: string;
-  tabs: ReadonlyArray<AppTabItem>;
-  onChange: (value: string) => void;
+type AppTabsProps<TValue extends string> = {
+  value: TValue;
+  tabs: ReadonlyArray<AppTabItem<TValue>>;
+  onChange: (value: TValue) => void;
   label?: string;
 };
 
-export function AppTabs({ value, tabs, onChange, label = "Tabs" }: AppTabsProps) {
+export function AppTabs<TValue extends string>({
+  value,
+  tabs,
+  onChange,
+  label = "Tabs",
+}: AppTabsProps<TValue>) {
   return (
     <div
       role="tablist"
@@ -32,14 +37,14 @@ export function AppTabs({ value, tabs, onChange, label = "Tabs" }: AppTabsProps)
   );
 }
 
-function AppTabButton({
+function AppTabButton<TValue extends string>({
   tab,
   selected,
   onChange,
 }: {
-  tab: AppTabItem;
+  tab: AppTabItem<TValue>;
   selected: boolean;
-  onChange: (value: string) => void;
+  onChange: (value: TValue) => void;
 }) {
   const handleClick = useCallback(() => {
     onChange(tab.value);

@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+pub use atelier_adapter_onnx_runtime::OrtRuntime;
 use atelier_safety::{
     SafetyAssessment, SafetyError, SafetyModelScore, SafetyResult, SafetyScanInput, SafetyScanner,
 };
@@ -21,14 +22,6 @@ pub struct NsfwRuntimeAssets {
     pub runtime_library_path: PathBuf,
 }
 
-#[derive(Debug)]
-pub struct OrtRuntime {
-    library_path: PathBuf,
-}
-
-static ORT_RUNTIME: OnceLock<OrtRuntime> = OnceLock::new();
-static ORT_RUNTIME_INIT: Mutex<()> = Mutex::new(());
-
 /// Initializes the process-global ONNX Runtime from a host-selected library.
 ///
 /// Repeated initialization with the same canonical path is idempotent. A
@@ -41,45 +34,8 @@ static ORT_RUNTIME_INIT: Mutex<()> = Mutex::new(());
 pub fn initialize_ort_runtime(
     runtime_library_path: impl AsRef<Path>,
 ) -> SafetyResult<&'static OrtRuntime> {
-    let requested_path = canonicalize_runtime_library(runtime_library_path.as_ref())?;
-    let _init_guard = ORT_RUNTIME_INIT
-        .lock()
-        .map_err(|_| SafetyError::scanner("ONNX Runtime initialization lock is unavailable"))?;
-
-    if let Some(runtime) = ORT_RUNTIME.get() {
-        return runtime.for_path(&requested_path);
-    }
-
-    let committed = ort::init_from(&requested_path)
-        .map_err(ort_error_to_safety)?
-        .commit();
-    if !committed {
-        return Err(SafetyError::scanner(
-            "ONNX Runtime was configured before the desktop host initialized it",
-        ));
-    }
-
-    ORT_RUNTIME
-        .set(OrtRuntime {
-            library_path: requested_path,
-        })
-        .map_err(|_| SafetyError::scanner("ONNX Runtime initialization raced unexpectedly"))?;
-    ORT_RUNTIME
-        .get()
-        .ok_or_else(|| SafetyError::scanner("ONNX Runtime initialization did not persist"))
-}
-
-impl OrtRuntime {
-    fn for_path(&'static self, requested_path: &Path) -> SafetyResult<&'static Self> {
-        if self.library_path == requested_path {
-            return Ok(self);
-        }
-        Err(SafetyError::scanner(format!(
-            "ONNX Runtime is already initialized from {}; cannot switch to {}",
-            self.library_path.display(),
-            requested_path.display()
-        )))
-    }
+    atelier_adapter_onnx_runtime::initialize(runtime_library_path)
+        .map_err(|error| SafetyError::scanner(error.to_string()))
 }
 
 /// Builds a scanner from host-provided ONNX assets and an initialized runtime.
@@ -91,8 +47,9 @@ pub fn build_safety_scanner(
     assets: &NsfwRuntimeAssets,
     runtime: &'static OrtRuntime,
 ) -> SafetyResult<Arc<dyn SafetyScanner>> {
-    let asset_runtime_path = canonicalize_runtime_library(&assets.runtime_library_path)?;
-    runtime.for_path(&asset_runtime_path)?;
+    runtime
+        .for_path(&assets.runtime_library_path)
+        .map_err(|error| SafetyError::scanner(error.to_string()))?;
     OrtNsfwScanner::load(&assets.model_path)
         .map(|scanner| Arc::new(scanner) as Arc<dyn SafetyScanner>)
 }
@@ -217,21 +174,6 @@ fn jpeg_roundtrip(image: RgbImage) -> SafetyResult<RgbImage> {
 
 fn ort_error_to_safety(error: impl std::fmt::Display) -> SafetyError {
     SafetyError::scanner(format!("ONNX Runtime error: {error}"))
-}
-
-fn canonicalize_runtime_library(path: &Path) -> SafetyResult<PathBuf> {
-    if !path.is_file() {
-        return Err(SafetyError::scanner(format!(
-            "ONNX Runtime library missing: {}",
-            path.display()
-        )));
-    }
-    path.canonicalize().map_err(|error| {
-        SafetyError::scanner(format!(
-            "failed to resolve ONNX Runtime library {}: {error}",
-            path.display()
-        ))
-    })
 }
 
 #[cfg(test)]

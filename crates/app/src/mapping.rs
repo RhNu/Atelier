@@ -17,11 +17,12 @@ use atelier_app_api::history::{
     RunHistoryOutputStateDto, RunHistoryPageDto, RunHistoryQueryDto, RunHistoryStatusDto,
 };
 use atelier_app_api::prompt::{
-    CompiledPromptDto, PromptChunkDto, PromptFunctionTraceEntryDto, PromptLexiconCatalogDto,
-    PromptLexiconCategorySummaryDto, PromptLexiconEntryDto, PromptLexiconListQueryDto,
-    PromptLexiconPageDto, PromptLexiconStatsDto, PromptLexiconSubcategorySummaryDto,
-    PromptPresetBehaviorDto, PromptPresetDto, PromptPresetKindDto, PromptTraceDto,
-    UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
+    CompiledPromptDto, LexiconBootstrapDto, LexiconCapabilityStatusDto, LexiconCategoryDto,
+    LexiconContentRatingDto, LexiconEntityDetailDto, LexiconEntityKindDto, LexiconFacetDto,
+    LexiconGroupSummaryDto, LexiconRelatedEntityDto, LexiconSearchItemDto, LexiconSearchModeDto,
+    LexiconSearchPageDto, LexiconSearchRequestDto, LexiconStatsDto, LocalizedLexiconTextDto,
+    PromptChunkDto, PromptFunctionTraceEntryDto, PromptPresetBehaviorDto, PromptPresetDto,
+    PromptPresetKindDto, PromptTraceDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
 };
 use atelier_app_api::resource::ResourceRefDto;
 use atelier_app_api::settings::{
@@ -50,8 +51,9 @@ use atelier_jobs::{
 };
 use atelier_kernel::{EnsuredVibeEncoding, ExportedVibeDocument, ImportedVibeDocuments};
 use atelier_prompt_lexicon::{
-    PromptLexiconCatalog, PromptLexiconEntry, PromptLexiconListPage, PromptLexiconListQuery,
-    PromptLexiconMatchField, PromptLexiconMatchRank,
+    DanbooruCategory, LexiconBootstrap, LexiconContentRating, LexiconEntityDetail,
+    LexiconEntityKind, LexiconSearchFilters, LexiconSearchItem, LexiconSearchMode,
+    LexiconSearchPage, LexiconSearchQuery,
 };
 use atelier_prompt_resources::{
     CompiledPrompt, PromptChunk, PromptChunkId, PromptChunkKey, PromptFunctionTraceEntry,

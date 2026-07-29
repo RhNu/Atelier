@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
 import type {
   ApiKeyRecordDto,
+  AppendLexiconEntitiesRequestDto,
   AppBootstrapDto,
   CloseWorkspaceResponseDto,
   CompilePromptRequestDto,
@@ -56,10 +57,13 @@ import type {
   ProbeApiKeyRequestDto,
   PromptChunkDto,
   PromptChunkPageDto,
-  PromptLexiconCatalogDto,
-  PromptLexiconListQueryDto,
-  PromptLexiconPageDto,
-  PromptLexiconSearchQueryDto,
+  LexiconBootstrapDto,
+  LexiconCompleteRequestDto,
+  LexiconEntityDetailDto,
+  LexiconEntityRequestDto,
+  LexiconSearchItemDto,
+  LexiconSearchPageDto,
+  LexiconSearchRequestDto,
   PromptPresetDto,
   PromptPresetPageDto,
   QueueDirectiveDto,
@@ -213,12 +217,16 @@ export const promptApi = {
       atelierCommands.compileGenerationPromptPreview,
       { request },
     ),
-  lexiconCatalog: () =>
-    invokeAtelierCommand<PromptLexiconCatalogDto>(atelierCommands.promptLexiconCatalog),
-  lexiconList: (request: PromptLexiconListQueryDto) =>
-    invokeAtelierCommand<PromptLexiconPageDto>(atelierCommands.promptLexiconList, { request }),
-  lexiconSearch: (request: PromptLexiconSearchQueryDto) =>
-    invokeAtelierCommand<PromptLexiconPageDto>(atelierCommands.promptLexiconSearch, { request }),
+};
+
+export const lexiconApi = {
+  bootstrap: () => invokeAtelierCommand<LexiconBootstrapDto>(atelierCommands.lexiconBootstrap),
+  complete: (request: LexiconCompleteRequestDto) =>
+    invokeAtelierCommand<LexiconSearchItemDto[]>(atelierCommands.lexiconComplete, { request }),
+  search: (request: LexiconSearchRequestDto) =>
+    invokeAtelierCommand<LexiconSearchPageDto>(atelierCommands.lexiconSearch, { request }),
+  entity: (request: LexiconEntityRequestDto) =>
+    invokeAtelierCommand<LexiconEntityDetailDto>(atelierCommands.lexiconEntity, { request }),
 };
 
 export const resourceApi = {
@@ -247,6 +255,11 @@ export const generationApi = {
   saveDraft: (request: SaveGenerationDraftRequestDto) =>
     invokeAtelierCommand<GenerationDraftDto>(atelierCommands.saveGenerationDraft, { request }),
   clearDraft: () => invokeAtelierCommand<void>(atelierCommands.clearGenerationDraft),
+  appendLexiconEntities: (request: AppendLexiconEntitiesRequestDto) =>
+    invokeAtelierCommand<GenerationDraftDto>(
+      atelierCommands.appendLexiconEntitiesToGenerationDraft,
+      { request },
+    ),
   submit: (request: SubmitGenerationRequestDto) =>
     invokeAtelierCommand<QueueDirectiveDto>(atelierCommands.submitGeneration, { request }),
   submitBatch: (request: SubmitGenerationBatchRequestDto) =>

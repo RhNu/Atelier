@@ -1,12 +1,13 @@
 use std::ffi::OsString;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use clap::{Args, Parser, Subcommand, error::ErrorKind};
 
 use crate::{
-    AppApiTypeExportConfig, LineBudgetConfig, LineBudgetLevel, PromptLexiconBuildConfig,
-    build_prompt_lexicon, check_line_budget, check_prompt_lexicon, export_app_api_types,
+    AppApiTypeExportConfig, LexiconBenchmarkConfig, LexiconBundleConfig, LineBudgetConfig,
+    LineBudgetLevel, benchmark_lexicon, build_lexicon_bundle, check_line_budget,
+    export_app_api_types, validate_lexicon_bundle,
 };
 
 const DEFAULT_WARN_LINES: usize = 600;
@@ -57,10 +58,45 @@ struct LexiconArgs {
 
 #[derive(Debug, Subcommand)]
 enum LexiconCommand {
-    #[command(about = "Build the generated prompt lexicon asset")]
-    Build,
-    #[command(about = "Check the generated prompt lexicon asset is up to date")]
-    Check,
+    #[command(about = "Build a runtime SQLite/vector bundle from normalized pipeline output")]
+    Bundle(LexiconBundleArgs),
+    #[command(about = "Validate checksums and runtime structure of a lexicon bundle")]
+    Validate(LexiconValidateArgs),
+    #[command(about = "Compare compact semantic search against a pinned BGE-M3 run")]
+    Benchmark(LexiconBenchmarkArgs),
+}
+
+#[derive(Debug, Args)]
+struct LexiconBundleArgs {
+    #[arg(long, default_value = "tools/lexicon-pipeline/build")]
+    input: PathBuf,
+    #[arg(long, default_value = "apps/desktop/src-tauri/resources/lexicon")]
+    output: PathBuf,
+    #[arg(long, default_value = "dev")]
+    bundle_version: String,
+}
+
+#[derive(Debug, Args)]
+struct LexiconValidateArgs {
+    #[arg(long, default_value = "apps/desktop/src-tauri/resources/lexicon")]
+    bundle: PathBuf,
+}
+
+#[derive(Debug, Args)]
+struct LexiconBenchmarkArgs {
+    #[arg(long)]
+    queries: PathBuf,
+    #[arg(long)]
+    candidate_run: PathBuf,
+    #[arg(long)]
+    baseline_run: PathBuf,
+    #[arg(long, default_value = "apps/desktop/src-tauri/resources/lexicon")]
+    bundle: PathBuf,
+    #[arg(
+        long,
+        default_value = "apps/desktop/src-tauri/resources/safety/onnxruntime.dll"
+    )]
+    runtime_library: PathBuf,
 }
 
 /// Runs `xtask` using process arguments and the current working directory.
@@ -208,25 +244,55 @@ fn run_line_budget(workspace_root: impl AsRef<Path>, args: &LineBudgetArgs) -> R
 }
 
 fn run_lexicon(workspace_root: impl AsRef<Path>, args: &LexiconArgs) -> Result<(), String> {
-    let config = PromptLexiconBuildConfig::default_for_workspace(workspace_root);
-    match args.command {
-        LexiconCommand::Build => {
-            let summary = build_prompt_lexicon(&config)?;
+    let root = workspace_root.as_ref();
+    match &args.command {
+        LexiconCommand::Bundle(args) => {
+            let config = LexiconBundleConfig {
+                input_dir: root.join(&args.input),
+                output_dir: root.join(&args.output),
+                bundle_version: args.bundle_version.clone(),
+            };
+            let summary = build_lexicon_bundle(&config)?;
             println!(
-                "Prompt lexicon built: {} total={} categorized={} other={} weighted={} translations={} aliased={}",
-                summary.output_file.display(),
-                summary.total_tags,
-                summary.categorized_tags,
-                summary.uncategorized_tags,
-                summary.matched_weights,
-                summary.total_translations,
-                summary.tags_with_aliases
+                "Lexicon bundle built: {} entities={} relations={} semantic={}",
+                summary.output_dir.display(),
+                summary.entity_count,
+                summary.relation_count,
+                summary.semantic_available
             );
             Ok(())
         }
-        LexiconCommand::Check => {
-            check_prompt_lexicon(&config)?;
-            println!("Generated prompt lexicon is up to date.");
+        LexiconCommand::Validate(args) => {
+            let bundle = root.join(&args.bundle);
+            let summary = validate_lexicon_bundle(&bundle)?;
+            println!(
+                "Lexicon bundle valid: {} entities={} semantic={}",
+                bundle.display(),
+                summary.entity_count,
+                summary.semantic_available
+            );
+            Ok(())
+        }
+        LexiconCommand::Benchmark(args) => {
+            let summary = benchmark_lexicon(&LexiconBenchmarkConfig {
+                queries: root.join(&args.queries),
+                candidate_run: root.join(&args.candidate_run),
+                baseline_run: root.join(&args.baseline_run),
+                bundle: root.join(&args.bundle),
+                runtime_library: root.join(&args.runtime_library),
+            })?;
+            println!(
+                "Lexicon benchmark passed: queries={} candidate_ndcg@10={:.4} baseline_ndcg@10={:.4} relative={:.2}% bundle={}MiB completion_p95={:.1}ms lexical_p95={:.1}ms semantic_first={:.1}ms semantic_p95={:.1}ms",
+                summary.query_count,
+                summary.candidate_ndcg_10,
+                summary.baseline_ndcg_10,
+                summary.relative_quality * 100.0,
+                summary.bundle_bytes / (1024 * 1024),
+                summary.completion_p95.as_secs_f64() * 1_000.0,
+                summary.lexical_p95.as_secs_f64() * 1_000.0,
+                summary.semantic_first.as_secs_f64() * 1_000.0,
+                summary.semantic_p95.as_secs_f64() * 1_000.0,
+            );
             Ok(())
         }
     }

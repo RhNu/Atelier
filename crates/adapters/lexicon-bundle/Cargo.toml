@@ -1,0 +1,23 @@
+[package]
+name = "atelier-adapter-lexicon-bundle"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+atelier-adapter-onnx-runtime = { workspace = true }
+atelier-prompt-lexicon = { workspace = true }
+half = { workspace = true }
+memmap2 = { workspace = true }
+ort = { workspace = true, features = ["std", "load-dynamic", "api-22"] }
+rayon = { workspace = true }
+rusqlite = { workspace = true, features = ["bundled"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokenizers = { workspace = true }
+unicode-normalization = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -1,0 +1,24 @@
+[project]
+name = "atelier-lexicon-pipeline"
+version = "0.1.0"
+description = "Reproducible Danbooru metadata pipeline for Atelier"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.28,<1",
+  "pyarrow>=19,<24",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+semantic = [
+  "numpy>=2,<3",
+  "onnxruntime>=1.22,<2",
+  "tokenizers>=0.21,<1",
+]
+
+[project.scripts]
+atelier-lexicon = "atelier_lexicon.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

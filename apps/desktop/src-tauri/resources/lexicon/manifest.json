@@ -1,0 +1,113 @@
+{
+  "format": "atelier.lexicon.bundle",
+  "schema_version": 1,
+  "bundle_version": "2026.07.29",
+  "database": {
+    "file": "lexicon.sqlite",
+    "sha256": "5f42e992d621411d3dd07679a94ce61a5c24419f6e52e87c1df0cf24c7a30cf1",
+    "size_bytes": 84754432
+  },
+  "semantic": {
+    "model": {
+      "file": "model.onnx",
+      "sha256": "dd476dd0c2514e9b9be83aeb3853fac0763e0bdf4a71645407587d77c48a2d88",
+      "size_bytes": 118346824
+    },
+    "tokenizer": {
+      "file": "tokenizer.json",
+      "sha256": "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39",
+      "size_bytes": 17082730
+    },
+    "license": {
+      "file": "LICENSE-model.txt",
+      "sha256": "9fae4674b4260319d68d71c0977dc449e159018e5974b9fd5dad6109febb1f35",
+      "size_bytes": 854
+    },
+    "identity_vectors": {
+      "file": "identity.f16",
+      "sha256": "b8a0afb3f363464cba9c525d8676f99aad0017edead4393093943af4d4a69fff",
+      "size_bytes": 39308544
+    },
+    "knowledge_vectors": {
+      "file": "knowledge.f16",
+      "sha256": "b91a6985e6cd73f8739d0b4c72eb0383c18ceacc93f394f13a1bc45c927c6e03",
+      "size_bytes": 39308544
+    },
+    "dimensions": 384,
+    "entity_count": 51183,
+    "max_length": 128,
+    "model_contract": {
+      "input_ids": "input_ids",
+      "attention_mask": "attention_mask",
+      "token_type_ids": "token_type_ids",
+      "output_name": "last_hidden_state",
+      "pooling": "mean",
+      "normalize": true,
+      "query_prefix": "query: ",
+      "passage_prefix": "passage: "
+    }
+  },
+  "ranking": {
+    "semantic_weight": 0.85,
+    "context_weight": 0.1,
+    "popularity_weight": 0.05
+  },
+  "sources": [
+    {
+      "id": "cooccurrence_clean.parquet",
+      "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
+      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "sha256": "76e1c030bb67189735bca27be497f1543cd145b731a6c6ee69d7316084ff4621",
+      "license": "GPL-3.0"
+    },
+    {
+      "id": "danbooru-tags-source.json",
+      "url": "https://danbooru.donmai.us/terms_of_service",
+      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "sha256": "2506084befe336ef7e4eed242fffad82b37dd4c03939d6ce78aa265ba05cbc6e",
+      "license": "Danbooru Terms of Service"
+    },
+    {
+      "id": "tag_aliases.parquet",
+      "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
+      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "sha256": "dd4b6a1200804107708fdd852c56aad332cf63c758c40fbcc0e2fc82a5192f96",
+      "license": "GPL-3.0"
+    },
+    {
+      "id": "tag_artist_cooc.parquet",
+      "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
+      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "sha256": "6a23e3eabd46bb8671b17f11871ac61e63eb7411475b95414f33bd5895451e80",
+      "license": "GPL-3.0"
+    },
+    {
+      "id": "tag_groups.json",
+      "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
+      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "sha256": "6218431c0e0d9cc2eec32a9be4813716fb0b8a544c8707c5f510a54711c65716",
+      "license": "GPL-3.0"
+    },
+    {
+      "id": "tags-missing.json",
+      "url": "https://danbooru.donmai.us/terms_of_service",
+      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "sha256": "21cf54bfedfcab04103e42a1641e845de078619bd3d1c4fb2708052e87a1492e",
+      "license": "Danbooru Terms of Service"
+    },
+    {
+      "id": "tags.jsonl",
+      "url": "https://danbooru.donmai.us/terms_of_service",
+      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "sha256": "44edb37e38b2ddb5f1fbff71550503260453d0f58eb6857fc1417df1da61f981",
+      "license": "Danbooru Terms of Service"
+    },
+    {
+      "id": "tags_enhanced.csv",
+      "url": "https://github.com/SuzumiyaAkizuki/DanbooruSearchOnline",
+      "snapshot": "2026-07-29T10:29:54.889545+00:00",
+      "sha256": "f9f8547f00d6699c01519ecfd0f8e06fc39366119589a30c4eb7dcaee4f44707",
+      "license": "GPL-3.0"
+    }
+  ]
+}

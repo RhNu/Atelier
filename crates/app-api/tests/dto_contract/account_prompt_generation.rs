@@ -163,7 +163,7 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
         json!({ "items": [], "total": 0, "offset": 5, "limit": 10 })
     );
     assert_eq!(
-        serde_json::to_value(PromptLexiconSearchQueryDto {
+        serde_json::to_value(LexiconCompleteRequestDto {
             query: "1girl".to_owned(),
             limit: 20,
         })

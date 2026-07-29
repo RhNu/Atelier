@@ -1,11 +1,13 @@
 use super::{
-    AppResult, CompiledPrompt, CompiledPromptDto, PromptChunk, PromptChunkDto, PromptChunkId,
-    PromptChunkKey, PromptFunctionTraceEntry, PromptFunctionTraceEntryDto, PromptLexiconCatalog,
-    PromptLexiconCatalogDto, PromptLexiconCategorySummaryDto, PromptLexiconEntry,
-    PromptLexiconEntryDto, PromptLexiconListPage, PromptLexiconListQuery,
-    PromptLexiconListQueryDto, PromptLexiconMatchField, PromptLexiconMatchRank,
-    PromptLexiconPageDto, PromptLexiconStatsDto, PromptLexiconSubcategorySummaryDto, PromptPreset,
-    PromptPresetBehavior, PromptPresetBehaviorDto, PromptPresetDto, PromptPresetId,
+    AppResult, CompiledPrompt, CompiledPromptDto, DanbooruCategory, LexiconBootstrap,
+    LexiconBootstrapDto, LexiconCapabilityStatusDto, LexiconCategoryDto, LexiconContentRating,
+    LexiconContentRatingDto, LexiconEntityDetail, LexiconEntityDetailDto, LexiconEntityKind,
+    LexiconEntityKindDto, LexiconFacetDto, LexiconGroupSummaryDto, LexiconRelatedEntityDto,
+    LexiconSearchFilters, LexiconSearchItem, LexiconSearchItemDto, LexiconSearchMode,
+    LexiconSearchModeDto, LexiconSearchPage, LexiconSearchPageDto, LexiconSearchQuery,
+    LexiconSearchRequestDto, LexiconStatsDto, LocalizedLexiconTextDto, PromptChunk, PromptChunkDto,
+    PromptChunkId, PromptChunkKey, PromptFunctionTraceEntry, PromptFunctionTraceEntryDto,
+    PromptPreset, PromptPresetBehavior, PromptPresetBehaviorDto, PromptPresetDto, PromptPresetId,
     PromptPresetKind, PromptPresetKindDto, PromptTrace, PromptTraceDto, UpsertPromptChunkRequest,
     UpsertPromptChunkRequestDto, UpsertPromptPresetRequest, UpsertPromptPresetRequestDto,
     resource_ref_from_dto, resource_ref_to_dto,
@@ -137,98 +139,186 @@ fn trace_entry_to_dto(value: &PromptFunctionTraceEntry) -> PromptFunctionTraceEn
     }
 }
 
-pub fn lexicon_catalog_to_dto(value: PromptLexiconCatalog) -> PromptLexiconCatalogDto {
-    PromptLexiconCatalogDto {
-        stats: PromptLexiconStatsDto {
-            total_tags: value.stats.total_tags,
-            categorized_tags: value.stats.categorized_tags,
-            uncategorized_tags: value.stats.uncategorized_tags,
-            matched_weights: value.stats.matched_weights,
-            total_translations: value.stats.total_translations,
-            tags_with_aliases: value.stats.tags_with_aliases,
-            max_aliases_per_tag: value.stats.max_aliases_per_tag,
-            source_count: value.stats.source_count,
-            manifest_version: value.stats.manifest_version,
-            primary_from_category_json: value.stats.primary_from_category_json,
-            primary_from_manifest_sources: value.stats.primary_from_manifest_sources,
-            primary_fallback_to_tag: value.stats.primary_fallback_to_tag,
+pub fn lexicon_bootstrap_to_dto(value: LexiconBootstrap) -> LexiconBootstrapDto {
+    LexiconBootstrapDto {
+        bundle_version: value.bundle_version,
+        status: LexiconCapabilityStatusDto {
+            lexical_available: value.status.lexical_available,
+            semantic_available: value.status.semantic_available,
+            message: value.status.message,
+        },
+        stats: LexiconStatsDto {
+            total_entities: value.stats.total_entities,
+            tag_entities: value.stats.tag_entities,
+            artist_entities: value.stats.artist_entities,
+            sensitive_entities: value.stats.sensitive_entities,
+            translation_count: value.stats.translation_count,
+            group_count: value.stats.group_count,
         },
         categories: value
             .categories
             .into_iter()
-            .map(|category| PromptLexiconCategorySummaryDto {
-                name: category.name,
-                tag_count: category.tag_count,
-                subcategory_count: category.subcategory_count,
-                subcategories: category
-                    .subcategories
-                    .into_iter()
-                    .map(|subcategory| PromptLexiconSubcategorySummaryDto {
-                        name: subcategory.name,
-                        tag_count: subcategory.tag_count,
-                    })
-                    .collect(),
+            .map(|facet| LexiconFacetDto {
+                value: facet.value,
+                label: facet.label,
+                count: facet.count,
+            })
+            .collect(),
+        groups: value
+            .groups
+            .into_iter()
+            .map(|group| LexiconGroupSummaryDto {
+                id: group.id,
+                name: group.name,
+                member_count: group.member_count,
             })
             .collect(),
     }
 }
 
-pub fn lexicon_query_to_domain(value: PromptLexiconListQueryDto) -> PromptLexiconListQuery {
-    PromptLexiconListQuery {
-        query: value.query,
-        category: value.category,
-        subcategory: value.subcategory,
-        limit: value.limit,
+pub fn lexicon_search_query_to_domain(value: LexiconSearchRequestDto) -> LexiconSearchQuery {
+    LexiconSearchQuery {
+        text: value.query,
+        mode: match value.mode {
+            LexiconSearchModeDto::Lexical => LexiconSearchMode::Lexical,
+            LexiconSearchModeDto::Semantic => LexiconSearchMode::Semantic,
+        },
+        filters: LexiconSearchFilters {
+            entity_kinds: value
+                .filters
+                .entity_kinds
+                .into_iter()
+                .map(entity_kind_to_domain)
+                .collect(),
+            categories: value
+                .filters
+                .categories
+                .into_iter()
+                .map(category_to_domain)
+                .collect(),
+            group_ids: value.filters.group_ids,
+            ratings: value
+                .filters
+                .ratings
+                .into_iter()
+                .map(rating_to_domain)
+                .collect(),
+        },
+        selected_entity_ids: value.selected_entity_ids,
         offset: value.offset,
+        limit: value.limit,
     }
 }
 
-pub fn lexicon_page_to_dto(value: PromptLexiconListPage) -> PromptLexiconPageDto {
-    PromptLexiconPageDto {
-        items: value.items.into_iter().map(lexicon_entry_to_dto).collect(),
+pub fn lexicon_page_to_dto(value: LexiconSearchPage) -> LexiconSearchPageDto {
+    LexiconSearchPageDto {
+        items: value.items.into_iter().map(lexicon_item_to_dto).collect(),
         total: value.total,
         offset: value.offset,
         limit: value.limit,
     }
 }
 
-pub fn lexicon_search_to_page(
-    value: atelier_prompt_lexicon::PromptLexiconSearchResult,
-    limit: usize,
-) -> PromptLexiconPageDto {
-    PromptLexiconPageDto {
-        items: value.items.into_iter().map(lexicon_entry_to_dto).collect(),
-        total: value.total,
-        offset: 0,
-        limit,
-    }
-}
-
-fn lexicon_entry_to_dto(value: PromptLexiconEntry) -> PromptLexiconEntryDto {
-    PromptLexiconEntryDto {
-        tag: value.tag,
-        weight: value.weight,
-        category: value.category,
-        subcategory: value.subcategory,
+pub fn lexicon_item_to_dto(value: LexiconSearchItem) -> LexiconSearchItemDto {
+    LexiconSearchItemDto {
+        entity_id: value.entity_id,
+        canonical_name: value.canonical_name,
         primary_translation: value.primary_translation,
-        matched_translation: value.matched_translation,
-        match_field: match_field_as_str(value.match_field).to_owned(),
-        match_rank: match_rank_as_str(value.match_rank).to_owned(),
+        kind: entity_kind_to_dto(value.kind),
+        category: category_to_dto(value.category),
+        post_count: value.post_count,
+        rating: rating_to_dto(value.rating),
+        matched_text: value.matched_text,
+        match_reason: value.match_reason.as_str().to_owned(),
+        score: value.score,
     }
 }
 
-const fn match_field_as_str(value: PromptLexiconMatchField) -> &'static str {
-    match value {
-        PromptLexiconMatchField::Tag => "tag",
-        PromptLexiconMatchField::PrimaryTranslation => "primary_translation",
-        PromptLexiconMatchField::Alias => "alias",
+pub fn lexicon_detail_to_dto(value: LexiconEntityDetail) -> LexiconEntityDetailDto {
+    LexiconEntityDetailDto {
+        entity: lexicon_item_to_dto(value.entity),
+        translations: value
+            .translations
+            .into_iter()
+            .map(|text| LocalizedLexiconTextDto {
+                locale: text.locale,
+                text: text.text,
+            })
+            .collect(),
+        aliases: value.aliases,
+        wiki: value
+            .wiki
+            .into_iter()
+            .map(|text| LocalizedLexiconTextDto {
+                locale: text.locale,
+                text: text.text,
+            })
+            .collect(),
+        groups: value
+            .groups
+            .into_iter()
+            .map(|group| LexiconGroupSummaryDto {
+                id: group.id,
+                name: group.name,
+                member_count: group.member_count,
+            })
+            .collect(),
+        related: value
+            .related
+            .into_iter()
+            .map(|related| LexiconRelatedEntityDto {
+                entity: lexicon_item_to_dto(related.entity),
+                relation: related.relation,
+                score: related.score,
+            })
+            .collect(),
     }
 }
 
-const fn match_rank_as_str(value: PromptLexiconMatchRank) -> &'static str {
+const fn entity_kind_to_domain(value: LexiconEntityKindDto) -> LexiconEntityKind {
     match value {
-        PromptLexiconMatchRank::Exact => "exact",
-        PromptLexiconMatchRank::Prefix => "prefix",
-        PromptLexiconMatchRank::Substring => "substring",
+        LexiconEntityKindDto::Tag => LexiconEntityKind::Tag,
+        LexiconEntityKindDto::Artist => LexiconEntityKind::Artist,
+    }
+}
+
+const fn entity_kind_to_dto(value: LexiconEntityKind) -> LexiconEntityKindDto {
+    match value {
+        LexiconEntityKind::Tag => LexiconEntityKindDto::Tag,
+        LexiconEntityKind::Artist => LexiconEntityKindDto::Artist,
+    }
+}
+
+const fn category_to_domain(value: LexiconCategoryDto) -> DanbooruCategory {
+    match value {
+        LexiconCategoryDto::General => DanbooruCategory::General,
+        LexiconCategoryDto::Copyright => DanbooruCategory::Copyright,
+        LexiconCategoryDto::Character => DanbooruCategory::Character,
+        LexiconCategoryDto::Artist => DanbooruCategory::Artist,
+    }
+}
+
+const fn category_to_dto(value: DanbooruCategory) -> LexiconCategoryDto {
+    match value {
+        DanbooruCategory::General => LexiconCategoryDto::General,
+        DanbooruCategory::Copyright => LexiconCategoryDto::Copyright,
+        DanbooruCategory::Character => LexiconCategoryDto::Character,
+        DanbooruCategory::Artist => LexiconCategoryDto::Artist,
+    }
+}
+
+const fn rating_to_domain(value: LexiconContentRatingDto) -> LexiconContentRating {
+    match value {
+        LexiconContentRatingDto::Safe => LexiconContentRating::Safe,
+        LexiconContentRatingDto::Sensitive => LexiconContentRating::Sensitive,
+        LexiconContentRatingDto::Unknown => LexiconContentRating::Unknown,
+    }
+}
+
+const fn rating_to_dto(value: LexiconContentRating) -> LexiconContentRatingDto {
+    match value {
+        LexiconContentRating::Safe => LexiconContentRatingDto::Safe,
+        LexiconContentRating::Sensitive => LexiconContentRatingDto::Sensitive,
+        LexiconContentRating::Unknown => LexiconContentRatingDto::Unknown,
     }
 }

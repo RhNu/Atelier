@@ -18,6 +18,7 @@ use atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory,
 };
 use atelier_app_api::{error::ErrorEnvelopeDto, event::AppEventDto};
+use atelier_prompt_lexicon::{LexiconEngine, UnavailableLexicon};
 use atelier_safety::SafetyScanner;
 use atelier_secrets::SecretStore;
 use atelier_settings::{
@@ -41,6 +42,7 @@ pub struct AtelierRuntime<
     factory: F,
     extractor: E,
     safety_scanner: Option<Arc<dyn SafetyScanner>>,
+    lexicon: Arc<dyn LexiconEngine>,
     event_listeners: Mutex<Vec<AppEventListener>>,
     global_settings: GlobalSettingsService,
 }
@@ -74,6 +76,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner: None,
+            lexicon: Arc::new(UnavailableLexicon::default()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
         }
@@ -92,6 +95,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner,
+            lexicon: Arc::new(UnavailableLexicon::default()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
         }
@@ -111,6 +115,28 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner,
+            lexicon: Arc::new(UnavailableLexicon::default()),
+            event_listeners: Mutex::new(Vec::new()),
+            global_settings,
+        }
+    }
+
+    #[must_use]
+    pub fn with_global_settings_dependencies_extractor_safety_and_lexicon(
+        global_settings: GlobalSettingsService,
+        secrets: S,
+        factory: F,
+        extractor: E,
+        safety_scanner: Option<Arc<dyn SafetyScanner>>,
+        lexicon: Arc<dyn LexiconEngine>,
+    ) -> Self {
+        Self {
+            session: Mutex::new(None),
+            secrets,
+            factory,
+            extractor,
+            safety_scanner,
+            lexicon,
             event_listeners: Mutex::new(Vec::new()),
             global_settings,
         }

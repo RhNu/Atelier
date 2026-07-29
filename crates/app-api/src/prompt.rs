@@ -232,78 +232,164 @@ pub struct PromptFunctionTraceEntryDto {
     pub call_chain: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct PromptLexiconCatalogDto {
-    pub stats: PromptLexiconStatsDto,
-    pub categories: Vec<PromptLexiconCategorySummaryDto>,
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum LexiconEntityKindDto {
+    Tag,
+    Artist,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum LexiconCategoryDto {
+    General,
+    Copyright,
+    Character,
+    Artist,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum LexiconContentRatingDto {
+    Safe,
+    Sensitive,
+    Unknown,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum LexiconSearchModeDto {
+    Lexical,
+    Semantic,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum LexiconDraftTargetDto {
+    Positive,
+    Negative,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct PromptLexiconStatsDto {
-    pub total_tags: u64,
-    pub categorized_tags: u64,
-    pub uncategorized_tags: u64,
-    pub matched_weights: u64,
-    pub total_translations: u64,
-    pub tags_with_aliases: u64,
-    pub max_aliases_per_tag: u64,
-    pub source_count: u64,
-    pub manifest_version: u32,
-    pub primary_from_category_json: u64,
-    pub primary_from_manifest_sources: u64,
-    pub primary_fallback_to_tag: u64,
+pub struct LexiconCapabilityStatusDto {
+    pub lexical_available: bool,
+    pub semantic_available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct PromptLexiconCategorySummaryDto {
+pub struct LexiconStatsDto {
+    pub total_entities: u64,
+    pub tag_entities: u64,
+    pub artist_entities: u64,
+    pub sensitive_entities: u64,
+    pub translation_count: u64,
+    pub group_count: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct LexiconFacetDto {
+    pub value: String,
+    pub label: String,
+    pub count: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct LexiconGroupSummaryDto {
+    pub id: String,
     pub name: String,
-    pub tag_count: usize,
-    pub subcategory_count: usize,
-    pub subcategories: Vec<PromptLexiconSubcategorySummaryDto>,
+    pub member_count: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct PromptLexiconSubcategorySummaryDto {
-    pub name: String,
-    pub tag_count: usize,
+pub struct LexiconBootstrapDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bundle_version: Option<String>,
+    pub status: LexiconCapabilityStatusDto,
+    pub stats: LexiconStatsDto,
+    pub categories: Vec<LexiconFacetDto>,
+    pub groups: Vec<LexiconGroupSummaryDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct LexiconSearchItemDto {
+    pub entity_id: u64,
+    pub canonical_name: String,
+    pub primary_translation: String,
+    pub kind: LexiconEntityKindDto,
+    pub category: LexiconCategoryDto,
+    pub post_count: u64,
+    pub rating: LexiconContentRatingDto,
+    pub matched_text: String,
+    pub match_reason: String,
+    pub score: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct LexiconCompleteRequestDto {
+    pub query: String,
+    pub limit: usize,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct PromptLexiconListQueryDto {
+pub struct LexiconSearchFiltersDto {
+    pub entity_kinds: Vec<LexiconEntityKindDto>,
+    pub categories: Vec<LexiconCategoryDto>,
+    pub group_ids: Vec<String>,
+    pub ratings: Vec<LexiconContentRatingDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct LexiconSearchRequestDto {
     pub query: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub subcategory: Option<String>,
+    pub mode: LexiconSearchModeDto,
+    pub filters: LexiconSearchFiltersDto,
+    pub selected_entity_ids: Vec<u64>,
     pub offset: usize,
     pub limit: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct PromptLexiconSearchQueryDto {
-    pub query: String,
-    pub limit: usize,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct PromptLexiconPageDto {
-    pub items: Vec<PromptLexiconEntryDto>,
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct LexiconSearchPageDto {
+    pub items: Vec<LexiconSearchItemDto>,
     pub total: usize,
     pub offset: usize,
     pub limit: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct PromptLexiconEntryDto {
-    pub tag: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub weight: Option<u64>,
-    pub category: String,
-    pub subcategory: String,
-    pub primary_translation: String,
-    pub matched_translation: String,
-    pub match_field: String,
-    pub match_rank: String,
+pub struct LexiconEntityRequestDto {
+    pub entity_id: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct LocalizedLexiconTextDto {
+    pub locale: String,
+    pub text: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct LexiconRelatedEntityDto {
+    pub entity: LexiconSearchItemDto,
+    pub relation: String,
+    pub score: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct LexiconEntityDetailDto {
+    pub entity: LexiconSearchItemDto,
+    pub translations: Vec<LocalizedLexiconTextDto>,
+    pub aliases: Vec<String>,
+    pub wiki: Vec<LocalizedLexiconTextDto>,
+    pub groups: Vec<LexiconGroupSummaryDto>,
+    pub related: Vec<LexiconRelatedEntityDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct AppendLexiconEntitiesRequestDto {
+    pub target: LexiconDraftTargetDto,
+    pub entity_ids: Vec<u64>,
 }
 
 const fn default_max_depth() -> usize {

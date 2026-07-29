@@ -12,29 +12,28 @@ import { EditorView } from "@codemirror/view";
 import { QueryClient } from "@tanstack/react-query";
 
 import type {
+  LexiconCompleteRequestDto,
+  LexiconSearchItemDto,
   ListPromptChunksRequestDto,
   PromptChunkPageDto,
-  PromptLexiconPageDto,
-  PromptLexiconSearchQueryDto,
 } from "@/types";
 
 import { activatePromptArgumentsOnCompletion, createNaiPromptCompletion } from "./completion";
 
 const mocks = vi.hoisted(() => ({
   listChunks: vi.fn<(request: ListPromptChunksRequestDto) => Promise<PromptChunkPageDto>>(),
-  lexiconSearch: vi.fn<(request: PromptLexiconSearchQueryDto) => Promise<PromptLexiconPageDto>>(),
+  lexiconComplete: vi.fn<(request: LexiconCompleteRequestDto) => Promise<LexiconSearchItemDto[]>>(),
 }));
 
 vi.mock("@/platform/atelier", () => ({
-  promptApi: mocks,
+  promptApi: { listChunks: mocks.listChunks },
+  lexiconApi: { complete: mocks.lexiconComplete },
   queryKeys: {
     prompt: {
       chunks: (request: ListPromptChunksRequestDto) => ["prompt", "chunks", request],
-      lexiconSearch: (request: PromptLexiconSearchQueryDto) => [
-        "prompt",
-        "lexicon-search",
-        request,
-      ],
+    },
+    lexicon: {
+      completion: (query: string, limit: number) => ["lexicon", "completion", query, limit],
     },
   },
 }));
@@ -44,9 +43,11 @@ const messages = { reusableChunk: "Reusable chunk", promptChunk: "Prompt chunk" 
 describe("CodeMirror prompt completion source", () => {
   beforeEach(() => {
     mocks.listChunks.mockReset();
-    mocks.lexiconSearch.mockReset();
+    mocks.lexiconComplete.mockReset();
     mocks.listChunks.mockResolvedValue(chunkPage());
-    mocks.lexiconSearch.mockImplementation(async (request) => lexiconPage(`${request.query}_tag`));
+    mocks.lexiconComplete.mockImplementation(async (request) =>
+      lexiconItems(`${request.query}_tag`),
+    );
   });
 
   it("queries the complete current term instead of reusing first-character results", async () => {
@@ -54,7 +55,10 @@ describe("CodeMirror prompt completion source", () => {
     await complete(source, "c", false);
     await complete(source, "cine", false);
 
-    expect(mocks.lexiconSearch.mock.calls.map(([request]) => request.query)).toEqual(["c", "cine"]);
+    expect(mocks.lexiconComplete.mock.calls.map(([request]) => request.query)).toEqual([
+      "c",
+      "cine",
+    ]);
   });
 
   it("keeps usable candidates when an independent source fails", async () => {
@@ -64,7 +68,7 @@ describe("CodeMirror prompt completion source", () => {
     expect(tagResult?.options.map((option) => option.label)).toContain("cine_tag");
 
     mocks.listChunks.mockResolvedValue(chunkPage());
-    mocks.lexiconSearch.mockRejectedValue(new Error("lexicon unavailable"));
+    mocks.lexiconComplete.mockRejectedValue(new Error("lexicon unavailable"));
     const chunkResult = await complete(
       createNaiPromptCompletion(queryClient(), messages),
       "li",
@@ -74,7 +78,7 @@ describe("CodeMirror prompt completion source", () => {
   });
 
   it("applies the real token range, final caret, and pickedCompletion annotation", async () => {
-    mocks.lexiconSearch.mockResolvedValue(lexiconPage("cinematic_lighting"));
+    mocks.lexiconComplete.mockResolvedValue(lexiconItems("cinematic_lighting"));
     const source = createNaiPromptCompletion(queryClient(), messages);
     const state = EditorState.create({ doc: "cine,solo", selection: { anchor: 2 } });
     const result = await source(new CompletionContext(state, 2, false));
@@ -108,9 +112,9 @@ describe("CodeMirror prompt completion source", () => {
   });
 
   it("discards an older async response after the document query changes", async () => {
-    const first = deferred<PromptLexiconPageDto>();
-    mocks.lexiconSearch.mockImplementation((request) =>
-      request.query === "c" ? first.promise : Promise.resolve(lexiconPage("cine_result")),
+    const first = deferred<LexiconSearchItemDto[]>();
+    mocks.lexiconComplete.mockImplementation((request) =>
+      request.query === "c" ? first.promise : Promise.resolve(lexiconItems("cine_result")),
     );
     const source = createNaiPromptCompletion(queryClient(), messages);
     const parent = document.body.appendChild(document.createElement("div"));
@@ -127,13 +131,13 @@ describe("CodeMirror prompt completion source", () => {
     try {
       insert(view, "c");
       await vi.waitFor(() =>
-        expect(mocks.lexiconSearch).toHaveBeenCalledWith({ query: "c", limit: 20 }),
+        expect(mocks.lexiconComplete).toHaveBeenCalledWith({ query: "c", limit: 20 }),
       );
       insert(view, "ine");
       await vi.waitFor(() =>
-        expect(mocks.lexiconSearch).toHaveBeenCalledWith({ query: "cine", limit: 20 }),
+        expect(mocks.lexiconComplete).toHaveBeenCalledWith({ query: "cine", limit: 20 }),
       );
-      first.resolve(lexiconPage("stale_result"));
+      first.resolve(lexiconItems("stale_result"));
       await vi.waitFor(() => expect(completionStatus(view.state)).toBe("active"));
       expect(currentCompletions(view.state).map((completion) => completion.label)).toEqual([
         "cine_result",
@@ -232,24 +236,21 @@ function queryClient(): QueryClient {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-function lexiconPage(tag: string): PromptLexiconPageDto {
-  return {
-    items: [
-      {
-        tag,
-        weight: 1000,
-        category: "general",
-        subcategory: "",
-        primary_translation: tag,
-        matched_translation: tag,
-        match_field: "tag",
-        match_rank: "prefix",
-      },
-    ],
-    total: 1,
-    offset: 0,
-    limit: 20,
-  };
+function lexiconItems(tag: string): LexiconSearchItemDto[] {
+  return [
+    {
+      entity_id: 1,
+      canonical_name: tag,
+      primary_translation: tag,
+      kind: "tag",
+      category: "general",
+      post_count: 1000,
+      rating: "safe",
+      matched_text: tag,
+      match_reason: "canonical_prefix",
+      score: 97,
+    },
+  ];
 }
 
 function chunkPage(): PromptChunkPageDto {

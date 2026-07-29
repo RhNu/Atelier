@@ -6,11 +6,13 @@ use crate::desktop_system::{
     DesktopSystemError, DesktopSystemResult, PickFilesOptions,
 };
 use atelier_adapter_keyring::KeyringSecretStore;
+use atelier_adapter_lexicon_bundle::LexiconBundle;
 use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
 use atelier_adapter_settings_fs::FileSystemGlobalSettingsRepository;
 use atelier_app::{AtelierRuntime, GenerationWorkerCancel};
 use atelier_app_api::event::{AppEventDto, AppEventKindDto};
 use atelier_app_api::generation::QueueDirectiveDto;
+use atelier_prompt_lexicon::{LexiconEngine, UnavailableLexicon};
 use atelier_settings::GlobalSettingsService;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, FilePath};
@@ -246,12 +248,12 @@ impl DesktopGenerationWorker {
 pub fn build_desktop_state(
     app_handle: AppHandle,
 ) -> Result<DesktopState, Box<dyn std::error::Error>> {
-    tauri::async_runtime::spawn_blocking(|| {
-        if let Err(error) = atelier_app::preload_static_resources() {
-            log::warn!("static workspace resources could not be preloaded: {error}");
-        }
-    });
     let system = Arc::new(DesktopSystem::new(resolve_desktop_paths(&app_handle)?));
+    if let Ok(Some(runtime_path)) = system.resolve_onnx_runtime_library() {
+        if let Err(error) = atelier_adapter_onnx_runtime::initialize(runtime_path) {
+            log::warn!("ONNX Runtime is unavailable: {error}");
+        }
+    }
     let safety_scanner = match system.resolve_safety_assets() {
         Ok(Some(assets)) => {
             let runtime =
@@ -272,8 +274,22 @@ pub fn build_desktop_state(
             None
         }
     };
+    let lexicon: Arc<dyn LexiconEngine> = match system.resolve_lexicon_bundle() {
+        Ok(Some(root)) => match LexiconBundle::open(root) {
+            Ok(engine) => engine,
+            Err(error) => {
+                log::warn!("built-in lexicon is unavailable: {error}");
+                Arc::new(UnavailableLexicon::new(error.to_string()))
+            }
+        },
+        Ok(None) => Arc::new(UnavailableLexicon::default()),
+        Err(error) => {
+            log::warn!("built-in lexicon assets are unavailable: {error}");
+            Arc::new(UnavailableLexicon::new(error.to_string()))
+        }
+    };
     let host = Arc::new(
-        AtelierRuntime::with_global_settings_dependencies_extractor_and_safety_scanner(
+        AtelierRuntime::with_global_settings_dependencies_extractor_safety_and_lexicon(
             GlobalSettingsService::new(Arc::new(FileSystemGlobalSettingsRepository::new(
                 system.paths().app_config_dir.join("global-settings.json"),
             ))),
@@ -281,9 +297,9 @@ pub fn build_desktop_state(
             ReqwestNovelAiClientFactory::default(),
             NovelAiEmbeddedVibeExtractor,
             safety_scanner,
+            lexicon,
         ),
     );
-
     subscribe_window_events(&host, app_handle.clone(), system.clone())?;
 
     Ok(DesktopState {

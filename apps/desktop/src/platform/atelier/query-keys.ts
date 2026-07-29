@@ -3,8 +3,7 @@ import type {
   GenerationHistoryQueryDto,
   ListPromptPresetsRequestDto,
   ListVibeDocumentsRequestDto,
-  PromptLexiconListQueryDto,
-  PromptLexiconSearchQueryDto,
+  LexiconSearchRequestDto,
   ResourceRefDto,
   RunHistoryQueryDto,
 } from "@/types";
@@ -66,11 +65,14 @@ export const queryKeys = {
         : (["workspace", "prompt", "chunks", query] as const),
     presets: (query: ListPromptPresetsRequestDto) =>
       ["workspace", "prompt", "presets", query] as const,
-    lexiconCatalog: () => ["workspace", "prompt", "lexicon", "catalog"] as const,
-    lexiconList: (query: PromptLexiconListQueryDto) =>
-      ["workspace", "prompt", "lexicon", "list", query] as const,
-    lexiconSearch: (query: PromptLexiconSearchQueryDto) =>
-      ["workspace", "prompt", "lexicon", "search", query] as const,
+  },
+  lexicon: {
+    root: () => ["app", "lexicon"] as const,
+    bootstrap: () => ["app", "lexicon", "bootstrap"] as const,
+    completion: (query: string, limit: number) =>
+      ["app", "lexicon", "completion", query, limit] as const,
+    search: (query: LexiconSearchRequestDto) => ["app", "lexicon", "search", query] as const,
+    entity: (entityId: number | null) => ["app", "lexicon", "entity", entityId] as const,
   },
   resource: {
     root: () => ["workspace", "resource"] as const,

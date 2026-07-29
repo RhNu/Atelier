@@ -318,16 +318,8 @@ fn prompt_lexicon_and_vibe_commands_are_available_through_facade() {
         .await
         .unwrap();
 
-        assert!(
-            !host
-                .prompt_lexicon_search(PromptLexiconSearchQueryDto {
-                    query: "1girl".to_owned(),
-                    limit: 5,
-                })
-                .unwrap()
-                .items
-                .is_empty()
-        );
+        let lexicon = host.lexicon_bootstrap().unwrap();
+        assert!(!lexicon.status.lexical_available);
 
         let imported = host
             .import_vibe_document(ImportVibeDocumentRequestDto {

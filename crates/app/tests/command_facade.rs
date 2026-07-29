@@ -27,9 +27,8 @@ use atelier_app_api::generation::{
 use atelier_app_api::history::{RunHistoryOutputStateDto, RunHistoryQueryDto};
 use atelier_app_api::prompt::{
     CompileGenerationPromptRequestDto, DeletePromptChunkRequestDto, GetPromptChunkRequestDto,
-    ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptLexiconSearchQueryDto,
-    PromptPresetBehaviorDto, PromptPresetKindDto, UpsertPromptChunkRequestDto,
-    UpsertPromptPresetRequestDto,
+    ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptPresetBehaviorDto,
+    PromptPresetKindDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
 };
 use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,

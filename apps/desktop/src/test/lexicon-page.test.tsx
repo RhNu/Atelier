@@ -5,128 +5,152 @@ import userEvent from "@testing-library/user-event";
 import { createAtelierQueryClient } from "../app/query-client";
 import { LexiconPage } from "../features/lexicon";
 import type {
-  PromptLexiconCatalogDto,
-  PromptLexiconListQueryDto,
-  PromptLexiconPageDto,
-  PromptLexiconSearchQueryDto,
+  AppendLexiconEntitiesRequestDto,
+  GenerationDraftDto,
+  LexiconBootstrapDto,
+  LexiconEntityDetailDto,
+  LexiconEntityRequestDto,
+  LexiconSearchItemDto,
+  LexiconSearchPageDto,
+  LexiconSearchRequestDto,
 } from "../types";
 
 const mocks = vi.hoisted(() => ({
-  lexiconCatalog: vi.fn<() => Promise<PromptLexiconCatalogDto>>(),
-  lexiconList: vi.fn<(request: PromptLexiconListQueryDto) => Promise<PromptLexiconPageDto>>(),
-  lexiconSearch: vi.fn<(request: PromptLexiconSearchQueryDto) => Promise<PromptLexiconPageDto>>(),
+  navigate: vi.fn<(options: { to: string }) => Promise<void>>(),
+  bootstrap: vi.fn<() => Promise<LexiconBootstrapDto>>(),
+  search: vi.fn<(request: LexiconSearchRequestDto) => Promise<LexiconSearchPageDto>>(),
+  entity: vi.fn<(request: LexiconEntityRequestDto) => Promise<LexiconEntityDetailDto>>(),
+  append: vi.fn<(request: AppendLexiconEntitiesRequestDto) => Promise<GenerationDraftDto>>(),
+}));
+
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  useNavigate: () => mocks.navigate,
 }));
 
 vi.mock("../platform/atelier", () => ({
-  promptApi: {
-    lexiconCatalog: mocks.lexiconCatalog,
-    lexiconList: mocks.lexiconList,
-    lexiconSearch: mocks.lexiconSearch,
+  lexiconApi: {
+    bootstrap: mocks.bootstrap,
+    search: mocks.search,
+    entity: mocks.entity,
+  },
+  generationApi: {
+    appendLexiconEntities: mocks.append,
   },
   queryKeys: {
-    prompt: {
-      lexiconCatalog: () => ["prompt", "lexicon", "catalog"],
-      lexiconList: (query: PromptLexiconListQueryDto) => ["prompt", "lexicon", "list", query],
-      lexiconSearch: (query: PromptLexiconSearchQueryDto) => ["prompt", "lexicon", "search", query],
+    lexicon: {
+      bootstrap: () => ["lexicon", "bootstrap"],
+      search: (request: LexiconSearchRequestDto) => ["lexicon", "search", request],
+      entity: (entityId: number | null) => ["lexicon", "entity", entityId],
+    },
+    generation: {
+      draft: () => ["generation", "draft"],
     },
   },
 }));
 
-const catalog: PromptLexiconCatalogDto = {
-  stats: {
-    total_tags: 120,
-    categorized_tags: 120,
-    uncategorized_tags: 0,
-    matched_weights: 90,
-    total_translations: 180,
-    tags_with_aliases: 20,
-    max_aliases_per_tag: 3,
-    source_count: 2,
-    manifest_version: 1,
-    primary_from_category_json: 120,
-    primary_from_manifest_sources: 0,
-    primary_fallback_to_tag: 0,
+const item: LexiconSearchItemDto = {
+  entity_id: 123,
+  canonical_name: "cinematic_lighting",
+  primary_translation: "cinematic lighting",
+  kind: "tag",
+  category: "general",
+  post_count: 12_000,
+  rating: "safe",
+  matched_text: "cinematic",
+  match_reason: "canonical_prefix",
+  score: 99,
+};
+
+const bootstrap: LexiconBootstrapDto = {
+  bundle_version: "2026.07.29",
+  status: {
+    lexical_available: true,
+    semantic_available: true,
+    message: null,
   },
-  categories: [
-    {
-      name: "Characters",
-      tag_count: 100,
-      subcategory_count: 1,
-      subcategories: [{ name: "Hair", tag_count: 40 }],
-    },
-  ],
+  stats: {
+    total_entities: 52_100,
+    tag_entities: 50_000,
+    artist_entities: 2_100,
+    sensitive_entities: 500,
+    translation_count: 50_000,
+    group_count: 1,
+  },
+  categories: [{ value: "general", label: "General", count: 40_000 }],
+  groups: [{ id: "lighting", name: "Lighting", member_count: 100 }],
 };
 
 beforeEach(() => {
+  localStorage.clear();
   vi.clearAllMocks();
-  mocks.lexiconCatalog.mockResolvedValue(catalog);
-  mocks.lexiconList.mockImplementation(async (request) =>
-    lexiconPage(request.offset, request.limit, 120, "1girl", "one girl"),
-  );
-  mocks.lexiconSearch.mockImplementation(async (request) =>
-    lexiconPage(0, request.limit, 1, "cinematic_lighting", "cinematic lighting"),
-  );
+  mocks.bootstrap.mockResolvedValue(bootstrap);
+  mocks.search.mockResolvedValue({ items: [item], total: 1, offset: 0, limit: 100 });
+  mocks.entity.mockResolvedValue({
+    entity: item,
+    translations: [{ locale: "zh-CN", text: "电影光效" }],
+    aliases: ["cinematic_light"],
+    wiki: [{ locale: "en", text: "Dramatic lighting used in cinematic compositions." }],
+    groups: [{ id: "lighting", name: "Lighting", member_count: 100 }],
+    related: [],
+  });
+  mocks.append.mockResolvedValue(generationDraft());
+  mocks.navigate.mockResolvedValue(undefined);
 });
 
 describe("LexiconPage", () => {
-  it("browses the backend catalog and pages category results", async () => {
+  it("searches with local filters and switches to semantic exploration", async () => {
     const user = setup();
 
-    expect(await screen.findByText("1girl")).toBeInTheDocument();
-    expect(mocks.lexiconList).toHaveBeenCalledWith({
+    expect(await screen.findByText("cinematic_lighting")).toBeInTheDocument();
+    expect(mocks.search).toHaveBeenCalledWith({
       query: "",
-      category: null,
-      subcategory: null,
+      mode: "lexical",
+      filters: {
+        entity_kinds: [],
+        categories: [],
+        group_ids: [],
+        ratings: [],
+      },
+      selected_entity_ids: [],
       offset: 0,
-      limit: 80,
+      limit: 100,
     });
 
-    await user.click(screen.getByRole("button", { name: /Characters/ }));
-    await waitFor(() =>
-      expect(mocks.lexiconList).toHaveBeenCalledWith({
-        query: "",
-        category: "Characters",
-        subcategory: null,
-        offset: 0,
-        limit: 80,
-      }),
-    );
-    await user.click(screen.getByRole("button", { name: /Hair/ }));
-    await waitFor(() =>
-      expect(mocks.lexiconList).toHaveBeenCalledWith({
-        query: "",
-        category: "Characters",
-        subcategory: "Hair",
-        offset: 0,
-        limit: 80,
-      }),
-    );
-    await user.click(screen.getByRole("button", { name: "Next lexicon page" }));
-    await waitFor(() =>
-      expect(mocks.lexiconList).toHaveBeenCalledWith(
-        expect.objectContaining({
-          category: "Characters",
-          subcategory: "Hair",
-          offset: 80,
-          limit: 80,
-        }),
-      ),
-    );
+    await user.type(screen.getByLabelText("Search the lexicon"), "cinematic");
+    await user.selectOptions(screen.getByLabelText("Type"), "tag");
+    await user.selectOptions(screen.getByLabelText("Content"), "safe");
+    await user.click(screen.getByRole("tab", { name: "Semantic explore" }));
+
+    await waitFor(() => {
+      const request = mocks.search.mock.lastCall?.[0];
+      expect(request?.query).toBe("cinematic");
+      expect(request?.mode).toBe("semantic");
+      expect(request?.filters.entity_kinds).toEqual(["tag"]);
+      expect(request?.filters.ratings).toEqual(["safe"]);
+    });
+    expect(localStorage.getItem("atelier.lexicon.rating.v1")).toBe("safe");
   });
 
-  it("switches to backend search as the user types", async () => {
+  it("loads details and atomically hands the basket to the generation draft", async () => {
     const user = setup();
 
-    await user.type(await screen.findByLabelText("Search tags"), "cinematic light");
+    await screen.findByText("cinematic_lighting");
+    await user.click(screen.getByText("cinematic_lighting"));
+    expect(await screen.findByText("cinematic_light")).toBeInTheDocument();
+    const addButtons = screen.getAllByRole("button", { name: "Add to tag basket" });
+    const inspectorAddButton = addButtons.at(1);
+    if (!inspectorAddButton) throw new Error("inspector basket button was not rendered");
+    await user.click(inspectorAddButton);
+    await user.click(screen.getByRole("button", { name: /Add to prompt/u }));
 
     await waitFor(() =>
-      expect(mocks.lexiconSearch).toHaveBeenLastCalledWith({
-        query: "cinematic light",
-        limit: 60,
+      expect(mocks.append).toHaveBeenCalledWith({
+        target: "positive",
+        entity_ids: [123],
       }),
     );
-    expect(await screen.findByText("cinematic_lighting")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Search" })).toHaveAttribute("aria-selected", "true");
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: "/generate" });
   });
 });
 
@@ -140,28 +164,32 @@ function setup() {
   return user;
 }
 
-function lexiconPage(
-  offset: number,
-  limit: number,
-  total: number,
-  tag: string,
-  translation: string,
-): PromptLexiconPageDto {
+function generationDraft(): GenerationDraftDto {
   return {
-    items: [
-      {
-        tag,
-        weight: 100,
-        category: "Characters",
-        subcategory: "Hair",
-        primary_translation: translation,
-        matched_translation: translation,
-        match_field: "tag",
-        match_rank: "prefix",
-      },
-    ],
-    total,
-    offset,
-    limit,
+    main_preset_id: null,
+    prompt: "cinematic_lighting, ",
+    negative_prompt: "",
+    model: "nai-diffusion-4-5-full",
+    size: { width: 832, height: 1216 },
+    quality: true,
+    uc_preset: "light",
+    steps: 23,
+    scale: 5,
+    sampler: "k_euler_ancestral",
+    noise_schedule: "karras",
+    seed_mode: "random",
+    seed: 0,
+    n_samples: 1,
+    request_count: 1,
+    cfg_rescale: 0,
+    variety_boost: false,
+    image_format: null,
+    strict_mode: false,
+    stream_enabled: true,
+    i2i: null,
+    vibe: { enabled: false, strength: 1, slots: [] },
+    precise_references: [],
+    characters: [],
+    character_position_mode: "global",
   };
 }

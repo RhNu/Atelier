@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn open_workspace_initializes_lexicon_and_generation_is_explicitly_driven() {
+fn open_workspace_and_generation_are_explicitly_driven() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
         let secrets = MemorySecretStore::default();
@@ -13,14 +13,6 @@ fn open_workspace_initializes_lexicon_and_generation_is_explicitly_driven() {
         )
         .await
         .unwrap();
-
-        assert!(
-            !app.prompt()
-                .lexicon_search("1girl", 5)
-                .unwrap()
-                .items
-                .is_empty()
-        );
 
         let missing_key = app
             .generation()

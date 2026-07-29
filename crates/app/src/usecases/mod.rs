@@ -19,9 +19,8 @@ use atelier_app_api::prompt::{
     CompiledGenerationCharacterPromptDto, CompiledGenerationPromptDto, CompiledPromptDto,
     DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, DeletePromptPresetRequestDto,
     DeletePromptPresetResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
-    ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkPageDto, PromptLexiconCatalogDto,
-    PromptLexiconListQueryDto, PromptLexiconPageDto, PromptPresetDto, PromptPresetPageDto,
-    UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
+    ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkPageDto, PromptPresetDto,
+    PromptPresetPageDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
 };
 use atelier_app_api::resource::ImageInputDto;
 use atelier_app_api::settings::{
@@ -77,7 +76,6 @@ use crate::mapping::{
     exported_vibe_to_dto, gallery_image_reference_to_dto, gallery_item_to_dto, gallery_page_to_dto,
     gallery_query_to_domain, generation_status_to_dto, image_format_to_domain,
     image_model_to_domain, image_reference_target_to_domain, imported_vibes_to_dto,
-    lexicon_catalog_to_dto, lexicon_page_to_dto, lexicon_query_to_domain, lexicon_search_to_page,
     noise_schedule_to_domain, plan_context_to_domain, prompt_chunk_to_dto,
     prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
     queue_directive_to_dto, resource_ref_from_dto, resource_ref_to_dto, safety_override_to_domain,

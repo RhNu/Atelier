@@ -10,11 +10,7 @@ import {
   promptEditorView,
   typeInPromptEditor,
 } from "@/test/prompt-editor-test-utils";
-import type {
-  PromptChunkPageDto,
-  PromptLexiconPageDto,
-  PromptLexiconSearchQueryDto,
-} from "@/types";
+import type { LexiconCompleteRequestDto, LexiconSearchItemDto, PromptChunkPageDto } from "@/types";
 
 import { NaiPromptEditor, type NaiPromptHighlightMode } from "./NaiPromptEditor";
 import type { NaiPromptProfile } from "./prompt-analysis";
@@ -37,33 +33,33 @@ const mocks = vi.hoisted(() => ({
     offset: 0,
     limit: 200,
   })),
-  lexiconSearch: vi.fn<(request: PromptLexiconSearchQueryDto) => Promise<PromptLexiconPageDto>>(
-    async (request) => ({
-      items: [
-        {
-          tag: "cinematic_lighting",
-          weight: 1000,
-          category: "general",
-          subcategory: "lighting",
-          primary_translation: "cinematic lighting",
-          matched_translation: "cinematic lighting",
-          match_field: "tag",
-          match_rank: "prefix",
-        },
-      ],
-      total: 1,
-      offset: 0,
-      limit: request.limit,
-    }),
+  lexiconComplete: vi.fn<(request: LexiconCompleteRequestDto) => Promise<LexiconSearchItemDto[]>>(
+    async (request): Promise<LexiconSearchItemDto[]> => [
+      {
+        entity_id: 1,
+        canonical_name: "cinematic_lighting",
+        primary_translation: "cinematic lighting",
+        kind: "tag",
+        category: "general",
+        post_count: 1000,
+        rating: "safe",
+        matched_text: request.query,
+        match_reason: "canonical_prefix",
+        score: 97,
+      },
+    ],
   ),
 }));
 
 vi.mock("@/platform/atelier", () => ({
-  promptApi: mocks,
+  promptApi: { listChunks: mocks.listChunks },
+  lexiconApi: { complete: mocks.lexiconComplete },
   queryKeys: {
     prompt: {
       chunks: (request: unknown) => ["prompt", "chunks", request],
-      lexiconSearch: (request: unknown) => ["prompt", "lexicon", request],
+    },
+    lexicon: {
+      completion: (query: string, limit: number) => ["lexicon", "completion", query, limit],
     },
   },
 }));

@@ -2,13 +2,19 @@ use atelier_app_api::prompt::{
     CompileGenerationPromptRequestDto, CompilePromptRequestDto, CompiledGenerationPromptDto,
     CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
     DeletePromptPresetRequestDto, DeletePromptPresetResponseDto, GetPromptChunkRequestDto,
+    LexiconBootstrapDto, LexiconCompleteRequestDto, LexiconEntityDetailDto,
+    LexiconEntityRequestDto, LexiconSearchItemDto, LexiconSearchPageDto, LexiconSearchRequestDto,
     ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkPageDto,
-    PromptLexiconCatalogDto, PromptLexiconListQueryDto, PromptLexiconPageDto,
-    PromptLexiconSearchQueryDto, PromptPresetDto, PromptPresetPageDto, UpsertPromptChunkRequestDto,
+    PromptPresetDto, PromptPresetPageDto, UpsertPromptChunkRequestDto,
     UpsertPromptPresetRequestDto,
 };
 
+use crate::AppError;
 use crate::commands::{AtelierRuntime, CommandResult};
+use crate::mapping::{
+    lexicon_bootstrap_to_dto, lexicon_detail_to_dto, lexicon_item_to_dto, lexicon_page_to_dto,
+    lexicon_search_query_to_domain,
+};
 
 impl<S, F, E> AtelierRuntime<S, F, E>
 where
@@ -135,38 +141,65 @@ where
         )
     }
 
-    /// Returns prompt lexicon catalog metadata.
+    /// Reports built-in lexicon capabilities and facets.
     ///
     /// # Errors
     /// Returns an error envelope when no workspace is open.
-    pub fn prompt_lexicon_catalog(&self) -> CommandResult<PromptLexiconCatalogDto> {
-        Ok(self.current_session()?.prompt().lexicon_catalog())
+    pub fn lexicon_bootstrap(&self) -> CommandResult<LexiconBootstrapDto> {
+        Self::command_result(
+            self.lexicon
+                .bootstrap()
+                .map(lexicon_bootstrap_to_dto)
+                .map_err(AppError::from),
+        )
     }
 
-    /// Lists prompt lexicon entries.
+    /// Returns compact lexical completion candidates.
     ///
     /// # Errors
     /// Returns an error envelope when no workspace is open or the lexicon query is invalid.
-    pub fn prompt_lexicon_list(
+    pub fn lexicon_complete(
         &self,
-        request: PromptLexiconListQueryDto,
-    ) -> CommandResult<PromptLexiconPageDto> {
-        Self::command_result(self.current_session()?.prompt().lexicon_list(request))
+        request: &LexiconCompleteRequestDto,
+    ) -> CommandResult<Vec<LexiconSearchItemDto>> {
+        Self::command_result(
+            self.lexicon
+                .complete(&request.query, request.limit)
+                .map(|items| items.into_iter().map(lexicon_item_to_dto).collect())
+                .map_err(AppError::from),
+        )
     }
 
-    /// Searches prompt lexicon entries.
+    /// Searches lexical or semantic lexicon views.
     ///
     /// # Errors
     /// Returns an error envelope when no workspace is open or the query limit is invalid.
-    pub fn prompt_lexicon_search(
+    pub fn lexicon_search(
         &self,
-        request: PromptLexiconSearchQueryDto,
-    ) -> CommandResult<PromptLexiconPageDto> {
-        let PromptLexiconSearchQueryDto { query, limit } = request;
+        request: LexiconSearchRequestDto,
+    ) -> CommandResult<LexiconSearchPageDto> {
+        let query = lexicon_search_query_to_domain(request);
         Self::command_result(
-            self.current_session()?
-                .prompt()
-                .lexicon_search(&query, limit),
+            self.lexicon
+                .search(&query)
+                .map(lexicon_page_to_dto)
+                .map_err(AppError::from),
+        )
+    }
+
+    /// Returns metadata and precomputed relationships for one entity.
+    ///
+    /// # Errors
+    /// Returns an error envelope when the entity is missing or the bundle query fails.
+    pub fn lexicon_entity(
+        &self,
+        request: &LexiconEntityRequestDto,
+    ) -> CommandResult<LexiconEntityDetailDto> {
+        Self::command_result(
+            self.lexicon
+                .entity(request.entity_id)
+                .map(lexicon_detail_to_dto)
+                .map_err(AppError::from),
         )
     }
 }

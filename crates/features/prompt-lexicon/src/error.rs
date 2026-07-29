@@ -1,13 +1,41 @@
-use super::Error;
+use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum PromptLexiconError {
-    #[error("failed to parse prompt lexicon: {0}")]
-    Parse(#[from] serde_json::Error),
-    #[error("unsupported prompt lexicon schema `{schema}` version {version}")]
-    UnsupportedSchema { schema: String, version: u32 },
-    #[error("invalid prompt lexicon payload: {0}")]
-    InvalidPayload(String),
-    #[error("invalid prompt lexicon request: {0}")]
+pub type LexiconResult<T> = Result<T, LexiconError>;
+
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
+pub enum LexiconError {
+    #[error("lexicon unavailable: {0}")]
+    Unavailable(String),
+    #[error("invalid lexicon request: {0}")]
     InvalidRequest(String),
+    #[error("lexicon entity {0} was not found")]
+    NotFound(u64),
+    #[error("invalid lexicon bundle: {0}")]
+    InvalidBundle(String),
+    #[error("lexicon query failed: {0}")]
+    Query(String),
+    #[error("semantic search unavailable: {0}")]
+    SemanticUnavailable(String),
+}
+
+impl LexiconError {
+    #[must_use]
+    pub fn unavailable(message: impl Into<String>) -> Self {
+        Self::Unavailable(message.into())
+    }
+
+    #[must_use]
+    pub fn invalid_request(message: impl Into<String>) -> Self {
+        Self::InvalidRequest(message.into())
+    }
+
+    #[must_use]
+    pub fn invalid_bundle(message: impl Into<String>) -> Self {
+        Self::InvalidBundle(message.into())
+    }
+
+    #[must_use]
+    pub fn query(message: impl Into<String>) -> Self {
+        Self::Query(message.into())
+    }
 }

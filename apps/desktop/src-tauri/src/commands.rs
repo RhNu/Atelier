@@ -3,6 +3,8 @@ mod resource_image;
 
 pub use desktop_io::*;
 
+use std::sync::Arc;
+
 use atelier_app::CommandResult;
 use atelier_app_api::{
     account::{
@@ -11,6 +13,7 @@ use atelier_app_api::{
         UpdateApiKeyRequestDto,
     },
     director::{DirectorToolResultDto, RunDirectorToolRequestDto},
+    error::ErrorEnvelopeDto,
     event::{AppEventPageDto, EventsSinceRequestDto},
     gallery::{
         DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceDto,
@@ -32,13 +35,15 @@ use atelier_app_api::{
         RerunGenerationHistoryItemResponseDto, RunHistoryPageDto, RunHistoryQueryDto,
     },
     prompt::{
-        CompileGenerationPromptRequestDto, CompilePromptRequestDto, CompiledGenerationPromptDto,
-        CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
-        DeletePromptPresetRequestDto, DeletePromptPresetResponseDto, GetPromptChunkRequestDto,
+        AppendLexiconEntitiesRequestDto, CompileGenerationPromptRequestDto,
+        CompilePromptRequestDto, CompiledGenerationPromptDto, CompiledPromptDto,
+        DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, DeletePromptPresetRequestDto,
+        DeletePromptPresetResponseDto, GetPromptChunkRequestDto, LexiconBootstrapDto,
+        LexiconCompleteRequestDto, LexiconEntityDetailDto, LexiconEntityRequestDto,
+        LexiconSearchItemDto, LexiconSearchPageDto, LexiconSearchRequestDto,
         ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptChunkDto,
-        PromptChunkPageDto, PromptLexiconCatalogDto, PromptLexiconListQueryDto,
-        PromptLexiconPageDto, PromptLexiconSearchQueryDto, PromptPresetDto, PromptPresetPageDto,
-        UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
+        PromptChunkPageDto, PromptPresetDto, PromptPresetPageDto, UpsertPromptChunkRequestDto,
+        UpsertPromptPresetRequestDto,
     },
     resource::{
         GetResourceImageRequestDto, ReleaseImportedImageResourcesRequestDto,
@@ -57,6 +62,13 @@ use atelier_app_api::{
 use tauri::State;
 
 use crate::desktop::DesktopState;
+
+fn join_error(error: impl std::fmt::Display) -> ErrorEnvelopeDto {
+    ErrorEnvelopeDto::new(
+        "desktop_background_task",
+        format!("desktop background task failed: {error}"),
+    )
+}
 
 #[tauri::command]
 pub async fn get_global_settings(
@@ -202,10 +214,13 @@ pub async fn compile_generation_prompt_preview(
     clippy::needless_pass_by_value,
     reason = "Tauri commands inject State by value"
 )]
-pub fn prompt_lexicon_catalog(
+pub async fn lexicon_bootstrap(
     state: State<'_, DesktopState>,
-) -> CommandResult<PromptLexiconCatalogDto> {
-    state.host.prompt_lexicon_catalog()
+) -> CommandResult<LexiconBootstrapDto> {
+    let host = Arc::clone(&state.host);
+    tauri::async_runtime::spawn_blocking(move || host.lexicon_bootstrap())
+        .await
+        .map_err(join_error)?
 }
 
 #[tauri::command]
@@ -213,11 +228,14 @@ pub fn prompt_lexicon_catalog(
     clippy::needless_pass_by_value,
     reason = "Tauri commands inject State by value"
 )]
-pub fn prompt_lexicon_list(
+pub async fn lexicon_complete(
     state: State<'_, DesktopState>,
-    request: PromptLexiconListQueryDto,
-) -> CommandResult<PromptLexiconPageDto> {
-    state.host.prompt_lexicon_list(request)
+    request: LexiconCompleteRequestDto,
+) -> CommandResult<Vec<LexiconSearchItemDto>> {
+    let host = Arc::clone(&state.host);
+    tauri::async_runtime::spawn_blocking(move || host.lexicon_complete(&request))
+        .await
+        .map_err(join_error)?
 }
 
 #[tauri::command]
@@ -225,11 +243,25 @@ pub fn prompt_lexicon_list(
     clippy::needless_pass_by_value,
     reason = "Tauri commands inject State by value"
 )]
-pub fn prompt_lexicon_search(
+pub async fn lexicon_search(
     state: State<'_, DesktopState>,
-    request: PromptLexiconSearchQueryDto,
-) -> CommandResult<PromptLexiconPageDto> {
-    state.host.prompt_lexicon_search(request)
+    request: LexiconSearchRequestDto,
+) -> CommandResult<LexiconSearchPageDto> {
+    let host = Arc::clone(&state.host);
+    tauri::async_runtime::spawn_blocking(move || host.lexicon_search(request))
+        .await
+        .map_err(join_error)?
+}
+
+#[tauri::command]
+pub async fn lexicon_entity(
+    state: State<'_, DesktopState>,
+    request: LexiconEntityRequestDto,
+) -> CommandResult<LexiconEntityDetailDto> {
+    let host = Arc::clone(&state.host);
+    tauri::async_runtime::spawn_blocking(move || host.lexicon_entity(&request))
+        .await
+        .map_err(join_error)?
 }
 
 #[tauri::command]
@@ -288,6 +320,17 @@ pub async fn save_generation_draft(
 #[tauri::command]
 pub async fn clear_generation_draft(state: State<'_, DesktopState>) -> CommandResult<()> {
     state.host.clear_generation_draft().await
+}
+
+#[tauri::command]
+pub async fn append_lexicon_entities_to_generation_draft(
+    state: State<'_, DesktopState>,
+    request: AppendLexiconEntitiesRequestDto,
+) -> CommandResult<GenerationDraftDto> {
+    state
+        .host
+        .append_lexicon_entities_to_generation_draft(request)
+        .await
 }
 
 #[tauri::command]

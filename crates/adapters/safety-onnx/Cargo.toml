@@ -9,6 +9,7 @@ async-trait = { workspace = true }
 image = { workspace = true, features = ["jpeg", "png", "webp"] }
 atelier-resource-catalog = { workspace = true }
 atelier-safety = { workspace = true }
+atelier-adapter-onnx-runtime = { workspace = true }
 ort = { workspace = true, features = ["std", "load-dynamic", "api-22"] }
 
 [dev-dependencies]

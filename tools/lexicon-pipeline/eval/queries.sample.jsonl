@@ -1,0 +1,2 @@
+{"id":"sample-zh-1","query":"蓝色长发女孩","locale":"zh-CN","slice":"natural_language","relevance":{"long_hair":2,"blue_hair":3,"1girl":1}}
+{"id":"sample-en-1","query":"hatsune miku","locale":"en","slice":"canonical","relevance":{"hatsune_miku":3}}

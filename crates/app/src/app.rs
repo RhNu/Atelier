@@ -23,7 +23,6 @@ use atelier_artifacts::ArtifactService;
 use atelier_gallery::GalleryService;
 use atelier_jobs::JobQueueRepository;
 use atelier_kernel::KernelRuntime;
-use atelier_prompt_lexicon::PromptLexicon;
 use atelier_prompt_resources::{PromptChunkService, PromptCompiler, PromptPresetService};
 use atelier_resource_catalog::ResourceCatalog;
 use atelier_safety::SafetyScanner;
@@ -63,11 +62,11 @@ pub struct AppInner<S, F, E> {
     pub settings: WorkspaceSettingsService<DatabaseSettingsRepository>,
     pub generation_drafts:
         atelier_generation::GenerationDraftService<DatabaseGenerationDraftRepository>,
+    pub generation_draft_write: Mutex<()>,
     pub settings_state: SharedWorkspaceSettings,
     pub prompt_chunks: PromptChunkService<DatabasePromptResourceRepository>,
     pub prompt_presets: PromptPresetService<DatabasePromptResourceRepository>,
     pub prompt_compiler: PromptCompiler<DatabasePromptResourceRepository>,
-    pub lexicon: Arc<PromptLexicon>,
     pub artifacts: AppArtifactService,
     pub gallery: AppGalleryService,
     pub gallery_index: DatabaseGalleryIndex,
@@ -84,7 +83,7 @@ impl
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// schema validation, keyring setup, or embedded lexicon loading fails.
+    /// schema validation or keyring setup fails.
     pub async fn open_workspace(request: OpenWorkspaceRequestDto) -> AppResult<Self> {
         Self::open_workspace_with_dependencies(
             request.root,
@@ -104,7 +103,7 @@ where
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// schema validation or embedded lexicon loading fails.
+    /// schema validation fails.
     pub async fn open_workspace_with_dependencies(
         root: PathBuf,
         secrets: S,
@@ -123,7 +122,7 @@ where
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// schema validation or embedded lexicon loading fails.
+    /// schema validation fails.
     pub async fn open_workspace_with_dependencies_and_safety_scanner(
         root: PathBuf,
         secrets: S,
@@ -151,7 +150,7 @@ where
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// schema validation or embedded lexicon loading fails.
+    /// schema validation fails.
     pub async fn open_workspace_with_dependencies_and_extractor(
         root: PathBuf,
         secrets: S,
@@ -168,7 +167,7 @@ where
     ///
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
-    /// schema validation or embedded lexicon loading fails.
+    /// schema validation fails.
     pub async fn open_workspace_with_dependencies_and_extractor_and_safety_scanner(
         root: PathBuf,
         secrets: S,
@@ -261,11 +260,11 @@ where
                 api_keys,
                 settings,
                 generation_drafts,
+                generation_draft_write: Mutex::new(()),
                 settings_state,
                 prompt_chunks: PromptChunkService::new(prompt_repository.clone()),
                 prompt_presets: PromptPresetService::new(prompt_repository),
                 prompt_compiler,
-                lexicon: PromptLexicon::load_embedded_shared().map_err(AppError::from)?,
                 artifacts,
                 gallery,
                 gallery_index,

@@ -24,10 +24,13 @@ log = "0.4"
 atelier-adapter-keyring = { workspace = true }
 atelier-adapter-image-codec = { workspace = true }
 atelier-adapter-novelai = { workspace = true }
+atelier-adapter-lexicon-bundle = { workspace = true }
+atelier-adapter-onnx-runtime = { workspace = true }
 atelier-adapter-safety-onnx = { workspace = true }
 atelier-adapter-settings-fs = { workspace = true }
 atelier-app = { workspace = true }
 atelier-app-api = { workspace = true }
+atelier-prompt-lexicon = { workspace = true }
 atelier-settings = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

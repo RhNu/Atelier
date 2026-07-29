@@ -39,10 +39,10 @@ import type {
   ListVibeDocumentsRequestDto,
   ListPromptPresetsRequestDto,
   ListPromptChunksRequestDto,
+  LexiconCompleteRequestDto,
+  LexiconSearchItemDto,
   QueueDirectiveDto,
   PromptChunkPageDto,
-  PromptLexiconPageDto,
-  PromptLexiconSearchQueryDto,
   PromptPresetPageDto,
   ResourceImageDto,
   ReleaseImportedImageResourcesRequestDto,
@@ -125,7 +125,9 @@ const mocks = vi.hoisted(() => ({
       vi.fn<(request: CompileGenerationPromptRequestDto) => Promise<CompiledGenerationPromptDto>>(),
     listChunks: vi.fn<(request: ListPromptChunksRequestDto) => Promise<PromptChunkPageDto>>(),
     listPresets: vi.fn<(request: ListPromptPresetsRequestDto) => Promise<PromptPresetPageDto>>(),
-    lexiconSearch: vi.fn<(request: PromptLexiconSearchQueryDto) => Promise<PromptLexiconPageDto>>(),
+  },
+  lexiconApi: {
+    complete: vi.fn<(request: LexiconCompleteRequestDto) => Promise<LexiconSearchItemDto[]>>(),
   },
   resourceApi: {
     image: vi.fn<(request: GetResourceImageRequestDto) => Promise<ResourceImageDto>>(),
@@ -180,6 +182,7 @@ vi.mock("../platform/atelier", () => ({
   generationApi: mocks.generationApi,
   historyApi: mocks.historyApi,
   promptApi: mocks.promptApi,
+  lexiconApi: mocks.lexiconApi,
   resourceApi: mocks.resourceApi,
   settingsApi: mocks.settingsApi,
   globalSettingsApi: mocks.globalSettingsApi,
@@ -211,7 +214,9 @@ vi.mock("../platform/atelier", () => ({
       chunks: (query?: unknown) =>
         query === undefined ? ["prompt", "chunks"] : ["prompt", "chunks", query],
       presets: (query: ListPromptPresetsRequestDto) => ["prompt", "presets", query],
-      lexiconSearch: (query: unknown) => ["prompt", "lexicon", "search", query],
+    },
+    lexicon: {
+      completion: (query: string, limit: number) => ["lexicon", "completion", query, limit],
     },
     resource: {
       root: () => ["resource"],
@@ -434,26 +439,24 @@ function setup(options?: {
     }
     return emptyPresetPage();
   });
-  mocks.promptApi.lexiconSearch.mockImplementation(async (request) => ({
-    items:
-      request.query.trim().length > 0
-        ? [
-            {
-              tag: "cinematic_lighting",
-              weight: 1200,
-              category: "copyright",
-              subcategory: "lighting",
-              primary_translation: "cinematic lighting",
-              matched_translation: "cinematic lighting",
-              match_field: "tag",
-              match_rank: "prefix",
-            },
-          ]
-        : [],
-    total: request.query.trim().length > 0 ? 1 : 0,
-    offset: 0,
-    limit: request.limit,
-  }));
+  mocks.lexiconApi.complete.mockImplementation(async (request) =>
+    request.query.trim().length > 0
+      ? [
+          {
+            entity_id: 1,
+            canonical_name: "cinematic_lighting",
+            primary_translation: "cinematic lighting",
+            kind: "tag",
+            category: "general",
+            post_count: 1200,
+            rating: "safe",
+            matched_text: request.query,
+            match_reason: "canonical_prefix",
+            score: 97,
+          },
+        ]
+      : [],
+  );
   mocks.resourceApi.image.mockResolvedValue({
     image_base64: "final-image",
     mime_type: "image/png",

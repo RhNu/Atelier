@@ -4,6 +4,7 @@ use atelier_app_api::generation::{
     GenerationStatusDto, GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
     SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
 };
+use atelier_app_api::prompt::AppendLexiconEntitiesRequestDto;
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
@@ -45,6 +46,27 @@ where
     /// Returns an error envelope when no workspace is open or draft resource cleanup fails.
     pub async fn clear_generation_draft(&self) -> CommandResult<()> {
         Self::command_result(self.current_session()?.generation().clear_draft().await)
+    }
+
+    /// Resolves lexicon entities and atomically appends canonical tags to the persisted draft.
+    ///
+    /// # Errors
+    /// Returns an error envelope when an entity is invalid, no workspace is open, or persistence fails.
+    pub async fn append_lexicon_entities_to_generation_draft(
+        &self,
+        request: AppendLexiconEntitiesRequestDto,
+    ) -> CommandResult<GenerationDraftDto> {
+        let entities = self
+            .lexicon
+            .resolve_entities(&request.entity_ids)
+            .map_err(crate::AppError::from)
+            .map_err(|error| error.envelope())?;
+        Self::command_result(
+            self.current_session()?
+                .generation()
+                .append_lexicon_entities(request.target, &entities)
+                .await,
+        )
     }
 
     /// Submits generation work without running the queued job.
