@@ -1,3 +1,6 @@
+import { functionArgumentAtCaret } from "./function-argument-completion";
+import { NAI_PROMPT_FUNCTIONS, type PromptFunctionDefinition } from "./prompt-functions";
+
 export type PromptCompletionMode = "tag" | "function" | "chunk";
 
 export type PromptCompletionItem = {
@@ -29,26 +32,25 @@ export type PromptCompletionEdit = {
 };
 
 const FUNCTION_CALL_PATTERN = /\$([A-Za-z0-9_-]*)$/u;
-const CHUNK_CALL_PATTERN = /\$chunk\(([^,()[\]{}|\s]*)$/u;
 
 export function getPromptCompletionContext(
   value: string,
   selectionStart: number,
   manual = false,
+  functions: readonly PromptFunctionDefinition[] = NAI_PROMPT_FUNCTIONS,
 ): PromptCompletionContext {
   const caret = clampCaret(value, selectionStart);
   const beforeCaret = value.slice(0, caret);
-  const chunkMatch = CHUNK_CALL_PATTERN.exec(beforeCaret);
+  const argument = functionArgumentAtCaret(beforeCaret, functions);
 
-  if (chunkMatch?.[1] !== undefined) {
-    const start = caret - chunkMatch[1].length;
+  if (argument?.completion === "chunk") {
     return {
       mode: "chunk",
-      query: chunkMatch[1],
-      filterStart: start,
+      query: argument.query,
+      filterStart: argument.queryStart,
       filterEnd: caret,
-      replaceStart: start,
-      replaceEnd: findChunkReplaceEnd(value, caret),
+      replaceStart: argument.queryStart,
+      replaceEnd: findArgumentReplaceEnd(value, caret),
       manual,
     };
   }
@@ -67,7 +69,7 @@ export function getPromptCompletionContext(
     };
   }
 
-  if (/\$[A-Za-z0-9_-]+\([^)]*\)$/u.test(beforeCaret)) {
+  if (argument !== null) {
     return emptyTagContext(caret, manual);
   }
 
@@ -213,7 +215,7 @@ function findFunctionReplaceEnd(value: string, start: number): number {
   return value[index] === "(" ? index + 1 : index;
 }
 
-function findChunkReplaceEnd(value: string, start: number): number {
+function findArgumentReplaceEnd(value: string, start: number): number {
   let index = start;
   while (index < value.length && !/[,()[\]{}|\s]/u.test(value[index] ?? "")) index += 1;
   return value[index] === ")" ? index + 1 : index;

@@ -11,6 +11,7 @@ import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/s
 import { EditorView, keymap, placeholder as placeholderExtension } from "@codemirror/view";
 import type { RefObject } from "react";
 
+import { activatePromptArgumentsOnCompletion } from "./completion";
 import {
   applyHighlightMode,
   naiPromptEditorTheme,
@@ -180,6 +181,7 @@ export function completionExtension(enabled: boolean, source: CompletionSource) 
     ? autocompletion({
         override: [source],
         activateOnTyping: true,
+        activateOnCompletion: activatePromptArgumentsOnCompletion,
         activateOnTypingDelay: 120,
         interactionDelay: 0,
       })

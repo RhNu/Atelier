@@ -5,6 +5,7 @@ import {
   getPromptCompletionContext,
   type PromptCompletionItem,
 } from "./completion-model";
+import { NAI_PROMPT_FUNCTIONS, type PromptFunctionDefinition } from "./prompt-functions";
 
 const tag: PromptCompletionItem = {
   kind: "tag",
@@ -74,6 +75,67 @@ describe("prompt completion model", () => {
       value: "$chunk(lighting), solo",
       selectionStart: 18,
       selectionEnd: 18,
+    });
+  });
+
+  it("selects argument completion from function parameter metadata", () => {
+    const functions: readonly PromptFunctionDefinition[] = [
+      ...NAI_PROMPT_FUNCTIONS,
+      {
+        name: "compose",
+        detailMessage: "reusableChunk",
+        parameters: [
+          {
+            name: "prefix",
+            required: true,
+            acceptsNamed: false,
+            completion: null,
+          },
+          {
+            name: "source",
+            required: true,
+            acceptsNamed: false,
+            completion: "chunk",
+          },
+        ],
+      },
+    ];
+
+    expect(getPromptCompletionContext('$compose("free,text", li', 24, false, functions)).toEqual({
+      mode: "chunk",
+      query: "li",
+      filterStart: 22,
+      filterEnd: 24,
+      replaceStart: 22,
+      replaceEnd: 24,
+      manual: false,
+    });
+  });
+
+  it("suppresses candidates for parameters declared as free input", () => {
+    const functions: readonly PromptFunctionDefinition[] = [
+      {
+        name: "caption",
+        detailMessage: "reusableChunk",
+        parameters: [
+          {
+            name: "text",
+            required: true,
+            acceptsNamed: false,
+            completion: null,
+          },
+        ],
+      },
+    ];
+
+    expect(getPromptCompletionContext("$caption(", 9, false, functions)).toEqual({
+      mode: "tag",
+      query: "",
+      filterStart: 9,
+      filterEnd: 9,
+      replaceStart: 9,
+      replaceEnd: 9,
+      manual: false,
     });
   });
 });

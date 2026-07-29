@@ -1,4 +1,5 @@
 import {
+  acceptCompletion,
   autocompletion,
   CompletionContext,
   completionStatus,
@@ -17,7 +18,7 @@ import type {
   PromptLexiconSearchQueryDto,
 } from "@/types";
 
-import { createNaiPromptCompletion } from "./completion";
+import { activatePromptArgumentsOnCompletion, createNaiPromptCompletion } from "./completion";
 
 const mocks = vi.hoisted(() => ({
   listChunks: vi.fn<(request: ListPromptChunksRequestDto) => Promise<PromptChunkPageDto>>(),
@@ -137,6 +138,69 @@ describe("CodeMirror prompt completion source", () => {
       expect(currentCompletions(view.state).map((completion) => completion.label)).toEqual([
         "cine_result",
       ]);
+    } finally {
+      view.destroy();
+      parent.remove();
+    }
+  });
+
+  it("opens argument candidates immediately after accepting a function completion", async () => {
+    const source = createNaiPromptCompletion(queryClient(), messages);
+    const parent = document.body.appendChild(document.createElement("div"));
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        extensions: autocompletion({
+          override: [source],
+          activateOnTyping: true,
+          activateOnTypingDelay: 0,
+          activateOnCompletion: activatePromptArgumentsOnCompletion,
+          interactionDelay: 0,
+        }),
+      }),
+    });
+    try {
+      insert(view, "$ch");
+      await vi.waitFor(() => expect(currentCompletions(view.state)).toHaveLength(1));
+
+      expect(acceptCompletion(view)).toBe(true);
+      expect(view.state.doc.toString()).toBe("$chunk(");
+      await vi.waitFor(() =>
+        expect(currentCompletions(view.state).map((completion) => completion.label)).toEqual([
+          "lighting",
+        ]),
+      );
+    } finally {
+      view.destroy();
+      parent.remove();
+    }
+  });
+
+  it("opens argument candidates when the opening parenthesis is typed", async () => {
+    const source = createNaiPromptCompletion(queryClient(), messages);
+    const parent = document.body.appendChild(document.createElement("div"));
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        extensions: autocompletion({
+          override: [source],
+          activateOnTyping: true,
+          activateOnTypingDelay: 0,
+          activateOnCompletion: activatePromptArgumentsOnCompletion,
+          interactionDelay: 0,
+        }),
+      }),
+    });
+    try {
+      insert(view, "$chunk");
+      await vi.waitFor(() => expect(currentCompletions(view.state)).toHaveLength(1));
+      insert(view, "(");
+
+      await vi.waitFor(() =>
+        expect(currentCompletions(view.state).map((completion) => completion.label)).toEqual([
+          "lighting",
+        ]),
+      );
     } finally {
       view.destroy();
       parent.remove();

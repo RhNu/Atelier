@@ -1,6 +1,7 @@
 import type { Diagnostic } from "@codemirror/lint";
 
 import type { NaiPromptProfile, PromptEditorMessages } from "./prompt-analysis";
+import { promptFunctionAcceptsArgumentCount, promptFunctionDefinition } from "./prompt-functions";
 import {
   firstPromptDescendant,
   hasPromptAncestor,
@@ -143,7 +144,8 @@ function diagnoseFunctions(
       diagnostics.push(warning(node, "unclosed_function_call", messages.unclosedFunctionCall));
     }
     if (!name || !open) continue;
-    if (text.slice(name.from, name.to) !== "chunk") {
+    const definition = promptFunctionDefinition(text.slice(name.from, name.to));
+    if (!definition) {
       diagnostics.push(error(name, "unknown_function", messages.unknownFunction));
       continue;
     }
@@ -156,12 +158,18 @@ function diagnoseFunctions(
       .slice(1)
       .map((to, index) => text.slice(boundaries[index], to).trim())
       .filter(Boolean);
-    if (arguments_.length !== 1) {
+    if (!promptFunctionAcceptsArgumentCount(definition, arguments_.length)) {
       diagnostics.push(error(node, "invalid_function_arity", messages.invalidFunctionArity));
     }
     for (const argument of arguments_) {
       const equals = argument.indexOf("=");
-      if (equals >= 0 && argument.slice(0, equals).trim() !== "name") {
+      const named = equals >= 0 ? argument.slice(0, equals).trim() : null;
+      if (
+        named !== null &&
+        !definition.parameters.some(
+          (parameter) => parameter.acceptsNamed && parameter.name === named,
+        )
+      ) {
         diagnostics.push(
           error(node, "invalid_function_argument", messages.invalidFunctionArgument),
         );

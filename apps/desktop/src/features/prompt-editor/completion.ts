@@ -5,6 +5,7 @@ import {
   type CompletionResult,
   type CompletionSource,
 } from "@codemirror/autocomplete";
+import { Transaction } from "@codemirror/state";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { frontendLogger } from "@/app/logger";
@@ -17,21 +18,16 @@ import {
   type PromptCompletionContext,
   type PromptCompletionItem,
 } from "./completion-model";
+import { functionStartsArgumentCompletion, NAI_PROMPT_FUNCTIONS } from "./prompt-functions";
 
 export type PromptCompletionMessages = {
   reusableChunk: string;
   promptChunk: string;
 };
 
-const FUNCTION_ITEM: PromptCompletionItem = {
-  kind: "function",
-  id: "function:chunk",
-  label: "chunk",
-  value: "chunk",
-  detail: null,
-  rank: "function",
-};
 const VISIBLE_CHUNK_LIMIT = 20;
+const activateArguments = Symbol("activate prompt function arguments");
+type NaiCompletion = Completion & { [activateArguments]?: boolean };
 
 export function createNaiPromptCompletion(
   queryClient: QueryClient,
@@ -116,8 +112,16 @@ function functionItems(
   messages: PromptCompletionMessages,
 ): PromptCompletionItem[] {
   const query = normalize(context.query);
-  if (query && !FUNCTION_ITEM.label.includes(query)) return [];
-  return [{ ...FUNCTION_ITEM, detail: messages.reusableChunk }];
+  return NAI_PROMPT_FUNCTIONS.filter((definition) => !query || definition.name.includes(query)).map(
+    (definition) => ({
+      kind: "function",
+      id: `function:${definition.name}`,
+      label: definition.name,
+      value: definition.name,
+      detail: messages[definition.detailMessage],
+      rank: "function",
+    }),
+  );
 }
 
 function chunkItems(
@@ -156,7 +160,7 @@ function completionForItem(
 ): Completion {
   const label =
     context.mode === "tag" && item.kind === "chunk" ? `$chunk(${item.label})` : item.label;
-  return {
+  const completion: NaiCompletion = {
     label,
     detail: item.detail ?? undefined,
     type: item.kind === "tag" ? "text" : "function",
@@ -170,10 +174,18 @@ function completionForItem(
       view.dispatch({
         changes: { from: edit.replaceStart, to: edit.replaceEnd, insert: edit.insert },
         selection: { anchor: edit.selectionStart },
-        annotations: pickedCompletion.of(completion),
+        annotations: [pickedCompletion.of(completion), Transaction.userEvent.of("input.complete")],
       });
     },
   };
+  if (item.kind === "function" && functionStartsArgumentCompletion(item.value)) {
+    completion[activateArguments] = true;
+  }
+  return completion;
+}
+
+export function activatePromptArgumentsOnCompletion(completion: Completion): boolean {
+  return (completion as NaiCompletion)[activateArguments] === true;
 }
 
 function shouldFetchChunks(context: PromptCompletionContext): boolean {
