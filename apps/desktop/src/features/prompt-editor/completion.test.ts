@@ -192,7 +192,9 @@ describe("CodeMirror prompt completion source", () => {
       label: "comment",
       detail: "Compile-time comment",
     });
-    expect(activatePromptArgumentsOnCompletion(result?.options[0] ?? {})).toBe(false);
+    const completion = result?.options[0];
+    if (!completion) throw new Error("Expected the comment completion");
+    expect(activatePromptArgumentsOnCompletion(completion)).toBe(false);
   });
 
   it("opens argument candidates when the opening parenthesis is typed", async () => {
