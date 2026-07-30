@@ -9,7 +9,7 @@ export type PromptFunctionParameter = {
 
 export type PromptFunctionDefinition = {
   name: string;
-  detailMessage: "reusableChunk";
+  detailMessage: "reusableChunk" | "compileTimeComment";
   parameters: readonly PromptFunctionParameter[];
 };
 
@@ -23,6 +23,18 @@ export const NAI_PROMPT_FUNCTIONS: readonly PromptFunctionDefinition[] = [
         required: true,
         acceptsNamed: false,
         completion: "chunk",
+      },
+    ],
+  },
+  {
+    name: "comment",
+    detailMessage: "compileTimeComment",
+    parameters: [
+      {
+        name: "text",
+        required: true,
+        acceptsNamed: false,
+        completion: null,
       },
     ],
   },

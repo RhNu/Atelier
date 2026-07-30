@@ -22,6 +22,7 @@ import { functionStartsArgumentCompletion, NAI_PROMPT_FUNCTIONS } from "./prompt
 
 export type PromptCompletionMessages = {
   reusableChunk: string;
+  compileTimeComment: string;
   promptChunk: string;
 };
 

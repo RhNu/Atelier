@@ -1,6 +1,7 @@
 export const promptEditor = {
   completions: "Prompt completions",
   reusableChunk: "Reusable prompt chunk",
+  compileTimeComment: "Comment removed when the prompt is compiled",
   promptChunk: "Prompt chunk",
   diagnostic: {
     unmatchedStrengtheningClose: "Strengthening close delimiter has no matching opener.",

@@ -4,6 +4,7 @@ import { promptEditor as enPromptEditor } from "../en/promptEditor";
 export const promptEditor = {
   completions: "提示词补全",
   reusableChunk: "可复用提示词片段",
+  compileTimeComment: "编译提示词时移除的注释",
   promptChunk: "提示词片段",
   diagnostic: {
     unmatchedStrengtheningClose: "增强结束符没有对应的开始符。",

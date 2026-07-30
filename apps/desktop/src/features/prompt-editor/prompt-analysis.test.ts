@@ -19,6 +19,15 @@ describe("NAI prompt syntax corpus", () => {
     expect(functionSpan?.to).toBe(19);
   });
 
+  it("recognizes compile-time comments and validates their arity", () => {
+    expect(
+      diagnosticCodes(analyzePrompt('$comment("draft note")', "novelai_v45").diagnostics),
+    ).toEqual([]);
+    expect(diagnosticCodes(analyzePrompt("$comment()", "novelai_v45").diagnostics)).toEqual([
+      "invalid_function_arity",
+    ]);
+  });
+
   it("does not classify numeric-prefix tags as numeric weights", () => {
     expect(analyzePrompt("1girl", "novelai_v45")).toEqual({
       diagnostics: [],

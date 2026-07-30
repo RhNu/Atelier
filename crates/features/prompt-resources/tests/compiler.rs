@@ -140,6 +140,47 @@ fn compiler_uses_custom_registry_and_traces_empty_outputs() {
 }
 
 #[test]
+fn compiler_removes_comments_and_normalizes_boundaries() {
+    block_on(async {
+        let compiler = PromptCompiler::new(MemoryPromptResourceRepository::default());
+        let result = compiler
+            .compile(CompilePromptRequest::new(
+                r#"1girl, $comment("try composition (B), later"), blue eyes"#,
+            ))
+            .await
+            .unwrap();
+
+        assert_eq!(result.expanded_prompt, "1girl, blue eyes");
+        assert_eq!(result.trace.function_calls[0].function_name, "comment");
+        assert_eq!(
+            result.trace.function_calls[0].resolved_arguments,
+            vec!["try composition (B), later".to_owned()]
+        );
+        assert_eq!(result.trace.function_calls[0].result_text, None);
+
+        let only_comment = compiler
+            .compile(CompilePromptRequest::new(r#"$comment("draft")"#))
+            .await
+            .unwrap();
+        assert!(only_comment.expanded_prompt.is_empty());
+    });
+}
+
+#[test]
+fn compiler_rejects_non_string_comment_arguments() {
+    block_on(async {
+        let compiler = PromptCompiler::new(MemoryPromptResourceRepository::default());
+        let error = compiler
+            .compile(CompilePromptRequest::new("$comment(draft)"))
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.kind(), PromptResourceErrorKind::InvalidRequest);
+        assert!(error.to_string().contains("expects one string argument"));
+    });
+}
+
+#[test]
 fn compiler_rejects_invalid_chunk_arguments() {
     block_on(async {
         let repository = repository_with_chunks([("face", "portrait")]).await;

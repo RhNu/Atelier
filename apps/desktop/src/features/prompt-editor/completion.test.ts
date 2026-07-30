@@ -38,7 +38,11 @@ vi.mock("@/platform/atelier", () => ({
   },
 }));
 
-const messages = { reusableChunk: "Reusable chunk", promptChunk: "Prompt chunk" };
+const messages = {
+  reusableChunk: "Reusable chunk",
+  compileTimeComment: "Compile-time comment",
+  promptChunk: "Prompt chunk",
+};
 
 describe("CodeMirror prompt completion source", () => {
   beforeEach(() => {
@@ -178,6 +182,17 @@ describe("CodeMirror prompt completion source", () => {
       view.destroy();
       parent.remove();
     }
+  });
+
+  it("offers the compile-time comment function without argument candidates", async () => {
+    const result = await complete(createNaiPromptCompletion(queryClient(), messages), "$co", false);
+
+    expect(result?.options).toHaveLength(1);
+    expect(result?.options[0]).toMatchObject({
+      label: "comment",
+      detail: "Compile-time comment",
+    });
+    expect(activatePromptArgumentsOnCompletion(result?.options[0] ?? {})).toBe(false);
   });
 
   it("opens argument candidates when the opening parenthesis is typed", async () => {

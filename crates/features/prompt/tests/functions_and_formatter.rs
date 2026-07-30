@@ -87,8 +87,9 @@ fn named_function_arguments_allow_surrounding_whitespace() {
 }
 
 #[test]
-fn atelier_defaults_only_accept_chunk_function() {
-    let parsed = parse_prompt(r"$preset(v4), $chunk(face), $chunk(name = face)");
+fn atelier_defaults_accept_registered_functions_only() {
+    let parsed =
+        parse_prompt(r#"$preset(v4), $chunk(face), $chunk(name = face), $comment("draft note")"#);
     let diagnostics = parsed.diagnostics_with_functions(
         &PromptSyntaxProfile::novelai_v45(),
         &FunctionRegistry::atelier_defaults(),

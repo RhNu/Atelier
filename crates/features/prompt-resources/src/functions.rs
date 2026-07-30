@@ -80,7 +80,9 @@ impl PromptFunctionRegistry {
 
     #[must_use]
     pub fn atelier_defaults() -> Self {
-        Self::empty().with_function(Box::new(ChunkFunction::new()))
+        Self::empty()
+            .with_function(Box::new(ChunkFunction::new()))
+            .with_function(Box::new(CommentFunction::new()))
     }
 
     #[must_use]
@@ -150,6 +152,38 @@ impl PromptFunction for ChunkFunction {
     }
 }
 
+pub struct CommentFunction {
+    descriptor: PromptFunctionDescriptor,
+}
+
+impl CommentFunction {
+    pub fn new() -> Self {
+        Self {
+            descriptor: PromptFunctionDescriptor::new("comment"),
+        }
+    }
+}
+
+#[async_trait]
+impl PromptFunction for CommentFunction {
+    fn descriptor(&self) -> &PromptFunctionDescriptor {
+        &self.descriptor
+    }
+
+    async fn execute(
+        &self,
+        call: &ExtensionCall,
+        _context: &PromptFunctionContext<'_>,
+    ) -> PromptResourceResult<PromptFunctionOutput> {
+        comment_text_argument(call)?;
+        Ok(PromptFunctionOutput::default())
+    }
+
+    fn resolved_arguments(&self, call: &ExtensionCall) -> PromptResourceResult<Vec<String>> {
+        Ok(vec![comment_text_argument(call)?])
+    }
+}
+
 pub fn chunk_key_argument(call: &ExtensionCall) -> PromptResourceResult<crate::PromptChunkKey> {
     if let Some(key) = chunk_call_key(call) {
         return crate::PromptChunkKey::parse(key);
@@ -167,4 +201,16 @@ pub fn chunk_key_argument(call: &ExtensionCall) -> PromptResourceResult<crate::P
     Err(PromptResourceError::invalid_request(format!(
         "`chunk` expects one identifier argument, got `{actual}`"
     )))
+}
+
+fn comment_text_argument(call: &ExtensionCall) -> PromptResourceResult<String> {
+    if let [arg] = call.args.as_slice()
+        && arg.name.is_none()
+        && let FunctionValue::String(value) = &arg.value
+    {
+        return Ok(value.clone());
+    }
+    Err(PromptResourceError::invalid_request(
+        "`comment` expects one string argument",
+    ))
 }

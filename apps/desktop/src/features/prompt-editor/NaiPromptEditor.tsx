@@ -53,6 +53,7 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
       () =>
         createNaiPromptCompletion(queryClient, {
           reusableChunk: t("reusableChunk"),
+          compileTimeComment: t("compileTimeComment"),
           promptChunk: t("promptChunk"),
         }),
       [queryClient, t],
