@@ -22,6 +22,7 @@ image = { workspace = true, features = ["png"] }
 arboard = "3.6"
 log = "0.4"
 atelier-adapter-keyring = { workspace = true }
+atelier-adapter-danbooru = { workspace = true }
 atelier-adapter-image-codec = { workspace = true }
 atelier-adapter-novelai = { workspace = true }
 atelier-adapter-lexicon-bundle = { workspace = true }

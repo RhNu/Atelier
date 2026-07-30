@@ -94,6 +94,22 @@ impl From<atelier_gallery::GalleryError> for AppError {
     }
 }
 
+impl From<atelier_danbooru::DanbooruError> for AppError {
+    fn from(error: atelier_danbooru::DanbooruError) -> Self {
+        let code = match error.kind {
+            atelier_danbooru::DanbooruErrorKind::InvalidRequest => "danbooru_invalid_request",
+            atelier_danbooru::DanbooruErrorKind::Unauthorized => "danbooru_unauthorized",
+            atelier_danbooru::DanbooruErrorKind::Forbidden => "danbooru_forbidden",
+            atelier_danbooru::DanbooruErrorKind::NotFound => "danbooru_not_found",
+            atelier_danbooru::DanbooruErrorKind::RateLimited => "danbooru_rate_limited",
+            atelier_danbooru::DanbooruErrorKind::Unavailable => "danbooru_unavailable",
+            atelier_danbooru::DanbooruErrorKind::InvalidResponse => "danbooru_invalid_response",
+            atelier_danbooru::DanbooruErrorKind::MediaRejected => "danbooru_media_rejected",
+        };
+        Self::new(code, error.message)
+    }
+}
+
 impl From<atelier_image_analysis::ImageAnalysisError> for AppError {
     fn from(error: atelier_image_analysis::ImageAnalysisError) -> Self {
         Self::new(error.kind().to_string(), error.message())

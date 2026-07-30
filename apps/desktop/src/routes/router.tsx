@@ -3,6 +3,7 @@ import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/
 import { DirectorPage } from "../features/director";
 import { GalleryPage } from "../features/gallery";
 import { GeneratePage } from "../features/generation";
+import { InspirationPage } from "../features/inspiration";
 import { LexiconPage } from "../features/lexicon";
 import { ResourcesPage } from "../features/resources";
 import { SettingsPage } from "../features/settings";
@@ -53,6 +54,12 @@ const galleryRoute = createRoute({
   component: GalleryPage,
 });
 
+const inspirationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/inspiration",
+  component: InspirationPage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/settings",
@@ -65,6 +72,7 @@ export const appRouteTree = rootRoute.addChildren([
   directorRoute,
   resourcesRoute,
   lexiconRoute,
+  inspirationRoute,
   galleryRoute,
   settingsRoute,
 ]);

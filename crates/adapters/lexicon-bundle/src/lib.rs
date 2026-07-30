@@ -160,6 +160,10 @@ impl LexiconEngine for LexiconBundle {
         sqlite::details(&self.connection()?, entity_id)
     }
 
+    fn lookup_canonical_names(&self, names: &[String]) -> LexiconResult<Vec<LexiconSearchItem>> {
+        sqlite::lookup_canonical_names(&self.connection()?, names)
+    }
+
     fn resolve_entities(&self, entity_ids: &[u64]) -> LexiconResult<Vec<ResolvedLexiconEntity>> {
         sqlite::resolve_entities(&self.connection()?, entity_ids)
     }

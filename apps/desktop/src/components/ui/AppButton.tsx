@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type AppButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type"> & {
+type AppButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
   children: ReactNode;
 };
@@ -17,21 +17,34 @@ const variantClasses = {
 
 export function AppButton({
   variant = "primary",
+  type = "button",
   className = "",
   children,
   ...props
 }: AppButtonProps) {
+  const buttonClassName = [
+    "inline-flex h-9 items-center justify-center gap-2 border px-3 text-sm font-semibold transition-colors",
+    "disabled:cursor-not-allowed disabled:opacity-50",
+    variantClasses[variant],
+    className,
+  ].join(" ");
+
+  if (type === "submit") {
+    return (
+      <button type="submit" className={buttonClassName} {...props}>
+        {children}
+      </button>
+    );
+  }
+  if (type === "reset") {
+    return (
+      <button type="reset" className={buttonClassName} {...props}>
+        {children}
+      </button>
+    );
+  }
   return (
-    <button
-      type="button"
-      className={[
-        "inline-flex h-9 items-center justify-center gap-2 border px-3 text-sm font-semibold transition-colors",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        variantClasses[variant],
-        className,
-      ].join(" ")}
-      {...props}
-    >
+    <button type="button" className={buttonClassName} {...props}>
       {children}
     </button>
   );

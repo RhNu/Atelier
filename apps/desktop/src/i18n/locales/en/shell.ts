@@ -30,6 +30,7 @@ export const shell = {
     director: "Director",
     resources: "Resources",
     lexicon: "Lexicon",
+    inspiration: "Inspiration",
     gallery: "Gallery",
     settings: "Settings",
   },

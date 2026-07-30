@@ -8,6 +8,7 @@ members = [
     "crates/adapters/image-analysis-onnx",
     "crates/adapters/image-codec",
     "crates/adapters/database",
+    "crates/adapters/danbooru",
     "crates/adapters/storage-fs",
     "crates/adapters/onnx-runtime",
     "crates/adapters/lexicon-bundle",
@@ -15,6 +16,7 @@ members = [
     "crates/foundation",
     "crates/kernel",
     "crates/features/director",
+    "crates/features/danbooru",
     "crates/features/artifacts",
     "crates/features/generation",
     "crates/features/gallery",
@@ -58,6 +60,7 @@ memmap2 = "0.9"
 rayon = "1"
 tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
 atelier-adapter-database = { path = "crates/adapters/database" }
+atelier-adapter-danbooru = { path = "crates/adapters/danbooru" }
 atelier-adapter-image-analysis-onnx = { path = "crates/adapters/image-analysis-onnx" }
 atelier-adapter-image-codec = { path = "crates/adapters/image-codec" }
 atelier-adapter-keyring = { path = "crates/adapters/keyring" }
@@ -70,6 +73,7 @@ atelier-app = { path = "crates/app" }
 atelier-app-api = { path = "crates/app-api" }
 atelier-artifacts = { path = "crates/features/artifacts" }
 atelier-director = { path = "crates/features/director" }
+atelier-danbooru = { path = "crates/features/danbooru" }
 atelier-foundation = { path = "crates/foundation" }
 atelier-gallery = { path = "crates/features/gallery" }
 atelier-image-analysis = { path = "crates/features/image-analysis" }

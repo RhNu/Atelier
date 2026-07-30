@@ -420,6 +420,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "atelier-adapter-danbooru"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-danbooru",
+ "atelier-secrets",
+ "futures-timer",
+ "futures-util",
+ "log",
+ "reqwest",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "atelier-adapter-database"
 version = "0.1.0"
 dependencies = [
@@ -580,6 +595,7 @@ dependencies = [
  "atelier-adapter-storage-fs",
  "atelier-app-api",
  "atelier-artifacts",
+ "atelier-danbooru",
  "atelier-director",
  "atelier-gallery",
  "atelier-generation",
@@ -603,6 +619,7 @@ dependencies = [
  "futures-util",
  "image",
  "rusqlite",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.19",
 ]
@@ -627,10 +644,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "atelier-danbooru"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-secrets",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "atelier-desktop"
 version = "0.1.0"
 dependencies = [
  "arboard",
+ "atelier-adapter-danbooru",
  "atelier-adapter-image-analysis-onnx",
  "atelier-adapter-image-codec",
  "atelier-adapter-keyring",

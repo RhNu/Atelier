@@ -12,6 +12,11 @@ use atelier_app_api::{
         ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto, SubscriptionSummaryDto,
         UpdateApiKeyRequestDto,
     },
+    danbooru::{
+        DanbooruAccountDto, DanbooruMediaRequestDto, DanbooruPostDetailDto,
+        DanbooruPostDetailRequestDto, DanbooruPostPageDto, DanbooruSearchRequestDto,
+        SaveDanbooruAccountRequestDto,
+    },
     director::{DirectorToolResultDto, RunDirectorToolRequestDto},
     error::ErrorEnvelopeDto,
     event::{AppEventPageDto, EventsSinceRequestDto},
@@ -111,6 +116,59 @@ pub async fn update_global_settings(
     request: UpdateGlobalSettingsRequestDto,
 ) -> CommandResult<GlobalSettingsDto> {
     state.host.update_global_settings(request).await
+}
+
+#[tauri::command]
+pub async fn get_danbooru_account(
+    state: State<'_, DesktopState>,
+) -> CommandResult<DanbooruAccountDto> {
+    state.host.get_danbooru_account().await
+}
+
+#[tauri::command]
+pub async fn save_danbooru_account(
+    state: State<'_, DesktopState>,
+    request: SaveDanbooruAccountRequestDto,
+) -> CommandResult<DanbooruAccountDto> {
+    state.host.save_danbooru_account(request).await
+}
+
+#[tauri::command]
+pub async fn probe_danbooru_account(
+    state: State<'_, DesktopState>,
+) -> CommandResult<DanbooruAccountDto> {
+    state.host.probe_danbooru_account().await
+}
+
+#[tauri::command]
+pub async fn delete_danbooru_account(
+    state: State<'_, DesktopState>,
+) -> CommandResult<DanbooruAccountDto> {
+    state.host.delete_danbooru_account().await
+}
+
+#[tauri::command]
+pub async fn search_danbooru_posts(
+    state: State<'_, DesktopState>,
+    request: DanbooruSearchRequestDto,
+) -> CommandResult<DanbooruPostPageDto> {
+    state.host.search_danbooru_posts(request).await
+}
+
+#[tauri::command]
+pub async fn get_danbooru_post_detail(
+    state: State<'_, DesktopState>,
+    request: DanbooruPostDetailRequestDto,
+) -> CommandResult<DanbooruPostDetailDto> {
+    state.host.get_danbooru_post_detail(request).await
+}
+
+#[tauri::command]
+pub async fn get_danbooru_media(
+    state: State<'_, DesktopState>,
+    request: DanbooruMediaRequestDto,
+) -> CommandResult<ResourceImageDto> {
+    state.host.get_danbooru_media(request).await
 }
 
 #[tauri::command]

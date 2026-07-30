@@ -3,6 +3,7 @@ import {
   Image,
   KeyRound,
   MonitorCog,
+  Plug,
   ShieldCheck,
   WandSparkles,
   type LucideIcon,
@@ -15,6 +16,7 @@ import { AppPanel } from "@/components/ui";
 export type SettingsSection =
   | "workspace"
   | "account"
+  | "connections"
   | "generation"
   | "images"
   | "frontend"
@@ -22,10 +24,18 @@ export type SettingsSection =
 
 type SettingSection = {
   id: SettingsSection;
-  labelKey: "interface" | "safety" | "workspace" | "account" | "generation" | "images";
+  labelKey:
+    | "interface"
+    | "safety"
+    | "connections"
+    | "workspace"
+    | "account"
+    | "generation"
+    | "images";
   descriptionKey:
     | "interfaceDescription"
     | "safetyDescription"
+    | "connectionsDescription"
     | "workspaceDescription"
     | "accountDescription"
     | "generationDescription"
@@ -34,6 +44,12 @@ type SettingSection = {
 };
 
 const applicationSections: ReadonlyArray<SettingSection> = [
+  {
+    id: "connections",
+    labelKey: "connections",
+    descriptionKey: "connectionsDescription",
+    icon: Plug,
+  },
   {
     id: "frontend",
     labelKey: "interface",

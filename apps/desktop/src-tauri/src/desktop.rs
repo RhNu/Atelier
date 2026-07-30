@@ -5,6 +5,7 @@ use crate::desktop_system::{
     DesktopFileDialog, DesktopNotifier, DesktopPathOpener, DesktopPaths, DesktopSystem,
     DesktopSystemError, DesktopSystemResult, PickFilesOptions,
 };
+use atelier_adapter_danbooru::ReqwestDanbooruClient;
 use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_lexicon_bundle::LexiconBundle;
 use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
@@ -317,7 +318,8 @@ pub fn build_desktop_state(
                 .clone()
                 .map(|pipeline| pipeline as Arc<dyn atelier_safety::SafetyScanner>),
             lexicon,
-        );
+        )
+        .with_danbooru_client(Arc::new(ReqwestDanbooruClient::new()?));
     let primary_installer = image_analysis.clone();
     if let Some(analysis) = image_analysis {
         runtime = runtime.with_image_analysis(

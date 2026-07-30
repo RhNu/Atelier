@@ -121,4 +121,22 @@ impl GlobalSettingsService {
             .await?;
         Ok(settings)
     }
+
+    /// Updates the application-global Danbooru account identity.
+    ///
+    /// Secret values are deliberately stored through the separate keyring port.
+    ///
+    /// # Errors
+    /// Returns an error when the repository cannot be read or written.
+    pub async fn update_danbooru_username(
+        &self,
+        username: Option<String>,
+    ) -> SettingsResult<GlobalSettings> {
+        let mut settings = self.repository.get_global_settings().await?;
+        settings.integrations.danbooru_username = username;
+        self.repository
+            .save_global_settings(settings.clone())
+            .await?;
+        Ok(settings)
+    }
 }

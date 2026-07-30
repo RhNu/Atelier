@@ -17,6 +17,7 @@ atelier-adapter-storage-fs = { workspace = true }
 atelier-app-api = { workspace = true }
 atelier-artifacts = { workspace = true }
 atelier-director = { workspace = true }
+atelier-danbooru = { workspace = true }
 atelier-gallery = { workspace = true }
 atelier-generation = { workspace = true }
 atelier-image-analysis = { workspace = true }
@@ -32,6 +33,7 @@ atelier-secrets = { workspace = true }
 atelier-settings = { workspace = true }
 atelier-vibe = { workspace = true }
 atelier-workspace = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

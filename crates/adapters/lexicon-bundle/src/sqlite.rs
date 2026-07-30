@@ -196,6 +196,39 @@ pub fn resolve_entities(
     Ok(resolved)
 }
 
+pub fn lookup_canonical_names(
+    connection: &Connection,
+    names: &[String],
+) -> LexiconResult<Vec<LexiconSearchItem>> {
+    if names.len() > 500 {
+        return Err(LexiconError::invalid_request(
+            "no more than 500 canonical names can be looked up at once",
+        ));
+    }
+    let mut statement = connection
+        .prepare(
+            "SELECT id, canonical_name, primary_translation, kind, category,
+                    post_count, rating, canonical_name, 'canonical_exact', 1.0
+             FROM entities WHERE canonical_name = ?1",
+        )
+        .map_err(sql_error)?;
+    let mut seen = HashSet::new();
+    let mut items = Vec::new();
+    for name in names {
+        if !seen.insert(name.as_str()) {
+            continue;
+        }
+        if let Some(item) = statement
+            .query_row([name], map_search_item)
+            .optional()
+            .map_err(sql_error)?
+        {
+            items.push(item);
+        }
+    }
+    Ok(items)
+}
+
 pub fn context_scores(
     connection: &Connection,
     selected: &[u64],

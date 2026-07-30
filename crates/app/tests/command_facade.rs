@@ -63,6 +63,8 @@ use atelier_settings::{
 use atelier_vibe::{EncodeVibeRequest, EncodedVibe, NovelAiVibeClient, VibeResult};
 use futures_executor::block_on;
 
+#[path = "command_facade/danbooru_commands.rs"]
+mod danbooru_commands;
 #[path = "command_facade/session_commands.rs"]
 mod session_commands;
 #[path = "command_facade/worker_events.rs"]

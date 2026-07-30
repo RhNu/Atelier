@@ -1,5 +1,6 @@
 import type {
   GalleryQueryDto,
+  DanbooruSearchRequestDto,
   GenerationHistoryQueryDto,
   ListPromptPresetsRequestDto,
   ListVibeDocumentsRequestDto,
@@ -33,6 +34,15 @@ export const queryKeys = {
     root: () => ["workspace", "account"] as const,
     apiKeys: () => ["workspace", "account", "api-keys"] as const,
     activeSummary: () => ["workspace", "account", "active-summary"] as const,
+  },
+  danbooru: {
+    root: () => ["app", "danbooru"] as const,
+    account: () => ["app", "danbooru", "account"] as const,
+    search: (request: Omit<DanbooruSearchRequestDto, "before_id">) =>
+      ["app", "danbooru", "search", request] as const,
+    detail: (postId: number | null) => ["app", "danbooru", "detail", postId] as const,
+    media: (postId: number, variant: "preview" | "sample") =>
+      ["app", "danbooru", "media", postId, variant] as const,
   },
   settings: {
     root: () => ["workspace", "settings"] as const,

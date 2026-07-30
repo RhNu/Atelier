@@ -1,4 +1,5 @@
 mod account;
+mod danbooru;
 mod director;
 mod events;
 mod gallery;
@@ -19,6 +20,7 @@ use atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory,
 };
 use atelier_app_api::{error::ErrorEnvelopeDto, event::AppEventDto};
+use atelier_danbooru::{DanbooruClient, UnavailableDanbooruClient};
 use atelier_image_analysis::ImageAnalysisModelManager;
 use atelier_prompt_lexicon::{LexiconEngine, UnavailableLexicon};
 use atelier_safety::{SafetyPolicyControl, SafetyScanner};
@@ -47,6 +49,8 @@ pub struct AtelierRuntime<
     image_analysis_models: Option<Arc<dyn ImageAnalysisModelManager>>,
     safety_policy_control: Option<Arc<dyn SafetyPolicyControl>>,
     lexicon: Arc<dyn LexiconEngine>,
+    danbooru: Arc<dyn DanbooruClient>,
+    danbooru_account_gate: futures::lock::Mutex<()>,
     event_listeners: Mutex<Vec<AppEventListener>>,
     global_settings: GlobalSettingsService,
 }
@@ -83,6 +87,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             image_analysis_models: None,
             safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
+            danbooru: Arc::new(UnavailableDanbooruClient),
+            danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
         }
@@ -104,6 +110,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             image_analysis_models: None,
             safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
+            danbooru: Arc::new(UnavailableDanbooruClient),
+            danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
         }
@@ -126,6 +134,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             image_analysis_models: None,
             safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
+            danbooru: Arc::new(UnavailableDanbooruClient),
+            danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings,
         }
@@ -149,6 +159,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             image_analysis_models: None,
             safety_policy_control: None,
             lexicon,
+            danbooru: Arc::new(UnavailableDanbooruClient),
+            danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings,
         }
@@ -162,6 +174,12 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
     ) -> Self {
         self.image_analysis_models = Some(models);
         self.safety_policy_control = Some(safety_policy_control);
+        self
+    }
+
+    #[must_use]
+    pub fn with_danbooru_client(mut self, client: Arc<dyn DanbooruClient>) -> Self {
+        self.danbooru = client;
         self
     }
 

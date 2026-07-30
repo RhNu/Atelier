@@ -40,6 +40,14 @@ pub trait LexiconEngine: Send + Sync {
     /// Returns an error if the entity does not exist or metadata cannot be read.
     fn entity(&self, entity_id: u64) -> LexiconResult<LexiconEntityDetail>;
 
+    /// Looks up canonical names in one bounded local operation.
+    ///
+    /// Missing names are omitted rather than treated as errors.
+    ///
+    /// # Errors
+    /// Returns an error for oversized batches or unavailable lexical data.
+    fn lookup_canonical_names(&self, names: &[String]) -> LexiconResult<Vec<LexiconSearchItem>>;
+
     /// Resolves a batch atomically for prompt insertion.
     ///
     /// # Errors
@@ -82,6 +90,10 @@ impl LexiconEngine for UnavailableLexicon {
     }
 
     fn entity(&self, _entity_id: u64) -> LexiconResult<LexiconEntityDetail> {
+        Err(LexiconError::unavailable(self.message.clone()))
+    }
+
+    fn lookup_canonical_names(&self, _names: &[String]) -> LexiconResult<Vec<LexiconSearchItem>> {
         Err(LexiconError::unavailable(self.message.clone()))
     }
 

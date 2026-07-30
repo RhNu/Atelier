@@ -12,6 +12,12 @@ import type {
   CompiledPromptDto,
   CopyResourceImageRequestDto,
   CreateApiKeyRequestDto,
+  DanbooruAccountDto,
+  DanbooruMediaRequestDto,
+  DanbooruPostDetailDto,
+  DanbooruPostDetailRequestDto,
+  DanbooruPostPageDto,
+  DanbooruSearchRequestDto,
   DeleteApiKeyRequestDto,
   DeleteApiKeyResponseDto,
   DeleteGalleryItemsRequestDto,
@@ -80,6 +86,7 @@ import type {
   ReleaseImportedImageResourcesRequestDto,
   ReleaseImportedImageResourcesResponseDto,
   SaveResourceImageRequestDto,
+  SaveDanbooruAccountRequestDto,
   SaveResourceImagesZipRequestDto,
   SaveGenerationDraftRequestDto,
   ResetWorkspaceSettingsResponseDto,
@@ -166,6 +173,10 @@ export const desktopApi = {
     ),
   openPath: (path: string) => invokeAtelierCommand<void>(atelierCommands.openPath, { path }),
   revealPath: (path: string) => invokeAtelierCommand<void>(atelierCommands.revealPath, { path }),
+  copyText: (text: string) =>
+    invokeAtelierCommand<void>(atelierCommands.copyTextToClipboard, { text }),
+  openExternalUrl: (url: string) =>
+    invokeAtelierCommand<void>(atelierCommands.openExternalUrl, { url }),
 };
 
 export const workspaceApi = {
@@ -180,6 +191,24 @@ export const globalSettingsApi = {
   get: () => invokeAtelierCommand<GlobalSettingsDto>(atelierCommands.getGlobalSettings),
   update: (request: UpdateGlobalSettingsRequestDto) =>
     invokeAtelierCommand<GlobalSettingsDto>(atelierCommands.updateGlobalSettings, { request }),
+};
+
+export const danbooruApi = {
+  account: () => invokeAtelierCommand<DanbooruAccountDto>(atelierCommands.getDanbooruAccount),
+  saveAccount: (request: SaveDanbooruAccountRequestDto) =>
+    invokeAtelierCommand<DanbooruAccountDto>(atelierCommands.saveDanbooruAccount, { request }),
+  probeAccount: () =>
+    invokeAtelierCommand<DanbooruAccountDto>(atelierCommands.probeDanbooruAccount),
+  deleteAccount: () =>
+    invokeAtelierCommand<DanbooruAccountDto>(atelierCommands.deleteDanbooruAccount),
+  search: (request: DanbooruSearchRequestDto) =>
+    invokeAtelierCommand<DanbooruPostPageDto>(atelierCommands.searchDanbooruPosts, { request }),
+  detail: (request: DanbooruPostDetailRequestDto) =>
+    invokeAtelierCommand<DanbooruPostDetailDto>(atelierCommands.getDanbooruPostDetail, {
+      request,
+    }),
+  media: (request: DanbooruMediaRequestDto) =>
+    invokeAtelierCommand<ResourceImageDto>(atelierCommands.getDanbooruMedia, { request }),
 };
 
 export const imageAnalysisApi = {

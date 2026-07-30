@@ -9,6 +9,7 @@ import type { GlobalSettingsDto, WorkspaceSettingsDto } from "@/types";
 
 import { useWorkspaceStatus } from "../workspace/useWorkspaceStatus";
 import { AccountSettingsSection } from "./components/AccountSettingsSection";
+import { ConnectionsSettingsSection } from "./components/ConnectionsSettingsSection";
 import { FrontendSettingsSection } from "./components/FrontendSettingsSection";
 import { GenerationSettingsSection } from "./components/GenerationSettingsSection";
 import { ImageSettingsSection } from "./components/ImageSettingsSection";
@@ -187,6 +188,10 @@ function SettingsContent({
   const { t } = useTranslation("settings");
   if (activeSection === "account") {
     return <AccountSettingsSection />;
+  }
+
+  if (activeSection === "connections") {
+    return <ConnectionsSettingsSection />;
   }
 
   if (activeSection === "workspace") {

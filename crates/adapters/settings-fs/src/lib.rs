@@ -10,8 +10,8 @@ use std::{
 
 use async_trait::async_trait;
 use atelier_settings::{
-    FrontendLanguage, GlobalFrontendSettings, GlobalGallerySettings, GlobalSafetySettings,
-    GlobalSettings, GlobalSettingsRepository, SettingsError, SettingsResult,
+    FrontendLanguage, GlobalFrontendSettings, GlobalGallerySettings, GlobalIntegrationSettings,
+    GlobalSafetySettings, GlobalSettings, GlobalSettingsRepository, SettingsError, SettingsResult,
 };
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
@@ -19,7 +19,7 @@ use tempfile::NamedTempFile;
 mod migrations;
 
 const JSON_FORMAT: &str = "atelier-global-settings";
-const JSON_SCHEMA_VERSION: u32 = 2;
+const JSON_SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug)]
 pub struct FileSystemGlobalSettingsRepository {
@@ -113,6 +113,7 @@ struct StoredGlobalSettings {
     last_workspace: Option<PathBuf>,
     frontend: StoredGlobalFrontendSettings,
     safety: StoredGlobalSafetySettings,
+    integrations: StoredGlobalIntegrationSettings,
 }
 
 impl StoredGlobalSettings {
@@ -123,6 +124,7 @@ impl StoredGlobalSettings {
             last_workspace: settings.last_workspace.clone(),
             frontend: StoredGlobalFrontendSettings::from_domain(settings.frontend),
             safety: StoredGlobalSafetySettings::from_domain(settings.safety),
+            integrations: StoredGlobalIntegrationSettings::from_domain(&settings.integrations),
         }
     }
 
@@ -138,7 +140,27 @@ impl StoredGlobalSettings {
             last_workspace: self.last_workspace,
             frontend: self.frontend.into_domain(),
             safety: self.safety.into_domain(),
+            integrations: self.integrations.into_domain(),
         })
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+struct StoredGlobalIntegrationSettings {
+    danbooru_username: Option<String>,
+}
+
+impl StoredGlobalIntegrationSettings {
+    fn from_domain(settings: &GlobalIntegrationSettings) -> Self {
+        Self {
+            danbooru_username: settings.danbooru_username.clone(),
+        }
+    }
+
+    fn into_domain(self) -> GlobalIntegrationSettings {
+        GlobalIntegrationSettings {
+            danbooru_username: self.danbooru_username,
+        }
     }
 }
 

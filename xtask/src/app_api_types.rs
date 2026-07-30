@@ -7,6 +7,12 @@ use atelier_app_api::{
         ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto, SubscriptionSummaryDto,
         UpdateApiKeyRequestDto,
     },
+    danbooru::{
+        DanbooruAccountDto, DanbooruAccountStateDto, DanbooruAuthModeDto, DanbooruMediaRequestDto,
+        DanbooruMediaVariantDto, DanbooruPostDetailDto, DanbooruPostDetailRequestDto,
+        DanbooruPostPageDto, DanbooruPostSummaryDto, DanbooruRatingDto, DanbooruSearchRequestDto,
+        DanbooruTagCategoryDto, DanbooruTagDto, SaveDanbooruAccountRequestDto,
+    },
     director::{DirectorToolDto, DirectorToolResultDto, RunDirectorToolRequestDto},
     error::ErrorEnvelopeDto,
     event::{AppEventDto, AppEventKindDto, AppEventPageDto, EventsSinceRequestDto},
@@ -133,6 +139,7 @@ pub fn export_app_api_types(config: &AppApiTypeExportConfig) -> Result<(), Strin
 
     export_account_types(&ts_config)?;
     export_director_types(&ts_config)?;
+    export_danbooru_types(&ts_config)?;
     export_event_types(&ts_config)?;
     export_gallery_types(&ts_config)?;
     export_generation_types(&ts_config)?;
@@ -147,6 +154,26 @@ pub fn export_app_api_types(config: &AppApiTypeExportConfig) -> Result<(), Strin
 
     write_index_file(&config.out_dir)?;
     Ok(())
+}
+
+fn export_danbooru_types(config: &Config) -> Result<(), String> {
+    export_types!(
+        config,
+        DanbooruAccountStateDto,
+        DanbooruAccountDto,
+        SaveDanbooruAccountRequestDto,
+        DanbooruRatingDto,
+        DanbooruAuthModeDto,
+        DanbooruTagCategoryDto,
+        DanbooruMediaVariantDto,
+        DanbooruSearchRequestDto,
+        DanbooruPostSummaryDto,
+        DanbooruPostPageDto,
+        DanbooruPostDetailRequestDto,
+        DanbooruTagDto,
+        DanbooruPostDetailDto,
+        DanbooruMediaRequestDto,
+    )
 }
 
 fn export_account_types(config: &Config) -> Result<(), String> {

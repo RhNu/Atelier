@@ -1,0 +1,16 @@
+[package]
+name = "atelier-adapter-danbooru"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+atelier-danbooru = { workspace = true }
+atelier-secrets = { workspace = true }
+futures-timer = { workspace = true }
+futures-util = { workspace = true }
+log = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true }

@@ -1,6 +1,7 @@
 //! Frontend-facing DTO contracts for Atelier.
 
 pub mod account;
+pub mod danbooru;
 pub mod director;
 pub mod error;
 pub mod event;

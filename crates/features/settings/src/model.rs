@@ -111,6 +111,12 @@ pub struct GlobalSettings {
     pub last_workspace: Option<PathBuf>,
     pub frontend: GlobalFrontendSettings,
     pub safety: GlobalSafetySettings,
+    pub integrations: GlobalIntegrationSettings,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct GlobalIntegrationSettings {
+    pub danbooru_username: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]

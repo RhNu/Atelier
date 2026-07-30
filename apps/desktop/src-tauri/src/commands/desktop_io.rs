@@ -12,6 +12,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use serde::Serialize;
 use tauri::State;
+use tauri_plugin_opener::OpenerExt;
 
 use atelier_app::CommandResult;
 use atelier_app_api::{
@@ -79,6 +80,32 @@ pub fn read_clipboard_image() -> CommandResult<ClipboardImageDto> {
         image_base64: STANDARD.encode(png),
         mime_type: "image/png",
     })
+}
+
+#[tauri::command]
+pub fn copy_text_to_clipboard(text: String) -> CommandResult<()> {
+    let mut clipboard = arboard::Clipboard::new()
+        .map_err(|error| ErrorEnvelopeDto::new("clipboard_unavailable", error.to_string()))?;
+    clipboard
+        .set_text(text)
+        .map_err(|error| ErrorEnvelopeDto::new("clipboard_unavailable", error.to_string()))
+}
+
+#[tauri::command]
+pub fn open_external_url(state: State<'_, DesktopState>, url: String) -> CommandResult<()> {
+    let parsed = tauri::Url::parse(&url)
+        .map_err(|error| ErrorEnvelopeDto::new("external_url_invalid", error.to_string()))?;
+    if parsed.scheme() != "https" {
+        return Err(ErrorEnvelopeDto::new(
+            "external_url_invalid",
+            "external URLs must use HTTPS",
+        ));
+    }
+    state
+        .app_handle
+        .opener()
+        .open_url(parsed.as_str(), None::<String>)
+        .map_err(|error| ErrorEnvelopeDto::new("external_url_open_failed", error.to_string()))
 }
 
 #[tauri::command]
