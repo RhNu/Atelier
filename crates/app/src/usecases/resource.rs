@@ -37,9 +37,9 @@ where
             resource_kind_slug(kind),
             unix_timestamp_nanos()
         ));
-        let kernel = self.app.inner.kernel.lock().await;
-        let resource = kernel
-            .ports()
+        let resource = self
+            .app
+            .inner
             .resources
             .register_resource(RegisterResourceRequest {
                 resource_id,
@@ -50,7 +50,6 @@ where
                 blob: BlobWriteIntent::Bytes(bytes),
             })
             .await?;
-        drop(kernel);
         Ok(ImportImageResourceResponseDto {
             resource: resource_ref_to_dto(&resource),
         })
@@ -67,8 +66,7 @@ where
                 resource_ids.insert(resource.id);
             }
         }
-        let kernel = self.app.inner.kernel.lock().await;
-        let catalog = &kernel.ports().resources;
+        let catalog = &self.app.inner.resources;
         let owner = import_staging_owner();
         let links = catalog.list_links_by_owner(&owner).await?;
         for link in links
@@ -85,7 +83,6 @@ where
         } else {
             catalog.cleanup_delete_pending().await?
         };
-        drop(kernel);
         Ok(ReleaseImportedImageResourcesResponseDto {
             released,
             resources_deleted: cleanup.resources_deleted,
@@ -96,8 +93,7 @@ where
     pub async fn release_all_imported_images(
         &self,
     ) -> AppResult<ReleaseImportedImageResourcesResponseDto> {
-        let kernel = self.app.inner.kernel.lock().await;
-        let catalog = &kernel.ports().resources;
+        let catalog = &self.app.inner.resources;
         let owner = import_staging_owner();
         let links = catalog.list_links_by_owner(&owner).await?;
         for link in &links {
@@ -110,7 +106,6 @@ where
         } else {
             catalog.cleanup_delete_pending().await?
         };
-        drop(kernel);
         Ok(ReleaseImportedImageResourcesResponseDto {
             released: links.len(),
             resources_deleted: cleanup.resources_deleted,
@@ -123,14 +118,12 @@ where
         request: GetResourceImageRequestDto,
     ) -> AppResult<ResourceImageDto> {
         let reference = resource_ref_from_dto(request.resource);
-        let content = {
-            let kernel = self.app.inner.kernel.lock().await;
-            kernel
-                .ports()
-                .resource_reader
-                .read_resource_bytes(&reference)
-                .await?
-        };
+        let content = self
+            .app
+            .inner
+            .resource_reader
+            .read_resource_bytes(&reference)
+            .await?;
         let mime_type = ImageCodec::probe(&content.bytes)
             .ok()
             .map(|info| info.mime_type);

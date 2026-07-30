@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 use async_trait::async_trait;
 use atelier_adapter_database::{DatabaseConnection, DatabaseResourceCatalogRepository};
@@ -194,6 +194,7 @@ struct RecordingFactory {
     generated_requests: Arc<Mutex<Vec<GenerateImageRequest>>>,
     director_requests: Arc<Mutex<Vec<RunDirectorToolRequest>>>,
     director_error: Arc<Mutex<Option<DirectorClientError>>>,
+    generation_gate: Option<GenerationGate>,
 }
 
 impl RecordingFactory {
@@ -204,6 +205,7 @@ impl RecordingFactory {
             generated_requests: Arc::default(),
             director_requests: Arc::default(),
             director_error: Arc::default(),
+            generation_gate: None,
         }
     }
 
@@ -212,6 +214,17 @@ impl RecordingFactory {
             director_error: Arc::new(Mutex::new(Some(error))),
             ..Self::default()
         }
+    }
+
+    fn with_blocked_generation(image_bytes: Vec<u8>) -> (Self, GenerationGate) {
+        let gate = GenerationGate::default();
+        (
+            Self {
+                generation_gate: Some(gate.clone()),
+                ..Self::with_image_bytes(image_bytes)
+            },
+            gate,
+        )
     }
 
     fn secrets(&self) -> Vec<String> {
@@ -240,6 +253,7 @@ impl NovelAiClientFactory for RecordingFactory {
             generated_requests: Arc::clone(&self.generated_requests),
             director_requests: Arc::clone(&self.director_requests),
             director_error: Arc::clone(&self.director_error),
+            generation_gate: self.generation_gate.clone(),
         })
     }
 }
@@ -250,6 +264,46 @@ struct RecordingClient {
     generated_requests: Arc<Mutex<Vec<GenerateImageRequest>>>,
     director_requests: Arc<Mutex<Vec<RunDirectorToolRequest>>>,
     director_error: Arc<Mutex<Option<DirectorClientError>>>,
+    generation_gate: Option<GenerationGate>,
+}
+
+#[derive(Clone, Default)]
+struct GenerationGate {
+    state: Arc<(Mutex<GenerationGateState>, Condvar)>,
+}
+
+#[derive(Default)]
+struct GenerationGateState {
+    entered: bool,
+    released: bool,
+}
+
+impl GenerationGate {
+    fn enter_and_wait(&self) {
+        let (state, changed) = &*self.state;
+        let mut state = state.lock().unwrap();
+        state.entered = true;
+        changed.notify_all();
+        while !state.released {
+            state = changed.wait(state).unwrap();
+        }
+        drop(state);
+    }
+
+    fn wait_until_entered(&self) {
+        let (state, changed) = &*self.state;
+        let mut state = state.lock().unwrap();
+        while !state.entered {
+            state = changed.wait(state).unwrap();
+        }
+        drop(state);
+    }
+
+    fn release(&self) {
+        let (state, changed) = &*self.state;
+        state.lock().unwrap().released = true;
+        changed.notify_all();
+    }
 }
 
 #[derive(Default)]
@@ -294,6 +348,9 @@ impl NovelAiGenerationClient for RecordingClient {
         request: GenerateImageRequest,
     ) -> GenerationResult<GenerateImageResult> {
         self.generated_requests.lock().unwrap().push(request);
+        if let Some(gate) = &self.generation_gate {
+            gate.enter_and_wait();
+        }
         Ok(GenerateImageResult {
             resolved_seed: 42,
             images: vec![GeneratedImage {

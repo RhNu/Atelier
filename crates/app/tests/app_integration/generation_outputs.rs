@@ -1,6 +1,72 @@
 use super::*;
 
 #[test]
+fn gallery_resource_reads_do_not_wait_for_active_generation() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let (factory, gate) = RecordingFactory::with_blocked_generation(valid_png_bytes(2, 1));
+        let app = Arc::new(
+            WorkspaceSession::open_workspace_with_dependencies(
+                temp.path().to_path_buf(),
+                MemorySecretStore::default(),
+                factory,
+            )
+            .await
+            .unwrap(),
+        );
+        app.account()
+            .create_api_key(CreateApiKeyRequestDto {
+                id: "main".to_owned(),
+                display_name: "Main".to_owned(),
+                secret: "active-secret".to_owned(),
+            })
+            .await
+            .unwrap();
+        app.account().set_active_api_key("main").await.unwrap();
+        let imported = app
+            .resources()
+            .import_image(ImportImageResourceRequestDto {
+                kind: ImageResourceKindDto::SourceImage,
+                image_base64: "AQID".to_owned(),
+                mime_type: Some("image/png".to_owned()),
+            })
+            .await
+            .unwrap()
+            .resource;
+        app.generation()
+            .submit(submit_request("batch-1", "job-1", "1girl"))
+            .await
+            .unwrap();
+
+        let generation_app = Arc::clone(&app);
+        let generation =
+            std::thread::spawn(move || block_on(generation_app.generation().run_job("job-1")));
+        gate.wait_until_entered();
+
+        let resource_app = Arc::clone(&app);
+        let (result_sender, result_receiver) = std::sync::mpsc::channel();
+        let resource_read = std::thread::spawn(move || {
+            let result = block_on(
+                resource_app
+                    .resources()
+                    .get_image(GetResourceImageRequestDto { resource: imported }),
+            );
+            result_sender.send(result).unwrap();
+        });
+        let read_result = result_receiver.recv_timeout(std::time::Duration::from_secs(1));
+
+        gate.release();
+        generation.join().unwrap().unwrap();
+        resource_read.join().unwrap();
+
+        let image = read_result
+            .expect("resource read was blocked by active generation")
+            .unwrap();
+        assert_eq!(image.image_base64, "AQID");
+    });
+}
+
+#[test]
 fn open_workspace_and_generation_are_explicitly_driven() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();

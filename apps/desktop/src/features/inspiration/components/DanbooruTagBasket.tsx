@@ -34,9 +34,6 @@ export function DanbooruTagBasket({
     <footer className="flex min-h-14 items-center gap-2 border-t border-app-border bg-app-surface px-3 py-2">
       <span className="shrink-0 text-xs font-semibold">{t("basket", { count: tags.length })}</span>
       <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
-        {tags.length === 0 ? (
-          <span className="self-center text-xs text-app-muted">{t("basketEmpty")}</span>
-        ) : null}
         {tags.map((tag) => (
           <span
             key={tag.canonical_name}

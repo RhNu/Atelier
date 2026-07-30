@@ -49,8 +49,7 @@ where
         let mut attached = Vec::new();
 
         {
-            let kernel = self.app.inner.kernel.lock().await;
-            let catalog = &kernel.ports().resources;
+            let catalog = &self.app.inner.resources;
             for (key, link) in &new_links {
                 if !old_links.contains_key(key) {
                     catalog
@@ -59,28 +58,24 @@ where
                     attached.push(link.clone());
                 }
             }
-            drop(kernel);
         }
 
         let saved = match self.app.inner.generation_drafts.save(draft.clone()).await {
             Ok(value) => value,
             Err(error) => {
-                let kernel = self.app.inner.kernel.lock().await;
-                let catalog = &kernel.ports().resources;
+                let catalog = &self.app.inner.resources;
                 for link in &attached {
                     let _ = catalog
                         .detach_owner(&link.resource_id, &owner, link.relation)
                         .await;
                 }
                 let _ = catalog.cleanup_delete_pending().await;
-                drop(kernel);
                 return Err(error.into());
             }
         };
 
         {
-            let kernel = self.app.inner.kernel.lock().await;
-            let catalog = &kernel.ports().resources;
+            let catalog = &self.app.inner.resources;
             for (key, link) in &old_links {
                 if !new_links.contains_key(key) {
                     catalog
@@ -90,7 +85,6 @@ where
             }
             release_import_staging_links(catalog, &new_links).await?;
             catalog.cleanup_delete_pending().await?;
-            drop(kernel);
         }
 
         Ok(generation_draft_to_dto(&saved))
@@ -100,15 +94,13 @@ where
         let _write_guard = self.app.inner.generation_draft_write.lock().await;
         self.app.inner.generation_drafts.clear().await?;
         let owner = generation_draft_owner();
-        let kernel = self.app.inner.kernel.lock().await;
-        let catalog = &kernel.ports().resources;
+        let catalog = &self.app.inner.resources;
         for link in catalog.list_links_by_owner(&owner).await? {
             catalog
                 .detach_owner(&link.resource_id, &owner, link.relation)
                 .await?;
         }
         catalog.cleanup_delete_pending().await?;
-        drop(kernel);
         Ok(())
     }
 

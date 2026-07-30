@@ -1,8 +1,8 @@
-import { Search } from "lucide-react";
+import { Search, ShieldAlert } from "lucide-react";
 import { useCallback, useState, type ChangeEvent, type FormEvent, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton } from "@/components/ui";
+import { AppButton, AppIconButton } from "@/components/ui";
 import type { LexiconSearchItemDto } from "@/types";
 
 type Props = {
@@ -55,11 +55,7 @@ export function InspirationSearchToolbar({
     },
     [onSuggestion],
   );
-  const changeAdult = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => onAdultChange(event.target.checked),
-    [onAdultChange],
-  );
-
+  const toggleAdult = useCallback(() => onAdultChange(!showAdult), [onAdultChange, showAdult]);
   return (
     <form onSubmit={submit} className="border-b border-app-border bg-app-panel p-3">
       <div className="flex items-start gap-2">
@@ -97,22 +93,20 @@ export function InspirationSearchToolbar({
           ) : null}
           <p className="min-h-5 pt-1 text-xs text-rose-200">{validationError ?? ""}</p>
         </div>
-        <AppButton type="submit" disabled={searching || validationError !== null}>
-          <Search aria-hidden="true" className="size-4" />
-          {searching ? t("searching") : t("search")}
-        </AppButton>
-      </div>
-      <div className="flex items-center justify-between gap-4 text-xs text-app-muted">
-        <p>{t("syntaxHint")}</p>
-        <label className="flex shrink-0 items-center gap-2">
-          <input
-            type="checkbox"
-            aria-label={t("showAdult")}
-            checked={showAdult}
-            onChange={changeAdult}
+        <div className="flex shrink-0 items-center gap-1">
+          <AppButton type="submit" disabled={searching || validationError !== null}>
+            <Search aria-hidden="true" className="size-4" />
+            {searching ? t("searching") : t("search")}
+          </AppButton>
+          <AppIconButton
+            icon={ShieldAlert}
+            label={t("showAdult")}
+            size="sm"
+            selected={showAdult}
+            aria-pressed={showAdult}
+            onClick={toggleAdult}
           />
-          {t("showAdult")}
-        </label>
+        </div>
       </div>
     </form>
   );

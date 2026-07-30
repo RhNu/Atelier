@@ -10,6 +10,8 @@ import type {
   CreateApiKeyRequestDto,
   DeleteApiKeyRequestDto,
   DeleteApiKeyResponseDto,
+  DanbooruAccountDto,
+  SaveDanbooruAccountRequestDto,
   GlobalSettingsDto,
   ImageAnalysisModelInstallProgressDto,
   ImageAnalysisModelRequestDto,
@@ -32,6 +34,12 @@ const mocks = vi.hoisted(() => ({
     list: vi.fn<() => Promise<ApiKeyRecordDto[]>>(),
     setActive: vi.fn<(request: SetActiveApiKeyRequestDto) => Promise<void>>(),
     probeActive: vi.fn<() => Promise<SubscriptionSummaryDto>>(),
+  },
+  danbooruApi: {
+    account: vi.fn<() => Promise<DanbooruAccountDto>>(),
+    saveAccount: vi.fn<(request: SaveDanbooruAccountRequestDto) => Promise<DanbooruAccountDto>>(),
+    probeAccount: vi.fn<() => Promise<DanbooruAccountDto>>(),
+    deleteAccount: vi.fn<() => Promise<DanbooruAccountDto>>(),
   },
   settingsApi: {
     get: vi.fn<() => Promise<WorkspaceSettingsDto>>(),
@@ -73,6 +81,7 @@ vi.mock("../features/workspace/useWorkspaceStatus", () => ({
 
 vi.mock("../platform/atelier", () => ({
   accountApi: mocks.accountApi,
+  danbooruApi: mocks.danbooruApi,
   settingsApi: mocks.settingsApi,
   globalSettingsApi: mocks.globalSettingsApi,
   imageAnalysisApi: mocks.imageAnalysisApi,
@@ -90,6 +99,10 @@ vi.mock("../platform/atelier", () => ({
     settings: {
       root: () => ["settings"],
       workspace: () => ["settings", "workspace"],
+    },
+    danbooru: {
+      root: () => ["app", "danbooru"],
+      account: () => ["app", "danbooru", "account"],
     },
   },
 }));
@@ -206,6 +219,30 @@ function setup(keys: ApiKeyRecordDto[] = []) {
   mocks.accountApi.delete.mockResolvedValue({ deleted: true });
   mocks.accountApi.setActive.mockResolvedValue(undefined);
   mocks.accountApi.probeActive.mockResolvedValue(activeSubscription);
+  mocks.danbooruApi.account.mockResolvedValue({
+    configured: false,
+    state: "anonymous",
+    username: null,
+    level: null,
+  });
+  mocks.danbooruApi.saveAccount.mockImplementation(async (request) => ({
+    configured: true,
+    state: "configured",
+    username: request.username,
+    level: null,
+  }));
+  mocks.danbooruApi.probeAccount.mockResolvedValue({
+    configured: true,
+    state: "verified",
+    username: "atelier-user",
+    level: "2",
+  });
+  mocks.danbooruApi.deleteAccount.mockResolvedValue({
+    configured: false,
+    state: "anonymous",
+    username: null,
+    level: null,
+  });
 
   return {
     user: userEvent.setup(),
@@ -282,6 +319,32 @@ describe("Safety settings", () => {
 });
 
 describe("SettingsPage commands", () => {
+  it("keeps Danbooru credentials inside a configuration modal", async () => {
+    const { user } = setup();
+
+    await user.click(await screen.findByRole("button", { name: "Connections" }));
+    expect(await screen.findByText("Danbooru")).toBeInTheDocument();
+    expect(screen.getByText("Optional")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Danbooru username")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Configure connection" }));
+    expect(screen.getByRole("dialog", { name: "Configure connection" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Danbooru username"), "atelier-user");
+    await user.type(screen.getByLabelText("Danbooru API key"), "danbooru-secret");
+    await user.click(screen.getByRole("button", { name: "Save connection" }));
+
+    expect(mocks.danbooruApi.saveAccount).toHaveBeenCalledWith({
+      username: "atelier-user",
+      api_key: "danbooru-secret",
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Configure connection" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByText("danbooru-secret")).not.toBeInTheDocument();
+  });
+
   it("creates API keys with generated ids and never displays the secret", async () => {
     const { user } = setup();
 

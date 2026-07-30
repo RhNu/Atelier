@@ -72,6 +72,7 @@ vi.mock("@/platform/atelier", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.clear();
   mocks.danbooruApi.account.mockResolvedValue({
     configured: false,
     state: "anonymous",
@@ -141,6 +142,37 @@ describe("InspirationPage", () => {
 
     expect(screen.getByRole("button", { name: "Search" })).toBeDisabled();
     expect(mocks.danbooruApi.search).not.toHaveBeenCalled();
+  });
+
+  it("persists the adult-rating toggle and uses it for the next search", async () => {
+    const user = userEvent.setup();
+    const firstRender = render(
+      <QueryClientProvider client={createAtelierQueryClient()}>
+        <InspirationPage />
+      </QueryClientProvider>,
+    );
+
+    const toggle = await screen.findByRole("button", { name: "Include questionable and explicit" });
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(window.localStorage.getItem("atelier.inspiration.show-adult.v1")).toBe("true");
+
+    firstRender.unmount();
+    render(
+      <QueryClientProvider client={createAtelierQueryClient()}>
+        <InspirationPage />
+      </QueryClientProvider>,
+    );
+
+    await user.type(await screen.findByRole("textbox", { name: "Danbooru tag query" }), "blue");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() =>
+      expect(mocks.danbooruApi.search).toHaveBeenLastCalledWith({
+        query: "blue",
+        ratings: ["general", "sensitive", "questionable", "explicit"],
+        before_id: null,
+      }),
+    );
   });
 });
 

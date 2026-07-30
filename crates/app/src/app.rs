@@ -37,7 +37,7 @@ use futures::lock::Mutex;
 use crate::events::AppEventHub;
 use crate::ports::{
     AppApiKeyService, AppArtifactService, AppGalleryService, AppImageSourceReader, AppKernelPorts,
-    AppResourceCatalog, SharedWorkspaceSettings,
+    AppResourceCatalog, AppResourceReader, SharedWorkspaceSettings,
 };
 use crate::usecases::{
     AccountUseCases, DirectorUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases,
@@ -71,6 +71,9 @@ pub struct AppInner<S, F, E> {
     pub artifacts: AppArtifactService,
     pub gallery: AppGalleryService,
     pub gallery_index: DatabaseGalleryIndex,
+    pub resources: AppResourceCatalog,
+    pub resource_reader: AppResourceReader,
+    pub safety_scanner: Option<Arc<dyn SafetyScanner>>,
     pub queue_repository: DatabaseJobQueueRepository,
     pub run_history: DatabaseRunHistoryRepository,
     pub kernel: Mutex<KernelRuntime<AppKernelPorts<S, F, E>>>,
@@ -229,15 +232,15 @@ where
             payloads: DatabaseGenerationPayloadStore::new(connection.clone()),
             prompt_compiler: PromptCompiler::new(prompt_repository.clone()),
             novelai: ResolverBackedNovelAiAdapter::new(api_keys.clone(), factory),
-            resources,
+            resources: resources.clone(),
             artifacts: artifacts.clone(),
             gallery: gallery.clone(),
-            resource_reader,
+            resource_reader: resource_reader.clone(),
             vibes: DatabaseVibeRepository::new(connection),
             extractor,
             events: events.clone(),
             settings_state: settings_state.clone(),
-            safety_scanner,
+            safety_scanner: safety_scanner.clone(),
         };
         let restored_snapshot = queue_repository
             .load_queue_snapshot()
@@ -274,6 +277,9 @@ where
                 artifacts,
                 gallery,
                 gallery_index,
+                resources,
+                resource_reader,
+                safety_scanner,
                 queue_repository,
                 run_history,
                 kernel: Mutex::new(kernel),

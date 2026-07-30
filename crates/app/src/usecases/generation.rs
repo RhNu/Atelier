@@ -388,14 +388,13 @@ where
         let mut images = Vec::with_capacity(config.images.len());
         for image in config.images {
             let reference = resource_ref_from_dto(image.encoding);
-            let kernel = self.app.inner.kernel.lock().await;
-            let vibe_data_cache = kernel
-                .ports()
+            let vibe_data_cache = self
+                .app
+                .inner
                 .resource_reader
                 .read_resource_base64(&reference)
                 .await
                 .map_err(AppError::from)?;
-            drop(kernel);
             images.push(ControlNetInput {
                 vibe_data_cache,
                 info_extracted: image.info_extracted,
@@ -462,9 +461,8 @@ where
             ImageInputDto::InlineBase64 { image_base64 } => Ok(image_base64),
             ImageInputDto::ResourceRef { resource } => {
                 let reference = resource_ref_from_dto(resource);
-                let kernel = self.app.inner.kernel.lock().await;
-                kernel
-                    .ports()
+                self.app
+                    .inner
                     .resource_reader
                     .read_resource_base64(&reference)
                     .await

@@ -10,7 +10,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { runLoggedAction } from "@/app/logger";
-import { AppPanel } from "@/components/ui";
+import { AppHelpMarker, AppPanel } from "@/components/ui";
 import { desktopApi } from "@/platform/atelier";
 import { useToastStore } from "@/stores/toast-store";
 import type { DanbooruSearchRequestDto, DanbooruTagDto } from "@/types";
@@ -40,12 +40,13 @@ import {
 
 type SearchInput = Omit<DanbooruSearchRequestDto, "before_id">;
 const NO_SUGGESTIONS: never[] = [];
+const SHOW_ADULT_STORAGE_KEY = "atelier.inspiration.show-adult.v1";
 
 export function InspirationPage() {
   const { t } = useTranslation("inspiration");
   const pushToast = useToastStore((state) => state.push);
   const [draftQuery, setDraftQuery] = useState("");
-  const [showAdult, setShowAdult] = useState(false);
+  const [showAdult, setShowAdult] = useState(readShowAdultPreference);
   const [submitted, setSubmitted] = useState<SearchInput | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<Map<string, DanbooruTagDto>>(() => new Map());
@@ -75,6 +76,11 @@ export function InspirationPage() {
     });
     setSelectedId(null);
   }, [draftQuery, showAdult, validationError]);
+
+  const changeShowAdult = useCallback((value: boolean) => {
+    setShowAdult(value);
+    window.localStorage.setItem(SHOW_ADULT_STORAGE_KEY, String(value));
+  }, []);
 
   const chooseSuggestion = useCallback((canonicalName: string) => {
     setDraftQuery((current) => replaceCurrentToken(current, canonicalName));
@@ -150,7 +156,7 @@ export function InspirationPage() {
             validationError={validationError}
             searching={search.isFetching && !search.isFetchingNextPage}
             onQueryChange={setDraftQuery}
-            onAdultChange={setShowAdult}
+            onAdultChange={changeShowAdult}
             onSuggestion={chooseSuggestion}
             onSubmit={submitSearch}
           />
@@ -209,13 +215,21 @@ function InspirationHeader({ accountName }: { accountName: string }) {
   return (
     <header className="flex h-12 shrink-0 items-center justify-between border-b border-app-border bg-app-panel px-3">
       <div>
-        <h1 className="text-sm font-semibold text-white">{t("title")}</h1>
-        <p className="text-[11px] text-app-muted">{t("subtitle")}</p>
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-sm font-semibold text-white">{t("title")}</h1>
+          <AppHelpMarker label={t("syntaxHelpLabel")} content={t("syntaxHint")} hoverOnly />
+        </div>
       </div>
       <div className="flex items-center gap-2 text-xs text-app-muted">
         <UserRound aria-hidden="true" className="size-4" />
         {accountName}
       </div>
     </header>
+  );
+}
+
+function readShowAdultPreference(): boolean {
+  return (
+    typeof window !== "undefined" && window.localStorage.getItem(SHOW_ADULT_STORAGE_KEY) === "true"
   );
 }

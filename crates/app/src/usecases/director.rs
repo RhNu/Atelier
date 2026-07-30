@@ -155,9 +155,8 @@ where
             ImageInputDto::InlineBase64 { image_base64 } => Ok(image_base64),
             ImageInputDto::ResourceRef { resource } => {
                 let reference = resource_ref_from_dto(resource);
-                let kernel = self.app.inner.kernel.lock().await;
-                kernel
-                    .ports()
+                self.app
+                    .inner
                     .resource_reader
                     .read_resource_base64(&reference)
                     .await

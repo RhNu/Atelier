@@ -10,7 +10,6 @@ use atelier_app_api::gallery::{
 };
 use atelier_artifacts::{ArtifactId, ArtifactSource};
 use atelier_gallery::{GalleryItem, GallerySafetyState};
-use atelier_kernel::KernelClock;
 use atelier_safety::{SafetyScanInput, SafetyScanner};
 
 pub struct GalleryUseCases<'a, S, F, E> {
@@ -109,14 +108,9 @@ where
                 .collect()
         };
         let items = self.app.inner.gallery.get_items(&item_ids).await?;
-        let (scanner, reader, now_ms) = {
-            let kernel = self.app.inner.kernel.lock().await;
-            (
-                kernel.ports().safety_scanner.clone(),
-                kernel.ports().resource_reader.clone(),
-                kernel.ports().now_ms(),
-            )
-        };
+        let scanner = self.app.inner.safety_scanner.clone();
+        let reader = self.app.inner.resource_reader.clone();
+        let now_ms = super::unix_timestamp_ms();
         let Some(scanner) = scanner else {
             for item in &items {
                 self.app
@@ -172,12 +166,7 @@ where
             .collect::<Vec<_>>();
         let existing_items = self.app.inner.gallery.get_items(&item_ids).await?;
         if existing_items.is_empty() {
-            let cleanup = {
-                let kernel = self.app.inner.kernel.lock().await;
-                let cleanup = kernel.ports().resources.cleanup_delete_pending().await?;
-                drop(kernel);
-                cleanup
-            };
+            let cleanup = self.app.inner.resources.cleanup_delete_pending().await?;
             return Ok(DeleteGalleryItemsResponseDto {
                 deleted: 0,
                 resources_released: cleanup.resources_deleted,
@@ -189,25 +178,15 @@ where
             .iter()
             .map(hard_delete_plan)
             .collect::<Vec<_>>();
-        let deleted = {
-            let kernel = self.app.inner.kernel.lock().await;
-            let deleted = self
-                .app
-                .inner
-                .gallery_index
-                .hard_delete(&plans)
-                .await
-                .map_err(AppError::from)?;
-            drop(kernel);
-            deleted
-        };
+        let deleted = self
+            .app
+            .inner
+            .gallery_index
+            .hard_delete(&plans)
+            .await
+            .map_err(AppError::from)?;
 
-        let cleanup = {
-            let kernel = self.app.inner.kernel.lock().await;
-            let cleanup = kernel.ports().resources.cleanup_delete_pending().await?;
-            drop(kernel);
-            cleanup
-        };
+        let cleanup = self.app.inner.resources.cleanup_delete_pending().await?;
         Ok(DeleteGalleryItemsResponseDto {
             deleted,
             resources_released: cleanup.resources_deleted,

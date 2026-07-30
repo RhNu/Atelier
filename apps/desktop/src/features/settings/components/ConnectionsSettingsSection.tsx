@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, PencilLine, Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -19,6 +19,7 @@ export function ConnectionsSettingsSection() {
   const mutations = useDanbooruAccountMutations();
   const [username, setUsername] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [editorOpen, setEditorOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const busy = mutations.save.isPending || mutations.probe.isPending || mutations.remove.isPending;
 
@@ -43,6 +44,7 @@ export function ConnectionsSettingsSection() {
         onSuccess: (saved) => {
           setApiKey("");
           setUsername(saved.username ?? username.trim());
+          setEditorOpen(false);
           pushToast({ level: "success", message: t("danbooruSaved") });
         },
         onError: failure,
@@ -77,6 +79,14 @@ export function ConnectionsSettingsSection() {
   }, [failure, mutations.remove, pushToast, t]);
   const openDelete = useCallback(() => setConfirmDelete(true), []);
   const closeDelete = useCallback(() => setConfirmDelete(false), []);
+  const openEditor = useCallback(() => {
+    setUsername(account.data?.username ?? "");
+    setApiKey("");
+    setEditorOpen(true);
+  }, [account.data?.username]);
+  const closeEditor = useCallback(() => {
+    if (!busy) setEditorOpen(false);
+  }, [busy]);
   const openProfile = useCallback(() => {
     void desktopApi.openExternalUrl("https://danbooru.donmai.us/profile").catch(failure);
   }, [failure]);
@@ -90,44 +100,28 @@ export function ConnectionsSettingsSection() {
         <section className="grid max-w-2xl gap-4 border border-app-border bg-app-surface/45 p-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-sm font-semibold text-white">{t("danbooruServiceName")}</h2>
-              <p className="mt-1 text-xs text-app-muted">{t("danbooruConnectionDescription")}</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-white">{t("danbooruServiceName")}</h2>
+                <span className="border border-app-border bg-black/20 px-2 py-0.5 text-[10px] font-semibold text-app-muted uppercase">
+                  {t("optional")}
+                </span>
+              </div>
+              {account.data?.username ? (
+                <p className="mt-1 text-xs text-app-muted">{account.data.username}</p>
+              ) : null}
             </div>
             <span className="border border-app-border bg-black/20 px-2 py-1 text-xs text-app-muted">
               {account.data ? t(`danbooruStates.${account.data.state}`) : t("unavailable")}
             </span>
           </div>
-          <TextField
-            label={t("danbooruUsername")}
-            value={username}
-            onChange={setUsername}
-            placeholder={t("danbooruUsernamePlaceholder")}
-            disabled={busy}
-          />
-          <TextField
-            label={t("danbooruApiKey")}
-            value={apiKey}
-            onChange={setApiKey}
-            placeholder={
-              account.data?.configured
-                ? t("danbooruKeepExistingKey")
-                : t("danbooruApiKeyPlaceholder")
-            }
-            type="password"
-            autoComplete="new-password"
-            disabled={busy}
-          />
-          <p className="text-xs text-app-muted">{t("danbooruKeyringNote")}</p>
           <div className="flex flex-wrap items-center gap-2 border-t border-app-border pt-3">
-            <AppButton
-              disabled={
-                busy ||
-                username.trim() === "" ||
-                (!account.data?.configured && apiKey.trim() === "")
-              }
-              onClick={save}
-            >
-              {mutations.save.isPending ? t("savingDanbooru") : t("saveDanbooru")}
+            <AppButton variant="secondary" disabled={busy} onClick={openEditor}>
+              {account.data?.configured ? (
+                <PencilLine aria-hidden="true" className="size-4" />
+              ) : (
+                <Plus aria-hidden="true" className="size-4" />
+              )}
+              {account.data?.configured ? t("editDanbooru") : t("configureDanbooru")}
             </AppButton>
             <AppButton
               variant="secondary"
@@ -150,6 +144,17 @@ export function ConnectionsSettingsSection() {
           </div>
         </section>
       </div>
+      <DanbooruConnectionModal
+        open={editorOpen}
+        configured={account.data?.configured === true}
+        username={username}
+        apiKey={apiKey}
+        busy={busy}
+        onUsernameChange={setUsername}
+        onApiKeyChange={setApiKey}
+        onSave={save}
+        onClose={closeEditor}
+      />
       <RemoveConnectionModal
         open={confirmDelete}
         busy={busy}
@@ -157,6 +162,67 @@ export function ConnectionsSettingsSection() {
         onRemove={remove}
       />
     </AppPanel>
+  );
+}
+
+function DanbooruConnectionModal({
+  open,
+  configured,
+  username,
+  apiKey,
+  busy,
+  onUsernameChange,
+  onApiKeyChange,
+  onSave,
+  onClose,
+}: {
+  open: boolean;
+  configured: boolean;
+  username: string;
+  apiKey: string;
+  busy: boolean;
+  onUsernameChange: (value: string) => void;
+  onApiKeyChange: (value: string) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation("settings");
+  const { t: translateCommon } = useTranslation("common");
+  const saveDisabled = busy || username.trim() === "" || (!configured && apiKey.trim() === "");
+
+  return (
+    <AppModal
+      open={open}
+      title={configured ? t("editDanbooru") : t("configureDanbooru")}
+      onClose={onClose}
+    >
+      <div className="grid gap-4">
+        <TextField
+          label={t("danbooruUsername")}
+          value={username}
+          onChange={onUsernameChange}
+          placeholder={t("danbooruUsernamePlaceholder")}
+          disabled={busy}
+        />
+        <TextField
+          label={t("danbooruApiKey")}
+          value={apiKey}
+          onChange={onApiKeyChange}
+          placeholder={configured ? t("danbooruKeepExistingKey") : t("danbooruApiKeyPlaceholder")}
+          type="password"
+          autoComplete="new-password"
+          disabled={busy}
+        />
+        <div className="flex justify-end gap-2 border-t border-app-border pt-3">
+          <AppButton variant="ghost" disabled={busy} onClick={onClose}>
+            {translateCommon("cancel")}
+          </AppButton>
+          <AppButton disabled={saveDisabled} onClick={onSave}>
+            {busy ? t("savingDanbooru") : t("saveDanbooru")}
+          </AppButton>
+        </div>
+      </div>
+    </AppModal>
   );
 }
 
