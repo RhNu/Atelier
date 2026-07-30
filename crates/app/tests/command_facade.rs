@@ -26,13 +26,14 @@ use atelier_app_api::generation::{
 };
 use atelier_app_api::history::{RunHistoryOutputStateDto, RunHistoryQueryDto};
 use atelier_app_api::prompt::{
-    CompileGenerationPromptRequestDto, DeletePromptChunkRequestDto, GetPromptChunkRequestDto,
-    ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptPresetBehaviorDto,
-    PromptPresetKindDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
+    CompileGenerationPromptRequestDto, DeletePromptChunkRequestDto, DeletePromptPresetRequestDto,
+    GetPromptChunkRequestDto, ListPromptChunksRequestDto, ListPromptPresetsRequestDto,
+    PromptChunkDto, PromptPresetBehaviorDto, PromptPresetDto, PromptPresetKindDto,
+    UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
 };
 use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
-    ReleaseImportedImageResourcesRequestDto,
+    ReleaseImportedImageResourcesRequestDto, ResourceRefDto,
 };
 use atelier_app_api::settings::{
     GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto,
@@ -65,6 +66,8 @@ use futures_executor::block_on;
 
 #[path = "command_facade/danbooru_commands.rs"]
 mod danbooru_commands;
+#[path = "command_facade/resource_preview_commands.rs"]
+mod resource_preview_commands;
 #[path = "command_facade/session_commands.rs"]
 mod session_commands;
 #[path = "command_facade/worker_events.rs"]
@@ -207,6 +210,9 @@ fn submit_request(batch_id: &str, job_id: &str) -> SubmitGenerationRequestDto {
 const ENCODING_PAYLOAD: &str = "AQID";
 const ENCODING_PAYLOAD_SHA256: &str =
     "b70035bb783a47bf61ac3ff70b005308e167ee984365690e638c1481b8ca2936";
+const IMAGE_PAYLOAD: &str = "data:image/png;base64,AQID";
+const IMAGE_PAYLOAD_SHA256: &str =
+    "8a37c75fc31bfff9652678f50164cf27b31c787b8a946f87f1cd3cbf61365db1";
 
 fn official_vibe(name: &str) -> String {
     format!(
@@ -216,6 +222,28 @@ fn official_vibe(name: &str) -> String {
   "type": "encoding",
   "id": "{ENCODING_PAYLOAD_SHA256}",
   "name": "{name}",
+  "encodings": {{
+    "v4-5full": {{
+      "default": {{
+        "encoding": "{ENCODING_PAYLOAD}",
+        "params": {{ "information_extracted": 0.7 }}
+      }}
+    }}
+  }}
+}}"#
+    )
+}
+
+fn official_image_vibe(name: &str) -> String {
+    format!(
+        r#"{{
+  "identifier": "novelai-vibe-transfer",
+  "version": 1,
+  "type": "image",
+  "id": "{IMAGE_PAYLOAD_SHA256}",
+  "name": "{name}",
+  "image": "{IMAGE_PAYLOAD}",
+  "thumbnail": "{IMAGE_PAYLOAD}",
   "encodings": {{
     "v4-5full": {{
       "default": {{
