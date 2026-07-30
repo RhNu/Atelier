@@ -165,47 +165,35 @@ function separatorEdit(
   let whitespaceEnd = insertedEnd;
   while (isHorizontalWhitespace(value[whitespaceEnd])) whitespaceEnd += 1;
 
-  const direct = value[insertedEnd];
-  const afterWhitespace = value[whitespaceEnd];
-  if (direct === "\n" || direct === "\r" || direct === "|") {
-    return { text: "", caretOffset: 0, replaceEnd: insertedEnd };
-  }
-  if (
-    whitespaceEnd > insertedEnd &&
-    (afterWhitespace === "\n" || afterWhitespace === "\r" || afterWhitespace === "|")
-  ) {
+  const next = value[whitespaceEnd];
+  if (next === "|") {
     return { text: "", caretOffset: 0, replaceEnd: insertedEnd };
   }
 
-  if (direct === "," || afterWhitespace === ",") {
-    const comma = direct === "," ? insertedEnd : whitespaceEnd;
-    let trailingEnd = comma + 1;
+  if (next === ",") {
+    let trailingEnd = whitespaceEnd + 1;
     while (isHorizontalWhitespace(value[trailingEnd])) trailingEnd += 1;
-    const suffix = value[trailingEnd] === "\n" || value[trailingEnd] === "\r" ? "," : ", ";
+    const suffix = isLineBreak(value[trailingEnd]) ? "," : ", ";
     return { text: suffix, caretOffset: suffix.length, replaceEnd: trailingEnd };
   }
 
-  if (direct === undefined) {
-    return { text: ", ", caretOffset: 2, replaceEnd: insertedEnd };
+  if (isLineBreak(next)) {
+    return { text: ",", caretOffset: 1, replaceEnd: whitespaceEnd };
   }
 
-  if (whitespaceEnd > insertedEnd) {
-    return { text: ", ", caretOffset: 2, replaceEnd: whitespaceEnd };
-  }
-
-  return { text: ", ", caretOffset: 2, replaceEnd: insertedEnd };
+  return { text: ", ", caretOffset: 2, replaceEnd: whitespaceEnd };
 }
 
 function findTagTokenStart(value: string): number {
   for (let index = value.length - 1; index >= 0; index -= 1) {
-    if (isTagSeparator(value[index] ?? "")) return skipLeadingWhitespace(value, index + 1);
+    if (isTagTokenBoundary(value[index] ?? "")) return skipLeadingWhitespace(value, index + 1);
   }
   return skipLeadingWhitespace(value, 0);
 }
 
 function findTagTokenEnd(value: string, start: number): number {
   let index = start;
-  while (index < value.length && !isTagSeparator(value[index] ?? "")) index += 1;
+  while (index < value.length && !isTagTokenBoundary(value[index] ?? "")) index += 1;
   return trimTrailingWhitespace(value, start, index);
 }
 
@@ -221,12 +209,16 @@ function findArgumentReplaceEnd(value: string, start: number): number {
   return value[index] === ")" ? index + 1 : index;
 }
 
-function isTagSeparator(character: string): boolean {
+function isTagTokenBoundary(character: string): boolean {
   return ",\n\r|{}[]".includes(character);
 }
 
 function isHorizontalWhitespace(character: string | undefined): boolean {
   return character === " " || character === "\t";
+}
+
+function isLineBreak(character: string | undefined): boolean {
+  return character === "\n" || character === "\r";
 }
 
 function clampCaret(value: string, selectionStart: number): number {
