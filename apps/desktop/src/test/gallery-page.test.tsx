@@ -254,6 +254,14 @@ describe("GalleryPage", () => {
     expect(within(details).getAllByText("Fused 0.950")).not.toHaveLength(0);
     expect(within(details).getByText(/anime_dbrating@7af21db648ac/)).toBeInTheDocument();
     expect(within(details).queryByText("nai-diffusion-4-5-full")).not.toBeInTheDocument();
+    expect(within(details).queryByText("Parsed")).not.toBeInTheDocument();
+    expect(within(details).queryByText("Metadata error")).not.toBeInTheDocument();
+    expect(within(details).getByText("Generation metadata").closest("details")).not.toHaveAttribute(
+      "open",
+    );
+    expect(within(details).getByText("More safety details").closest("details")).not.toHaveAttribute(
+      "open",
+    );
   });
 
   it("uses the persisted SFW preference to blur sensitive images", async () => {
@@ -282,6 +290,8 @@ describe("Gallery safety scanning", () => {
     };
     const { user } = setup({ items: [unscanned] });
 
+    await screen.findByRole("button", { name: "Select unscanned-item" });
+    await user.click(screen.getByText("More safety details"));
     expect(await screen.findByText("This image has not been scanned.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Rescan" }));
 

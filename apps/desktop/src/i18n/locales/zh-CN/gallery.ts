@@ -89,6 +89,7 @@ export const gallery = {
   version: "版本",
   safetyOverride: "安全覆盖",
   changeSafetyOverride: "修改安全覆盖",
+  moreSafetyDetails: "更多安全详情",
   applyOverride: "应用安全覆盖",
   copyImage: "复制",
   exportImage: "导出",

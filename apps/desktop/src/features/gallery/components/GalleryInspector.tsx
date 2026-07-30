@@ -71,8 +71,8 @@ function EmptyInspector() {
 function ArtifactDetails({ item }: { item: GalleryItemDto }) {
   const { t } = useTranslation("gallery");
   return (
-    <section className="grid gap-2">
-      <h3 className="text-sm font-semibold text-white">{t("artifact")}</h3>
+    <details className="border-t border-app-border pt-3">
+      <summary className="cursor-pointer text-sm font-semibold text-white">{t("artifact")}</summary>
       <dl className="grid gap-2">
         <DetailRow label={t("kind")} value={displayGalleryArtifactKind(item.artifact_kind, t)} />
         <DetailRow label={t("source")} value={displayGallerySource(item.source_kind, t)} />
@@ -82,7 +82,7 @@ function ArtifactDetails({ item }: { item: GalleryItemDto }) {
         <DetailRow label={t("sampleLabel")} value={item.sample_index} />
         <DetailRow label={t("indexed")} value={formatTimestamp(item.indexed_at_ms)} />
       </dl>
-    </section>
+    </details>
   );
 }
 
@@ -98,7 +98,7 @@ function GenerationMetadataDetails({
   const metadataStatus = (() => {
     switch (item.embedded_metadata_status) {
       case "parsed":
-        return t("metadataStatuses.parsed");
+        return null;
       case "not_present":
         return t("metadataStatuses.notPresent");
       case "unsupported_format":
@@ -124,13 +124,22 @@ function GenerationMetadataDetails({
         });
     }
   });
-  if (!item.prompt && !item.negative_prompt && !item.embedded_metadata_status && !metadataJson) {
+  if (
+    !item.prompt &&
+    !item.negative_prompt &&
+    !metadataStatus &&
+    !item.embedded_metadata_error &&
+    !metadataWarnings.length &&
+    !metadataJson
+  ) {
     return null;
   }
   return (
-    <section className="grid gap-2 border-t border-app-border pt-3">
-      <h3 className="text-sm font-semibold text-white">{t("generationMetadata")}</h3>
-      <dl className="grid gap-2">
+    <details className="grid gap-2 border-t border-app-border pt-3">
+      <summary className="cursor-pointer text-sm font-semibold text-white">
+        {t("generationMetadata")}
+      </summary>
+      <dl className="grid gap-2 pt-1">
         <DetailRow label={t("prompt")} value={item.prompt} />
         <DetailRow label={t("negativePrompt")} value={item.negative_prompt} />
         <DetailRow label={t("metadataStatus")} value={metadataStatus} />
@@ -150,7 +159,7 @@ function GenerationMetadataDetails({
           </pre>
         </details>
       ) : null}
-    </section>
+    </details>
   );
 }
 
@@ -167,7 +176,7 @@ function AssetDetails({ item }: { item: GalleryItemDto }) {
   return (
     <details className="border-t border-app-border pt-3">
       <summary className="cursor-pointer text-sm font-semibold text-white">{t("assets")}</summary>
-      <dl className="mt-2 grid gap-1.5 text-xs">
+      <dl className="mt-2 grid gap-1.5 pt-1 text-xs">
         {item.assets.map((asset) => (
           <div
             key={`${asset.role}-${asset.resource.id}-${asset.resource.variant_id ?? "base"}`}

@@ -65,42 +65,47 @@ export function GallerySafetyDetails({
           </span>
         ) : null}
       </div>
-      {assessment && primary ? (
-        <div className="grid gap-2 border border-app-border bg-black/15 p-3 text-xs text-app-muted">
-          <p>
-            <span className="text-app-text">{t("manualSafetyOverride")}:</span>{" "}
-            {item.manual_safety_override
-              ? t(item.manual_safety_override)
-              : t("automaticSafetyDecision")}
-          </p>
-          <p>
-            <span className="text-app-text">{t("safetyPolicy")}:</span> {assessment.policy_id}@
-            {assessment.policy_version}
-          </p>
-          <EvidenceRow title={t("primaryEvidence")} evidence={primary} />
-          <div>
-            <span className="text-app-text">{t("reviewEvidence")}:</span>{" "}
-            {t(`reviewStates.${review?.state ?? "not_needed"}`)}
-            {review?.evidence ? <EvidenceRow evidence={review.evidence} /> : null}
-            {review?.message ? <p className="mt-1 text-rose-200">{review.message}</p> : null}
+      <details className="grid gap-2 text-xs text-app-muted">
+        <summary className="cursor-pointer text-xs font-semibold text-app-muted">
+          {t("moreSafetyDetails")}
+        </summary>
+        {assessment && primary ? (
+          <div className="grid gap-2 pt-1">
+            <p>
+              <span className="text-app-text">{t("manualSafetyOverride")}:</span>{" "}
+              {item.manual_safety_override
+                ? t(item.manual_safety_override)
+                : t("automaticSafetyDecision")}
+            </p>
+            <p>
+              <span className="text-app-text">{t("safetyPolicy")}:</span> {assessment.policy_id}@
+              {assessment.policy_version}
+            </p>
+            <EvidenceRow title={t("primaryEvidence")} evidence={primary} />
+            <div>
+              <span className="text-app-text">{t("reviewEvidence")}:</span>{" "}
+              {t(`reviewStates.${review?.state ?? "not_needed"}`)}
+              {review?.evidence ? <EvidenceRow evidence={review.evidence} /> : null}
+              {review?.message ? <p className="mt-1 text-rose-200">{review.message}</p> : null}
+            </div>
           </div>
-        </div>
-      ) : null}
-      {assessment.scan_state !== "scanned" ? (
-        <div className="grid gap-2 border border-app-border bg-black/15 p-3 text-xs text-app-muted">
-          <p>{t(`scanStates.${assessment.scan_state}`)}</p>
-          {assessment.message ? <p className="text-rose-200">{assessment.message}</p> : null}
-          <div>
-            <AppButton variant="secondary" disabled={rescanning} onClick={onRescan}>
-              <RotateCw
-                aria-hidden="true"
-                className={rescanning ? "size-4 animate-spin" : "size-4"}
-              />
-              {rescanning ? t("rescanningSafety") : t("rescanSafety")}
-            </AppButton>
+        ) : null}
+        {assessment.scan_state !== "scanned" ? (
+          <div className="grid gap-2 pt-1">
+            <p>{t(`scanStates.${assessment.scan_state}`)}</p>
+            {assessment.message ? <p className="text-rose-200">{assessment.message}</p> : null}
+            <div>
+              <AppButton variant="secondary" disabled={rescanning} onClick={onRescan}>
+                <RotateCw
+                  aria-hidden="true"
+                  className={rescanning ? "size-4 animate-spin" : "size-4"}
+                />
+                {rescanning ? t("rescanningSafety") : t("rescanSafety")}
+              </AppButton>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </details>
       <AppModal open={overrideDialogOpen} title={t("safetyOverride")} onClose={closeOverrideDialog}>
         <div className="grid gap-4">
           <label

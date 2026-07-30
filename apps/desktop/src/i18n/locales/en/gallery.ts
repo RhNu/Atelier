@@ -87,6 +87,7 @@ export const gallery = {
   version: "Version",
   safetyOverride: "Safety override",
   changeSafetyOverride: "Change safety override",
+  moreSafetyDetails: "More safety details",
   applyOverride: "Apply safety override",
   copyImage: "Copy",
   exportImage: "Export",
