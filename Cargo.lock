@@ -508,6 +508,7 @@ dependencies = [
  "thiserror 2.0.19",
  "tokenizers",
  "unicode-normalization",
+ "zstd",
 ]
 
 [[package]]
@@ -8186,9 +8187,11 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
+ "tokenizers",
  "ts-rs",
  "unicode-normalization",
  "walkdir",
+ "zstd",
 ]
 
 [[package]]

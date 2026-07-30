@@ -43,7 +43,7 @@ pub fn validate_database(connection: &Connection) -> LexiconResult<()> {
         )
         .map_err(sql_error)?;
     if format != super::manifest::BUNDLE_FORMAT
-        || schema != super::manifest::BUNDLE_SCHEMA_VERSION.to_string()
+        || schema != super::manifest::DATABASE_SCHEMA_VERSION.to_string()
     {
         return Err(LexiconError::invalid_bundle(format!(
             "SQLite format {format} schema {schema} is unsupported"

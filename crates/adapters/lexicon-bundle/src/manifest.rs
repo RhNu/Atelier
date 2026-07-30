@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::io::Read;
+use std::io::{Read, Take};
 use std::path::{Path, PathBuf};
 
 use atelier_prompt_lexicon::{LexiconError, LexiconResult};
@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const BUNDLE_FORMAT: &str = "atelier.lexicon.bundle";
-pub const BUNDLE_SCHEMA_VERSION: u32 = 1;
+pub const BUNDLE_SCHEMA_VERSION: u32 = 2;
+pub const DATABASE_SCHEMA_VERSION: u32 = 1;
+const MAX_TOKENIZER_CONTENT_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LexiconBundleManifest {
@@ -44,9 +46,24 @@ pub struct BundleFile {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TokenizerFile {
+    #[serde(flatten)]
+    pub bundle: BundleFile,
+    pub encoding: TokenizerEncoding,
+    pub content_sha256: String,
+    pub content_size_bytes: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TokenizerEncoding {
+    ZstdJson,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SemanticManifest {
     pub model: BundleFile,
-    pub tokenizer: BundleFile,
+    pub tokenizer: TokenizerFile,
     pub license: BundleFile,
     pub identity_vectors: BundleFile,
     pub knowledge_vectors: BundleFile,
@@ -101,7 +118,7 @@ impl SemanticManifest {
     ) -> LexiconResult<()> {
         for file in [
             &self.model,
-            &self.tokenizer,
+            &self.tokenizer.bundle,
             &self.license,
             &self.identity_vectors,
             &self.knowledge_vectors,
@@ -109,6 +126,51 @@ impl SemanticManifest {
             bundle.verify_checksum(root, file)?;
         }
         Ok(())
+    }
+}
+
+impl TokenizerFile {
+    /// Decompresses and verifies the tokenizer JSON payload.
+    ///
+    /// # Errors
+    /// Returns an error when the zstd stream is invalid or its decoded size or checksum differs
+    /// from the manifest.
+    pub fn decode(&self, root: &Path) -> LexiconResult<Vec<u8>> {
+        let path = root.join(&self.bundle.file);
+        let file = File::open(&path).map_err(|error| {
+            LexiconError::invalid_bundle(format!("failed to open {}: {error}", path.display()))
+        })?;
+        let decoder = zstd::stream::read::Decoder::new(file).map_err(|error| {
+            LexiconError::invalid_bundle(format!(
+                "failed to decode tokenizer {}: {error}",
+                path.display()
+            ))
+        })?;
+        let limit = self.content_size_bytes.saturating_add(1);
+        let mut limited: Take<_> = decoder.take(limit);
+        let capacity = usize::try_from(self.content_size_bytes).map_err(|_| {
+            LexiconError::invalid_bundle("tokenizer content size exceeds platform capacity")
+        })?;
+        let mut bytes = Vec::with_capacity(capacity);
+        limited.read_to_end(&mut bytes).map_err(|error| {
+            LexiconError::invalid_bundle(format!(
+                "failed to decompress tokenizer {}: {error}",
+                path.display()
+            ))
+        })?;
+        if bytes.len() as u64 != self.content_size_bytes {
+            return Err(LexiconError::invalid_bundle(format!(
+                "tokenizer content size mismatch for {}",
+                path.display()
+            )));
+        }
+        if format!("{:x}", Sha256::digest(&bytes)) != self.content_sha256.to_ascii_lowercase() {
+            return Err(LexiconError::invalid_bundle(format!(
+                "tokenizer content SHA-256 mismatch for {}",
+                path.display()
+            )));
+        }
+        Ok(bytes)
     }
 }
 
@@ -197,13 +259,13 @@ impl LexiconBundleManifest {
                 ));
             }
             validate_file(root, &semantic.model)?;
-            validate_file(root, &semantic.tokenizer)?;
+            validate_tokenizer_file(root, &semantic.tokenizer)?;
             validate_file(root, &semantic.license)?;
             validate_vector_file(root, &semantic.identity_vectors, semantic)?;
             validate_vector_file(root, &semantic.knowledge_vectors, semantic)?;
             if semantic.model_contract.pooling != "mean" || !semantic.model_contract.normalize {
                 return Err(LexiconError::invalid_bundle(
-                    "schema v1 semantic contract requires mean pooling and normalization",
+                    "schema v2 semantic contract requires mean pooling and normalization",
                 ));
             }
         }
@@ -252,6 +314,20 @@ impl LexiconBundleManifest {
         }
         Ok(())
     }
+}
+
+fn validate_tokenizer_file(root: &Path, tokenizer: &TokenizerFile) -> LexiconResult<()> {
+    validate_file(root, &tokenizer.bundle)?;
+    if !tokenizer.bundle.file.ends_with(".json.zst")
+        || tokenizer.content_size_bytes == 0
+        || tokenizer.content_size_bytes > MAX_TOKENIZER_CONTENT_BYTES
+        || !is_sha256(&tokenizer.content_sha256)
+    {
+        return Err(LexiconError::invalid_bundle(
+            "invalid zstd JSON tokenizer metadata",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_file(root: &Path, file: &BundleFile) -> LexiconResult<()> {

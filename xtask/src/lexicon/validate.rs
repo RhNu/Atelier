@@ -4,6 +4,7 @@ use std::path::Path;
 use atelier_adapter_lexicon_bundle::{LexiconBundle, LexiconBundleManifest};
 use atelier_prompt_lexicon::LexiconEngine;
 use sha2::{Digest, Sha256};
+use tokenizers::Tokenizer;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LexiconValidationSummary {
@@ -21,7 +22,17 @@ pub fn validate_lexicon_bundle(root: &Path) -> Result<LexiconValidationSummary, 
     verify_file(root, &manifest.database.file, &manifest.database.sha256)?;
     if let Some(semantic) = &manifest.semantic {
         verify_file(root, &semantic.model.file, &semantic.model.sha256)?;
-        verify_file(root, &semantic.tokenizer.file, &semantic.tokenizer.sha256)?;
+        verify_file(
+            root,
+            &semantic.tokenizer.bundle.file,
+            &semantic.tokenizer.bundle.sha256,
+        )?;
+        let tokenizer = semantic
+            .tokenizer
+            .decode(root)
+            .map_err(|error| error.to_string())?;
+        Tokenizer::from_bytes(tokenizer)
+            .map_err(|error| format!("invalid tokenizer payload: {error}"))?;
         verify_file(root, &semantic.license.file, &semantic.license.sha256)?;
         verify_file(
             root,

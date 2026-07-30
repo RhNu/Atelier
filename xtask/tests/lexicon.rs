@@ -1,6 +1,8 @@
 use std::fs;
 
-use atelier_adapter_lexicon_bundle::LexiconBundle;
+use atelier_adapter_lexicon_bundle::{
+    BUNDLE_SCHEMA_VERSION, LexiconBundle, LexiconBundleManifest, TokenizerEncoding,
+};
 use atelier_prompt_lexicon::{
     LexiconEngine, LexiconSearchFilters, LexiconSearchMode, LexiconSearchQuery,
 };
@@ -90,6 +92,13 @@ fn semantic_vector_dimensions_are_validated_without_loading_onnx() {
         bundle_version: "test-semantic".to_owned(),
     })
     .unwrap();
+    let manifest = LexiconBundleManifest::read(&output).unwrap();
+    assert_eq!(manifest.schema_version, BUNDLE_SCHEMA_VERSION);
+    let tokenizer = manifest.semantic.unwrap().tokenizer;
+    assert_eq!(tokenizer.encoding, TokenizerEncoding::ZstdJson);
+    assert_eq!(tokenizer.decode(&output).unwrap(), b"{}");
+    assert!(output.join("tokenizer.json.zst").is_file());
+    assert!(!output.join("tokenizer.json").exists());
     fs::write(output.join("identity.f16"), [0_u8; 6]).unwrap();
     assert!(validate_lexicon_bundle(&output).is_err());
 }

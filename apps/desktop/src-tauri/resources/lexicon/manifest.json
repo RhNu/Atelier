@@ -1,7 +1,7 @@
 {
   "format": "atelier.lexicon.bundle",
-  "schema_version": 1,
-  "bundle_version": "2026.07.29",
+  "schema_version": 2,
+  "bundle_version": "2026.07.30",
   "database": {
     "file": "lexicon.sqlite",
     "sha256": "5f42e992d621411d3dd07679a94ce61a5c24419f6e52e87c1df0cf24c7a30cf1",
@@ -14,9 +14,12 @@
       "size_bytes": 118346824
     },
     "tokenizer": {
-      "file": "tokenizer.json",
-      "sha256": "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39",
-      "size_bytes": 17082730
+      "file": "tokenizer.json.zst",
+      "sha256": "f2a1c25c2300081f6ac050e724535c2b537cc683ba8496023fa2c03fae099b1f",
+      "size_bytes": 2583150,
+      "encoding": "zstd-json",
+      "content_sha256": "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39",
+      "content_size_bytes": 17082730
     },
     "license": {
       "file": "LICENSE-model.txt",

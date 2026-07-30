@@ -45,7 +45,8 @@ impl SemanticEngine {
                 manifest.entity_count
             )));
         }
-        let mut tokenizer = Tokenizer::from_file(root.join(&manifest.tokenizer.file))
+        let tokenizer_bytes = manifest.tokenizer.decode(root)?;
+        let mut tokenizer = Tokenizer::from_bytes(tokenizer_bytes)
             .map_err(|error| LexiconError::SemanticUnavailable(error.to_string()))?;
         tokenizer
             .with_truncation(Some(TruncationParams {

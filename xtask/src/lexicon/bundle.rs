@@ -4,8 +4,9 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use atelier_adapter_lexicon_bundle::{
-    BUNDLE_FORMAT, BUNDLE_SCHEMA_VERSION, BundleFile, EnrichmentManifest, LexiconBundleManifest,
-    RankingManifest, SemanticManifest, SemanticModelContract, SourceManifest,
+    BUNDLE_FORMAT, BUNDLE_SCHEMA_VERSION, BundleFile, DATABASE_SCHEMA_VERSION, EnrichmentManifest,
+    LexiconBundleManifest, RankingManifest, SemanticManifest, SemanticModelContract,
+    SourceManifest, TokenizerEncoding, TokenizerFile,
 };
 use rusqlite::{Connection, params};
 use serde::de::DeserializeOwned;
@@ -127,7 +128,7 @@ fn build_database(
         .execute(
             "INSERT INTO metadata(key, value) VALUES
              ('format', ?1), ('schema_version', ?2)",
-            params![BUNDLE_FORMAT, BUNDLE_SCHEMA_VERSION.to_string()],
+            params![BUNDLE_FORMAT, DATABASE_SCHEMA_VERSION.to_string()],
         )
         .map_err(|error| error.to_string())?;
 
@@ -322,7 +323,6 @@ fn install_semantic_assets(
     }
     let files = [
         ("model.onnx", "model.onnx"),
-        ("tokenizer.json", "tokenizer.json"),
         ("LICENSE-model.txt", "LICENSE-model.txt"),
         ("identity.f16", "identity.f16"),
         ("knowledge.f16", "knowledge.f16"),
@@ -334,9 +334,18 @@ fn install_semantic_assets(
         )
         .map_err(|error| format!("failed to install semantic asset {source_name}: {error}"))?;
     }
+    let tokenizer = install_tokenizer(
+        &source.join("tokenizer.json"),
+        &config.output_dir.join("tokenizer.json.zst"),
+    )?;
+    let stale_tokenizer = config.output_dir.join("tokenizer.json");
+    if stale_tokenizer.is_file() {
+        fs::remove_file(&stale_tokenizer)
+            .map_err(|error| format!("failed to remove stale tokenizer.json: {error}"))?;
+    }
     Ok(Some(SemanticManifest {
         model: describe_file(&config.output_dir.join("model.onnx"), "model.onnx")?,
-        tokenizer: describe_file(&config.output_dir.join("tokenizer.json"), "tokenizer.json")?,
+        tokenizer,
         license: describe_file(
             &config.output_dir.join("LICENSE-model.txt"),
             "LICENSE-model.txt",
@@ -360,6 +369,21 @@ fn install_semantic_assets(
             passage_prefix: semantic.passage_prefix,
         },
     }))
+}
+
+fn install_tokenizer(source: &Path, output: &Path) -> Result<TokenizerFile, String> {
+    let content = fs::read(source)
+        .map_err(|error| format!("failed to read tokenizer {}: {error}", source.display()))?;
+    let compressed = zstd::bulk::compress(&content, 19)
+        .map_err(|error| format!("failed to compress tokenizer: {error}"))?;
+    fs::write(output, &compressed)
+        .map_err(|error| format!("failed to install tokenizer {}: {error}", output.display()))?;
+    Ok(TokenizerFile {
+        bundle: describe_file(output, "tokenizer.json.zst")?,
+        encoding: TokenizerEncoding::ZstdJson,
+        content_sha256: format!("{:x}", Sha256::digest(&content)),
+        content_size_bytes: content.len() as u64,
+    })
 }
 
 fn load_enrichment(
