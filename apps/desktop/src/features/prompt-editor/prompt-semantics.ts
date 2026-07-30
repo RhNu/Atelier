@@ -18,7 +18,7 @@ type StructuralLayer = { kind: "up" | "down"; weight?: WeightLayer };
 export function buildPromptSemanticSpans(text: string, syntax: PromptSyntax): PromptSemanticSpan[] {
   const spans: PromptSemanticSpan[] = syntax.nodes
     .filter((node) => node.name === "ExtensionCall")
-    .map((node) => ({ kind: "function" as const, from: node.from, to: node.to }));
+    .flatMap((node) => functionSemanticSpan(text, syntax, node));
   const numericOpen = numericOpenOperators(text, syntax);
   const openingColonKeys = new Set(numericOpen.map((item) => syntaxRecordKey(item.colon)));
   const openingNumberKeys = new Map(
@@ -64,6 +64,26 @@ export function buildPromptSemanticSpans(text: string, syntax: PromptSyntax): Pr
     }
   }
   return spans.sort((left, right) => left.from - right.from || left.to - right.to);
+}
+
+function functionSemanticSpan(
+  text: string,
+  syntax: PromptSyntax,
+  node: PromptSyntax["nodes"][number],
+): PromptSemanticSpan[] {
+  const identifier = firstPromptDescendant(syntax, node, "Identifier");
+  const dollar = firstPromptDescendant(syntax, node, "Dollar");
+  if (!identifier || !dollar) return [];
+  const appearance =
+    text.slice(identifier.from, identifier.to) === "comment" ? "comment" : "default";
+  return [
+    {
+      kind: "function",
+      appearance,
+      from: dollar.from,
+      to: appearance === "comment" ? node.to : identifier.to,
+    },
+  ];
 }
 
 function numericOpenOperators(text: string, syntax: PromptSyntax) {

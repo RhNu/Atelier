@@ -10,7 +10,12 @@ import { inspectPromptTree } from "./prompt-syntax-tree";
 export type NaiPromptProfile = "novelai_v3" | "novelai_v4" | "novelai_v45";
 export type PromptWeightDirection = "up" | "down" | "neutral";
 export type PromptSemanticSpan =
-  | { kind: "function"; from: number; to: number }
+  | {
+      kind: "function";
+      appearance: "default" | "comment";
+      from: number;
+      to: number;
+    }
   | { kind: "weight_reset"; from: number; to: number }
   | {
       kind: "weight";

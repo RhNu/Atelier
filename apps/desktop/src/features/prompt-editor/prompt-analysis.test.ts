@@ -15,14 +15,17 @@ describe("NAI prompt syntax corpus", () => {
       (span) => span.kind === "function",
     );
     expect(functionSpan).toBeDefined();
-    expect(text.slice(functionSpan?.from, functionSpan?.to)).toBe("$chunk(背景-简单背景)");
-    expect(functionSpan?.to).toBe(19);
+    expect(text.slice(functionSpan?.from, functionSpan?.to)).toBe("$chunk");
+    expect(functionSpan).toMatchObject({ appearance: "default", to: 10 });
   });
 
   it("recognizes compile-time comments and validates their arity", () => {
-    expect(
-      diagnosticCodes(analyzePrompt('$comment("draft note")', "novelai_v45").diagnostics),
-    ).toEqual([]);
+    const text = '$comment("draft note")';
+    expect(diagnosticCodes(analyzePrompt(text, "novelai_v45").diagnostics)).toEqual([]);
+    const functionSpan = analyzePrompt(text, "novelai_v45").semanticSpans.find(
+      (span) => span.kind === "function",
+    );
+    expect(functionSpan).toMatchObject({ appearance: "comment", from: 0, to: text.length });
     expect(diagnosticCodes(analyzePrompt("$comment()", "novelai_v45").diagnostics)).toEqual([
       "invalid_function_arity",
     ]);

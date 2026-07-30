@@ -45,7 +45,11 @@ function buildDecorations(view: EditorView): DecorationSet {
 }
 
 function classesForSpan(span: PromptSemanticSpan): string[] {
-  if (span.kind === "function") return ["nai-function"];
+  if (span.kind === "function") {
+    return span.appearance === "comment"
+      ? ["nai-function", "nai-function-comment"]
+      : ["nai-function"];
+  }
   if (span.kind === "weight_reset") return ["nai-semantic-reset"];
   return [
     "nai-semantic-weight",

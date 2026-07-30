@@ -117,6 +117,19 @@ describe("NaiPromptEditor", () => {
     await waitFor(() => expect(promptEditorText(content)).toBe("external"));
   });
 
+  it("highlights function markers together and weakens the complete comment call", () => {
+    render(
+      editor({
+        value: '$chunk(hero), $comment("draft")',
+        ariaLabel: "Highlighted prompt",
+      }),
+    );
+
+    const content = screen.getByLabelText("Highlighted prompt");
+    expect(highlightedText(content, ".nai-function:not(.nai-function-comment)")).toBe("$chunk");
+    expect(highlightedText(content, ".nai-function-comment")).toBe('$comment("draft")');
+  });
+
   it("wires Tab, Enter, Escape, and Ctrl-Space through the CodeMirror completion state", async () => {
     render(
       <QueryClientProvider client={queryClient()}>
@@ -183,6 +196,10 @@ function queryClient() {
 }
 
 function ignoreChange() {}
+
+function highlightedText(content: HTMLElement, selector: string): string {
+  return [...content.querySelectorAll(selector)].map((element) => element.textContent).join("");
+}
 
 function runKey(
   view: ReturnType<typeof promptEditorView>,

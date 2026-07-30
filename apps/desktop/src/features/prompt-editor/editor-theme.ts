@@ -3,13 +3,27 @@ import { EditorView } from "@codemirror/view";
 export type NaiPromptHighlightMode = "foreground" | "background";
 
 export const naiPromptEditorTheme = EditorView.theme({
-  "&": { minHeight: "inherit", backgroundColor: "transparent", color: "var(--color-app-text)" },
+  "&": {
+    minHeight: "inherit",
+    backgroundColor: "transparent",
+    color: "var(--color-app-text)",
+    "--nai-function-foreground": "#67e8f9",
+    "--nai-comment-foreground": "rgb(103 232 249 / 0.58)",
+  },
   ".cm-scroller": { minHeight: "inherit", overflow: "auto", fontFamily: "inherit" },
   ".cm-content": { minHeight: "inherit", padding: "0.75rem", caretColor: "var(--color-app-text)" },
   ".cm-line": { padding: "0" },
   ".cm-gutters": { backgroundColor: "transparent", border: "0", color: "var(--color-app-muted)" },
   ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "transparent" },
-  ".nai-function": { color: "#fbbf24", fontWeight: "600" },
+  ".nai-function": {
+    color: "var(--nai-function-foreground) !important",
+    fontWeight: "600",
+  },
+  ".nai-function *": { color: "inherit !important" },
+  ".nai-function-comment": {
+    "--nai-function-foreground": "var(--nai-comment-foreground)",
+    fontWeight: "400",
+  },
   ".nai-number": { color: "#fbbf24" },
   ".nai-semantic-weight": { color: "var(--nai-weight-foreground) !important" },
   ".nai-semantic-weight *": { color: "inherit !important" },
