@@ -68,10 +68,12 @@ export function ResourcesPage() {
   const chunkCategories = categorySuggestions(
     (chunksQuery.data?.items ?? EMPTY_CHUNKS).map((chunk) => chunk.category),
   );
-  const presetCategories = categorySuggestions([
-    ...(mainPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => preset.category),
-    ...(characterPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => preset.category),
-  ]);
+  const mainPresetCategories = categorySuggestions(
+    (mainPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => preset.category),
+  );
+  const characterPresetCategories = categorySuggestions(
+    (characterPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => preset.category),
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -134,7 +136,7 @@ export function ResourcesPage() {
             search={search}
             newRequest={newRequest}
             viewMode={viewMode}
-            categorySuggestions={presetCategories}
+            categorySuggestions={mainPresetCategories}
           />
         ) : null}
         {tab === "character-presets" ? (
@@ -146,7 +148,7 @@ export function ResourcesPage() {
             search={search}
             newRequest={newRequest}
             viewMode={viewMode}
-            categorySuggestions={presetCategories}
+            categorySuggestions={characterPresetCategories}
           />
         ) : null}
         {tab === "vibe" ? (

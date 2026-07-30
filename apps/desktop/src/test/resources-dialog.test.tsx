@@ -6,7 +6,7 @@ import { createAtelierQueryClient } from "../app/query-client";
 import { ResourcesPage } from "../features/resources";
 import { ChunkWorkspace } from "../features/resources/components/ChunkWorkspace";
 import { PresetWorkspace } from "../features/resources/components/PresetWorkspace";
-import type { PromptChunkDto, PromptPresetDto } from "../types";
+import type { ListPromptPresetsRequestDto, PromptChunkDto, PromptPresetDto } from "../types";
 import { promptEditorText, typeInPromptEditor } from "./prompt-editor-test-utils";
 
 const mocks = vi.hoisted(() => ({
@@ -27,8 +27,11 @@ vi.mock("../features/resources/data/useResourcesData", () => ({
     isPending: false,
     isError: false,
   }),
-  usePromptPresetsQuery: () => ({
-    data: { items: [], total: 0 },
+  usePromptPresetsQuery: (request: ListPromptPresetsRequestDto) => ({
+    data: {
+      items: request.kind === "main" ? MAIN_PRESETS : CHARACTER_PRESETS,
+      total: request.kind === "main" ? MAIN_PRESETS.length : CHARACTER_PRESETS.length,
+    },
     isPending: false,
     isError: false,
   }),
@@ -75,6 +78,20 @@ const preset: PromptPresetDto = {
 };
 const PRESETS = [preset];
 const PRESET_CATEGORIES = ["Characters", "Style"];
+const mainPreset: PromptPresetDto = {
+  ...preset,
+  preset_id: "preset-main",
+  kind: "main",
+  name: "Cinematic",
+  category: "Main styles",
+};
+const characterPreset: PromptPresetDto = {
+  ...preset,
+  preset_id: "preset-character",
+  category: "Character archetypes",
+};
+const MAIN_PRESETS = [mainPreset];
+const CHARACTER_PRESETS = [characterPreset];
 
 describe("Resources dialogs", () => {
   it("keeps the Library primary and opens editing in a dialog", async () => {
@@ -172,6 +189,30 @@ describe("Resources dialogs", () => {
     expect(gridView).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("cinematic lighting")).toBeInTheDocument();
     expect(screen.queryByText("No preview")).not.toBeInTheDocument();
+  });
+
+  it("keeps main and character preset category suggestions separate", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={createAtelierQueryClient()}>
+        <ResourcesPage />
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("tab", { name: "Main Presets" }));
+    await user.click(screen.getByRole("button", { name: "New" }));
+    await user.click(screen.getByRole("combobox", { name: "Category" }));
+
+    expect(screen.getByRole("option", { name: "Main styles" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Character archetypes" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("tab", { name: "Character Presets" }));
+    await user.click(screen.getByRole("button", { name: "New" }));
+    await user.click(screen.getByRole("combobox", { name: "Category" }));
+
+    expect(screen.getByRole("option", { name: "Character archetypes" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Main styles" })).not.toBeInTheDocument();
   });
 });
 
