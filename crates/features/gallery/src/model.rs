@@ -49,6 +49,37 @@ pub enum GallerySafetyOverride {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum GallerySafetyState {
+    Unscanned,
+    Scanned(Box<SafetyAssessment>),
+    Failed {
+        message: String,
+        attempted_at_ms: u64,
+    },
+    Unavailable {
+        message: String,
+    },
+}
+
+impl GallerySafetyState {
+    #[must_use]
+    pub fn assessment(&self) -> Option<&SafetyAssessment> {
+        match self {
+            Self::Scanned(assessment) => Some(assessment.as_ref()),
+            Self::Unscanned | Self::Failed { .. } | Self::Unavailable { .. } => None,
+        }
+    }
+}
+
+impl From<Option<SafetyAssessment>> for GallerySafetyState {
+    fn from(assessment: Option<SafetyAssessment>) -> Self {
+        assessment.map_or(Self::Unscanned, |assessment| {
+            Self::Scanned(Box::new(assessment))
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct GalleryItem {
     pub id: GalleryItemId,
     pub artifact_id: ArtifactId,
@@ -58,7 +89,7 @@ pub struct GalleryItem {
     pub assets: Vec<VisualAssetRef>,
     pub metadata: ArtifactMetadata,
     pub replay: Option<ArtifactReplayManifest>,
-    pub safety_assessment: Option<SafetyAssessment>,
+    pub safety: GallerySafetyState,
     pub manual_safety_override: Option<GallerySafetyOverride>,
     pub indexed_at_ms: u64,
 }
@@ -68,7 +99,7 @@ impl GalleryItem {
     pub fn from_artifact(
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
-        safety_assessment: Option<SafetyAssessment>,
+        safety: GallerySafetyState,
     ) -> Self {
         let mut metadata = artifact.metadata;
         metadata.embedded_metadata_json = None;
@@ -81,7 +112,7 @@ impl GalleryItem {
             assets: artifact.assets,
             metadata,
             replay: artifact.replay,
-            safety_assessment,
+            safety,
             manual_safety_override: None,
             indexed_at_ms,
         }
@@ -99,8 +130,8 @@ impl GalleryItem {
             GallerySafetyOverride::Sensitive => SafetyLabel::Sensitive,
             GallerySafetyOverride::Hidden => SafetyLabel::Hidden,
         });
-        self.safety_assessment
-            .as_ref()
+        self.safety
+            .assessment()
             .map(|assessment| assessment.effective_label(manual))
             .or(manual)
     }

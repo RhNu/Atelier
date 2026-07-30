@@ -10,7 +10,9 @@ use atelier_app_api::event::{AppEventKindDto, AppEventPageDto, EventsSinceReques
 use atelier_app_api::gallery::{
     DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceRequestDto,
     GalleryImageReferenceTargetDto, GalleryItemDto, GallerySafetyDto, GallerySafetyLabelDto,
-    GallerySafetyRiskBandDto, GallerySafetyScanStateDto, GallerySourceKindDto,
+    GallerySafetyModelEvidenceDto, GallerySafetyRatingScoresDto, GallerySafetyReviewDto,
+    GallerySafetyReviewStateDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
+    GallerySourceKindDto,
 };
 use atelier_app_api::generation::{
     CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
@@ -44,7 +46,7 @@ use atelier_app_api::resource::{
 };
 use atelier_app_api::settings::{
     FrontendLanguageDto, GenerationDefaultsDto, GlobalFrontendSettingsDto,
-    GlobalGallerySettingsDto, GlobalSettingsDto, ImageVariantSettingsDto,
+    GlobalGallerySettingsDto, GlobalSafetySettingsDto, GlobalSettingsDto, ImageVariantSettingsDto,
     ResetWorkspaceSettingsResponseDto, UpdateGlobalSettingsRequestDto,
     UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
@@ -118,7 +120,18 @@ fn director_command_dtos_use_resource_inputs_and_gallery_results() {
             embedded_metadata_warnings: Vec::new(),
             sample_index: None,
             model_name: None,
-            safety: None,
+            safety: GallerySafetyDto {
+                scan_state: GallerySafetyScanStateDto::Unscanned,
+                risk_band: None,
+                auto_label: None,
+                effective_label: None,
+                policy_id: None,
+                policy_version: None,
+                primary: None,
+                review: None,
+                assessed_at_ms: None,
+                message: None,
+            },
             manual_safety_override: None,
         },
     };
@@ -158,7 +171,8 @@ fn director_command_dtos_use_resource_inputs_and_gallery_results() {
                 "source_kind": "director",
                 "primary_resource": { "id": "resource:director:run-1" },
                 "assets": [],
-                "indexed_at_ms": 123
+                "indexed_at_ms": 123,
+                "safety": { "scan_state": "unscanned" }
             }
         })
     );
@@ -170,22 +184,29 @@ fn gallery_item_can_report_complete_safety_assessment() {
         scan_state: GallerySafetyScanStateDto::Scanned,
         risk_band: Some(GallerySafetyRiskBandDto::High),
         auto_label: Some(GallerySafetyLabelDto::Sensitive),
-        effective_label: GallerySafetyLabelDto::Sensitive,
-        nsfw_score: Some(0.91),
-        safe_score: Some(0.09),
-        raw_scores: vec![
-            atelier_app_api::gallery::GallerySafetyScoreDto {
-                label: "safe".to_owned(),
-                score: 0.09,
+        effective_label: Some(GallerySafetyLabelDto::Sensitive),
+        policy_id: Some("anime-rating-cascade".to_owned()),
+        policy_version: Some("1".to_owned()),
+        primary: Some(GallerySafetyModelEvidenceDto {
+            model_id: "anime_dbrating".to_owned(),
+            model_revision: "revision-1".to_owned(),
+            ratings: GallerySafetyRatingScoresDto {
+                general: 0.09,
+                sensitive: 0.0,
+                questionable: 0.2,
+                explicit: 0.71,
             },
-            atelier_app_api::gallery::GallerySafetyScoreDto {
-                label: "nsfw".to_owned(),
-                score: 0.91,
-            },
-        ],
-        model_id: Some("open_nsfw@onnx".to_owned()),
-        scorer_version: Some("1".to_owned()),
+            fused_score: 0.91,
+        }),
+        review: Some(GallerySafetyReviewDto {
+            state: GallerySafetyReviewStateDto::NotNeeded,
+            model_id: None,
+            model_revision: None,
+            evidence: None,
+            message: None,
+        }),
         assessed_at_ms: Some(123),
+        message: None,
     };
 
     assert_eq!(
@@ -195,14 +216,20 @@ fn gallery_item_can_report_complete_safety_assessment() {
             "risk_band": "high",
             "auto_label": "sensitive",
             "effective_label": "sensitive",
-            "nsfw_score": 0.91_f32,
-            "safe_score": 0.09_f32,
-            "raw_scores": [
-                { "label": "safe", "score": 0.09_f32 },
-                { "label": "nsfw", "score": 0.91_f32 }
-            ],
-            "model_id": "open_nsfw@onnx",
-            "scorer_version": "1",
+            "policy_id": "anime-rating-cascade",
+            "policy_version": "1",
+            "primary": {
+                "model_id": "anime_dbrating",
+                "model_revision": "revision-1",
+                "ratings": {
+                    "general": 0.09_f32,
+                    "sensitive": 0.0_f32,
+                    "questionable": 0.2_f32,
+                    "explicit": 0.71_f32
+                },
+                "fused_score": 0.91_f32
+            },
+            "review": { "state": "not_needed" },
             "assessed_at_ms": 123
         })
     );
@@ -301,6 +328,9 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
                 blur_sensitive_images: true,
             },
         },
+        safety: GlobalSafetySettingsDto {
+            wd_auto_review_enabled: true,
+        },
     };
 
     assert_eq!(
@@ -311,12 +341,14 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
                 "language": "zh-CN",
                 "developer_mode": true,
                 "gallery": { "blur_sensitive_images": true }
-            }
+            },
+            "safety": { "wd_auto_review_enabled": true }
         })
     );
     assert_eq!(
         serde_json::to_value(UpdateGlobalSettingsRequestDto {
             frontend: settings.frontend,
+            safety: settings.safety,
         })
         .unwrap(),
         json!({
@@ -324,7 +356,8 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
                 "language": "zh-CN",
                 "developer_mode": true,
                 "gallery": { "blur_sensitive_images": true }
-            }
+            },
+            "safety": { "wd_auto_review_enabled": true }
         })
     );
 }

@@ -1,8 +1,8 @@
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
-    GlobalFrontendSettings, GlobalSettings, GlobalSettingsRepository, SettingsResult,
-    WorkspaceSettings, WorkspaceSettingsRepository,
+    GlobalFrontendSettings, GlobalSafetySettings, GlobalSettings, GlobalSettingsRepository,
+    SettingsResult, WorkspaceSettings, WorkspaceSettingsRepository,
 };
 
 #[derive(Clone, Debug)]
@@ -82,6 +82,24 @@ impl GlobalSettingsService {
     ) -> SettingsResult<GlobalSettings> {
         let mut settings = self.repository.get_global_settings().await?;
         settings.frontend = frontend;
+        self.repository
+            .save_global_settings(settings.clone())
+            .await?;
+        Ok(settings)
+    }
+
+    /// Replaces editable application-wide frontend and safety preferences.
+    ///
+    /// # Errors
+    /// Returns an error when the repository cannot be read or written.
+    pub async fn update_application_settings(
+        &self,
+        frontend: GlobalFrontendSettings,
+        safety: GlobalSafetySettings,
+    ) -> SettingsResult<GlobalSettings> {
+        let mut settings = self.repository.get_global_settings().await?;
+        settings.frontend = frontend;
+        settings.safety = safety;
         self.repository
             .save_global_settings(settings.clone())
             .await?;

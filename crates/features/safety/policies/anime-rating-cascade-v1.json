@@ -1,0 +1,13 @@
+{
+  "id": "anime-rating-cascade",
+  "version": "1",
+  "primary_model_revision": "7af21db648acdeb74f5c334abda9dd7403407b3c",
+  "review_model_revision": "627aef95638667ddcaa3ac8ae625e88ea5b02f51",
+  "primary_intercept": -0.2429895824,
+  "primary_coefficients": [-7.2744836524, -4.9526773341, 4.2441285455, 7.8979977227],
+  "primary_threshold": 0.9111526287,
+  "review_margin": 0.02,
+  "review_intercept": -0.3692472865,
+  "review_coefficients": [-5.6627272640, -4.1862400015, 3.1055301863, 6.5022104172],
+  "review_threshold": 0.9352532413
+}

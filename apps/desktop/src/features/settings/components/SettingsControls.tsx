@@ -121,10 +121,12 @@ export function SelectField({
 export function CheckboxField({
   label,
   checked,
+  disabled = false,
   onChange,
 }: {
   label: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   const handleChange = useCallback(
@@ -135,11 +137,12 @@ export function CheckboxField({
   );
 
   return (
-    <label className="flex items-center gap-3 border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text">
+    <label className="flex items-center gap-3 border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text has-disabled:opacity-50">
       <input
         aria-label={label}
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         className="size-4 border border-app-border bg-black/20"
         onChange={handleChange}
       />

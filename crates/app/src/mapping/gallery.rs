@@ -3,9 +3,11 @@ use super::{
     GalleryImageReference, GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItem,
     GalleryItemDto, GalleryMetadataStatusDto, GalleryMetadataWarningCodeDto,
     GalleryMetadataWarningDto, GalleryPageDto, GalleryQuery, GalleryQueryDto, GallerySafetyDto,
-    GallerySafetyLabelDto, GallerySafetyOverride, GallerySafetyOverrideDto,
-    GallerySafetyRiskBandDto, GallerySafetyScanStateDto, GallerySafetyScoreDto, GallerySourceKind,
-    GallerySourceKindDto, ImageReferenceTarget, ResourceVariantKind, SafetyAssessment, SafetyLabel,
+    GallerySafetyLabelDto, GallerySafetyModelEvidenceDto, GallerySafetyOverride,
+    GallerySafetyOverrideDto, GallerySafetyRatingScoresDto, GallerySafetyReviewDto,
+    GallerySafetyReviewStateDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
+    GallerySafetyState, GallerySourceKind, GallerySourceKindDto, ImageReferenceTarget,
+    ResourceVariantKind, SafetyAssessment, SafetyLabel, SafetyModelEvidence, SafetyReviewOutcome,
     SafetyRiskBand, VisualAssetDto, VisualAssetRole, resource_ref_to_dto,
 };
 
@@ -39,10 +41,7 @@ pub fn gallery_page_to_dto(
 }
 
 pub fn gallery_item_to_dto(value: GalleryItem) -> GalleryItemDto {
-    let safety = value
-        .safety_assessment
-        .as_ref()
-        .map(|assessment| safety_assessment_to_dto(assessment, value.manual_safety_override));
+    let safety = safety_state_to_dto(&value.safety, value.manual_safety_override);
     GalleryItemDto {
         item_id: value.id.as_str().to_owned(),
         artifact_id: value.artifact_id.as_str().to_owned(),
@@ -114,36 +113,131 @@ fn metadata_warning_to_dto(value: EmbeddedMetadataWarning) -> GalleryMetadataWar
     }
 }
 
+fn safety_state_to_dto(
+    value: &GallerySafetyState,
+    manual_override: Option<GallerySafetyOverride>,
+) -> GallerySafetyDto {
+    let manual_label = manual_override.map(|value| match value {
+        GallerySafetyOverride::Safe => SafetyLabel::Safe,
+        GallerySafetyOverride::Sensitive => SafetyLabel::Sensitive,
+        GallerySafetyOverride::Hidden => SafetyLabel::Hidden,
+    });
+    match value {
+        GallerySafetyState::Unscanned => empty_safety_dto(
+            GallerySafetyScanStateDto::Unscanned,
+            manual_label,
+            None,
+            None,
+        ),
+        GallerySafetyState::Failed {
+            message,
+            attempted_at_ms,
+        } => empty_safety_dto(
+            GallerySafetyScanStateDto::Failed,
+            manual_label,
+            Some(message.clone()),
+            Some(*attempted_at_ms),
+        ),
+        GallerySafetyState::Unavailable { message } => empty_safety_dto(
+            GallerySafetyScanStateDto::Unavailable,
+            manual_label,
+            Some(message.clone()),
+            None,
+        ),
+        GallerySafetyState::Scanned(assessment) => {
+            safety_assessment_to_dto(assessment, manual_override)
+        }
+    }
+}
+
+fn empty_safety_dto(
+    scan_state: GallerySafetyScanStateDto,
+    effective_label: Option<SafetyLabel>,
+    message: Option<String>,
+    attempted_at_ms: Option<u64>,
+) -> GallerySafetyDto {
+    GallerySafetyDto {
+        scan_state,
+        risk_band: None,
+        auto_label: None,
+        effective_label: effective_label.map(safety_label_to_dto),
+        policy_id: None,
+        policy_version: None,
+        primary: None,
+        review: None,
+        assessed_at_ms: attempted_at_ms,
+        message,
+    }
+}
+
 fn safety_assessment_to_dto(
     value: &SafetyAssessment,
     manual_override: Option<GallerySafetyOverride>,
 ) -> GallerySafetyDto {
     GallerySafetyDto {
         scan_state: GallerySafetyScanStateDto::Scanned,
-        risk_band: Some(safety_risk_band_to_dto(value.risk_band())),
-        auto_label: Some(safety_label_to_dto(value.auto_label())),
-        effective_label: safety_label_to_dto(value.effective_label(manual_override.map(|value| {
-            match value {
+        risk_band: Some(safety_risk_band_to_dto(value.risk_band)),
+        auto_label: Some(safety_label_to_dto(value.auto_label)),
+        effective_label: Some(safety_label_to_dto(value.effective_label(
+            manual_override.map(|value| match value {
                 GallerySafetyOverride::Safe => SafetyLabel::Safe,
                 GallerySafetyOverride::Sensitive => SafetyLabel::Sensitive,
                 GallerySafetyOverride::Hidden => SafetyLabel::Hidden,
-            }
-        }))),
-        nsfw_score: Some(value.score.value()),
-        safe_score: value
-            .safe_score
-            .map(atelier_safety::ImageSafetyScore::value),
-        raw_scores: value
-            .raw_scores
-            .iter()
-            .map(|score| GallerySafetyScoreDto {
-                label: score.label.clone(),
-                score: score.score.value(),
-            })
-            .collect(),
-        model_id: value.scorer_label.clone(),
-        scorer_version: value.scorer_version.clone(),
+            }),
+        ))),
+        policy_id: Some(value.policy_id.clone()),
+        policy_version: Some(value.policy_version.clone()),
+        primary: Some(safety_model_evidence_to_dto(&value.primary)),
+        review: Some(safety_review_to_dto(&value.review)),
         assessed_at_ms: value.assessed_at_ms,
+        message: None,
+    }
+}
+
+fn safety_model_evidence_to_dto(value: &SafetyModelEvidence) -> GallerySafetyModelEvidenceDto {
+    GallerySafetyModelEvidenceDto {
+        model_id: value.model.id.as_str().to_owned(),
+        model_revision: value.model.revision.clone(),
+        ratings: GallerySafetyRatingScoresDto {
+            general: value.ratings.general.value(),
+            sensitive: value.ratings.sensitive.value(),
+            questionable: value.ratings.questionable.value(),
+            explicit: value.ratings.explicit.value(),
+        },
+        fused_score: value.fused_score.value(),
+    }
+}
+
+fn safety_review_to_dto(value: &SafetyReviewOutcome) -> GallerySafetyReviewDto {
+    match value {
+        SafetyReviewOutcome::NotNeeded => GallerySafetyReviewDto {
+            state: GallerySafetyReviewStateDto::NotNeeded,
+            model_id: None,
+            model_revision: None,
+            evidence: None,
+            message: None,
+        },
+        SafetyReviewOutcome::Disabled => GallerySafetyReviewDto {
+            state: GallerySafetyReviewStateDto::Disabled,
+            model_id: None,
+            model_revision: None,
+            evidence: None,
+            message: None,
+        },
+        SafetyReviewOutcome::Completed(evidence) => GallerySafetyReviewDto {
+            state: GallerySafetyReviewStateDto::Completed,
+            model_id: Some(evidence.model.id.as_str().to_owned()),
+            model_revision: Some(evidence.model.revision.clone()),
+            evidence: Some(safety_model_evidence_to_dto(evidence)),
+            message: None,
+        },
+        SafetyReviewOutcome::Failed { model, message } => GallerySafetyReviewDto {
+            state: GallerySafetyReviewStateDto::Failed,
+            model_id: Some(model.id.as_str().to_owned()),
+            model_revision: Some(model.revision.clone()),
+            evidence: None,
+            message: Some(message.clone()),
+        },
     }
 }
 

@@ -11,6 +11,9 @@ import type {
   DeleteApiKeyRequestDto,
   DeleteApiKeyResponseDto,
   GlobalSettingsDto,
+  ImageAnalysisModelInstallProgressDto,
+  ImageAnalysisModelRequestDto,
+  ImageAnalysisModelStatusDto,
   ResetWorkspaceSettingsResponseDto,
   SetActiveApiKeyRequestDto,
   SubscriptionSummaryDto,
@@ -39,6 +42,18 @@ const mocks = vi.hoisted(() => ({
     get: vi.fn<() => Promise<GlobalSettingsDto>>(),
     update: vi.fn<(request: UpdateGlobalSettingsRequestDto) => Promise<GlobalSettingsDto>>(),
   },
+  imageAnalysisApi: {
+    statuses: vi.fn<() => Promise<ImageAnalysisModelStatusDto[]>>(),
+    install:
+      vi.fn<
+        (
+          request: ImageAnalysisModelRequestDto,
+          onProgress: (progress: ImageAnalysisModelInstallProgressDto) => void,
+        ) => Promise<ImageAnalysisModelStatusDto>
+      >(),
+    cancelInstall: vi.fn<(request: ImageAnalysisModelRequestDto) => Promise<void>>(),
+    delete: vi.fn<(request: ImageAnalysisModelRequestDto) => Promise<void>>(),
+  },
 }));
 
 vi.mock("../features/workspace/useWorkspaceStatus", () => ({
@@ -60,10 +75,12 @@ vi.mock("../platform/atelier", () => ({
   accountApi: mocks.accountApi,
   settingsApi: mocks.settingsApi,
   globalSettingsApi: mocks.globalSettingsApi,
+  imageAnalysisApi: mocks.imageAnalysisApi,
   queryKeys: {
     app: {
       bootstrap: () => ["app", "bootstrap"],
       globalSettings: () => ["app", "settings"],
+      imageAnalysisModels: () => ["app", "image-analysis-models"],
     },
     account: {
       root: () => ["account"],
@@ -109,6 +126,7 @@ const defaultGlobalSettings: GlobalSettingsDto = {
       blur_sensitive_images: false,
     },
   },
+  safety: { wd_auto_review_enabled: false },
 };
 
 const activeSubscription: SubscriptionSummaryDto = {
@@ -118,6 +136,27 @@ const activeSubscription: SubscriptionSummaryDto = {
   tier_name: "Opus",
   expires_at_ms: 1_800_000_000_000,
 };
+
+const readyImageAnalysisModels: ImageAnalysisModelStatusDto[] = [
+  {
+    model_id: "anime_db_rating",
+    required: true,
+    state: "ready",
+    revision: "7af21db648acdeb74f5c334abda9dd7403407b3c",
+    size_bytes: 16_832_853,
+    downloaded_bytes: 16_832_853,
+    message: null,
+  },
+  {
+    model_id: "wd_swinv2_tagger_v3",
+    required: false,
+    state: "ready",
+    revision: "627aef95638667ddcaa3ac8ae625e88ea5b02f51",
+    size_bytes: 467_769_446,
+    downloaded_bytes: 467_769_446,
+    message: null,
+  },
+];
 
 function cloneSettings(): WorkspaceSettingsDto {
   return structuredClone(defaultSettings) as WorkspaceSettingsDto;
@@ -145,10 +184,14 @@ function setup(keys: ApiKeyRecordDto[] = []) {
   mocks.settingsApi.update.mockImplementation(async ({ settings }) => settings);
   mocks.settingsApi.reset.mockResolvedValue({ settings: cloneSettings() });
   mocks.globalSettingsApi.get.mockResolvedValue(structuredClone(defaultGlobalSettings));
-  mocks.globalSettingsApi.update.mockImplementation(async ({ frontend }) => ({
+  mocks.globalSettingsApi.update.mockImplementation(async ({ frontend, safety }) => ({
     last_workspace: "D:/atelier",
     frontend,
+    safety,
   }));
+  mocks.imageAnalysisApi.statuses.mockResolvedValue(readyImageAnalysisModels);
+  mocks.imageAnalysisApi.cancelInstall.mockResolvedValue(undefined);
+  mocks.imageAnalysisApi.delete.mockResolvedValue(undefined);
   mocks.accountApi.list.mockResolvedValue(keys);
   mocks.accountApi.create.mockImplementation(async (request) => ({
     id: request.id,
@@ -194,6 +237,7 @@ describe("SettingsPage", () => {
     expect(within(sectionNav).getByRole("button", { name: "Generation" })).toBeInTheDocument();
     expect(within(sectionNav).getByRole("button", { name: "Images" })).toBeInTheDocument();
     expect(within(sectionNav).getByRole("button", { name: "Interface" })).toBeInTheDocument();
+    expect(within(sectionNav).getByRole("button", { name: "Safety" })).toBeInTheDocument();
 
     await user.click(within(sectionNav).getByRole("button", { name: "Interface" }));
 
@@ -201,7 +245,43 @@ describe("SettingsPage", () => {
     expect(screen.getByLabelText("Developer mode")).toBeInTheDocument();
     expect(screen.getByLabelText("Blur NSFW images")).toBeInTheDocument();
   });
+});
 
+describe("Safety settings", () => {
+  it("enables WD automatic review only with a ready optional model", async () => {
+    const { user } = setup();
+
+    await user.click(await screen.findByRole("button", { name: "Safety" }));
+    expect(await screen.findByText("anime_dbrating")).toBeInTheDocument();
+    expect(screen.getByText("WD SwinV2 Tagger v3")).toBeInTheDocument();
+    const toggle = screen.getByLabelText("WD automatic review");
+    expect(toggle).toBeEnabled();
+    await user.click(toggle);
+
+    await waitFor(() =>
+      expect(lastGlobalSettingsUpdate().safety.wd_auto_review_enabled).toBe(true),
+    );
+  });
+
+  it("shows model status failures and can retry them", async () => {
+    const { user } = setup();
+    mocks.imageAnalysisApi.statuses.mockRejectedValue(new Error("runtime unavailable"));
+
+    await user.click(await screen.findByRole("button", { name: "Safety" }));
+
+    expect(await screen.findByText("Image-analysis models unavailable")).toBeInTheDocument();
+    expect(screen.getByText("runtime unavailable")).toBeInTheDocument();
+    expect(screen.queryByLabelText("WD automatic review")).not.toBeInTheDocument();
+
+    const attemptsBeforeRetry = mocks.imageAnalysisApi.statuses.mock.calls.length;
+    mocks.imageAnalysisApi.statuses.mockResolvedValue(readyImageAnalysisModels);
+    await user.click(screen.getByRole("button", { name: "Retry model status" }));
+    expect(await screen.findByText("anime_dbrating")).toBeInTheDocument();
+    expect(mocks.imageAnalysisApi.statuses.mock.calls.length).toBeGreaterThan(attemptsBeforeRetry);
+  });
+});
+
+describe("SettingsPage commands", () => {
   it("creates API keys with generated ids and never displays the secret", async () => {
     const { user } = setup();
 

@@ -23,4 +23,5 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+atelier-image-analysis = { workspace = true }
 futures-executor = { workspace = true }

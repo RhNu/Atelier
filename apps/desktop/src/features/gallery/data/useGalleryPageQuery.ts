@@ -17,6 +17,7 @@ import type {
   GalleryQueryDto,
   GalleryImageReferenceRequestDto,
   ResourceRefDto,
+  RescanGallerySafetyRequestDto,
   SaveResourceImageRequestDto,
   SetGallerySafetyOverrideRequestDto,
 } from "@/types";
@@ -75,6 +76,16 @@ export function useSetGallerySafetyOverrideMutation() {
         queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
       ]);
     },
+  });
+}
+
+export function useRescanGallerySafetyMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: RescanGallerySafetyRequestDto) =>
+      runLoggedAction("Rescan gallery safety", () => galleryApi.rescanSafety(request)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.gallery.root() }),
   });
 }
 

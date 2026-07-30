@@ -51,6 +51,7 @@ crates/
     director/
     gallery/
     generation/
+    image-analysis/
     jobs/
     precise-reference/
     prompt/
@@ -65,9 +66,9 @@ crates/
   adapters/
     database/
     image-codec/
+    image-analysis-onnx/
     keyring/
     novelai/
-    safety-onnx/
     settings-fs/
     storage-fs/
 
@@ -92,10 +93,16 @@ Feature crates are the default owner for domain concepts:
 - `generation`: NovelAI image generation params, normalization, Anlas estimate, request plan, generation client ports.
 - `jobs`: job and batch state machine, retry/cancel policy, queue events.
 - `artifacts`: generated artifact semantics, replay manifest, visual asset references.
-- `gallery`: gallery item index model, query, source references, safety override.
+- `gallery`: gallery item index model, query, source references, explicit unscanned/scanned/failed/
+  unavailable safety state, and manual safety override.
+- `image-analysis`: model-neutral rating and tag evidence, model package state, and analyzer/model
+  manager ports. Rating-only requests avoid allocating WD general and character tag names.
 - `vibe`: Vibe document import/export, encoding records, cache keys, Vibe client ports.
 - `director`: Director tool request and client port.
-- `safety`: safety scores, assessments, scanner port.
+- `safety`: versioned rating-cascade policy assets, primary/review evidence,
+  manual-override-compatible labels, and scanner/policy-control ports. Runtime decisions and
+  production-parity tooling consume the same immutable policy version. It consumes
+  `image-analysis` rather than binding its ports to a specific tagger.
 - `secrets`: API key registry, active key semantics, secret resolver, subscription probe.
 - `precise-reference`: precise reference input processing and image reader port.
 - `settings`: user-level application preferences and workspace-local NovelAI generation/image defaults, with separate repository ports for each persistence scope.
@@ -113,15 +120,19 @@ Adapters are the boundary for real I/O:
 - `image-codec`: PNG/JPEG/WebP probing plus deterministic gallery/export variant encoding.
 - `keyring`: system credential storage for secret values.
 - `novelai`: `novelai-bridge` integration and resolver-backed NovelAI clients.
-- `safety-onnx`: optional OpenNSFW-style ONNX safety scanner built from host-provided model/runtime paths.
+- `image-analysis-onnx`: pinned dbrating and optional WD Tagger package download, verification,
+  preprocessing, lazy ONNX sessions, rating extraction, and future general/character tag output.
 - `settings-fs`: user-level global settings stored below the desktop host-provided application configuration directory.
 
 Persistence and secret boundaries are adapter contracts:
 
 - `adapters/database` owns the SQLite schema, exact format/version validation, and adapter-local
-  JSON DTOs. New databases are created directly at the current schema; older or unknown schemas
-  are rejected rather than migrated or repaired. Feature and application models must not become
-  persistence schemas through serialization derives.
+  JSON DTOs. New databases are created directly at the current schema. Each supported upgrade is
+  an isolated `schema/migrations/vN_to_vN+1` module with one transaction and focused boundary
+  tests; migration modules can be dropped when their input version is no longer supported. Future,
+  unknown, unmarked, and wrong-format schemas are rejected. Global settings follow the same
+  one-version-boundary rule below `settings-fs/src/migrations`. Feature and application models
+  must not become persistence schemas through serialization derives.
 - `features/secrets` stores only key metadata through the database port. Secret values go through
   `SecretStore` and the keyring adapter, and must not appear in SQLite, API responses, events,
   history, logs, or diagnostics.
@@ -143,6 +154,11 @@ The process-level `AtelierRuntime` owns global settings, event listeners, inject
 Any durable binary or semi-structured resource must go through `resource-catalog`.
 
 Feature crates may store `ResourceRef` plus feature-owned metadata. They should not create long-lived resource directories, encode physical path rules, or maintain private binary indexes.
+
+Downloaded image-analysis model packages are a deliberate exception: they are global,
+revision-pinned, SHA-256-verified, reconstructable runtime assets below
+`app_data_dir/models/image-analysis`, not workspace-owned creative resources. They do not enter
+`resource-catalog`.
 
 ## Generation Output Ownership
 

@@ -24,6 +24,6 @@ export type GalleryItemDto = {
   embedded_metadata_warnings?: Array<GalleryMetadataWarningDto>;
   sample_index: number | null;
   model_name: string | null;
-  safety: GallerySafetyDto | null;
+  safety: GallerySafetyDto;
   manual_safety_override: GallerySafetyOverrideDto | null;
 };

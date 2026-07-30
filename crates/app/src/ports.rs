@@ -19,7 +19,9 @@ use atelier_artifacts::{
 use atelier_director::{
     DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
-use atelier_gallery::{GalleryError, GalleryItem, GalleryResult, GalleryService};
+use atelier_gallery::{
+    GalleryError, GalleryItem, GalleryResult, GallerySafetyState, GalleryService,
+};
 use atelier_generation::{
     GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
     GenerateImageStreamResult, GeneratedImageMetadata, GeneratedImageMetadataInspector,
@@ -268,11 +270,11 @@ where
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
-        safety_assessment: Option<SafetyAssessment>,
+        safety: GallerySafetyState,
     ) -> GalleryResult<GalleryItem> {
         let item = self
             .gallery
-            .index_artifact(artifact, indexed_at_ms, safety_assessment)
+            .index_artifact(artifact, indexed_at_ms, safety)
             .await?;
         self.reassign_gallery_resource_ownership(&item).await?;
         Ok(item)
@@ -327,11 +329,11 @@ where
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
-        safety_assessment: Option<SafetyAssessment>,
+        safety: GallerySafetyState,
     ) -> GalleryResult<GalleryItem> {
         let item = self
             .gallery
-            .index_artifact(artifact, indexed_at_ms, safety_assessment)
+            .index_artifact(artifact, indexed_at_ms, safety)
             .await?;
         self.reassign_gallery_resource_ownership(&item).await?;
         Ok(item)
@@ -453,6 +455,7 @@ where
                 mime_type: None,
             })
             .await
+            .map(|assessment| assessment.with_assessed_at_ms(KernelClock::now_ms(self)))
             .map(Some)
     }
 }

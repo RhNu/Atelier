@@ -61,19 +61,10 @@ export function GalleryPage() {
   const [safetyFilter, setSafetyFilter] = useState<SafetyFilter>("all");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [overrideValue, setOverrideValue] = useState("");
-
   const query = useMemo<GalleryQueryDto>(
-    () => ({
-      offset,
-      limit: PAGE_LIMIT,
-      artifact_kind: artifactKind === "all" ? null : artifactKind,
-      source_kind: sourceFilter === "all" ? null : sourceFilter,
-      manual_safety_override: null,
-      safety_label: safetyFilter === "all" ? null : safetyFilter,
-    }),
+    () => buildGalleryQuery(offset, artifactKind, sourceFilter, safetyFilter),
     [artifactKind, offset, safetyFilter, sourceFilter],
   );
-
   const galleryQuery = useGalleryPageQuery(query);
   const settingsQuery = useGallerySettingsQuery();
   const visibleItems = useMemo(
@@ -187,11 +178,13 @@ export function GalleryPage() {
           overrideValue={overrideValue}
           onOverrideChange={setOverrideValue}
           onApplyOverride={commands.applyOverride}
+          onRescanSafety={commands.rescanSafety}
           onCopy={commands.copySelected}
           onExport={commands.exportSelected}
           onSendToDirector={commands.sendToDirector}
           onDelete={commands.openDeleteConfirmation}
           applyingOverride={commands.applyingOverride}
+          rescanningSafety={commands.rescanningSafety}
           copying={commands.copying}
           exporting={commands.exporting}
           deleting={commands.deleting}
@@ -211,4 +204,20 @@ export function GalleryPage() {
       />
     </div>
   );
+}
+
+function buildGalleryQuery(
+  offset: number,
+  artifactKind: string,
+  sourceFilter: SourceFilter,
+  safetyFilter: SafetyFilter,
+): GalleryQueryDto {
+  return {
+    offset,
+    limit: PAGE_LIMIT,
+    artifact_kind: artifactKind === "all" ? null : artifactKind,
+    source_kind: sourceFilter === "all" ? null : sourceFilter,
+    manual_safety_override: null,
+    safety_label: safetyFilter === "all" ? null : safetyFilter,
+  };
 }

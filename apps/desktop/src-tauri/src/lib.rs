@@ -11,14 +11,17 @@ use tauri::{Manager, RunEvent};
 /// # Panics
 ///
 /// Panics if the Tauri runtime cannot start.
+#[allow(
+    clippy::too_many_lines,
+    reason = "the Tauri command registry is intentionally centralized"
+)]
 pub fn run() {
-    let log_level = if cfg!(debug_assertions) {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Info
-    };
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().level(log_level).build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(desktop_log_level())
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
@@ -65,6 +68,10 @@ pub fn run() {
             commands::release_imported_image_resources,
             commands::get_global_settings,
             commands::update_global_settings,
+            commands::get_image_analysis_model_status,
+            commands::install_image_analysis_model,
+            commands::cancel_image_analysis_model_install,
+            commands::delete_image_analysis_model,
             commands::get_workspace_settings,
             commands::update_workspace_settings,
             commands::reset_workspace_settings,
@@ -97,6 +104,7 @@ pub fn run() {
             commands::query_gallery,
             commands::get_gallery_item_detail,
             commands::set_gallery_safety_override,
+            commands::rescan_gallery_safety,
             commands::delete_gallery_items,
             commands::gallery_image_reference,
             commands::events_since,
@@ -113,6 +121,14 @@ pub fn run() {
     app.run(move |app_handle, event| {
         handle_run_event(app_handle, event, &shutdown);
     });
+}
+
+const fn desktop_log_level() -> log::LevelFilter {
+    if cfg!(debug_assertions) {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    }
 }
 
 fn handle_run_event(

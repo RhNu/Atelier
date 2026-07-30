@@ -9,6 +9,7 @@ async-trait = { workspace = true }
 atelier-artifacts = { workspace = true }
 atelier-gallery = { workspace = true }
 atelier-generation = { workspace = true }
+atelier-image-analysis = { workspace = true }
 atelier-jobs = { workspace = true }
 atelier-kernel = { workspace = true }
 atelier-prompt-resources = { workspace = true }

@@ -1,7 +1,7 @@
 use atelier_adapter_settings_fs::FileSystemGlobalSettingsRepository;
 use atelier_settings::{
-    FrontendLanguage, GlobalFrontendSettings, GlobalGallerySettings, GlobalSettings,
-    GlobalSettingsRepository,
+    FrontendLanguage, GlobalFrontendSettings, GlobalGallerySettings, GlobalSafetySettings,
+    GlobalSettings, GlobalSettingsRepository,
 };
 use futures_executor::block_on;
 
@@ -26,6 +26,9 @@ fn missing_file_returns_defaults_and_round_trips_settings() {
                     blur_sensitive_images: true,
                 },
             },
+            safety: GlobalSafetySettings {
+                wd_auto_review_enabled: true,
+            },
         };
         repository
             .save_global_settings(settings.clone())
@@ -35,7 +38,8 @@ fn missing_file_returns_defaults_and_round_trips_settings() {
         let stored: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(stored["format"], "atelier-global-settings");
-        assert_eq!(stored["schema_version"], 1);
+        assert_eq!(stored["schema_version"], 2);
+        assert_eq!(stored["safety"]["wd_auto_review_enabled"], true);
         assert_eq!(repository.get_global_settings().await.unwrap(), settings);
 
         let mut updated = settings;
@@ -84,8 +88,8 @@ fn non_current_global_settings_schemas_are_quarantined() {
     block_on(async {
         for (format, version) in [
             ("atelier-global-settings", 0),
-            ("atelier-global-settings", 2),
-            ("another-settings-format", 1),
+            ("atelier-global-settings", 3),
+            ("another-settings-format", 2),
         ] {
             let temp = tempfile::tempdir().unwrap();
             let path = temp.path().join("global-settings.json");
@@ -113,6 +117,51 @@ fn non_current_global_settings_schemas_are_quarantined() {
             );
             assert!(!path.exists());
         }
+    });
+}
+
+#[test]
+fn version_one_settings_are_migrated_in_place_and_preserve_user_choices() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("global-settings.json");
+        std::fs::write(
+            &path,
+            r#"{
+  "format": "atelier-global-settings",
+  "schema_version": 1,
+  "last_workspace": "D:/old",
+  "frontend": {
+    "language": "zh-CN",
+    "developer_mode": true,
+    "gallery": { "blur_sensitive_images": true }
+  }
+}"#,
+        )
+        .unwrap();
+        let repository = FileSystemGlobalSettingsRepository::new(&path);
+
+        let settings = repository.get_global_settings().await.unwrap();
+        assert_eq!(settings.last_workspace, Some("D:/old".into()));
+        assert_eq!(
+            settings.frontend.language,
+            atelier_settings::FrontendLanguage::SimplifiedChinese
+        );
+        assert!(settings.frontend.developer_mode);
+        assert!(settings.frontend.gallery.blur_sensitive_images);
+        assert!(!settings.safety.wd_auto_review_enabled);
+
+        let migrated: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(migrated["schema_version"], 2);
+        assert_eq!(migrated["safety"]["wd_auto_review_enabled"], false);
+        assert!(!std::fs::read_dir(temp.path()).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("global-settings.json.invalid-")
+        }));
     });
 }
 

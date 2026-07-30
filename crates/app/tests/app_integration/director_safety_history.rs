@@ -101,14 +101,81 @@ fn injected_safety_scanner_scores_generated_gallery_items() {
             .query(GalleryQueryDto::default())
             .await
             .unwrap();
-        let safety = gallery.items[0].safety.as_ref().unwrap();
-        assert_eq!(safety.nsfw_score, Some(0.91));
-        assert_eq!(safety.safe_score, Some(0.09));
+        let safety = &gallery.items[0].safety;
+        assert_eq!(
+            safety.primary.as_ref().map(|value| value.fused_score),
+            Some(0.91)
+        );
+        assert_eq!(safety.policy_id.as_deref(), Some("test-policy"));
+        assert_eq!(safety.policy_version.as_deref(), Some("1"));
         assert_eq!(safety.risk_band, Some(GallerySafetyRiskBandDto::High));
         assert_eq!(safety.auto_label, Some(GallerySafetyLabelDto::Sensitive));
-        assert_eq!(safety.effective_label, GallerySafetyLabelDto::Sensitive);
-        assert_eq!(safety.raw_scores.len(), 2);
+        assert_eq!(
+            safety.effective_label,
+            Some(GallerySafetyLabelDto::Sensitive)
+        );
+        assert_eq!(
+            safety.primary.as_ref().map(|value| value.model_id.as_str()),
+            Some("anime_dbrating")
+        );
         assert_eq!(scanner.inputs(), vec![image_bytes]);
+    });
+}
+
+#[test]
+fn pending_gallery_safety_can_be_rescanned_after_the_scanner_becomes_available() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let image_bytes = valid_png_bytes(2, 1);
+        let app = test_app_with_image(&temp, image_bytes.clone()).await;
+        app.generation()
+            .submit(submit_request("batch-1", "job-1", "1girl"))
+            .await
+            .unwrap();
+        app.generation().run_job("job-1").await.unwrap();
+        assert_eq!(
+            app.gallery()
+                .query(GalleryQueryDto::default())
+                .await
+                .unwrap()
+                .items[0]
+                .safety
+                .scan_state,
+            GallerySafetyScanStateDto::Unavailable
+        );
+        drop(app);
+
+        let scanner = Arc::new(RecordingSafetyScanner::default());
+        let reopened = WorkspaceSession::open_workspace_with_dependencies_and_safety_scanner(
+            temp.path().to_path_buf(),
+            MemorySecretStore::default(),
+            RecordingFactory::with_image_bytes(image_bytes.clone()),
+            Some(scanner.clone()),
+        )
+        .await
+        .unwrap();
+        let response = reopened
+            .gallery()
+            .rescan_safety(RescanGallerySafetyRequestDto::default())
+            .await
+            .unwrap();
+
+        assert_eq!(response.requested, 1);
+        assert_eq!(response.scanned, 1);
+        assert_eq!(response.failed, 0);
+        assert_eq!(response.unavailable, 0);
+        assert_eq!(scanner.inputs(), vec![image_bytes]);
+        assert_eq!(
+            reopened
+                .gallery()
+                .query(GalleryQueryDto::default())
+                .await
+                .unwrap()
+                .items[0]
+                .safety
+                .scan_state,
+            GallerySafetyScanStateDto::Scanned
+        );
     });
 }
 

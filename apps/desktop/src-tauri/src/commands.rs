@@ -18,7 +18,8 @@ use atelier_app_api::{
     gallery::{
         DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceDto,
         GalleryImageReferenceRequestDto, GalleryItemDetailDto, GalleryItemDetailRequestDto,
-        GalleryItemDto, GalleryPageDto, GalleryQueryDto, SetGallerySafetyOverrideRequestDto,
+        GalleryItemDto, GalleryPageDto, GalleryQueryDto, RescanGallerySafetyRequestDto,
+        RescanGallerySafetyResponseDto, SetGallerySafetyOverrideRequestDto,
     },
     generation::{
         GenerationAnlasEstimateDto, GenerationDraftDto, GenerationEstimateRequestDto,
@@ -33,6 +34,10 @@ use atelier_app_api::{
         GenerationHistoryPageDto, GenerationHistoryQueryDto, RerunGenerationHistoryBatchRequestDto,
         RerunGenerationHistoryBatchResponseDto, RerunGenerationHistoryItemRequestDto,
         RerunGenerationHistoryItemResponseDto, RunHistoryPageDto, RunHistoryQueryDto,
+    },
+    image_analysis::{
+        ImageAnalysisModelIdDto, ImageAnalysisModelInstallProgressDto,
+        ImageAnalysisModelRequestDto, ImageAnalysisModelStatusDto,
     },
     prompt::{
         AppendLexiconEntitiesRequestDto, CompileGenerationPromptRequestDto,
@@ -59,7 +64,8 @@ use atelier_app_api::{
         VibeDocumentEntryDto, VibeDocumentPageDto,
     },
 };
-use tauri::State;
+use atelier_image_analysis::{ModelInstallProgress, ModelInstallProgressSink};
+use tauri::{ipc::Channel, State};
 
 use crate::desktop::DesktopState;
 
@@ -68,6 +74,28 @@ fn join_error(error: impl std::fmt::Display) -> ErrorEnvelopeDto {
         "desktop_background_task",
         format!("desktop background task failed: {error}"),
     )
+}
+
+struct ModelProgressChannel(Channel<ImageAnalysisModelInstallProgressDto>);
+
+impl ModelInstallProgressSink for ModelProgressChannel {
+    fn report(&self, progress: ModelInstallProgress) {
+        let model_id = match progress.id {
+            atelier_image_analysis::ImageAnalysisModelId::AnimeDbRating => {
+                ImageAnalysisModelIdDto::AnimeDbRating
+            }
+            atelier_image_analysis::ImageAnalysisModelId::WdSwinv2TaggerV3 => {
+                ImageAnalysisModelIdDto::WdSwinv2TaggerV3
+            }
+        };
+        if let Err(error) = self.0.send(ImageAnalysisModelInstallProgressDto {
+            model_id,
+            downloaded_bytes: progress.downloaded_bytes,
+            total_bytes: progress.total_bytes,
+        }) {
+            log::debug!("model install progress channel closed: {error}");
+        }
+    }
 }
 
 #[tauri::command]
@@ -83,6 +111,55 @@ pub async fn update_global_settings(
     request: UpdateGlobalSettingsRequestDto,
 ) -> CommandResult<GlobalSettingsDto> {
     state.host.update_global_settings(request).await
+}
+
+#[tauri::command]
+pub async fn get_image_analysis_model_status(
+    state: State<'_, DesktopState>,
+) -> CommandResult<Vec<ImageAnalysisModelStatusDto>> {
+    state.host.get_image_analysis_model_status().await
+}
+
+#[tauri::command]
+pub async fn install_image_analysis_model(
+    state: State<'_, DesktopState>,
+    request: ImageAnalysisModelRequestDto,
+    on_progress: Channel<ImageAnalysisModelInstallProgressDto>,
+) -> CommandResult<ImageAnalysisModelStatusDto> {
+    let model_id = request.model_id;
+    let status = state
+        .host
+        .install_image_analysis_model(request, Some(&ModelProgressChannel(on_progress)))
+        .await?;
+    if model_id == ImageAnalysisModelIdDto::AnimeDbRating {
+        let host = state.host.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = host
+                .rescan_gallery_safety(RescanGallerySafetyRequestDto::default())
+                .await;
+        });
+    }
+    Ok(status)
+}
+
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri commands extract managed state by value"
+)]
+pub fn cancel_image_analysis_model_install(
+    state: State<'_, DesktopState>,
+    request: ImageAnalysisModelRequestDto,
+) -> CommandResult<()> {
+    state.host.cancel_image_analysis_model_install(request)
+}
+
+#[tauri::command]
+pub async fn delete_image_analysis_model(
+    state: State<'_, DesktopState>,
+    request: ImageAnalysisModelRequestDto,
+) -> CommandResult<()> {
+    state.host.delete_image_analysis_model(request).await
 }
 
 #[tauri::command]
@@ -543,6 +620,14 @@ pub async fn set_gallery_safety_override(
     request: SetGallerySafetyOverrideRequestDto,
 ) -> CommandResult<GalleryItemDto> {
     state.host.set_gallery_safety_override(request).await
+}
+
+#[tauri::command]
+pub async fn rescan_gallery_safety(
+    state: State<'_, DesktopState>,
+    request: RescanGallerySafetyRequestDto,
+) -> CommandResult<RescanGallerySafetyResponseDto> {
+    state.host.rescan_gallery_safety(request).await
 }
 
 #[tauri::command]

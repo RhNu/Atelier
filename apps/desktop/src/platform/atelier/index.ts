@@ -9,6 +9,7 @@ export {
   generationApi,
   globalSettingsApi,
   historyApi,
+  imageAnalysisApi,
   lexiconApi,
   promptApi,
   resourceApi,

@@ -16,7 +16,7 @@ use atelier_artifacts::{
 };
 use atelier_gallery::{
     GalleryIndex, GalleryItem, GalleryItemId, GalleryQuery, GalleryResult, GallerySafetyOverride,
-    GalleryService, GallerySourceKind,
+    GallerySafetyState, GalleryService, GallerySourceKind,
 };
 use atelier_generation::{
     GenerateImageRequest, GenerateImageResult, GenerateImageStreamResult, GeneratedImage,
@@ -24,6 +24,7 @@ use atelier_generation::{
     GenerationResult, ImageModel, ImageSize, NovelAiGenerationClient, ParsedGeneratedImageMetadata,
     plan_generation_request,
 };
+use atelier_image_analysis::{ImageAnalysisModelId, ImageAnalysisModelInfo, ImageRatingScores};
 use atelier_jobs::{BatchId, JobId, JobPayloadRef};
 use atelier_kernel::{
     GenerationPayloadStore, GenerationWorkRequest, KernelClock, KernelEvent, KernelEventSink,
@@ -40,7 +41,10 @@ use atelier_resource_catalog::{
     ResourceOwner, ResourceOwnerKind, ResourceRef, ResourceRelation, ResourceResult, ResourceState,
     ResourceVariantBuilder, ResourceVariantKind, StagedBlob, StagedBlobToken, VariantId,
 };
-use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyLabel, SafetyResult};
+use atelier_safety::{
+    ImageSafetyScore, SafetyAssessment, SafetyLabel, SafetyModelEvidence, SafetyResult,
+    SafetyReviewOutcome, SafetyRiskBand,
+};
 use atelier_secrets::{
     ApiKeyId, ApiKeyRecord, ApiKeyRegistryStore, SecretRecordId, SecretsErrorKind,
 };
@@ -96,6 +100,40 @@ fn artifact_record(id: &str, seed: i64, source: ArtifactSource) -> ArtifactRecor
             resource,
             variant_kind: Some(ResourceVariantKind::Original),
         }],
+    }
+}
+
+fn test_safety_assessment(
+    resource: ResourceRef,
+    fused_score: ImageSafetyScore,
+) -> SafetyAssessment {
+    let score = fused_score.value();
+    SafetyAssessment {
+        resource,
+        auto_label: if score >= 0.8 {
+            SafetyLabel::Sensitive
+        } else {
+            SafetyLabel::Safe
+        },
+        risk_band: if score >= 0.8 {
+            SafetyRiskBand::High
+        } else if score <= 0.2 {
+            SafetyRiskBand::Low
+        } else {
+            SafetyRiskBand::Medium
+        },
+        policy_id: "test-policy".to_owned(),
+        policy_version: "1".to_owned(),
+        primary: SafetyModelEvidence {
+            model: ImageAnalysisModelInfo {
+                id: ImageAnalysisModelId::AnimeDbRating,
+                revision: "test".to_owned(),
+            },
+            ratings: ImageRatingScores::new(1.0 - score, 0.0, score, 0.0).unwrap(),
+            fused_score,
+        },
+        review: SafetyReviewOutcome::NotNeeded,
+        assessed_at_ms: None,
     }
 }
 
@@ -343,10 +381,10 @@ impl KernelGenerationPorts for DatabaseWorkflowPorts {
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
-        safety_assessment: Option<SafetyAssessment>,
+        safety: GallerySafetyState,
     ) -> GalleryResult<GalleryItem> {
         self.gallery
-            .index_artifact(artifact, indexed_at_ms, safety_assessment)
+            .index_artifact(artifact, indexed_at_ms, safety)
             .await
     }
 }

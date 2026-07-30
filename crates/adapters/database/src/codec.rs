@@ -5,12 +5,18 @@ use atelier_artifacts::{
     ArtifactSource, EmbeddedMetadataStatus, EmbeddedMetadataWarning, VisualAssetRef,
     VisualAssetRole,
 };
-use atelier_gallery::{GalleryItem, GalleryItemId, GallerySafetyOverride, GallerySourceKind};
+use atelier_gallery::{
+    GalleryItem, GalleryItemId, GallerySafetyOverride, GallerySafetyState, GallerySourceKind,
+};
+use atelier_image_analysis::{ImageAnalysisModelId, ImageAnalysisModelInfo, ImageRatingScores};
 use atelier_resource_catalog::{
     ResourceId, ResourceKind, ResourceLifecycle, ResourceMetadata, ResourceOwnerKind, ResourceRef,
     ResourceRelation, ResourceState, ResourceVariantKind, VariantId,
 };
-use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyModelScore};
+use atelier_safety::{
+    ImageSafetyScore, SafetyAssessment, SafetyLabel, SafetyModelEvidence, SafetyReviewOutcome,
+    SafetyRiskBand,
+};
 use atelier_vibe::{
     VibeDocumentEntry, VibeDocumentResources, VibeDocumentSummary, VibeEncodeSettings,
     VibeEncodingConfig, VibeEncodingRecord, VibeId, VibeModel, VibeSourceIdentity,
@@ -39,7 +45,7 @@ pub use resource::ResourceRefDto;
 pub use scalars::*;
 pub use vibe::{VibeDocumentEntryDto, VibeEncodingRecordDto};
 
-const JSON_SCHEMA_VERSION: u32 = 1;
+const JSON_SCHEMA_VERSION: u32 = 2;
 
 fn ensure_schema(version: u32) -> DatabaseResult<()> {
     if version == JSON_SCHEMA_VERSION {

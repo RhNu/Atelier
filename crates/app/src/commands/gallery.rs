@@ -1,7 +1,8 @@
 use atelier_app_api::gallery::{
     DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceDto,
     GalleryImageReferenceRequestDto, GalleryItemDetailDto, GalleryItemDetailRequestDto,
-    GalleryItemDto, GalleryPageDto, GalleryQueryDto, SetGallerySafetyOverrideRequestDto,
+    GalleryItemDto, GalleryPageDto, GalleryQueryDto, RescanGallerySafetyRequestDto,
+    RescanGallerySafetyResponseDto, SetGallerySafetyOverrideRequestDto,
 };
 
 use crate::commands::{AtelierRuntime, CommandResult};
@@ -43,6 +44,22 @@ where
             self.current_session()?
                 .gallery()
                 .set_safety_override(&request.item_id, request.manual_safety_override)
+                .await,
+        )
+    }
+
+    /// Rescans selected gallery items, or every pending item when no IDs are supplied.
+    ///
+    /// # Errors
+    /// Returns an error envelope when no workspace is open or gallery safety persistence fails.
+    pub async fn rescan_gallery_safety(
+        &self,
+        request: RescanGallerySafetyRequestDto,
+    ) -> CommandResult<RescanGallerySafetyResponseDto> {
+        Self::command_result(
+            self.current_session()?
+                .gallery()
+                .rescan_safety(request)
                 .await,
         )
     }

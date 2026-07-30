@@ -3,8 +3,9 @@ use atelier_app_api::gallery::{
     GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItemDto,
     GalleryMetadataStatusDto, GalleryMetadataWarningCodeDto, GalleryMetadataWarningDto,
     GalleryPageDto, GalleryQueryDto, GallerySafetyDto, GallerySafetyLabelDto,
-    GallerySafetyOverrideDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
-    GallerySafetyScoreDto, GallerySourceKindDto, VisualAssetDto,
+    GallerySafetyModelEvidenceDto, GallerySafetyOverrideDto, GallerySafetyRatingScoresDto,
+    GallerySafetyReviewDto, GallerySafetyReviewStateDto, GallerySafetyRiskBandDto,
+    GallerySafetyScanStateDto, GallerySourceKindDto, VisualAssetDto,
 };
 use atelier_app_api::generation::{
     GenerationPlanContextDto, GenerationRequestStatusDto, GenerationStatusDto, ImageFormatDto,
@@ -15,6 +16,9 @@ use atelier_app_api::history::{
     GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto, GenerationHistoryPageDto,
     GenerationHistoryQueryDto, RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto,
     RunHistoryOutputStateDto, RunHistoryPageDto, RunHistoryQueryDto, RunHistoryStatusDto,
+};
+use atelier_app_api::image_analysis::{
+    ImageAnalysisModelIdDto, ImageAnalysisModelStateDto, ImageAnalysisModelStatusDto,
 };
 use atelier_app_api::prompt::{
     CompiledPromptDto, LexiconBootstrapDto, LexiconCapabilityStatusDto, LexiconCategoryDto,
@@ -27,7 +31,8 @@ use atelier_app_api::prompt::{
 use atelier_app_api::resource::ResourceRefDto;
 use atelier_app_api::settings::{
     FrontendLanguageDto, GenerationDefaultsDto, GlobalFrontendSettingsDto,
-    GlobalGallerySettingsDto, GlobalSettingsDto, ImageVariantSettingsDto, WorkspaceSettingsDto,
+    GlobalGallerySettingsDto, GlobalSafetySettingsDto, GlobalSettingsDto, ImageVariantSettingsDto,
+    WorkspaceSettingsDto,
 };
 use atelier_app_api::vibe::{
     EnsuredVibeEncodingDto, ExportedVibeDocumentDto, ImportedVibeDocumentsDto,
@@ -37,12 +42,15 @@ use atelier_artifacts::{
     ArtifactKind, EmbeddedMetadataStatus, EmbeddedMetadataWarning, VisualAssetRole,
 };
 use atelier_gallery::{
-    GalleryImageReference, GalleryItem, GalleryQuery, GallerySafetyOverride, GallerySourceKind,
-    ImageReferenceTarget,
+    GalleryImageReference, GalleryItem, GalleryQuery, GallerySafetyOverride, GallerySafetyState,
+    GallerySourceKind, ImageReferenceTarget,
 };
 use atelier_generation::{
     GenerationPlanContext, ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, StreamMode,
     UcPreset,
+};
+use atelier_image_analysis::{
+    ImageAnalysisModelId, ImageAnalysisModelState, ImageAnalysisModelStatus,
 };
 use atelier_jobs::{
     ActiveJobBatchSnapshot, BatchStatus, GenerationBatchHistoryQuery, GenerationBatchHistoryRecord,
@@ -61,11 +69,13 @@ use atelier_prompt_resources::{
     UpsertPromptChunkRequest, UpsertPromptPresetRequest,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
-use atelier_safety::{SafetyAssessment, SafetyLabel, SafetyRiskBand};
+use atelier_safety::{
+    SafetyAssessment, SafetyLabel, SafetyModelEvidence, SafetyReviewOutcome, SafetyRiskBand,
+};
 use atelier_secrets::{ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretValue};
 use atelier_settings::{
     FrontendLanguage, GenerationDefaults, GlobalFrontendSettings, GlobalGallerySettings,
-    GlobalSettings, ImageVariantSettings, WorkspaceSettings,
+    GlobalSafetySettings, GlobalSettings, ImageVariantSettings, WorkspaceSettings,
 };
 use atelier_vibe::{VibeDocumentEntry, VibeExportFormat, VibeModel};
 
@@ -76,6 +86,7 @@ mod gallery;
 mod generation;
 mod generation_draft;
 mod history;
+mod image_analysis;
 mod prompt;
 mod resource;
 mod settings;
@@ -86,6 +97,7 @@ pub use gallery::*;
 pub use generation::*;
 pub use generation_draft::*;
 pub use history::*;
+pub use image_analysis::*;
 pub use prompt::*;
 pub use resource::*;
 pub use settings::*;

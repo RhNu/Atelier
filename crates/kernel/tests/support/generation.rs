@@ -6,6 +6,7 @@ use atelier_generation::{
     GenerateImageStreamResult, GeneratedImageMetadata, GeneratedImageMetadataInspector,
     GenerationResult, NovelAiGenerationClient,
 };
+use atelier_image_analysis::{ImageAnalysisModelId, ImageAnalysisModelInfo, ImageRatingScores};
 use atelier_kernel::{
     GenerationPayloadStore, KernelGenerationPorts, PreparedGenerationPayload,
     SubmittedGenerationPayload,
@@ -16,7 +17,10 @@ use atelier_prompt_resources::{
 use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceCatalogError, ResourceRef, ResourceResult,
 };
-use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyError, SafetyResult};
+use atelier_safety::{
+    ImageSafetyScore, SafetyAssessment, SafetyError, SafetyLabel, SafetyModelEvidence,
+    SafetyResult, SafetyReviewOutcome, SafetyRiskBand,
+};
 use futures_util::stream;
 
 use super::{FakeFailure, MemoryKernelPorts, RegisteredResource};
@@ -159,24 +163,38 @@ impl KernelGenerationPorts for MemoryKernelPorts {
         if state.failures.contains(&FakeFailure::Safety) {
             return Err(SafetyError::scanner("scanner unavailable"));
         }
-        Ok(Some(SafetyAssessment::new(
+        let fused_score = ImageSafetyScore::new(0.1).unwrap();
+        Ok(Some(SafetyAssessment {
             resource,
-            ImageSafetyScore::new(0.1).unwrap(),
-        )))
+            auto_label: SafetyLabel::Safe,
+            risk_band: SafetyRiskBand::Low,
+            policy_id: "test-policy".to_owned(),
+            policy_version: "1".to_owned(),
+            primary: SafetyModelEvidence {
+                model: ImageAnalysisModelInfo {
+                    id: ImageAnalysisModelId::AnimeDbRating,
+                    revision: "test".to_owned(),
+                },
+                ratings: ImageRatingScores::new(0.9, 0.0, 0.1, 0.0).unwrap(),
+                fused_score,
+            },
+            review: SafetyReviewOutcome::NotNeeded,
+            assessed_at_ms: None,
+        }))
     }
 
     async fn index_gallery_item(
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
-        safety_assessment: Option<SafetyAssessment>,
+        safety: atelier_gallery::GallerySafetyState,
     ) -> GalleryResult<GalleryItem> {
         let mut state = self.state.lock().unwrap();
         state.operations.push("index_gallery".to_owned());
         if state.failures.contains(&FakeFailure::Gallery) {
             return Err(atelier_gallery::GalleryError::repository("gallery failed"));
         }
-        let item = GalleryItem::from_artifact(artifact, indexed_at_ms, safety_assessment);
+        let item = GalleryItem::from_artifact(artifact, indexed_at_ms, safety);
         state
             .gallery_items
             .insert(item.id.as_str().to_owned(), item.clone());

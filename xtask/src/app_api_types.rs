@@ -15,9 +15,11 @@ use atelier_app_api::{
         GalleryImageReferenceRequestDto, GalleryImageReferenceTargetDto, GalleryItemDetailDto,
         GalleryItemDetailRequestDto, GalleryItemDto, GalleryMetadataStatusDto,
         GalleryMetadataWarningCodeDto, GalleryMetadataWarningDto, GalleryPageDto, GalleryQueryDto,
-        GallerySafetyDto, GallerySafetyLabelDto, GallerySafetyOverrideDto,
-        GallerySafetyRiskBandDto, GallerySafetyScanStateDto, GallerySafetyScoreDto,
-        GallerySourceKindDto, SetGallerySafetyOverrideRequestDto, VisualAssetDto,
+        GallerySafetyDto, GallerySafetyLabelDto, GallerySafetyModelEvidenceDto,
+        GallerySafetyOverrideDto, GallerySafetyRatingScoresDto, GallerySafetyReviewDto,
+        GallerySafetyReviewStateDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
+        GallerySourceKindDto, RescanGallerySafetyRequestDto, RescanGallerySafetyResponseDto,
+        SetGallerySafetyOverrideRequestDto, VisualAssetDto,
     },
     generation::{
         CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
@@ -42,6 +44,10 @@ use atelier_app_api::{
         RerunGenerationHistoryItemRequestDto, RerunGenerationHistoryItemResponseDto,
         RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto,
         RunHistoryQueryDto, RunHistoryStatusDto,
+    },
+    image_analysis::{
+        ImageAnalysisModelIdDto, ImageAnalysisModelInstallProgressDto,
+        ImageAnalysisModelRequestDto, ImageAnalysisModelStateDto, ImageAnalysisModelStatusDto,
     },
     pagination::{PageInfoDto, PageQueryDto},
     prompt::{
@@ -70,8 +76,9 @@ use atelier_app_api::{
     },
     settings::{
         GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto,
-        GlobalSettingsDto, ImageVariantSettingsDto, ResetWorkspaceSettingsResponseDto,
-        UpdateGlobalSettingsRequestDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+        GlobalSafetySettingsDto, GlobalSettingsDto, ImageVariantSettingsDto,
+        ResetWorkspaceSettingsResponseDto, UpdateGlobalSettingsRequestDto,
+        UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
     },
     vibe::{
         EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
@@ -130,6 +137,7 @@ pub fn export_app_api_types(config: &AppApiTypeExportConfig) -> Result<(), Strin
     export_gallery_types(&ts_config)?;
     export_generation_types(&ts_config)?;
     export_history_types(&ts_config)?;
+    export_image_analysis_types(&ts_config)?;
     export_pagination_types(&ts_config)?;
     export_prompt_types(&ts_config)?;
     export_resource_types(&ts_config)?;
@@ -191,11 +199,16 @@ fn export_gallery_types(config: &Config) -> Result<(), String> {
         GallerySafetyScanStateDto,
         GallerySafetyRiskBandDto,
         GallerySafetyLabelDto,
-        GallerySafetyScoreDto,
+        GallerySafetyRatingScoresDto,
+        GallerySafetyModelEvidenceDto,
+        GallerySafetyReviewStateDto,
+        GallerySafetyReviewDto,
         GallerySafetyDto,
         VisualAssetDto,
         DeleteGalleryItemsRequestDto,
         DeleteGalleryItemsResponseDto,
+        RescanGallerySafetyRequestDto,
+        RescanGallerySafetyResponseDto,
         SetGallerySafetyOverrideRequestDto,
         GalleryImageReferenceTargetDto,
         GalleryImageReferenceRequestDto,
@@ -271,6 +284,17 @@ fn export_history_types(config: &Config) -> Result<(), String> {
         DeleteGenerationHistoryBatchesResponseDto,
         RerunGenerationHistoryBatchRequestDto,
         RerunGenerationHistoryBatchResponseDto,
+    )
+}
+
+fn export_image_analysis_types(config: &Config) -> Result<(), String> {
+    export_types!(
+        config,
+        ImageAnalysisModelIdDto,
+        ImageAnalysisModelStateDto,
+        ImageAnalysisModelStatusDto,
+        ImageAnalysisModelInstallProgressDto,
+        ImageAnalysisModelRequestDto,
     )
 }
 
@@ -355,6 +379,7 @@ fn export_settings_types(config: &Config) -> Result<(), String> {
         GlobalSettingsDto,
         GlobalFrontendSettingsDto,
         GlobalGallerySettingsDto,
+        GlobalSafetySettingsDto,
         UpdateGlobalSettingsRequestDto,
         UpdateWorkspaceSettingsRequestDto,
         ResetWorkspaceSettingsResponseDto,

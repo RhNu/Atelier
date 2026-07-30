@@ -26,7 +26,7 @@ fn schema_initializes_once_and_file_backed_database_reopens() {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .unwrap();
-        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 1));
+        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 2));
         drop(raw);
 
         let reopened = DatabaseConnection::open(&path).unwrap();
@@ -34,6 +34,106 @@ fn schema_initializes_once_and_file_backed_database_reopens() {
         let record = repository.get_ready_record(&reference.id).await.unwrap();
 
         assert_eq!(record.unwrap().metadata.byte_size, Some(3));
+    });
+}
+
+#[test]
+fn version_one_database_migrates_at_a_single_testable_boundary() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("atelier.sqlite3");
+        let connection = DatabaseConnection::open(&path).unwrap();
+        let gallery = DatabaseGalleryIndex::new(connection.clone());
+        let artifact = artifact_record(
+            "legacy-safety",
+            11,
+            ArtifactSource::GenerationJob {
+                job_id: "job-1".to_owned(),
+                batch_id: None,
+            },
+        );
+        let item = GalleryItem {
+            id: GalleryItemId::from_artifact_id(&artifact.id),
+            artifact_id: artifact.id.clone(),
+            artifact_kind: artifact.kind,
+            source: artifact.source,
+            primary_resource: artifact.primary_resource.clone(),
+            assets: artifact.assets,
+            metadata: artifact.metadata,
+            replay: artifact.replay,
+            safety: GallerySafetyState::Scanned(Box::new(test_safety_assessment(
+                artifact.primary_resource,
+                ImageSafetyScore::new(0.9).unwrap(),
+            ))),
+            manual_safety_override: Some(GallerySafetyOverride::Safe),
+            indexed_at_ms: 100,
+        };
+        gallery.upsert_item(item.clone()).await.unwrap();
+        drop(gallery);
+        drop(connection);
+
+        let raw = Connection::open(&path).unwrap();
+        let text: String = raw
+            .query_row(
+                "SELECT item_json FROM gallery_items WHERE item_id = ?1",
+                [item.id.as_str()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let mut legacy: serde_json::Value = serde_json::from_str(&text).unwrap();
+        legacy["schema_version"] = serde_json::json!(1);
+        let safety = legacy.as_object_mut().unwrap().remove("safety").unwrap();
+        legacy["safety_assessment"] = safety["assessment"].clone();
+        raw.execute(
+            "UPDATE gallery_items SET item_json = ?2 WHERE item_id = ?1",
+            rusqlite::params![item.id.as_str(), serde_json::to_string(&legacy).unwrap()],
+        )
+        .unwrap();
+        raw.execute_batch(
+            r"
+            DROP INDEX idx_gallery_items_safety_scan_state;
+            ALTER TABLE gallery_items DROP COLUMN safety_scan_state;
+            UPDATE atelier_schema SET schema_version = 1 WHERE singleton = 1;
+            ",
+        )
+        .unwrap();
+        drop(raw);
+
+        let migrated = DatabaseConnection::open(&path).unwrap();
+        let gallery = DatabaseGalleryIndex::new(migrated.clone());
+        let migrated_item = gallery.get_item(&item.id).await.unwrap().unwrap();
+        assert_eq!(
+            migrated_item.safety,
+            GallerySafetyState::Unavailable {
+                message: "legacy safety assessment requires rescan".to_owned()
+            }
+        );
+        assert_eq!(
+            migrated_item.manual_safety_override,
+            Some(GallerySafetyOverride::Safe)
+        );
+        drop(gallery);
+        drop(migrated);
+
+        let raw = Connection::open(&path).unwrap();
+        assert_eq!(
+            raw.query_row(
+                "SELECT schema_version FROM atelier_schema WHERE singleton = 1",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            2
+        );
+        let row: (String, Option<String>) = raw
+            .query_row(
+                "SELECT safety_scan_state, effective_safety_label FROM gallery_items \
+                 WHERE item_id = ?1",
+                [item.id.as_str()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(row, ("unavailable".to_owned(), Some("safe".to_owned())));
     });
 }
 
@@ -99,8 +199,8 @@ fn old_migration_database_is_rejected_without_changes() {
 fn database_rejects_unknown_format_and_non_current_versions() {
     for (format, version) in [
         ("atelier-workspace-database", 0),
-        ("atelier-workspace-database", 2),
-        ("another-database", 1),
+        ("atelier-workspace-database", 3),
+        ("another-database", 2),
     ] {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("atelier.sqlite3");

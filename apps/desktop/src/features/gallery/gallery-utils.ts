@@ -54,7 +54,7 @@ export function formatTimestamp(value: number): string {
 }
 
 export function effectiveSafetyLabel(item: GalleryItemDto): GallerySafetyLabelDto | "unknown" {
-  return item.safety?.effective_label ?? item.manual_safety_override ?? "unknown";
+  return item.safety.effective_label ?? item.manual_safety_override ?? "unknown";
 }
 
 export function displayGalleryModelName(modelName: string | null): string | null {

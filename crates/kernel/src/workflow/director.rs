@@ -2,6 +2,7 @@ use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactSource, RegisterArtifactRequest,
     VisualAssetRef, VisualAssetRole,
 };
+use atelier_gallery::GallerySafetyState;
 use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
     ResourceOwner, ResourceOwnerKind, ResourceRelation, ResourceVariantKind,
@@ -55,8 +56,12 @@ where
             }],
         })
         .await?;
+    let attempted_at_ms = runtime.ports().now_ms();
     let safety = match runtime.ports().score_director_image(resource.clone()).await {
-        Ok(assessment) => assessment,
+        Ok(Some(assessment)) => GallerySafetyState::Scanned(Box::new(assessment)),
+        Ok(None) => GallerySafetyState::Unavailable {
+            message: "automatic safety scanning is unavailable".to_owned(),
+        },
         Err(error) => {
             runtime
                 .emit(KernelEventKind::DirectorSafetyScanFailed {
@@ -65,7 +70,10 @@ where
                     message: error.to_string(),
                 })
                 .await;
-            None
+            GallerySafetyState::Failed {
+                message: error.to_string(),
+                attempted_at_ms,
+            }
         }
     };
     let item = runtime

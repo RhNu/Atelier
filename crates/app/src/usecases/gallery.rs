@@ -6,10 +6,12 @@ use super::{
 use atelier_adapter_database::{GalleryHardDeletePlan, GalleryTransientOwner};
 use atelier_app_api::gallery::{
     DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryItemDetailDto,
-    GalleryItemDetailRequestDto,
+    GalleryItemDetailRequestDto, RescanGallerySafetyRequestDto, RescanGallerySafetyResponseDto,
 };
 use atelier_artifacts::{ArtifactId, ArtifactSource};
-use atelier_gallery::GalleryItem;
+use atelier_gallery::{GalleryItem, GallerySafetyState};
+use atelier_kernel::KernelClock;
+use atelier_safety::{SafetyScanInput, SafetyScanner};
 
 pub struct GalleryUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -88,6 +90,77 @@ where
             .map_err(AppError::from)
     }
 
+    pub async fn rescan_safety(
+        &self,
+        request: RescanGallerySafetyRequestDto,
+    ) -> AppResult<RescanGallerySafetyResponseDto> {
+        let _rescan_guard = self.app.inner.gallery_safety_rescan.lock().await;
+        let item_ids = if request.item_ids.is_empty() {
+            self.app
+                .inner
+                .gallery_index
+                .pending_safety_item_ids(1_000)
+                .map_err(AppError::from)?
+        } else {
+            request
+                .item_ids
+                .into_iter()
+                .map(GalleryItemId::new)
+                .collect()
+        };
+        let items = self.app.inner.gallery.get_items(&item_ids).await?;
+        let (scanner, reader, now_ms) = {
+            let kernel = self.app.inner.kernel.lock().await;
+            (
+                kernel.ports().safety_scanner.clone(),
+                kernel.ports().resource_reader.clone(),
+                kernel.ports().now_ms(),
+            )
+        };
+        let Some(scanner) = scanner else {
+            for item in &items {
+                self.app
+                    .inner
+                    .gallery
+                    .set_safety_state(
+                        &item.id,
+                        GallerySafetyState::Unavailable {
+                            message: "automatic safety scanning is unavailable".to_owned(),
+                        },
+                    )
+                    .await?;
+            }
+            return Ok(RescanGallerySafetyResponseDto {
+                requested: items.len(),
+                scanned: 0,
+                failed: 0,
+                unavailable: items.len(),
+            });
+        };
+
+        let mut response = RescanGallerySafetyResponseDto {
+            requested: items.len(),
+            scanned: 0,
+            failed: 0,
+            unavailable: 0,
+        };
+        for item in items {
+            let state = scan_gallery_item(scanner.as_ref(), &reader, &item, now_ms).await;
+            match &state {
+                GallerySafetyState::Scanned(_) => response.scanned += 1,
+                GallerySafetyState::Failed { .. } => response.failed += 1,
+                GallerySafetyState::Unavailable { .. } => response.unavailable += 1,
+                GallerySafetyState::Unscanned => {}
+            }
+            self.app
+                .inner
+                .gallery
+                .set_safety_state(&item.id, state)
+                .await?;
+        }
+        Ok(response)
+    }
+
     pub async fn delete_items(
         &self,
         request: DeleteGalleryItemsRequestDto,
@@ -156,6 +229,39 @@ where
             .await
             .map(gallery_image_reference_to_dto)
             .map_err(AppError::from)
+    }
+}
+
+async fn scan_gallery_item(
+    scanner: &dyn SafetyScanner,
+    reader: &crate::ports::AppResourceReader,
+    item: &GalleryItem,
+    attempted_at_ms: u64,
+) -> GallerySafetyState {
+    let content = match reader.read_resource_bytes(&item.primary_resource).await {
+        Ok(content) => content,
+        Err(error) => {
+            return GallerySafetyState::Failed {
+                message: error.to_string(),
+                attempted_at_ms,
+            };
+        }
+    };
+    match scanner
+        .scan_image(SafetyScanInput {
+            resource: item.primary_resource.clone(),
+            bytes: content.bytes,
+            mime_type: None,
+        })
+        .await
+    {
+        Ok(assessment) => {
+            GallerySafetyState::Scanned(Box::new(assessment.with_assessed_at_ms(attempted_at_ms)))
+        }
+        Err(error) => GallerySafetyState::Failed {
+            message: error.to_string(),
+            attempted_at_ms,
+        },
     }
 }
 

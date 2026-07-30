@@ -24,11 +24,13 @@ type GalleryInspectorProps = {
   overrideValue: string;
   onOverrideChange: (value: string) => void;
   onApplyOverride: () => void;
+  onRescanSafety: () => void;
   onCopy: (format: ImageExportFormatDto) => void;
   onExport: (format: ImageExportFormatDto) => void;
   onSendToDirector: () => void;
   onDelete: () => void;
   applyingOverride: boolean;
+  rescanningSafety: boolean;
   copying: boolean;
   exporting: boolean;
   deleting: boolean;
@@ -268,7 +270,9 @@ export function GalleryInspector(props: GalleryInspectorProps) {
           overrideValue={props.overrideValue}
           onOverrideChange={props.onOverrideChange}
           onApplyOverride={props.onApplyOverride}
+          onRescan={props.onRescanSafety}
           applyingOverride={props.applyingOverride}
+          rescanning={props.rescanningSafety}
         />
         <AssetDetails item={item} />
       </div>

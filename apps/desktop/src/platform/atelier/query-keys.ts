@@ -23,6 +23,7 @@ export const queryKeys = {
     root: () => ["app"] as const,
     bootstrap: () => ["app", "bootstrap"] as const,
     globalSettings: () => ["app", "settings"] as const,
+    imageAnalysisModels: () => ["app", "image-analysis-models"] as const,
   },
   workspace: {
     root: () => ["workspace"] as const,

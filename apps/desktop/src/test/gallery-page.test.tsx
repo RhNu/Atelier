@@ -17,6 +17,8 @@ import type {
   GetResourceImageRequestDto,
   GlobalSettingsDto,
   ResourceImageDto,
+  RescanGallerySafetyRequestDto,
+  RescanGallerySafetyResponseDto,
   SaveResourceImageRequestDto,
   SetGallerySafetyOverrideRequestDto,
 } from "../types";
@@ -27,6 +29,8 @@ const mocks = vi.hoisted(() => ({
     detail: vi.fn<(request: GalleryItemDetailRequestDto) => Promise<GalleryItemDetailDto>>(),
     setSafetyOverride:
       vi.fn<(request: SetGallerySafetyOverrideRequestDto) => Promise<GalleryItemDto>>(),
+    rescanSafety:
+      vi.fn<(request: RescanGallerySafetyRequestDto) => Promise<RescanGallerySafetyResponseDto>>(),
     deleteItems:
       vi.fn<(request: DeleteGalleryItemsRequestDto) => Promise<DeleteGalleryItemsResponseDto>>(),
   },
@@ -82,6 +86,7 @@ const defaultSettings: GlobalSettingsDto = {
       blur_sensitive_images: false,
     },
   },
+  safety: { wd_auto_review_enabled: false },
 };
 
 function galleryItem(
@@ -135,15 +140,28 @@ function galleryItem(
       risk_band: label === "sensitive" ? "high" : "low",
       auto_label: label === "hidden" ? "sensitive" : label,
       effective_label: label,
-      nsfw_score: label === "sensitive" || label === "hidden" ? 0.91 : 0.04,
-      safe_score: label === "sensitive" || label === "hidden" ? 0.09 : 0.96,
-      raw_scores: [
-        { label: "safe", score: label === "safe" ? 0.96 : 0.09 },
-        { label: "nsfw", score: label === "safe" ? 0.04 : 0.91 },
-      ],
-      model_id: "open_nsfw@onnx",
-      scorer_version: "1",
+      policy_id: "anime-rating-cascade",
+      policy_version: "1",
+      primary: {
+        model_id: "anime_dbrating",
+        model_revision: "7af21db648acdeb74f5c334abda9dd7403407b3c",
+        ratings: {
+          general: label === "safe" ? 0.96 : 0.04,
+          sensitive: 0.02,
+          questionable: label === "safe" ? 0.01 : 0.2,
+          explicit: label === "safe" ? 0.01 : 0.74,
+        },
+        fused_score: label === "safe" ? 0.04 : 0.95,
+      },
+      review: {
+        state: "not_needed",
+        model_id: null,
+        model_revision: null,
+        evidence: null,
+        message: null,
+      },
       assessed_at_ms: 1_800_000_000_001,
+      message: null,
     },
     manual_safety_override: options.manualOverride ?? null,
   };
@@ -180,6 +198,12 @@ function setup(options?: { blurSensitive?: boolean; items?: GalleryItemDto[] }) 
       manualOverride: request.manual_safety_override ?? null,
     }),
   );
+  mocks.galleryApi.rescanSafety.mockResolvedValue({
+    requested: 1,
+    scanned: 1,
+    failed: 0,
+    unavailable: 0,
+  });
   mocks.galleryApi.deleteItems.mockResolvedValue({
     deleted: 1,
     resources_released: 1,
@@ -227,8 +251,8 @@ describe("GalleryPage", () => {
     expect(within(details).getAllByText("1234")).toHaveLength(2);
     expect(within(details).getByText("1girl")).toBeInTheDocument();
     expect(within(details).getByText("lowres")).toBeInTheDocument();
-    expect(within(details).getByText("NSFW 0.91")).toBeInTheDocument();
-    expect(within(details).queryByText("open_nsfw@onnx")).not.toBeInTheDocument();
+    expect(within(details).getAllByText("Fused 0.950")).not.toHaveLength(0);
+    expect(within(details).getByText(/anime_dbrating@7af21db648ac/)).toBeInTheDocument();
     expect(within(details).queryByText("nai-diffusion-4-5-full")).not.toBeInTheDocument();
   });
 
@@ -239,7 +263,35 @@ describe("GalleryPage", () => {
     expect(sensitiveImage).toHaveClass("blur-md");
     expect((await screen.findAllByAltText("Gallery image"))[0]).not.toHaveClass("blur-md");
   });
+});
 
+describe("Gallery safety scanning", () => {
+  it("surfaces an unscanned item and requests a targeted safety rescan", async () => {
+    const unscanned = galleryItem("unscanned-item", { source: "generation" });
+    unscanned.safety = {
+      scan_state: "unscanned",
+      risk_band: null,
+      auto_label: null,
+      effective_label: null,
+      policy_id: null,
+      policy_version: null,
+      primary: null,
+      review: null,
+      assessed_at_ms: null,
+      message: null,
+    };
+    const { user } = setup({ items: [unscanned] });
+
+    expect(await screen.findByText("This image has not been scanned.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Rescan" }));
+
+    expect(mocks.galleryApi.rescanSafety).toHaveBeenCalledWith({
+      item_ids: ["unscanned-item"],
+    });
+  });
+});
+
+describe("GalleryPage commands", () => {
   it("opens the selected image in a fullscreen lightbox from the preview and button", async () => {
     const { user } = setup();
 

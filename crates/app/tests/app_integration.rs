@@ -8,7 +8,8 @@ use atelier_app::WorkspaceSession;
 use atelier_app_api::account::CreateApiKeyRequestDto;
 use atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
 use atelier_app_api::gallery::{
-    GalleryQueryDto, GallerySafetyLabelDto, GallerySafetyRiskBandDto, GallerySourceKindDto,
+    GalleryQueryDto, GallerySafetyLabelDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
+    GallerySourceKindDto, RescanGallerySafetyRequestDto,
 };
 use atelier_app_api::generation::{
     GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationEstimateRequestDto,
@@ -35,9 +36,11 @@ use atelier_generation::{
     GenerateImageStreamResult, GeneratedImage, GeneratedImageMetadata, GenerationResult,
     ImageStreamEvent, NovelAiGenerationClient, ParsedGeneratedImageMetadata,
 };
+use atelier_image_analysis::{ImageAnalysisModelId, ImageAnalysisModelInfo, ImageRatingScores};
 use atelier_resource_catalog::{ResourceCatalogRepository, VariantId};
 use atelier_safety::{
-    SafetyAssessment, SafetyModelScore, SafetyResult, SafetyScanInput, SafetyScanner,
+    ImageSafetyScore, SafetyAssessment, SafetyLabel, SafetyModelEvidence, SafetyResult,
+    SafetyReviewOutcome, SafetyRiskBand, SafetyScanInput, SafetyScanner,
 };
 use atelier_secrets::{
     SecretRecordId, SecretStore, SecretValue, SecretsResult, SubscriptionClient,
@@ -264,17 +267,22 @@ impl RecordingSafetyScanner {
 impl SafetyScanner for RecordingSafetyScanner {
     async fn scan_image(&self, input: SafetyScanInput) -> SafetyResult<SafetyAssessment> {
         self.inputs.lock().unwrap().push(input.bytes);
-        SafetyAssessment::from_model_scores(
-            input.resource,
-            vec![
-                SafetyModelScore::new("safe", 0.09)?,
-                SafetyModelScore::new("nsfw", 0.91)?,
-            ],
-        )
-        .map(|assessment| {
-            assessment
-                .with_scorer("mock_nsfw", Some("1"))
-                .with_assessed_at_ms(123)
+        Ok(SafetyAssessment {
+            resource: input.resource,
+            auto_label: SafetyLabel::Sensitive,
+            risk_band: SafetyRiskBand::High,
+            policy_id: "test-policy".to_owned(),
+            policy_version: "1".to_owned(),
+            primary: SafetyModelEvidence {
+                model: ImageAnalysisModelInfo {
+                    id: ImageAnalysisModelId::AnimeDbRating,
+                    revision: "test".to_owned(),
+                },
+                ratings: ImageRatingScores::new(0.09, 0.0, 0.2, 0.71).unwrap(),
+                fused_score: ImageSafetyScore::new(0.91)?,
+            },
+            review: SafetyReviewOutcome::NotNeeded,
+            assessed_at_ms: Some(123),
         })
     }
 }

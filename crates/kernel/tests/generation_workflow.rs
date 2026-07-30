@@ -363,12 +363,13 @@ fn safety_failure_degrades_gallery_indexing_without_failing_job() {
         runtime.run_scheduled_generation_job(&job_id).await.unwrap();
 
         assert_eq!(runtime.job_status(&job_id), Some(JobStatus::Succeeded));
-        assert!(
-            ports
-                .gallery_items()
-                .values()
-                .all(|item| item.safety_assessment.is_none())
-        );
+        assert!(ports.gallery_items().values().all(|item| matches!(
+            &item.safety,
+            atelier_gallery::GallerySafetyState::Failed {
+                message,
+                attempted_at_ms: 0
+            } if message.contains("scanner unavailable")
+        )));
         assert!(
             ports
                 .events()

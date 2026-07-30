@@ -3,7 +3,7 @@
 use async_trait::async_trait;
 use atelier_gallery::{
     GalleryError, GalleryIndex, GalleryItem, GalleryItemId, GalleryQuery, GalleryResult,
-    GallerySafetyOverride,
+    GallerySafetyOverride, GallerySafetyState,
 };
 use atelier_safety::SafetyLabel;
 use rusqlite::{OptionalExtension, params};
@@ -39,6 +39,33 @@ impl DatabaseGalleryIndex {
     #[must_use]
     pub const fn new(connection: DatabaseConnection) -> Self {
         Self { connection }
+    }
+
+    /// Returns gallery item IDs whose automatic safety state is not scanned.
+    ///
+    /// # Errors
+    /// Returns an error when the database cannot be queried.
+    pub fn pending_safety_item_ids(&self, limit: usize) -> GalleryResult<Vec<GalleryItemId>> {
+        let connection = self.connection.lock().map_err(gallery_error)?;
+        let limit =
+            i64::try_from(limit).map_err(|error| GalleryError::repository(error.to_string()))?;
+        let mut statement = connection
+            .prepare(
+                r"
+                SELECT item_id
+                FROM gallery_items
+                WHERE safety_scan_state <> 'scanned'
+                ORDER BY indexed_at_ms ASC, item_id ASC
+                LIMIT ?1
+                ",
+            )
+            .map_err(sql_error)?;
+        let rows = statement
+            .query_map(params![limit], |row| {
+                row.get::<_, String>(0).map(GalleryItemId::new)
+            })
+            .map_err(sql_error)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(sql_error)
     }
 
     /// Removes gallery rows and their database-owned dependencies in one transaction.
@@ -130,13 +157,15 @@ impl GalleryIndex for DatabaseGalleryIndex {
                 r"
                 INSERT INTO gallery_items(
                     item_id, artifact_id, artifact_kind, source_kind,
-                    manual_safety_override, effective_safety_label, indexed_at_ms, item_json
+                    safety_scan_state, manual_safety_override, effective_safety_label,
+                    indexed_at_ms, item_json
                 )
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                 ON CONFLICT(item_id) DO UPDATE
                 SET artifact_id = excluded.artifact_id,
                     artifact_kind = excluded.artifact_kind,
                     source_kind = excluded.source_kind,
+                    safety_scan_state = excluded.safety_scan_state,
                     manual_safety_override = excluded.manual_safety_override,
                     effective_safety_label = excluded.effective_safety_label,
                     indexed_at_ms = excluded.indexed_at_ms,
@@ -147,6 +176,7 @@ impl GalleryIndex for DatabaseGalleryIndex {
                     item.artifact_id.as_str(),
                     artifact_kind_as_str(item.artifact_kind),
                     source_kind_as_str(item.source_kind()),
+                    safety_state_as_str(&item.safety),
                     item.manual_safety_override.map(safety_override_as_str),
                     item.effective_safety_label().map(safety_label_as_str),
                     i64::try_from(item.indexed_at_ms)
@@ -321,6 +351,47 @@ impl GalleryIndex for DatabaseGalleryIndex {
             )
             .map_err(sql_error)?;
         Ok(item)
+    }
+
+    async fn set_safety_state(
+        &self,
+        id: &GalleryItemId,
+        safety: GallerySafetyState,
+    ) -> GalleryResult<GalleryItem> {
+        let mut item = self
+            .get_item(id)
+            .await?
+            .ok_or_else(|| GalleryError::not_found("gallery item does not exist"))?;
+        item.safety = safety;
+        let json = GalleryItemDto::encode_domain(&item).map_err(gallery_error)?;
+        let connection = self.connection.lock().map_err(gallery_error)?;
+        connection
+            .execute(
+                r"
+                UPDATE gallery_items
+                SET safety_scan_state = ?2,
+                    effective_safety_label = ?3,
+                    item_json = ?4
+                WHERE item_id = ?1
+                ",
+                params![
+                    id.as_str(),
+                    safety_state_as_str(&item.safety),
+                    item.effective_safety_label().map(safety_label_as_str),
+                    json,
+                ],
+            )
+            .map_err(sql_error)?;
+        Ok(item)
+    }
+}
+
+const fn safety_state_as_str(value: &GallerySafetyState) -> &'static str {
+    match value {
+        GallerySafetyState::Unscanned => "unscanned",
+        GallerySafetyState::Scanned(_) => "scanned",
+        GallerySafetyState::Failed { .. } => "failed",
+        GallerySafetyState::Unavailable { .. } => "unavailable",
     }
 }
 

@@ -2,7 +2,9 @@ use async_trait::async_trait;
 use atelier_artifacts::{
     ArtifactId, ArtifactRecord, ArtifactRepository, ArtifactResourceReader, ArtifactResult,
 };
-use atelier_gallery::{GalleryIndex, GalleryItem, GalleryItemId, GalleryResult};
+use atelier_gallery::{
+    GalleryIndex, GalleryItem, GalleryItemId, GalleryResult, GallerySafetyState,
+};
 use atelier_resource_catalog::{ResourceMetadata, ResourceRecord, ResourceRef, ResourceState};
 
 use super::MemoryKernelPorts;
@@ -99,6 +101,20 @@ impl GalleryIndex for MemoryKernelPorts {
             .get_mut(id.as_str())
             .ok_or_else(|| atelier_gallery::GalleryError::not_found("missing item"))?;
         item.manual_safety_override = manual_safety_override;
+        Ok(item.clone())
+    }
+
+    async fn set_safety_state(
+        &self,
+        id: &GalleryItemId,
+        safety: GallerySafetyState,
+    ) -> GalleryResult<GalleryItem> {
+        let mut state = self.state.lock().unwrap();
+        let item = state
+            .gallery_items
+            .get_mut(id.as_str())
+            .ok_or_else(|| atelier_gallery::GalleryError::not_found("missing item"))?;
+        item.safety = safety;
         Ok(item.clone())
     }
 

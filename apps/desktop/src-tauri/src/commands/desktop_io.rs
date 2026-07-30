@@ -16,6 +16,7 @@ use tauri::State;
 use atelier_app::CommandResult;
 use atelier_app_api::{
     error::ErrorEnvelopeDto,
+    gallery::RescanGallerySafetyRequestDto,
     resource::{
         CopyResourceImageRequestDto, GetResourceImageRequestDto, ImageResourceKindDto,
         ImportImageResourceRequestDto, ImportImageResourceResponseDto,
@@ -333,6 +334,7 @@ pub async fn bootstrap_app(state: State<'_, DesktopState>) -> CommandResult<AppB
     let bootstrap = state.host.bootstrap_app().await?;
     if let Some(workspace) = &bootstrap.workspace {
         desktop_result(state.system.allow_user_path(&workspace.root))?;
+        spawn_pending_safety_rescan(state.host.clone());
     }
     Ok(bootstrap)
 }
@@ -346,7 +348,16 @@ pub async fn open_workspace(
     state.abort_generation_worker_and_wait().await;
     let status = state.host.open_workspace(request).await?;
     desktop_result(state.system.allow_user_path(root))?;
+    spawn_pending_safety_rescan(state.host.clone());
     Ok(status)
+}
+
+fn spawn_pending_safety_rescan(host: std::sync::Arc<crate::desktop::NativeAtelierRuntime>) {
+    tauri::async_runtime::spawn(async move {
+        let _ = host
+            .rescan_gallery_safety(RescanGallerySafetyRequestDto::default())
+            .await;
+    });
 }
 
 #[tauri::command]

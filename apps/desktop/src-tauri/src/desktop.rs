@@ -11,9 +11,12 @@ use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClient
 use atelier_adapter_settings_fs::FileSystemGlobalSettingsRepository;
 use atelier_app::{AtelierRuntime, GenerationWorkerCancel};
 use atelier_app_api::event::{AppEventDto, AppEventKindDto};
+use atelier_app_api::gallery::RescanGallerySafetyRequestDto;
 use atelier_app_api::generation::QueueDirectiveDto;
+use atelier_image_analysis::{ImageAnalysisModelId, ImageAnalysisModelManager};
 use atelier_prompt_lexicon::{LexiconEngine, UnavailableLexicon};
-use atelier_settings::GlobalSettingsService;
+use atelier_safety::SafetyPipeline;
+use atelier_settings::{GlobalSettingsRepository, GlobalSettingsService};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_notification::NotificationExt;
@@ -249,31 +252,41 @@ pub fn build_desktop_state(
     app_handle: AppHandle,
 ) -> Result<DesktopState, Box<dyn std::error::Error>> {
     let system = Arc::new(DesktopSystem::new(resolve_desktop_paths(&app_handle)?));
-    if let Ok(Some(runtime_path)) = system.resolve_onnx_runtime_library() {
-        if let Err(error) = atelier_adapter_onnx_runtime::initialize(runtime_path) {
-            log::warn!("ONNX Runtime is unavailable: {error}");
-        }
-    }
-    let safety_scanner = match system.resolve_safety_assets() {
-        Ok(Some(assets)) => {
+    let settings_repository = Arc::new(FileSystemGlobalSettingsRepository::new(
+        system.paths().app_config_dir.join("global-settings.json"),
+    ));
+    let initial_settings =
+        tauri::async_runtime::block_on(settings_repository.get_global_settings())
+            .unwrap_or_default();
+    let global_settings = GlobalSettingsService::new(settings_repository);
+
+    let image_analysis = system
+        .resolve_onnx_runtime_library()
+        .ok()
+        .flatten()
+        .and_then(|runtime_path| {
             let runtime =
-                atelier_adapter_safety_onnx::initialize_ort_runtime(&assets.runtime_library_path);
-            match runtime.and_then(|runtime| {
-                atelier_adapter_safety_onnx::build_safety_scanner(&assets, runtime)
-            }) {
-                Ok(scanner) => Some(scanner),
-                Err(error) => {
-                    log::warn!("safety scanner is unavailable: {error}");
-                    None
-                }
-            }
-        }
-        Ok(None) => None,
-        Err(error) => {
-            log::warn!("safety assets are unavailable: {error}");
-            None
-        }
-    };
+                atelier_adapter_image_analysis_onnx::initialize_ort_runtime(&runtime_path)
+                    .map_err(|error| error.to_string());
+            runtime
+                .and_then(|runtime| {
+                    atelier_adapter_image_analysis_onnx::OnnxImageAnalysisRuntime::new(
+                        system
+                            .paths()
+                            .app_data_dir
+                            .join("models")
+                            .join("image-analysis"),
+                        runtime,
+                        &runtime_path,
+                    )
+                    .map_err(|error| error.to_string())
+                })
+                .map_err(|error| {
+                    log::warn!("image analysis is unavailable: {error}");
+                    error
+                })
+                .ok()
+        });
     let lexicon: Arc<dyn LexiconEngine> = match system.resolve_lexicon_bundle() {
         Ok(Some(root)) => match LexiconBundle::open(root) {
             Ok(engine) => engine,
@@ -288,19 +301,48 @@ pub fn build_desktop_state(
             Arc::new(UnavailableLexicon::new(error.to_string()))
         }
     };
-    let host = Arc::new(
+    let safety_pipeline = image_analysis.as_ref().map(|analysis| {
+        Arc::new(SafetyPipeline::new(
+            analysis.clone(),
+            initial_settings.safety.wd_auto_review_enabled,
+        ))
+    });
+    let mut runtime =
         AtelierRuntime::with_global_settings_dependencies_extractor_safety_and_lexicon(
-            GlobalSettingsService::new(Arc::new(FileSystemGlobalSettingsRepository::new(
-                system.paths().app_config_dir.join("global-settings.json"),
-            ))),
+            global_settings,
             KeyringSecretStore::native()?,
             ReqwestNovelAiClientFactory::default(),
             NovelAiEmbeddedVibeExtractor,
-            safety_scanner,
+            safety_pipeline
+                .clone()
+                .map(|pipeline| pipeline as Arc<dyn atelier_safety::SafetyScanner>),
             lexicon,
-        ),
-    );
+        );
+    let primary_installer = image_analysis.clone();
+    if let Some(analysis) = image_analysis {
+        runtime = runtime.with_image_analysis(
+            analysis,
+            safety_pipeline.expect("image analysis and safety pipeline are initialized together"),
+        );
+    }
+    let host = Arc::new(runtime);
     subscribe_window_events(&host, app_handle.clone(), system.clone())?;
+    if let Some(analysis) = primary_installer {
+        let rescan_host = host.clone();
+        tauri::async_runtime::spawn(async move {
+            match analysis
+                .install(ImageAnalysisModelId::AnimeDbRating, None)
+                .await
+            {
+                Ok(_) => {
+                    let _ = rescan_host
+                        .rescan_gallery_safety(RescanGallerySafetyRequestDto::default())
+                        .await;
+                }
+                Err(error) => log::warn!("automatic dbrating installation failed: {error}"),
+            }
+        });
+    }
 
     Ok(DesktopState {
         app_handle,

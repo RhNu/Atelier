@@ -1,4 +1,6 @@
 /* eslint-disable max-lines */
+import { Channel } from "@tauri-apps/api/core";
+
 import type {
   ApiKeyRecordDto,
   AppendLexiconEntitiesRequestDto,
@@ -48,6 +50,9 @@ import type {
   GetResourceImageRequestDto,
   GetVibeDocumentRequestDto,
   ImageResourceKindDto,
+  ImageAnalysisModelInstallProgressDto,
+  ImageAnalysisModelRequestDto,
+  ImageAnalysisModelStatusDto,
   ImportImageResourceResponseDto,
   ImportedVibeDocumentsDto,
   ListVibeDocumentsRequestDto,
@@ -85,6 +90,8 @@ import type {
   RunHistoryQueryDto,
   SetActiveApiKeyRequestDto,
   SetGallerySafetyOverrideRequestDto,
+  RescanGallerySafetyRequestDto,
+  RescanGallerySafetyResponseDto,
   RenameVibeDocumentRequestDto,
   SetVibeDocumentHiddenRequestDto,
   SubmitGenerationRequestDto,
@@ -173,6 +180,27 @@ export const globalSettingsApi = {
   get: () => invokeAtelierCommand<GlobalSettingsDto>(atelierCommands.getGlobalSettings),
   update: (request: UpdateGlobalSettingsRequestDto) =>
     invokeAtelierCommand<GlobalSettingsDto>(atelierCommands.updateGlobalSettings, { request }),
+};
+
+export const imageAnalysisApi = {
+  statuses: () =>
+    invokeAtelierCommand<ImageAnalysisModelStatusDto[]>(
+      atelierCommands.getImageAnalysisModelStatus,
+    ),
+  install: (
+    request: ImageAnalysisModelRequestDto,
+    onProgress: (progress: ImageAnalysisModelInstallProgressDto) => void,
+  ) => {
+    const channel = new Channel<ImageAnalysisModelInstallProgressDto>(onProgress);
+    return invokeAtelierCommand<ImageAnalysisModelStatusDto>(
+      atelierCommands.installImageAnalysisModel,
+      { request, onProgress: channel },
+    );
+  },
+  cancelInstall: (request: ImageAnalysisModelRequestDto) =>
+    invokeAtelierCommand<void>(atelierCommands.cancelImageAnalysisModelInstall, { request }),
+  delete: (request: ImageAnalysisModelRequestDto) =>
+    invokeAtelierCommand<void>(atelierCommands.deleteImageAnalysisModel, { request }),
 };
 
 export const accountApi = {
@@ -343,6 +371,10 @@ export const galleryApi = {
     invokeAtelierCommand<GalleryItemDetailDto>(atelierCommands.getGalleryItemDetail, { request }),
   setSafetyOverride: (request: SetGallerySafetyOverrideRequestDto) =>
     invokeAtelierCommand<GalleryItemDto>(atelierCommands.setGallerySafetyOverride, { request }),
+  rescanSafety: (request: RescanGallerySafetyRequestDto) =>
+    invokeAtelierCommand<RescanGallerySafetyResponseDto>(atelierCommands.rescanGallerySafety, {
+      request,
+    }),
   deleteItems: (request: DeleteGalleryItemsRequestDto) =>
     invokeAtelierCommand<DeleteGalleryItemsResponseDto>(atelierCommands.deleteGalleryItems, {
       request,

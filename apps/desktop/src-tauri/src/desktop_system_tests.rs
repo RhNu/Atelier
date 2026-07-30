@@ -7,50 +7,43 @@ use super::{
 };
 
 #[test]
-fn safety_assets_prefer_environment_paths() {
+fn onnx_runtime_prefers_environment_path() {
     let _guard = env_guard();
     let temp = tempfile::tempdir().unwrap();
-    let model = touch(temp.path().join("env-model.onnx"));
     let runtime = touch(temp.path().join(runtime_library_file_name()));
-    set_env("ATELIER_SAFETY_ONNX_MODEL", Some(&model));
     set_env("ATELIER_ONNX_RUNTIME", Some(&runtime));
 
     let system = DesktopSystem::new(paths_with_resource_dir(temp.path().join("resources")));
-    let assets = system.resolve_safety_assets().unwrap().unwrap();
+    let resolved = system.resolve_onnx_runtime_library().unwrap().unwrap();
 
-    assert_eq!(assets.model_path, model);
-    assert_eq!(assets.runtime_library_path, runtime);
+    assert_eq!(resolved, runtime);
 }
 
 #[test]
-fn safety_assets_fall_back_to_bundled_resource_paths() {
+fn onnx_runtime_falls_back_to_shared_resource_path() {
     let _guard = env_guard();
-    set_env("ATELIER_SAFETY_ONNX_MODEL", None);
     set_env("ATELIER_ONNX_RUNTIME", None);
     let temp = tempfile::tempdir().unwrap();
     let resource_dir = temp.path().join("resources");
-    let safety_dir = resource_dir.join("safety");
-    std::fs::create_dir_all(&safety_dir).unwrap();
-    let model = touch(safety_dir.join("open_nsfw.onnx"));
-    let runtime = touch(safety_dir.join(runtime_library_file_name()));
+    let runtime_dir = resource_dir.join("onnx-runtime");
+    std::fs::create_dir_all(&runtime_dir).unwrap();
+    let runtime = touch(runtime_dir.join(runtime_library_file_name()));
 
     let system = DesktopSystem::new(paths_with_resource_dir(resource_dir));
-    let assets = system.resolve_safety_assets().unwrap().unwrap();
+    let resolved = system.resolve_onnx_runtime_library().unwrap().unwrap();
 
-    assert_eq!(assets.model_path, model);
-    assert_eq!(assets.runtime_library_path, runtime);
+    assert_eq!(resolved, runtime);
 }
 
 #[test]
-fn safety_assets_are_optional_when_missing() {
+fn onnx_runtime_is_optional_when_missing() {
     let _guard = env_guard();
-    set_env("ATELIER_SAFETY_ONNX_MODEL", None);
     set_env("ATELIER_ONNX_RUNTIME", None);
     let temp = tempfile::tempdir().unwrap();
 
     let system = DesktopSystem::new(paths_with_resource_dir(temp.path().join("resources")));
 
-    assert!(system.resolve_safety_assets().unwrap().is_none());
+    assert!(system.resolve_onnx_runtime_library().unwrap().is_none());
 }
 
 #[test]

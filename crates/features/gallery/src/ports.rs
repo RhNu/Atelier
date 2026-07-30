@@ -1,6 +1,9 @@
 use async_trait::async_trait;
 
-use crate::{GalleryItem, GalleryItemId, GalleryQuery, GalleryResult, GallerySafetyOverride};
+use crate::{
+    GalleryItem, GalleryItemId, GalleryQuery, GalleryResult, GallerySafetyOverride,
+    GallerySafetyState,
+};
 
 #[async_trait]
 pub trait GalleryIndex: Send + Sync {
@@ -22,5 +25,11 @@ pub trait GalleryIndex: Send + Sync {
         &self,
         id: &GalleryItemId,
         manual_safety_override: Option<GallerySafetyOverride>,
+    ) -> GalleryResult<GalleryItem>;
+
+    async fn set_safety_state(
+        &self,
+        id: &GalleryItemId,
+        safety: GallerySafetyState,
     ) -> GalleryResult<GalleryItem>;
 }

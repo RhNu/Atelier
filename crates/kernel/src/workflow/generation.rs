@@ -3,6 +3,7 @@ use atelier_artifacts::{
     EmbeddedMetadataStatus, EmbeddedMetadataWarning, RegisterArtifactRequest, VisualAssetRef,
     VisualAssetRole,
 };
+use atelier_gallery::GallerySafetyState;
 use atelier_generation::{
     GenerateImageStreamRequest, GeneratedImageMetadata, GeneratedImageMetadataWarning,
     GenerationClientError, GenerationOutputMode, GenerationRequestPlan, plan_generation_request,
@@ -320,8 +321,12 @@ where
             }],
         })
         .await?;
+    let attempted_at_ms = runtime.ports_ref().now_ms();
     let safety = match runtime.ports_ref().score_image(resource.clone()).await {
-        Ok(assessment) => assessment,
+        Ok(Some(assessment)) => GallerySafetyState::Scanned(Box::new(assessment)),
+        Ok(None) => GallerySafetyState::Unavailable {
+            message: "automatic safety scanning is unavailable".to_owned(),
+        },
         Err(error) => {
             runtime
                 .emit(KernelEventKind::SafetyScanFailed {
@@ -331,7 +336,10 @@ where
                     message: error.to_string(),
                 })
                 .await;
-            None
+            GallerySafetyState::Failed {
+                message: error.to_string(),
+                attempted_at_ms,
+            }
         }
     };
     let item = runtime

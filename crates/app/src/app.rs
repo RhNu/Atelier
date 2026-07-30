@@ -63,6 +63,7 @@ pub struct AppInner<S, F, E> {
     pub generation_drafts:
         atelier_generation::GenerationDraftService<DatabaseGenerationDraftRepository>,
     pub generation_draft_write: Mutex<()>,
+    pub gallery_safety_rescan: Mutex<()>,
     pub settings_state: SharedWorkspaceSettings,
     pub prompt_chunks: PromptChunkService<DatabasePromptResourceRepository>,
     pub prompt_presets: PromptPresetService<DatabasePromptResourceRepository>,
@@ -168,6 +169,10 @@ where
     /// # Errors
     /// Returns an error when workspace initialization, locking, database
     /// schema validation fails.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the workspace composition root keeps dependency wiring visible in one place"
+    )]
     pub async fn open_workspace_with_dependencies_and_extractor_and_safety_scanner(
         root: PathBuf,
         secrets: S,
@@ -261,6 +266,7 @@ where
                 settings,
                 generation_drafts,
                 generation_draft_write: Mutex::new(()),
+                gallery_safety_rescan: Mutex::new(()),
                 settings_state,
                 prompt_chunks: PromptChunkService::new(prompt_repository.clone()),
                 prompt_presets: PromptPresetService::new(prompt_repository),

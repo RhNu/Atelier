@@ -36,8 +36,8 @@ use atelier_app_api::resource::{
 };
 use atelier_app_api::settings::{
     GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto,
-    ImageVariantSettingsDto, UpdateGlobalSettingsRequestDto, UpdateWorkspaceSettingsRequestDto,
-    WorkspaceSettingsDto,
+    GlobalSafetySettingsDto, ImageVariantSettingsDto, UpdateGlobalSettingsRequestDto,
+    UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
 use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, ExportVibeDocumentRequestDto, ImportVibeDocumentRequestDto,

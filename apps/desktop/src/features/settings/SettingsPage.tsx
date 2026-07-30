@@ -12,6 +12,7 @@ import { AccountSettingsSection } from "./components/AccountSettingsSection";
 import { FrontendSettingsSection } from "./components/FrontendSettingsSection";
 import { GenerationSettingsSection } from "./components/GenerationSettingsSection";
 import { ImageSettingsSection } from "./components/ImageSettingsSection";
+import { SafetySettingsSection } from "./components/SafetySettingsSection";
 import { LoadingPanel } from "./components/SettingsControls";
 import { SettingsSectionNav, type SettingsSection } from "./components/SettingsSectionNav";
 import { WorkspaceLifecycleSection } from "./components/WorkspaceLifecycleSection";
@@ -97,11 +98,15 @@ export function SettingsPage() {
     const draft = globalDraft;
     const saved = globalSettingsQuery.data;
     if (!draft || !saved) return;
-    if (JSON.stringify(draft.frontend) === JSON.stringify(saved.frontend)) return;
+    if (
+      JSON.stringify(draft.frontend) === JSON.stringify(saved.frontend) &&
+      JSON.stringify(draft.safety) === JSON.stringify(saved.safety)
+    )
+      return;
 
     const timer = window.setTimeout(() => {
       updateGlobalMutation.mutate(
-        { frontend: draft.frontend },
+        { frontend: draft.frontend, safety: draft.safety },
         {
           onSuccess: (updatedSettings) => {
             reportBackgroundPromise(
@@ -196,14 +201,18 @@ function SettingsContent({
     );
   }
 
-  if (activeSection === "frontend") {
+  if (activeSection === "frontend" || activeSection === "safety") {
     if (globalError) {
       return <SettingsUnavailable description={globalError} title={t("settingsUnavailable")} />;
     }
     if (globalPending || !globalDraft) {
       return <SettingsLoading label={t("loadingApplication")} />;
     }
-    return <FrontendSettingsSection draft={globalDraft} updateDraft={updateGlobalDraft} />;
+    return activeSection === "frontend" ? (
+      <FrontendSettingsSection draft={globalDraft} updateDraft={updateGlobalDraft} />
+    ) : (
+      <SafetySettingsSection draft={globalDraft} updateDraft={updateGlobalDraft} />
+    );
   }
 
   if (workspaceError) {

@@ -1,10 +1,8 @@
-use atelier_artifacts::ArtifactRecord;
-use atelier_safety::SafetyAssessment;
-
 use crate::{
     GalleryError, GalleryImageReference, GalleryIndex, GalleryItem, GalleryItemId, GalleryQuery,
-    GalleryResult, GallerySafetyOverride, ImageReferenceTarget,
+    GalleryResult, GallerySafetyOverride, GallerySafetyState, ImageReferenceTarget,
 };
+use atelier_artifacts::ArtifactRecord;
 
 #[derive(Clone, Debug)]
 pub struct GalleryService<I> {
@@ -26,19 +24,22 @@ where
     ///
     /// # Errors
     /// Returns an error when the gallery index cannot persist the item.
-    pub async fn index_artifact(
+    pub async fn index_artifact<S>(
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
-        safety_assessment: Option<SafetyAssessment>,
-    ) -> GalleryResult<GalleryItem> {
+        safety: S,
+    ) -> GalleryResult<GalleryItem>
+    where
+        S: Into<GallerySafetyState>,
+    {
         let item_id = GalleryItemId::from_artifact_id(&artifact.id);
         let manual_safety_override = self
             .index
             .get_item(&item_id)
             .await?
             .and_then(|item| item.manual_safety_override);
-        let mut item = GalleryItem::from_artifact(artifact, indexed_at_ms, safety_assessment);
+        let mut item = GalleryItem::from_artifact(artifact, indexed_at_ms, safety.into());
         item.manual_safety_override = manual_safety_override;
         self.index.upsert_item(item.clone()).await?;
         Ok(item)
@@ -97,6 +98,18 @@ where
         self.index
             .set_safety_override(item_id, manual_safety_override)
             .await
+    }
+
+    /// Replaces the persisted automatic safety scan state.
+    ///
+    /// # Errors
+    /// Returns an error when the gallery item does not exist or persistence fails.
+    pub async fn set_safety_state(
+        &self,
+        item_id: &GalleryItemId,
+        safety: GallerySafetyState,
+    ) -> GalleryResult<GalleryItem> {
+        self.index.set_safety_state(item_id, safety).await
     }
 
     /// Returns a pure image reference for downstream feature handoff.

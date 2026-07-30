@@ -2,9 +2,12 @@ use atelier_app_api::settings::{
     GlobalSettingsDto, ResetWorkspaceSettingsResponseDto, UpdateGlobalSettingsRequestDto,
     UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
+use atelier_image_analysis::ImageAnalysisModelId;
 
 use crate::commands::{AtelierRuntime, CommandResult};
-use crate::mapping::{global_frontend_settings_to_domain, global_settings_to_dto};
+use crate::mapping::{
+    global_frontend_settings_to_domain, global_safety_settings_to_domain, global_settings_to_dto,
+};
 
 impl<S, F, E> AtelierRuntime<S, F, E>
 where
@@ -33,12 +36,44 @@ where
         &self,
         request: UpdateGlobalSettingsRequestDto,
     ) -> CommandResult<GlobalSettingsDto> {
-        self.global_settings
-            .update_frontend_settings(global_frontend_settings_to_domain(request.frontend))
+        let wd_enabled = request.safety.wd_auto_review_enabled;
+        if wd_enabled {
+            let ready = match &self.image_analysis_models {
+                Some(models) => {
+                    models
+                        .is_ready(ImageAnalysisModelId::WdSwinv2TaggerV3)
+                        .await
+                }
+                None => false,
+            };
+            if !ready {
+                return Err(crate::AppError::new(
+                    "image_analysis_model_unavailable",
+                    "WD automatic review requires an installed and verified WD model",
+                )
+                .envelope());
+            }
+        }
+
+        let settings = self
+            .global_settings
+            .update_application_settings(
+                global_frontend_settings_to_domain(request.frontend),
+                global_safety_settings_to_domain(request.safety),
+            )
             .await
-            .map(|settings| global_settings_to_dto(&settings))
             .map_err(crate::AppError::from)
-            .map_err(|error| error.envelope())
+            .map_err(|error| error.envelope())?;
+        if let Some(control) = &self.safety_policy_control {
+            control.set_wd_auto_review_enabled(wd_enabled);
+        }
+        if !wd_enabled && let Some(models) = &self.image_analysis_models {
+            models
+                .unload(ImageAnalysisModelId::WdSwinv2TaggerV3)
+                .map_err(crate::AppError::from)
+                .map_err(|error| error.envelope())?;
+        }
+        Ok(global_settings_to_dto(&settings))
     }
 
     /// Returns workspace-local settings.

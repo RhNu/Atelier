@@ -8,6 +8,7 @@ import {
   useDeleteGalleryItemsMutation,
   useCopyGalleryImageMutation,
   useGalleryImageReferenceMutation,
+  useRescanGallerySafetyMutation,
   useSaveGalleryImageMutation,
   useSetGallerySafetyOverrideMutation,
 } from "./data/useGalleryPageQuery";
@@ -35,41 +36,37 @@ export function useGalleryItemCommands({
   const saveImageMutation = useSaveGalleryImageMutation();
   const copyImageMutation = useCopyGalleryImageMutation();
   const imageReferenceMutation = useGalleryImageReferenceMutation();
-  const deleteTargets = deleteTargetIds.flatMap((targetId) => {
-    const target =
-      visibleItems.find((item) => item.item_id === targetId) ??
-      (targetId === selectedItem?.item_id ? selectedItem : null);
-    return target ? [target] : [];
-  });
+  const rescanSafetyMutation = useRescanGallerySafetyMutation();
+  const deleteTargets = resolveDeleteTargets(deleteTargetIds, visibleItems, selectedItem);
   const commandMutationError =
     setSafetyOverrideMutation.error ??
     copyImageMutation.error ??
     saveImageMutation.error ??
-    imageReferenceMutation.error;
-
+    imageReferenceMutation.error ??
+    rescanSafetyMutation.error;
   const resetCommandErrors = useCallback(() => {
     setSafetyOverrideMutation.reset();
     copyImageMutation.reset();
     saveImageMutation.reset();
     deleteGalleryItemsMutation.reset();
     imageReferenceMutation.reset();
+    rescanSafetyMutation.reset();
   }, [
     deleteGalleryItemsMutation,
     copyImageMutation,
     imageReferenceMutation,
     saveImageMutation,
     setSafetyOverrideMutation,
+    rescanSafetyMutation,
   ]);
+  const applyOverride = useSafetyOverride(
+    selectedItem,
+    overrideValue,
+    resetCommandErrors,
+    setSafetyOverrideMutation,
+  );
 
-  const applyOverride = useCallback(() => {
-    if (selectedItem) {
-      resetCommandErrors();
-      setSafetyOverrideMutation.mutate({
-        item_id: selectedItem.item_id,
-        manual_safety_override: parseSafetyOverride(overrideValue),
-      });
-    }
-  }, [overrideValue, resetCommandErrors, selectedItem, setSafetyOverrideMutation]);
+  const rescanSafety = useSafetyRescan(selectedItem, resetCommandErrors, rescanSafetyMutation);
 
   const copySelected = useCallback(
     (format: ImageExportFormatDto) => {
@@ -158,6 +155,7 @@ export function useGalleryItemCommands({
 
   return {
     applyingOverride: setSafetyOverrideMutation.isPending,
+    rescanningSafety: rescanSafetyMutation.isPending,
     commandError: commandMutationError ? formatError(commandMutationError) : null,
     confirmDelete,
     closeDeleteConfirmation,
@@ -175,6 +173,50 @@ export function useGalleryItemCommands({
     openDeleteConfirmation,
     openBatchDeleteConfirmation,
     applyOverride,
+    rescanSafety,
     sendToDirector,
   };
+}
+
+function useSafetyRescan(
+  selectedItem: GalleryItemDto | null,
+  resetCommandErrors: () => void,
+  mutation: ReturnType<typeof useRescanGallerySafetyMutation>,
+) {
+  return useCallback(() => {
+    if (selectedItem) {
+      resetCommandErrors();
+      mutation.mutate({ item_ids: [selectedItem.item_id] });
+    }
+  }, [mutation, resetCommandErrors, selectedItem]);
+}
+
+function useSafetyOverride(
+  selectedItem: GalleryItemDto | null,
+  overrideValue: string,
+  resetCommandErrors: () => void,
+  mutation: ReturnType<typeof useSetGallerySafetyOverrideMutation>,
+) {
+  return useCallback(() => {
+    if (selectedItem) {
+      resetCommandErrors();
+      mutation.mutate({
+        item_id: selectedItem.item_id,
+        manual_safety_override: parseSafetyOverride(overrideValue),
+      });
+    }
+  }, [mutation, overrideValue, resetCommandErrors, selectedItem]);
+}
+
+function resolveDeleteTargets(
+  targetIds: string[],
+  visibleItems: GalleryItemDto[],
+  selectedItem: GalleryItemDto | null,
+) {
+  return targetIds.flatMap((targetId) => {
+    const target =
+      visibleItems.find((item) => item.item_id === targetId) ??
+      (targetId === selectedItem?.item_id ? selectedItem : null);
+    return target ? [target] : [];
+  });
 }

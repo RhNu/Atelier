@@ -94,7 +94,7 @@ struct LexiconBenchmarkArgs {
     bundle: PathBuf,
     #[arg(
         long,
-        default_value = "apps/desktop/src-tauri/resources/safety/onnxruntime.dll"
+        default_value = "apps/desktop/src-tauri/resources/onnx-runtime/onnxruntime.dll"
     )]
     runtime_library: PathBuf,
 }

@@ -114,10 +114,10 @@ fn artifact_and_gallery_persistence_supports_query_and_manual_override() {
             assets: first.assets.clone(),
             metadata: first.metadata.clone(),
             replay: first.replay.clone(),
-            safety_assessment: Some(SafetyAssessment::new(
+            safety: GallerySafetyState::Scanned(Box::new(test_safety_assessment(
                 first.primary_resource.clone(),
                 ImageSafetyScore::new(0.25).unwrap(),
-            )),
+            ))),
             manual_safety_override: None,
             indexed_at_ms: 100,
         };
@@ -130,7 +130,7 @@ fn artifact_and_gallery_persistence_supports_query_and_manual_override() {
             assets: second.assets.clone(),
             metadata: second.metadata.clone(),
             replay: second.replay.clone(),
-            safety_assessment: None,
+            safety: GallerySafetyState::Unscanned,
             manual_safety_override: None,
             indexed_at_ms: 200,
         };
@@ -366,10 +366,10 @@ fn gallery_item(id: &str, indexed_at_ms: u64, safety_score: f32) -> GalleryItem 
         assets: artifact.assets.clone(),
         metadata: artifact.metadata.clone(),
         replay: artifact.replay.clone(),
-        safety_assessment: Some(SafetyAssessment::new(
+        safety: GallerySafetyState::Scanned(Box::new(test_safety_assessment(
             artifact.primary_resource,
             ImageSafetyScore::new(safety_score).unwrap(),
-        )),
+        ))),
         manual_safety_override: None,
         indexed_at_ms,
     }

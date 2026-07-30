@@ -81,7 +81,13 @@ fn director_safety_failure_is_reported_without_blocking_gallery_indexing() {
             .await
             .unwrap();
 
-        assert!(result.item.safety_assessment.is_none());
+        assert!(matches!(
+            &result.item.safety,
+            atelier_gallery::GallerySafetyState::Failed {
+                message,
+                attempted_at_ms: 0
+            } if message.contains("scanner unavailable")
+        ));
         assert!(ports.gallery_items().contains_key(result.item.id.as_str()));
         assert!(ports.events().iter().any(|event| {
             matches!(

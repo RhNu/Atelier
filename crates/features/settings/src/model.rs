@@ -110,6 +110,7 @@ impl ImageVariantSettings {
 pub struct GlobalSettings {
     pub last_workspace: Option<PathBuf>,
     pub frontend: GlobalFrontendSettings,
+    pub safety: GlobalSafetySettings,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
@@ -130,6 +131,11 @@ pub struct GlobalFrontendSettings {
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct GlobalGallerySettings {
     pub blur_sensitive_images: bool,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct GlobalSafetySettings {
+    pub wd_auto_review_enabled: bool,
 }
 
 fn ensure_u32_range(field: &str, value: u32, min: u32, max: u32) -> SettingsResult<()> {

@@ -494,12 +494,34 @@ fn global_settings_preserve_last_workspace_and_update_frontend_independently() {
                         blur_sensitive_images: true,
                     },
                 },
+                safety: GlobalSafetySettingsDto {
+                    wd_auto_review_enabled: false,
+                },
             })
             .await
             .unwrap();
         assert_eq!(updated.last_workspace.as_deref(), Some(temp.path()));
         assert!(updated.frontend.developer_mode);
         assert!(updated.frontend.gallery.blur_sensitive_images);
+
+        let error = host
+            .update_global_settings(UpdateGlobalSettingsRequestDto {
+                frontend: updated.frontend,
+                safety: GlobalSafetySettingsDto {
+                    wd_auto_review_enabled: true,
+                },
+            })
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, "image_analysis_model_unavailable");
+        assert!(
+            !host
+                .get_global_settings()
+                .await
+                .unwrap()
+                .safety
+                .wd_auto_review_enabled
+        );
 
         host.close_workspace().unwrap();
         let bootstrap = host.bootstrap_app().await.unwrap();

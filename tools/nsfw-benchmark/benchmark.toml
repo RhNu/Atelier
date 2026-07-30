@@ -1,0 +1,25 @@
+[benchmark]
+recall_target = 0.97
+folds = 5
+random_seed = 20260729
+compact_limit_mb = 100.0
+
+[runtime]
+intra_op_threads = 0
+
+[models.anime_dbrating]
+enabled = true
+repo_id = "deepghs/anime_dbrating"
+revision = "7af21db648acdeb74f5c334abda9dd7403407b3c"
+model_name = "mobilenetv3_large_100_v0_ls0.2"
+
+[models.anime_rating]
+enabled = true
+repo_id = "deepghs/anime_rating"
+revision = "46be80bfe01a415efa5aa7c025528cac82a8b88a"
+model_name = "mobilenetv3_v1_pruned_ls0.1"
+
+[models.wd_tagger]
+enabled = true
+repo_id = "SmilingWolf/wd-swinv2-tagger-v3"
+revision = "627aef95638667ddcaa3ac8ae625e88ea5b02f51"

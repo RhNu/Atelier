@@ -2,8 +2,10 @@ use rusqlite::Connection;
 
 use crate::error::{DatabaseError, DatabaseResult};
 
+mod migrations;
+
 const DATABASE_FORMAT: &str = "atelier-workspace-database";
-const DATABASE_SCHEMA_VERSION: i64 = 1;
+const DATABASE_SCHEMA_VERSION: i64 = 2;
 
 const SCHEMA_SQL: &str = r"
 CREATE TABLE atelier_schema (
@@ -13,7 +15,7 @@ CREATE TABLE atelier_schema (
 );
 
 INSERT INTO atelier_schema(singleton, format, schema_version)
-VALUES (1, 'atelier-workspace-database', 1);
+VALUES (1, 'atelier-workspace-database', 2);
 
 CREATE TABLE resources (
     id TEXT PRIMARY KEY,
@@ -102,6 +104,7 @@ CREATE TABLE gallery_items (
     artifact_id TEXT NOT NULL,
     artifact_kind TEXT NOT NULL,
     source_kind TEXT NOT NULL,
+    safety_scan_state TEXT NOT NULL,
     manual_safety_override TEXT,
     effective_safety_label TEXT,
     indexed_at_ms INTEGER NOT NULL,
@@ -118,6 +121,8 @@ CREATE INDEX idx_gallery_items_manual_safety_override
     ON gallery_items(manual_safety_override);
 CREATE INDEX idx_gallery_items_effective_safety_label
     ON gallery_items(effective_safety_label);
+CREATE INDEX idx_gallery_items_safety_scan_state
+    ON gallery_items(safety_scan_state, indexed_at_ms, item_id);
 
 CREATE TABLE api_key_records (
     id TEXT PRIMARY KEY,
@@ -248,7 +253,7 @@ pub fn initialize_or_validate_schema(connection: &mut Connection) -> DatabaseRes
         transaction.commit()?;
         return Ok(());
     }
-    validate_schema(connection)
+    validate_or_migrate_schema(connection)
 }
 
 fn database_is_empty(connection: &Connection) -> DatabaseResult<bool> {
@@ -267,7 +272,7 @@ fn database_is_empty(connection: &Connection) -> DatabaseResult<bool> {
         .map_err(Into::into)
 }
 
-fn validate_schema(connection: &Connection) -> DatabaseResult<()> {
+fn validate_or_migrate_schema(connection: &mut Connection) -> DatabaseResult<()> {
     let metadata = connection.query_row(
         r"
         SELECT format, schema_version
@@ -280,12 +285,17 @@ fn validate_schema(connection: &Connection) -> DatabaseResult<()> {
     let (format, schema_version) = metadata.map_err(|_| {
         DatabaseError::unsupported_schema("database does not contain valid Atelier schema metadata")
     })?;
-    if format == DATABASE_FORMAT && schema_version == DATABASE_SCHEMA_VERSION {
-        Ok(())
-    } else {
+    if format != DATABASE_FORMAT {
         Err(DatabaseError::unsupported_schema(format!(
             "unsupported database schema `{format}` version {schema_version}; expected \
              `{DATABASE_FORMAT}` version {DATABASE_SCHEMA_VERSION}"
         )))
+    } else if schema_version > DATABASE_SCHEMA_VERSION {
+        Err(DatabaseError::unsupported_schema(format!(
+            "database schema version {schema_version} is newer than supported version \
+             {DATABASE_SCHEMA_VERSION}"
+        )))
+    } else {
+        migrations::migrate(connection, schema_version, DATABASE_SCHEMA_VERSION)
     }
 }

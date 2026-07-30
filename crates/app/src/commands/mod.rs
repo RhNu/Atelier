@@ -4,6 +4,7 @@ mod events;
 mod gallery;
 mod generation;
 mod history;
+mod image_analysis;
 mod prompt;
 mod resource;
 mod settings;
@@ -18,8 +19,9 @@ use atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory,
 };
 use atelier_app_api::{error::ErrorEnvelopeDto, event::AppEventDto};
+use atelier_image_analysis::ImageAnalysisModelManager;
 use atelier_prompt_lexicon::{LexiconEngine, UnavailableLexicon};
-use atelier_safety::SafetyScanner;
+use atelier_safety::{SafetyPolicyControl, SafetyScanner};
 use atelier_secrets::SecretStore;
 use atelier_settings::{
     GlobalSettings, GlobalSettingsRepository, GlobalSettingsService, SettingsResult,
@@ -42,6 +44,8 @@ pub struct AtelierRuntime<
     factory: F,
     extractor: E,
     safety_scanner: Option<Arc<dyn SafetyScanner>>,
+    image_analysis_models: Option<Arc<dyn ImageAnalysisModelManager>>,
+    safety_policy_control: Option<Arc<dyn SafetyPolicyControl>>,
     lexicon: Arc<dyn LexiconEngine>,
     event_listeners: Mutex<Vec<AppEventListener>>,
     global_settings: GlobalSettingsService,
@@ -76,6 +80,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner: None,
+            image_analysis_models: None,
+            safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
@@ -95,6 +101,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner,
+            image_analysis_models: None,
+            safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
@@ -115,6 +123,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner,
+            image_analysis_models: None,
+            safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings,
@@ -136,10 +146,23 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner,
+            image_analysis_models: None,
+            safety_policy_control: None,
             lexicon,
             event_listeners: Mutex::new(Vec::new()),
             global_settings,
         }
+    }
+
+    #[must_use]
+    pub fn with_image_analysis(
+        mut self,
+        models: Arc<dyn ImageAnalysisModelManager>,
+        safety_policy_control: Arc<dyn SafetyPolicyControl>,
+    ) -> Self {
+        self.image_analysis_models = Some(models);
+        self.safety_policy_control = Some(safety_policy_control);
+        self
     }
 
     pub(crate) fn current_session(&self) -> CommandResult<Arc<WorkspaceSession<S, F, E>>> {

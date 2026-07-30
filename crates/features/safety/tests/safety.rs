@@ -1,124 +1,240 @@
+use std::sync::{Arc, Barrier};
+
 use async_trait::async_trait;
+use atelier_image_analysis::{
+    AnalysisOutputSelection, ImageAnalysis, ImageAnalysisError, ImageAnalysisInput,
+    ImageAnalysisModelId, ImageAnalysisModelInfo, ImageAnalysisResult, ImageAnalyzer,
+    ImageRatingScores,
+};
 use atelier_resource_catalog::{ResourceId, ResourceRef};
 use atelier_safety::{
-    ImageSafetyScore, SafetyAssessment, SafetyErrorKind, SafetyLabel, SafetyModelScore,
-    SafetyRiskBand, SafetyScanInput, SafetyScanner,
+    SafetyLabel, SafetyPipeline, SafetyPolicyControl, SafetyReviewOutcome, SafetyScanInput,
+    SafetyScanner,
 };
-use futures_executor::block_on;
 
 #[test]
-fn image_safety_score_accepts_range_boundaries() {
-    assert_score(ImageSafetyScore::new(0.0).unwrap(), 0.0);
-    assert_score(ImageSafetyScore::new(0.5).unwrap(), 0.5);
-    assert_score(ImageSafetyScore::new(1.0).unwrap(), 1.0);
-}
+fn default_pipeline_uses_primary_rating_model_without_review() {
+    futures_executor::block_on(async {
+        let pipeline = SafetyPipeline::new(Arc::new(FakeAnalyzer::default()), false);
+        let assessment = pipeline.scan_image(input("safe")).await.unwrap();
 
-#[test]
-fn image_safety_score_rejects_out_of_range_values() {
-    let negative = ImageSafetyScore::new(-0.01).unwrap_err();
-    let above_one = ImageSafetyScore::new(1.01).unwrap_err();
-    let nan = ImageSafetyScore::new(f32::NAN).unwrap_err();
-
-    assert_eq!(negative.kind(), SafetyErrorKind::InvalidScore);
-    assert_eq!(above_one.kind(), SafetyErrorKind::InvalidScore);
-    assert_eq!(nan.kind(), SafetyErrorKind::InvalidScore);
-}
-
-#[test]
-fn safety_assessment_attaches_score_to_resource_ref() {
-    let resource = ResourceRef::base(ResourceId::new("resource-1"));
-    let assessment = SafetyAssessment::new(resource.clone(), ImageSafetyScore::new(0.75).unwrap())
-        .with_scorer("fake-scorer", Some("0.1.0"))
-        .with_assessed_at_ms(1_700_000_000_000);
-
-    assert_eq!(assessment.resource, resource);
-    assert_score(assessment.score, 0.75);
-    assert_eq!(assessment.scorer_label.as_deref(), Some("fake-scorer"));
-    assert_eq!(assessment.scorer_version.as_deref(), Some("0.1.0"));
-    assert_eq!(assessment.assessed_at_ms, Some(1_700_000_000_000));
-}
-
-#[test]
-fn scanned_assessment_preserves_model_scores_and_derives_safety_labels() {
-    let resource = ResourceRef::base(ResourceId::new("resource-1"));
-    let assessment = SafetyAssessment::from_model_scores(
-        resource.clone(),
-        vec![
-            SafetyModelScore::new("safe", 0.09).unwrap(),
-            SafetyModelScore::new("nsfw", 0.91).unwrap(),
-        ],
-    )
-    .unwrap()
-    .with_scorer("open_nsfw@onnx", Some("1"))
-    .with_assessed_at_ms(123);
-
-    assert_eq!(assessment.resource, resource);
-    assert_score(assessment.score, 0.91);
-    assert_eq!(
-        assessment.safe_score.map(ImageSafetyScore::value),
-        Some(0.09)
-    );
-    assert_eq!(assessment.raw_scores.len(), 2);
-    assert_eq!(assessment.risk_band(), SafetyRiskBand::High);
-    assert_eq!(assessment.auto_label(), SafetyLabel::Sensitive);
-    assert_eq!(
-        assessment.effective_label(Some(SafetyLabel::Hidden)),
-        SafetyLabel::Hidden
-    );
-}
-
-#[test]
-fn safety_thresholds_keep_medium_scores_visible_by_default() {
-    let resource = ResourceRef::base(ResourceId::new("resource-1"));
-    let low = SafetyAssessment::new(resource.clone(), ImageSafetyScore::new(0.19).unwrap());
-    let medium = SafetyAssessment::new(resource.clone(), ImageSafetyScore::new(0.20).unwrap());
-    let high = SafetyAssessment::new(resource, ImageSafetyScore::new(0.80).unwrap());
-
-    assert_eq!(low.risk_band(), SafetyRiskBand::Low);
-    assert_eq!(low.auto_label(), SafetyLabel::Safe);
-    assert_eq!(medium.risk_band(), SafetyRiskBand::Medium);
-    assert_eq!(medium.auto_label(), SafetyLabel::Safe);
-    assert_eq!(high.risk_band(), SafetyRiskBand::High);
-    assert_eq!(high.auto_label(), SafetyLabel::Sensitive);
-}
-
-#[test]
-fn fake_safety_scanner_returns_deterministic_score_without_io() {
-    block_on(async {
-        let scanner = FakeSafetyScanner {
-            score: ImageSafetyScore::new(0.2).unwrap(),
-        };
-        let resource = ResourceRef::base(ResourceId::new("resource-1"));
-
-        let assessment = scanner
-            .scan_image(SafetyScanInput {
-                resource: resource.clone(),
-                bytes: vec![1, 2, 3],
-                mime_type: Some("image/png".to_owned()),
-            })
-            .await
-            .unwrap();
-
-        assert_eq!(assessment.resource, resource);
-        assert_score(assessment.score, 0.2);
-        assert_eq!(assessment.scorer_label.as_deref(), Some("fake"));
+        assert_eq!(assessment.auto_label, SafetyLabel::Safe);
+        assert!(matches!(assessment.review, SafetyReviewOutcome::NotNeeded));
+        assert_eq!(
+            assessment.primary.model.id,
+            ImageAnalysisModelId::AnimeDbRating
+        );
     });
 }
 
-fn assert_score(score: ImageSafetyScore, expected: f32) {
-    assert!((score.value() - expected).abs() < f32::EPSILON);
+#[test]
+fn enabled_review_promotes_borderline_primary_when_wd_is_explicit() {
+    futures_executor::block_on(async {
+        let pipeline = SafetyPipeline::new(
+            Arc::new(FakeAnalyzer {
+                primary: ImageRatingScores::new(0.0831, 0.2496, 0.2320, 0.4300).unwrap(),
+                review: ImageRatingScores::new(0.0015, 0.0081, 0.0232, 0.9548).unwrap(),
+                fail_review: false,
+            }),
+            true,
+        );
+        let assessment = pipeline.scan_image(input("borderline")).await.unwrap();
+
+        assert_eq!(assessment.auto_label, SafetyLabel::Sensitive);
+        assert!(matches!(
+            assessment.review,
+            SafetyReviewOutcome::Completed(_)
+        ));
+    });
 }
 
-struct FakeSafetyScanner {
-    score: ImageSafetyScore,
+#[test]
+fn primary_sensitive_result_does_not_invoke_review() {
+    futures_executor::block_on(async {
+        let pipeline = SafetyPipeline::new(
+            Arc::new(FakeAnalyzer {
+                primary: ImageRatingScores::new(0.0, 0.0, 0.0, 1.0).unwrap(),
+                ..FakeAnalyzer::default()
+            }),
+            true,
+        );
+        let assessment = pipeline.scan_image(input("sensitive")).await.unwrap();
+
+        assert_eq!(assessment.auto_label, SafetyLabel::Sensitive);
+        assert!(matches!(assessment.review, SafetyReviewOutcome::NotNeeded));
+    });
+}
+
+#[test]
+fn disabled_review_keeps_borderline_primary_safe() {
+    futures_executor::block_on(async {
+        let pipeline = SafetyPipeline::new(
+            Arc::new(FakeAnalyzer {
+                primary: borderline_primary(),
+                ..FakeAnalyzer::default()
+            }),
+            false,
+        );
+        let assessment = pipeline.scan_image(input("disabled")).await.unwrap();
+
+        assert_eq!(assessment.auto_label, SafetyLabel::Safe);
+        assert!(matches!(assessment.review, SafetyReviewOutcome::Disabled));
+    });
+}
+
+#[test]
+fn enabled_review_can_release_borderline_primary() {
+    futures_executor::block_on(async {
+        let pipeline = SafetyPipeline::new(
+            Arc::new(FakeAnalyzer {
+                primary: borderline_primary(),
+                review: ImageRatingScores::new(1.0, 0.0, 0.0, 0.0).unwrap(),
+                fail_review: false,
+            }),
+            true,
+        );
+        let assessment = pipeline.scan_image(input("released")).await.unwrap();
+
+        assert_eq!(assessment.auto_label, SafetyLabel::Safe);
+        assert!(matches!(
+            assessment.review,
+            SafetyReviewOutcome::Completed(_)
+        ));
+    });
+}
+
+#[test]
+fn review_failure_is_fail_closed_and_preserves_an_assessment() {
+    futures_executor::block_on(async {
+        let pipeline = SafetyPipeline::new(
+            Arc::new(FakeAnalyzer {
+                primary: ImageRatingScores::new(0.0831, 0.2496, 0.2320, 0.4300).unwrap(),
+                review: ImageRatingScores::new(1.0, 0.0, 0.0, 0.0).unwrap(),
+                fail_review: true,
+            }),
+            true,
+        );
+        let assessment = pipeline.scan_image(input("failure")).await.unwrap();
+
+        assert_eq!(assessment.auto_label, SafetyLabel::Sensitive);
+        assert!(matches!(
+            assessment.review,
+            SafetyReviewOutcome::Failed { .. }
+        ));
+    });
+}
+
+#[test]
+fn policy_toggle_applies_to_subsequent_scans() {
+    let pipeline = SafetyPipeline::new(Arc::new(FakeAnalyzer::default()), false);
+    assert!(!pipeline.wd_auto_review_enabled());
+    pipeline.set_wd_auto_review_enabled(true);
+    assert!(pipeline.wd_auto_review_enabled());
+}
+
+#[test]
+fn policy_toggle_does_not_change_an_in_flight_scan() {
+    let entered = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let pipeline = Arc::new(SafetyPipeline::new(
+        Arc::new(BlockingAnalyzer {
+            inner: FakeAnalyzer {
+                primary: borderline_primary(),
+                ..FakeAnalyzer::default()
+            },
+            entered: Arc::clone(&entered),
+            release: Arc::clone(&release),
+        }),
+        false,
+    ));
+    let scanning = Arc::clone(&pipeline);
+    let handle = std::thread::spawn(move || {
+        futures_executor::block_on(scanning.scan_image(input("in-flight"))).unwrap()
+    });
+    entered.wait();
+    pipeline.set_wd_auto_review_enabled(true);
+    release.wait();
+
+    let assessment = handle.join().unwrap();
+    assert!(matches!(assessment.review, SafetyReviewOutcome::Disabled));
+    assert!(pipeline.wd_auto_review_enabled());
+}
+
+fn borderline_primary() -> ImageRatingScores {
+    ImageRatingScores::new(0.0831, 0.2496, 0.2320, 0.4300).unwrap()
+}
+
+fn input(id: &str) -> SafetyScanInput {
+    SafetyScanInput {
+        resource: ResourceRef::base(ResourceId::new(format!("resource:{id}"))),
+        bytes: vec![1, 2, 3],
+        mime_type: Some("image/png".to_owned()),
+    }
+}
+
+struct FakeAnalyzer {
+    primary: ImageRatingScores,
+    review: ImageRatingScores,
+    fail_review: bool,
+}
+
+impl Default for FakeAnalyzer {
+    fn default() -> Self {
+        Self {
+            primary: ImageRatingScores::new(0.99, 0.005, 0.003, 0.002).unwrap(),
+            review: ImageRatingScores::new(0.99, 0.005, 0.003, 0.002).unwrap(),
+            fail_review: false,
+        }
+    }
 }
 
 #[async_trait]
-impl SafetyScanner for FakeSafetyScanner {
-    async fn scan_image(
+impl ImageAnalyzer for FakeAnalyzer {
+    async fn analyze(
         &self,
-        input: SafetyScanInput,
-    ) -> atelier_safety::SafetyResult<SafetyAssessment> {
-        Ok(SafetyAssessment::new(input.resource, self.score).with_scorer("fake", None))
+        model: ImageAnalysisModelId,
+        input: ImageAnalysisInput,
+        outputs: AnalysisOutputSelection,
+    ) -> ImageAnalysisResult<ImageAnalysis> {
+        assert!(outputs.ratings);
+        if model == ImageAnalysisModelId::WdSwinv2TaggerV3 && self.fail_review {
+            return Err(ImageAnalysisError::inference("review failed"));
+        }
+        Ok(ImageAnalysis {
+            resource: input.resource,
+            model: ImageAnalysisModelInfo {
+                id: model,
+                revision: "test".to_owned(),
+            },
+            ratings: Some(if model == ImageAnalysisModelId::AnimeDbRating {
+                self.primary
+            } else {
+                self.review
+            }),
+            general_tags: Vec::new(),
+            character_tags: Vec::new(),
+        })
+    }
+}
+
+struct BlockingAnalyzer {
+    inner: FakeAnalyzer,
+    entered: Arc<Barrier>,
+    release: Arc<Barrier>,
+}
+
+#[async_trait]
+impl ImageAnalyzer for BlockingAnalyzer {
+    async fn analyze(
+        &self,
+        model: ImageAnalysisModelId,
+        input: ImageAnalysisInput,
+        outputs: AnalysisOutputSelection,
+    ) -> ImageAnalysisResult<ImageAnalysis> {
+        if model == ImageAnalysisModelId::AnimeDbRating {
+            self.entered.wait();
+            self.release.wait();
+        }
+        self.inner.analyze(model, input, outputs).await
     }
 }

@@ -6,7 +6,10 @@ publish.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
+atelier-image-analysis = { workspace = true }
 atelier-resource-catalog = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

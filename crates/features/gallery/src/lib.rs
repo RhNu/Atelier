@@ -8,7 +8,7 @@ mod service;
 pub use error::{GalleryError, GalleryErrorKind, GalleryResult};
 pub use model::{
     GalleryImageReference, GalleryItem, GalleryItemId, GalleryQuery, GallerySafetyOverride,
-    GallerySourceKind, ImageReferenceTarget,
+    GallerySafetyState, GallerySourceKind, ImageReferenceTarget,
 };
 pub use ports::GalleryIndex;
 pub use service::GalleryService;

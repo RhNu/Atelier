@@ -59,6 +59,7 @@ Implemented or partially implemented:
 - `crates/features/jobs`
 - `crates/features/artifacts`
 - `crates/features/gallery`
+- `crates/features/image-analysis`
 - `crates/features/vibe`
 - `crates/features/director`
 - `crates/features/safety`
@@ -70,7 +71,7 @@ Implemented or partially implemented:
 - `crates/adapters/image-codec`
 - `crates/adapters/keyring`
 - `crates/adapters/novelai`
-- `crates/adapters/safety-onnx`
+- `crates/adapters/image-analysis-onnx`
 - `crates/adapters/settings-fs`
 
 ## Non-Goals

@@ -101,6 +101,7 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
       if (!current) throw new Error("Global settings are not loaded.");
       return globalSettingsApi.update({
         frontend: { ...current.frontend, language },
+        safety: current.safety,
       });
     },
     onSuccess: async (settings) => {

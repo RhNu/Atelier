@@ -3,6 +3,7 @@ import {
   Image,
   KeyRound,
   MonitorCog,
+  ShieldCheck,
   WandSparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -11,13 +12,20 @@ import { useTranslation } from "react-i18next";
 
 import { AppPanel } from "@/components/ui";
 
-export type SettingsSection = "workspace" | "account" | "generation" | "images" | "frontend";
+export type SettingsSection =
+  | "workspace"
+  | "account"
+  | "generation"
+  | "images"
+  | "frontend"
+  | "safety";
 
 type SettingSection = {
   id: SettingsSection;
-  labelKey: "interface" | "workspace" | "account" | "generation" | "images";
+  labelKey: "interface" | "safety" | "workspace" | "account" | "generation" | "images";
   descriptionKey:
     | "interfaceDescription"
+    | "safetyDescription"
     | "workspaceDescription"
     | "accountDescription"
     | "generationDescription"
@@ -31,6 +39,12 @@ const applicationSections: ReadonlyArray<SettingSection> = [
     labelKey: "interface",
     descriptionKey: "interfaceDescription",
     icon: MonitorCog,
+  },
+  {
+    id: "safety",
+    labelKey: "safety",
+    descriptionKey: "safetyDescription",
+    icon: ShieldCheck,
   },
 ];
 

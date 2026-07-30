@@ -1,11 +1,11 @@
 use super::{
     AppResult, FrontendLanguage, FrontendLanguageDto, GenerationDefaults, GenerationDefaultsDto,
     GlobalFrontendSettings, GlobalFrontendSettingsDto, GlobalGallerySettings,
-    GlobalGallerySettingsDto, GlobalSettings, GlobalSettingsDto, ImageSize, ImageSizeDto,
-    ImageVariantSettings, ImageVariantSettingsDto, WorkspaceSettings, WorkspaceSettingsDto,
-    image_format_to_domain, image_format_to_dto, image_model_to_domain, image_model_to_dto,
-    noise_schedule_to_domain, noise_schedule_to_dto, sampler_to_domain, sampler_to_dto,
-    uc_preset_to_domain, uc_preset_to_dto,
+    GlobalGallerySettingsDto, GlobalSafetySettings, GlobalSafetySettingsDto, GlobalSettings,
+    GlobalSettingsDto, ImageSize, ImageSizeDto, ImageVariantSettings, ImageVariantSettingsDto,
+    WorkspaceSettings, WorkspaceSettingsDto, image_format_to_domain, image_format_to_dto,
+    image_model_to_domain, image_model_to_dto, noise_schedule_to_domain, noise_schedule_to_dto,
+    sampler_to_domain, sampler_to_dto, uc_preset_to_domain, uc_preset_to_dto,
 };
 
 pub fn workspace_settings_to_dto(value: &WorkspaceSettings) -> WorkspaceSettingsDto {
@@ -28,6 +28,17 @@ pub fn global_settings_to_dto(value: &GlobalSettings) -> GlobalSettingsDto {
     GlobalSettingsDto {
         last_workspace: value.last_workspace.clone(),
         frontend: global_frontend_settings_to_dto(value.frontend),
+        safety: GlobalSafetySettingsDto {
+            wd_auto_review_enabled: value.safety.wd_auto_review_enabled,
+        },
+    }
+}
+
+pub const fn global_safety_settings_to_domain(
+    value: GlobalSafetySettingsDto,
+) -> GlobalSafetySettings {
+    GlobalSafetySettings {
+        wd_auto_review_enabled: value.wd_auto_review_enabled,
     }
 }
 

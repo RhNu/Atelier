@@ -276,6 +276,7 @@ const defaultGlobalSettings: GlobalSettingsDto = {
     developer_mode: false,
     gallery: { blur_sensitive_images: false },
   },
+  safety: { wd_auto_review_enabled: false },
 };
 
 function appEvent(kind: AppEventDto["kind"], sequence = 1): AppEventDto {

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use atelier_artifacts::{ArtifactRecord, ArtifactResult, RegisterArtifactRequest};
 use atelier_director::NovelAiDirectorClient;
-use atelier_gallery::{GalleryItem, GalleryResult};
+use atelier_gallery::{GalleryItem, GalleryResult, GallerySafetyState};
 use atelier_generation::{GeneratedImageMetadataInspector, NovelAiGenerationClient};
 use atelier_jobs::JobPayloadRef;
 use atelier_precise_reference::{PreciseReferenceImage, PreciseReferenceResult};
@@ -69,7 +69,7 @@ pub trait KernelGenerationPorts:
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
-        safety_assessment: Option<SafetyAssessment>,
+        safety: GallerySafetyState,
     ) -> GalleryResult<GalleryItem>;
 }
 
@@ -94,7 +94,7 @@ pub trait KernelDirectorPorts: NovelAiDirectorClient + Send + Sync {
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
-        safety_assessment: Option<SafetyAssessment>,
+        safety: GallerySafetyState,
     ) -> GalleryResult<GalleryItem>;
 }
 

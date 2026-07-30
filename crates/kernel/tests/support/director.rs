@@ -3,7 +3,7 @@ use atelier_artifacts::{ArtifactRecord, ArtifactResult, RegisterArtifactRequest}
 use atelier_director::{
     DirectorResult, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
-use atelier_gallery::{GalleryItem, GalleryResult};
+use atelier_gallery::{GalleryItem, GalleryResult, GallerySafetyState};
 use atelier_kernel::{KernelDirectorPorts, KernelGenerationPorts};
 use atelier_resource_catalog::{RegisterResourceRequest, ResourceRef, ResourceResult};
 use atelier_safety::{SafetyAssessment, SafetyResult};
@@ -56,9 +56,8 @@ impl KernelDirectorPorts for MemoryKernelPorts {
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,
-        safety_assessment: Option<SafetyAssessment>,
+        safety: GallerySafetyState,
     ) -> GalleryResult<GalleryItem> {
-        KernelGenerationPorts::index_gallery_item(self, artifact, indexed_at_ms, safety_assessment)
-            .await
+        KernelGenerationPorts::index_gallery_item(self, artifact, indexed_at_ms, safety).await
     }
 }

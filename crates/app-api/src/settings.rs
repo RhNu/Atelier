@@ -73,6 +73,7 @@ pub struct GlobalSettingsDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_workspace: Option<PathBuf>,
     pub frontend: GlobalFrontendSettingsDto,
+    pub safety: GlobalSafetySettingsDto,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -103,9 +104,15 @@ pub struct GlobalGallerySettingsDto {
     pub blur_sensitive_images: bool,
 }
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct GlobalSafetySettingsDto {
+    pub wd_auto_review_enabled: bool,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UpdateGlobalSettingsRequestDto {
     pub frontend: GlobalFrontendSettingsDto,
+    pub safety: GlobalSafetySettingsDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

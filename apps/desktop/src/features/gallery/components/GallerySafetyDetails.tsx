@@ -1,4 +1,4 @@
-import { ShieldCheck } from "lucide-react";
+import { RotateCw, ShieldCheck } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -12,7 +12,9 @@ type GallerySafetyDetailsProps = {
   overrideValue: string;
   onOverrideChange: (value: string) => void;
   onApplyOverride: () => void;
+  onRescan: () => void;
   applyingOverride: boolean;
+  rescanning: boolean;
 };
 
 export function GallerySafetyDetails({
@@ -20,7 +22,9 @@ export function GallerySafetyDetails({
   overrideValue,
   onOverrideChange,
   onApplyOverride,
+  onRescan,
   applyingOverride,
+  rescanning,
 }: GallerySafetyDetailsProps) {
   const { t } = useTranslation("gallery");
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
@@ -35,8 +39,9 @@ export function GallerySafetyDetails({
     onApplyOverride();
     closeOverrideDialog();
   }, [closeOverrideDialog, onApplyOverride]);
-  const nsfwScore = item.safety?.nsfw_score?.toFixed(2) ?? null;
-  const safeScore = item.safety?.safe_score?.toFixed(2) ?? null;
+  const assessment = item.safety;
+  const primary = assessment?.primary;
+  const review = assessment?.review;
 
   return (
     <section className="grid gap-2">
@@ -54,11 +59,48 @@ export function GallerySafetyDetails({
             onClick={openOverrideDialog}
           />
         </div>
-        <div className="flex shrink-0 gap-3 text-xs text-app-muted">
-          {nsfwScore ? <span>{t("nsfwScore", { value: nsfwScore })}</span> : null}
-          {safeScore ? <span>{t("safeScore", { value: safeScore })}</span> : null}
-        </div>
+        {primary ? (
+          <span className="shrink-0 text-xs text-app-muted">
+            {t("fusedScore", { value: primary.fused_score.toFixed(3) })}
+          </span>
+        ) : null}
       </div>
+      {assessment && primary ? (
+        <div className="grid gap-2 border border-app-border bg-black/15 p-3 text-xs text-app-muted">
+          <p>
+            <span className="text-app-text">{t("manualSafetyOverride")}:</span>{" "}
+            {item.manual_safety_override
+              ? t(item.manual_safety_override)
+              : t("automaticSafetyDecision")}
+          </p>
+          <p>
+            <span className="text-app-text">{t("safetyPolicy")}:</span> {assessment.policy_id}@
+            {assessment.policy_version}
+          </p>
+          <EvidenceRow title={t("primaryEvidence")} evidence={primary} />
+          <div>
+            <span className="text-app-text">{t("reviewEvidence")}:</span>{" "}
+            {t(`reviewStates.${review?.state ?? "not_needed"}`)}
+            {review?.evidence ? <EvidenceRow evidence={review.evidence} /> : null}
+            {review?.message ? <p className="mt-1 text-rose-200">{review.message}</p> : null}
+          </div>
+        </div>
+      ) : null}
+      {assessment.scan_state !== "scanned" ? (
+        <div className="grid gap-2 border border-app-border bg-black/15 p-3 text-xs text-app-muted">
+          <p>{t(`scanStates.${assessment.scan_state}`)}</p>
+          {assessment.message ? <p className="text-rose-200">{assessment.message}</p> : null}
+          <div>
+            <AppButton variant="secondary" disabled={rescanning} onClick={onRescan}>
+              <RotateCw
+                aria-hidden="true"
+                className={rescanning ? "size-4 animate-spin" : "size-4"}
+              />
+              {rescanning ? t("rescanningSafety") : t("rescanSafety")}
+            </AppButton>
+          </div>
+        </div>
+      ) : null}
       <AppModal open={overrideDialogOpen} title={t("safetyOverride")} onClose={closeOverrideDialog}>
         <div className="grid gap-4">
           <label
@@ -86,5 +128,32 @@ export function GallerySafetyDetails({
         </div>
       </AppModal>
     </section>
+  );
+}
+
+function EvidenceRow({
+  title,
+  evidence,
+}: {
+  title?: string;
+  evidence: NonNullable<NonNullable<GalleryItemDto["safety"]>["primary"]>;
+}) {
+  const { t } = useTranslation("gallery");
+  return (
+    <div className="grid gap-1">
+      <p>
+        {title ? <span className="text-app-text">{title}: </span> : null}
+        {evidence.model_id}@{evidence.model_revision.slice(0, 12)} ·{" "}
+        {t("fusedScore", { value: evidence.fused_score.toFixed(3) })}
+      </p>
+      <p>
+        {t("ratingScores", {
+          general: evidence.ratings.general.toFixed(3),
+          sensitive: evidence.ratings.sensitive.toFixed(3),
+          questionable: evidence.ratings.questionable.toFixed(3),
+          explicit: evidence.ratings.explicit.toFixed(3),
+        })}
+      </p>
+    </div>
   );
 }

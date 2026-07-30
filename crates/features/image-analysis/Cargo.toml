@@ -1,0 +1,11 @@
+[package]
+name = "atelier-image-analysis"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+atelier-resource-catalog = { workspace = true }
+thiserror = { workspace = true }
+

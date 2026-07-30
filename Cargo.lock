@@ -427,6 +427,7 @@ dependencies = [
  "atelier-artifacts",
  "atelier-gallery",
  "atelier-generation",
+ "atelier-image-analysis",
  "atelier-jobs",
  "atelier-kernel",
  "atelier-prompt-resources",
@@ -442,6 +443,28 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.19",
+]
+
+[[package]]
+name = "atelier-adapter-image-analysis-onnx"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-adapter-onnx-runtime",
+ "atelier-image-analysis",
+ "atelier-resource-catalog",
+ "atelier-safety",
+ "csv",
+ "futures-executor",
+ "futures-util",
+ "image",
+ "ort",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -516,20 +539,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atelier-adapter-safety-onnx"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "atelier-adapter-onnx-runtime",
- "atelier-resource-catalog",
- "atelier-safety",
- "futures-executor",
- "image",
- "ort",
- "tempfile",
-]
-
-[[package]]
 name = "atelier-adapter-settings-fs"
 version = "0.1.0"
 dependencies = [
@@ -573,6 +582,7 @@ dependencies = [
  "atelier-director",
  "atelier-gallery",
  "atelier-generation",
+ "atelier-image-analysis",
  "atelier-jobs",
  "atelier-kernel",
  "atelier-precise-reference",
@@ -620,16 +630,18 @@ name = "atelier-desktop"
 version = "0.1.0"
 dependencies = [
  "arboard",
+ "atelier-adapter-image-analysis-onnx",
  "atelier-adapter-image-codec",
  "atelier-adapter-keyring",
  "atelier-adapter-lexicon-bundle",
  "atelier-adapter-novelai",
  "atelier-adapter-onnx-runtime",
- "atelier-adapter-safety-onnx",
  "atelier-adapter-settings-fs",
  "atelier-app",
  "atelier-app-api",
+ "atelier-image-analysis",
  "atelier-prompt-lexicon",
+ "atelier-safety",
  "atelier-settings",
  "base64 0.22.1",
  "image",
@@ -665,6 +677,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "atelier-artifacts",
+ "atelier-image-analysis",
  "atelier-resource-catalog",
  "atelier-safety",
  "futures-executor",
@@ -678,6 +691,15 @@ dependencies = [
  "async-trait",
  "atelier-resource-catalog",
  "futures-core",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "atelier-image-analysis"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-resource-catalog",
  "thiserror 2.0.19",
 ]
 
@@ -698,6 +720,7 @@ dependencies = [
  "atelier-director",
  "atelier-gallery",
  "atelier-generation",
+ "atelier-image-analysis",
  "atelier-jobs",
  "atelier-precise-reference",
  "atelier-prompt-resources",
@@ -764,8 +787,11 @@ name = "atelier-safety"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "atelier-image-analysis",
  "atelier-resource-catalog",
  "futures-executor",
+ "serde",
+ "serde_json",
  "thiserror 2.0.19",
 ]
 

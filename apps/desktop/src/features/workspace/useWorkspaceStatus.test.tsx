@@ -76,6 +76,7 @@ beforeEach(() => {
         developer_mode: false,
         gallery: { blur_sensitive_images: false },
       },
+      safety: { wd_auto_review_enabled: false },
     },
     workspace: null,
     restore_failure: null,
@@ -93,6 +94,7 @@ beforeEach(() => {
       developer_mode: false,
       gallery: { blur_sensitive_images: false },
     },
+    safety: { wd_auto_review_enabled: false },
   });
 });
 

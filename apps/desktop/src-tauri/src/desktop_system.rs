@@ -4,7 +4,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use atelier_adapter_safety_onnx::NsfwRuntimeAssets;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -73,36 +72,6 @@ impl DesktopSystem {
         &self.paths
     }
 
-    pub fn resolve_safety_assets(&self) -> DesktopSystemResult<Option<NsfwRuntimeAssets>> {
-        if let Some(model_path) = env_path("ATELIER_SAFETY_ONNX_MODEL") {
-            let runtime_library_path = env_path("ATELIER_ONNX_RUNTIME").ok_or_else(|| {
-                DesktopSystemError::new(
-                    "ATELIER_ONNX_RUNTIME must be set when safety model env is set",
-                )
-            })?;
-            require_file(&model_path, "safety model")?;
-            require_file(&runtime_library_path, "ONNX Runtime library")?;
-            return Ok(Some(NsfwRuntimeAssets {
-                model_path,
-                runtime_library_path,
-            }));
-        }
-
-        let Some(resource_dir) = &self.paths.resource_dir else {
-            return Ok(None);
-        };
-        let safety_dir = resource_dir.join("safety");
-        let model_path = safety_dir.join("open_nsfw.onnx");
-        let runtime_library_path = safety_dir.join(runtime_library_file_name());
-        if model_path.exists() && runtime_library_path.exists() {
-            return Ok(Some(NsfwRuntimeAssets {
-                model_path,
-                runtime_library_path,
-            }));
-        }
-        Ok(None)
-    }
-
     pub fn resolve_lexicon_bundle(&self) -> DesktopSystemResult<Option<PathBuf>> {
         if let Some(path) = env_path("ATELIER_LEXICON_BUNDLE") {
             require_file(&path.join("manifest.json"), "lexicon manifest")?;
@@ -129,7 +98,7 @@ impl DesktopSystem {
             return Ok(None);
         };
         let path = resource_dir
-            .join("safety")
+            .join("onnx-runtime")
             .join(runtime_library_file_name());
         Ok(path.is_file().then_some(path))
     }

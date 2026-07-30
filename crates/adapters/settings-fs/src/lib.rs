@@ -10,14 +10,16 @@ use std::{
 
 use async_trait::async_trait;
 use atelier_settings::{
-    FrontendLanguage, GlobalFrontendSettings, GlobalGallerySettings, GlobalSettings,
-    GlobalSettingsRepository, SettingsError, SettingsResult,
+    FrontendLanguage, GlobalFrontendSettings, GlobalGallerySettings, GlobalSafetySettings,
+    GlobalSettings, GlobalSettingsRepository, SettingsError, SettingsResult,
 };
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 
+mod migrations;
+
 const JSON_FORMAT: &str = "atelier-global-settings";
-const JSON_SCHEMA_VERSION: u32 = 1;
+const JSON_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug)]
 pub struct FileSystemGlobalSettingsRepository {
@@ -51,11 +53,24 @@ impl FileSystemGlobalSettingsRepository {
             }
             Err(error) => return Err(path_error("read", &self.path, error)),
         };
-        match serde_json::from_str::<StoredGlobalSettings>(&text)
-            .map_err(|error| error.to_string())
-            .and_then(StoredGlobalSettings::into_domain)
-        {
-            Ok(settings) => Ok(settings),
+        let migrated = migrations::migrate(&text);
+        match migrated
+            .as_ref()
+            .map_err(Clone::clone)
+            .and_then(|result| {
+                serde_json::from_str::<StoredGlobalSettings>(&result.text)
+                    .map_err(|error| error.to_string())
+                    .map(|settings| (settings, result))
+            })
+            .and_then(|(settings, result)| {
+                settings.into_domain().map(|settings| (settings, result))
+            }) {
+            Ok((settings, migration)) => {
+                if migration.changed {
+                    write_settings_file(&self.path, &migration.text)?;
+                }
+                Ok(settings)
+            }
             Err(error) => {
                 let invalid_path = invalid_settings_path(&self.path);
                 fs::rename(&self.path, &invalid_path)
@@ -74,24 +89,9 @@ impl FileSystemGlobalSettingsRepository {
             .io_lock
             .lock()
             .map_err(|_| repository_error("global settings I/O lock is unavailable"))?;
-        let parent = self
-            .path
-            .parent()
-            .ok_or_else(|| repository_error("global settings path has no parent directory"))?;
-        fs::create_dir_all(parent).map_err(|error| path_error("create", parent, error))?;
         let text = serde_json::to_string_pretty(&StoredGlobalSettings::from_domain(settings))
             .map_err(|error| repository_error(error.to_string()))?;
-        let mut temporary = NamedTempFile::new_in(parent)
-            .map_err(|error| path_error("create temporary file in", parent, error))?;
-        temporary
-            .write_all(text.as_bytes())
-            .and_then(|()| temporary.write_all(b"\n"))
-            .and_then(|()| temporary.as_file_mut().sync_all())
-            .map_err(|error| path_error("write", temporary.path(), error))?;
-        temporary
-            .persist(&self.path)
-            .map_err(|error| path_error("replace", &self.path, error.error))?;
-        Ok(())
+        write_settings_file(&self.path, &text)
     }
 }
 
@@ -112,6 +112,7 @@ struct StoredGlobalSettings {
     schema_version: u32,
     last_workspace: Option<PathBuf>,
     frontend: StoredGlobalFrontendSettings,
+    safety: StoredGlobalSafetySettings,
 }
 
 impl StoredGlobalSettings {
@@ -121,6 +122,7 @@ impl StoredGlobalSettings {
             schema_version: JSON_SCHEMA_VERSION,
             last_workspace: settings.last_workspace.clone(),
             frontend: StoredGlobalFrontendSettings::from_domain(settings.frontend),
+            safety: StoredGlobalSafetySettings::from_domain(settings.safety),
         }
     }
 
@@ -135,7 +137,27 @@ impl StoredGlobalSettings {
         Ok(GlobalSettings {
             last_workspace: self.last_workspace,
             frontend: self.frontend.into_domain(),
+            safety: self.safety.into_domain(),
         })
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, Deserialize, Serialize)]
+struct StoredGlobalSafetySettings {
+    wd_auto_review_enabled: bool,
+}
+
+impl StoredGlobalSafetySettings {
+    const fn from_domain(settings: GlobalSafetySettings) -> Self {
+        Self {
+            wd_auto_review_enabled: settings.wd_auto_review_enabled,
+        }
+    }
+
+    const fn into_domain(self) -> GlobalSafetySettings {
+        GlobalSafetySettings {
+            wd_auto_review_enabled: self.wd_auto_review_enabled,
+        }
     }
 }
 
@@ -222,6 +244,24 @@ fn invalid_settings_path(path: &Path) -> PathBuf {
         .and_then(|value| value.to_str())
         .unwrap_or("global-settings.json");
     path.with_file_name(format!("{file_name}.invalid-{timestamp}"))
+}
+
+fn write_settings_file(path: &Path, text: &str) -> SettingsResult<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| repository_error("global settings path has no parent directory"))?;
+    fs::create_dir_all(parent).map_err(|error| path_error("create", parent, error))?;
+    let mut temporary = NamedTempFile::new_in(parent)
+        .map_err(|error| path_error("create temporary file in", parent, error))?;
+    temporary
+        .write_all(text.as_bytes())
+        .and_then(|()| temporary.write_all(b"\n"))
+        .and_then(|()| temporary.as_file_mut().sync_all())
+        .map_err(|error| path_error("write", temporary.path(), error))?;
+    temporary
+        .persist(path)
+        .map_err(|error| path_error("replace", path, error.error))?;
+    Ok(())
 }
 
 fn repository_error(message: impl Into<String>) -> SettingsError {

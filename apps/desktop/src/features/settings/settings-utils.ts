@@ -43,5 +43,6 @@ export function cloneGlobalSettings(settings: GlobalSettingsDto): GlobalSettings
       developer_mode: settings.frontend.developer_mode,
       gallery: { ...settings.frontend.gallery },
     },
+    safety: { ...settings.safety },
   };
 }

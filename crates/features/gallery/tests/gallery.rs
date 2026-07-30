@@ -8,11 +8,15 @@ use atelier_artifacts::{
 };
 use atelier_gallery::{
     GalleryError, GalleryErrorKind, GalleryImageReference, GalleryIndex, GalleryItem,
-    GalleryItemId, GalleryQuery, GallerySafetyOverride, GalleryService, GallerySourceKind,
-    ImageReferenceTarget,
+    GalleryItemId, GalleryQuery, GallerySafetyOverride, GallerySafetyState, GalleryService,
+    GallerySourceKind, ImageReferenceTarget,
 };
+use atelier_image_analysis::{ImageAnalysisModelId, ImageAnalysisModelInfo, ImageRatingScores};
 use atelier_resource_catalog::{ResourceId, ResourceRef, ResourceVariantKind, VariantId};
-use atelier_safety::{ImageSafetyScore, SafetyAssessment, SafetyLabel};
+use atelier_safety::{
+    ImageSafetyScore, SafetyAssessment, SafetyLabel, SafetyModelEvidence, SafetyReviewOutcome,
+    SafetyRiskBand,
+};
 use futures_executor::block_on;
 
 #[test]
@@ -51,7 +55,7 @@ fn reindexing_same_artifact_updates_deterministic_gallery_item() {
             .index_artifact(
                 generated_artifact("artifact-1", 90),
                 90,
-                Some(SafetyAssessment::new(
+                Some(test_safety_assessment(
                     ResourceRef::base(ResourceId::new("res-artifact-1")),
                     ImageSafetyScore::new(0.7).unwrap(),
                 )),
@@ -65,7 +69,7 @@ fn reindexing_same_artifact_updates_deterministic_gallery_item() {
         );
         assert_eq!(second.id, first.id);
         assert_eq!(second.indexed_at_ms, 90);
-        assert!(second.safety_assessment.is_some());
+        assert!(second.safety.assessment().is_some());
         assert_eq!(index.items().len(), 1);
     });
 }
@@ -88,7 +92,7 @@ fn reindexing_same_artifact_preserves_manual_safety_override() {
             .index_artifact(
                 generated_artifact("artifact-1", 90),
                 90,
-                Some(SafetyAssessment::new(
+                Some(test_safety_assessment(
                     ResourceRef::base(ResourceId::new("res-artifact-1")),
                     ImageSafetyScore::new(0.9).unwrap(),
                 )),
@@ -102,7 +106,7 @@ fn reindexing_same_artifact_preserves_manual_safety_override() {
             Some(GallerySafetyOverride::Hidden)
         );
         assert_eq!(second.indexed_at_ms, 90);
-        assert!(second.safety_assessment.is_some());
+        assert!(second.safety.assessment().is_some());
         assert_eq!(index.items().len(), 1);
     });
 }
@@ -464,6 +468,23 @@ impl GalleryIndex for FakeGalleryIndex {
         self.items.lock().unwrap().insert(id.clone(), item.clone());
         Ok(item)
     }
+
+    async fn set_safety_state(
+        &self,
+        id: &GalleryItemId,
+        safety: GallerySafetyState,
+    ) -> atelier_gallery::GalleryResult<GalleryItem> {
+        let mut item = self
+            .items
+            .lock()
+            .unwrap()
+            .get(id)
+            .cloned()
+            .ok_or_else(|| GalleryError::not_found("gallery item does not exist"))?;
+        item.safety = safety;
+        self.items.lock().unwrap().insert(id.clone(), item.clone());
+        Ok(item)
+    }
 }
 
 async fn populated_service() -> GalleryService<FakeGalleryIndex> {
@@ -503,10 +524,44 @@ fn item_ids(items: &[GalleryItem]) -> Vec<GalleryItemId> {
 }
 
 fn safety_assessment(id: &str, score: f32) -> SafetyAssessment {
-    SafetyAssessment::new(
+    test_safety_assessment(
         ResourceRef::base(ResourceId::new(format!("res-{id}"))),
         ImageSafetyScore::new(score).unwrap(),
     )
+}
+
+fn test_safety_assessment(
+    resource: ResourceRef,
+    fused_score: ImageSafetyScore,
+) -> SafetyAssessment {
+    let score = fused_score.value();
+    SafetyAssessment {
+        resource,
+        auto_label: if score >= 0.8 {
+            SafetyLabel::Sensitive
+        } else {
+            SafetyLabel::Safe
+        },
+        risk_band: if score >= 0.8 {
+            SafetyRiskBand::High
+        } else if score <= 0.2 {
+            SafetyRiskBand::Low
+        } else {
+            SafetyRiskBand::Medium
+        },
+        policy_id: "test-policy".to_owned(),
+        policy_version: "1".to_owned(),
+        primary: SafetyModelEvidence {
+            model: ImageAnalysisModelInfo {
+                id: ImageAnalysisModelId::AnimeDbRating,
+                revision: "test".to_owned(),
+            },
+            ratings: ImageRatingScores::new(1.0 - score, 0.0, score, 0.0).unwrap(),
+            fused_score,
+        },
+        review: SafetyReviewOutcome::NotNeeded,
+        assessed_at_ms: None,
+    }
 }
 
 fn generated_artifact(id: &str, indexed_at_ms: u64) -> ArtifactRecord {

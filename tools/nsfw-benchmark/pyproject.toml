@@ -1,0 +1,37 @@
+[project]
+name = "atelier-nsfw-benchmark"
+version = "0.1.0"
+description = "Reproducible local NSFW model benchmark for Atelier image workflows"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "huggingface-hub>=0.34,<2",
+  "numpy>=2,<3",
+  "onnxruntime>=1.22,<2",
+  "pillow>=11,<13",
+  "scikit-learn>=1.7,<2",
+]
+
+[project.scripts]
+atelier-nsfw-benchmark = "atelier_nsfw_benchmark.cli:main"
+atelier-nsfw-production-compare = "atelier_nsfw_benchmark.production_compare:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8,<10",
+  "ruff>=0.12,<1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
