@@ -1,6 +1,5 @@
 /* eslint-disable max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
-import { useCallback, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useCallback, useState } from "react";
 
 import { describeError, frontendLogger } from "@/app/logger";
 import type { CharacterReferenceTypeDto, PromptPresetDto, ResourceRefDto } from "@/types";
@@ -18,6 +17,7 @@ type AdvancedGenerationInputsProps = {
   onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
   onFlush: () => void;
   characterPresets: ReadonlyArray<PromptPresetDto>;
+  characterPresetsPending: boolean;
   vibeImportPending: boolean;
   vibeExportPending: boolean;
   imageImportPending: boolean;
@@ -37,6 +37,7 @@ export function AdvancedGenerationInputs({
   onPatch,
   onFlush,
   characterPresets,
+  characterPresetsPending,
   vibeImportPending,
   vibeExportPending,
   imageImportPending,
@@ -48,15 +49,7 @@ export function AdvancedGenerationInputs({
   onExportVibeDocument,
   developerMode,
 }: AdvancedGenerationInputsProps) {
-  const { t } = useTranslation("generation");
   const [error, setError] = useState<string | null>(null);
-  const characterPresetOptions = useMemo(
-    () => [
-      { value: "", label: t("noCharacterPreset") },
-      ...characterPresets.map((preset) => ({ value: preset.preset_id, label: preset.name })),
-    ],
-    [characterPresets, t],
-  );
   const updateI2i = useCallback(
     (patch: Partial<NonNullable<GenerationDraft["i2i"]>>) => {
       if (!draft.i2i) {
@@ -220,7 +213,8 @@ export function AdvancedGenerationInputs({
         <CharacterGuidanceSection
           draft={draft}
           onPatch={onPatch}
-          characterPresetOptions={characterPresetOptions}
+          characterPresets={characterPresets}
+          characterPresetsPending={characterPresetsPending}
         />
       </div>
     </section>

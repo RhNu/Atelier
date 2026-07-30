@@ -1,28 +1,33 @@
 /* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
-import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, Power, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppIconButton } from "@/components/ui";
+import { AppIconButton, AppTabs } from "@/components/ui";
 import { NaiPromptEditor, promptProfileForModel } from "@/features/prompt-editor";
+import type { PromptPresetDto } from "@/types";
 
 import type { GenerationCharacterDraft, GenerationDraft } from "../model/generation-draft";
+import { applyPromptPreset } from "../model/prompt-preset-model";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import { createLocalId, patchCharacter } from "./advanced-generation-model";
 import { CharacterPositionGrid } from "./CharacterPositionGrid";
-import { SelectField } from "./GenerationFormFields";
+import { GenerationPresetControl } from "./GenerationPresetControl";
 import { GuidanceSection, GuidanceSettingsDisclosure } from "./GuidanceSection";
 
 type PatchDraft = (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
+type PromptTab = "positive" | "negative";
 
 export function CharacterGuidanceSection({
   draft,
   onPatch,
-  characterPresetOptions,
+  characterPresets,
+  characterPresetsPending,
 }: {
   draft: GenerationDraft;
   onPatch: PatchDraft;
-  characterPresetOptions: ReadonlyArray<{ value: string; label: string }>;
+  characterPresets: ReadonlyArray<PromptPresetDto>;
+  characterPresetsPending: boolean;
 }) {
   const { t } = useTranslation("generation");
   const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
@@ -73,7 +78,7 @@ export function CharacterGuidanceSection({
         onSelectCharacter={setActiveCharacterIndex}
       />
       {draft.characters.length > 0 ? (
-        <div className="grid gap-2">
+        <div className="-mx-2 grid gap-2">
           {draft.characters.map((character, index) => (
             <CharacterCard
               key={character.id}
@@ -81,7 +86,8 @@ export function CharacterGuidanceSection({
               character={character}
               index={index}
               selected={showPositionSettings && activeCharacterIndex === index}
-              characterPresetOptions={characterPresetOptions}
+              characterPresets={characterPresets}
+              characterPresetsPending={characterPresetsPending}
               onPatch={onPatch}
               onSelect={() => setActiveCharacterIndex(index)}
               onRemove={() => removeCharacter(character.id)}
@@ -149,7 +155,8 @@ function CharacterCard({
   character,
   index,
   selected,
-  characterPresetOptions,
+  characterPresets,
+  characterPresetsPending,
   onPatch,
   onSelect,
   onRemove,
@@ -158,14 +165,32 @@ function CharacterCard({
   character: GenerationCharacterDraft;
   index: number;
   selected: boolean;
-  characterPresetOptions: ReadonlyArray<{ value: string; label: string }>;
+  characterPresets: ReadonlyArray<PromptPresetDto>;
+  characterPresetsPending: boolean;
   onPatch: PatchDraft;
   onSelect: () => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation("generation");
+  const [activeTab, setActiveTab] = useState<PromptTab>("positive");
+  const promptTabs = useMemo(
+    () => [
+      { value: "positive" as const, label: t("positive") },
+      { value: "negative" as const, label: t("undesiredContent") },
+    ],
+    [t],
+  );
+
+  function handleEditorKeyDown(event: KeyboardEvent) {
+    if (event.ctrlKey && event.key === "Tab") {
+      event.preventDefault();
+      setActiveTab((current) => (current === "positive" ? "negative" : "positive"));
+    }
+  }
+
   return (
     <article
+      aria-label={t("character", { index: index + 1 })}
       className={[
         "grid gap-2 border bg-app-bg/70 p-2",
         selected ? "border-brand-400/60" : "border-app-border",
@@ -182,14 +207,17 @@ function CharacterCard({
           {t("character", { index: index + 1 })}
         </button>
         <div className="flex items-center gap-1">
-          <input
-            aria-label={t("enableCharacter", { index: index + 1 })}
-            title={t("enableCharacter", { index: index + 1 })}
-            type="checkbox"
-            checked={character.enabled}
-            onChange={(event) =>
+          <AppIconButton
+            icon={Power}
+            label={t(character.enabled ? "disableCharacter" : "enableCharacter", {
+              index: index + 1,
+            })}
+            aria-pressed={character.enabled}
+            selected={character.enabled}
+            size="sm"
+            onClick={() =>
               patchCharacter(draft, onPatch, character.id, {
-                enabled: event.target.checked,
+                enabled: !character.enabled,
               })
             }
           />
@@ -202,29 +230,58 @@ function CharacterCard({
           />
         </div>
       </header>
-      <SelectField
+      <AppTabs
+        label={t("promptType")}
+        value={activeTab}
+        tabs={promptTabs}
+        onChange={setActiveTab}
+      />
+      <NaiPromptEditor
+        key={activeTab}
+        aria-label={
+          activeTab === "positive"
+            ? t("characterPrompt", { index: index + 1 })
+            : t("characterNegativePrompt", { index: index + 1 })
+        }
+        value={activeTab === "positive" ? character.prompt : character.negativePrompt}
+        onChange={(value) =>
+          patchCharacter(
+            draft,
+            onPatch,
+            character.id,
+            activeTab === "positive" ? { prompt: value } : { negativePrompt: value },
+          )
+        }
+        profile={promptProfileForModel(draft.model)}
+        onKeyDown={handleEditorKeyDown}
+        minHeight={88}
+      />
+      <GenerationPresetControl
+        compact
         label={t("characterPreset")}
-        value={character.presetId ?? ""}
-        options={characterPresetOptions}
-        onChange={(presetId) =>
-          patchCharacter(draft, onPatch, character.id, { presetId: presetId || null })
+        noPresetLabel={t("noCharacterPreset")}
+        libraryTitle={t("characterPresetLibrary")}
+        presets={characterPresets}
+        selectedPresetId={character.presetId}
+        pending={characterPresetsPending}
+        onSelect={(presetId) =>
+          patchCharacter(draft, onPatch, character.id, { presetId }, { persist: "immediate" })
         }
-      />
-      <NaiPromptEditor
-        aria-label={t("characterPrompt", { index: index + 1 })}
-        value={character.prompt}
-        onChange={(prompt) => patchCharacter(draft, onPatch, character.id, { prompt })}
-        profile={promptProfileForModel(draft.model)}
-        minHeight={72}
-      />
-      <NaiPromptEditor
-        aria-label={t("characterNegativePrompt", { index: index + 1 })}
-        value={character.negativePrompt}
-        onChange={(negativePrompt) =>
-          patchCharacter(draft, onPatch, character.id, { negativePrompt })
+        onClear={() =>
+          patchCharacter(draft, onPatch, character.id, { presetId: null }, { persist: "immediate" })
         }
-        profile={promptProfileForModel(draft.model)}
-        minHeight={64}
+        onApply={(preset) =>
+          patchCharacter(
+            draft,
+            onPatch,
+            character.id,
+            {
+              ...applyPromptPreset(preset, character.prompt, character.negativePrompt),
+              presetId: null,
+            },
+            { persist: "immediate" },
+          )
+        }
       />
     </article>
   );

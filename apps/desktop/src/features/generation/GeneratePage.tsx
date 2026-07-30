@@ -58,6 +58,7 @@ import { useQueueActionHandlers } from "./state/useQueueActionHandlers";
 
 const EMPTY_ITEMS: [] = [];
 const HISTORY_PAGE_LIMIT = 8;
+const PRESET_LIBRARY_LIMIT = 10_000;
 
 export function GeneratePage() {
   const { t } = useTranslation("generation");
@@ -97,12 +98,12 @@ export function GeneratePage() {
   const mainPresetsQuery = usePromptPresetsQuery({
     kind: "main",
     offset: 0,
-    limit: 200,
+    limit: PRESET_LIBRARY_LIMIT,
   });
   const characterPresetsQuery = usePromptPresetsQuery({
     kind: "character",
     offset: 0,
-    limit: 200,
+    limit: PRESET_LIBRARY_LIMIT,
   });
   const isOpus = accountQuery.data?.is_opus ?? false;
   const estimateQuery = useGenerationEstimateQuery(draft, isOpus);
@@ -348,6 +349,7 @@ export function GeneratePage() {
                 onPatch={patchDraft}
                 onFlush={flushDraft}
                 characterPresets={characterPresetsQuery.data?.items ?? EMPTY_ITEMS}
+                characterPresetsPending={characterPresetsQuery.isPending}
                 vibeImportPending={generationActions.vibeImportPending}
                 vibeExportPending={generationActions.vibeExportPending}
                 imageImportPending={generationActions.imageImportPending}

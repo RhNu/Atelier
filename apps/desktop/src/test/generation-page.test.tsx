@@ -704,7 +704,10 @@ describe("GeneratePage", () => {
     expect(
       await screen.findByRole("grid", { name: "Character position grid" }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Enable character 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Disable character 1" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("uses bounded sliders only after an I2I source exists", async () => {
@@ -886,8 +889,8 @@ describe("GeneratePage", () => {
       },
     });
 
-    await user.click(await screen.findByLabelText("Main preset"));
-    await user.click(screen.getByRole("option", { name: "Main stack" }));
+    await user.click(await screen.findByRole("button", { name: "Choose Main preset" }));
+    await user.click(screen.getByRole("button", { name: /Main stack/u }));
     await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
 
     await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
@@ -900,6 +903,118 @@ describe("GeneratePage", () => {
       },
     });
     expect(promptEditorText(screen.getByLabelText("Positive prompt"))).toBe("");
+  });
+
+  it("searches, filters, clears, and directly applies a main preset", async () => {
+    const { user } = setup({
+      mainPresets: {
+        items: [
+          {
+            preset_id: "preset-main",
+            kind: "main",
+            name: "Cinematic stack",
+            category: "Style",
+            description: "Cinematic lighting preset",
+            order: 0,
+            prompt_behavior: {
+              mode: "surround",
+              before: "masterpiece",
+              after: "cinematic lighting",
+            },
+            uc_behavior: { mode: "replace", text: "bad anatomy" },
+            quality_override: null,
+            uc_preset_override: null,
+            preview: null,
+            created_at_ms: 1,
+            updated_at_ms: 1,
+          },
+          {
+            preset_id: "preset-other",
+            kind: "main",
+            name: "Portrait stack",
+            category: "Subject",
+            description: null,
+            order: 1,
+            prompt_behavior: { mode: "replace", text: "portrait" },
+            uc_behavior: { mode: "replace", text: "" },
+            quality_override: null,
+            uc_preset_override: null,
+            preview: null,
+            created_at_ms: 2,
+            updated_at_ms: 2,
+          },
+        ],
+        total: 2,
+        offset: 0,
+        limit: 10_000,
+      },
+    });
+
+    typeInPromptEditor(await screen.findByLabelText("Positive prompt"), "1girl");
+    await user.click(screen.getByRole("button", { name: "Choose Main preset" }));
+    await user.type(screen.getByLabelText("Search presets"), "cinematic");
+    await user.click(screen.getByLabelText("Filter preset category"));
+    await user.click(screen.getByRole("option", { name: "Style" }));
+    expect(screen.queryByRole("button", { name: /Portrait stack/u })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Cinematic stack/u }));
+
+    expect(screen.getByLabelText("Main preset")).toHaveValue("Cinematic stack");
+    await user.click(screen.getByRole("button", { name: "Remove Main preset" }));
+    expect(screen.getByLabelText("Main preset")).toHaveValue("No main preset");
+
+    await user.click(screen.getByRole("button", { name: "Choose Main preset" }));
+    await user.click(screen.getByRole("button", { name: /Cinematic stack/u }));
+    await user.click(screen.getByRole("button", { name: "Apply Main preset directly" }));
+
+    expect(promptEditorText(screen.getByLabelText("Positive prompt"))).toBe(
+      "masterpiece, 1girl, cinematic lighting",
+    );
+    await user.click(screen.getByRole("tab", { name: "Undesired Content" }));
+    expect(promptEditorText(screen.getByLabelText("Undesired Content"))).toBe("bad anatomy");
+    expect(screen.getByLabelText("Main preset")).toHaveValue("No main preset");
+  });
+
+  it("uses tabs and directly applies a character preset into both prompt fields", async () => {
+    const { user } = setup({
+      characterPresets: {
+        items: [
+          {
+            preset_id: "preset-character",
+            kind: "character",
+            name: "Heroine",
+            category: "Cast",
+            description: null,
+            order: 0,
+            prompt_behavior: { mode: "surround", before: "solo", after: "blue eyes" },
+            uc_behavior: { mode: "replace", text: "extra arms" },
+            quality_override: null,
+            uc_preset_override: null,
+            preview: null,
+            created_at_ms: 1,
+            updated_at_ms: 1,
+          },
+        ],
+        total: 1,
+        offset: 0,
+        limit: 10_000,
+      },
+    });
+
+    await user.click(await screen.findByRole("button", { name: "Add character prompt" }));
+    const card = screen.getByRole("article", { name: "Character 1" });
+    typeInPromptEditor(screen.getByLabelText("Character 1 prompt"), "1girl");
+    await user.click(within(card).getByRole("button", { name: "Choose Character preset" }));
+    await user.click(screen.getByRole("button", { name: /Heroine/u }));
+    await user.click(within(card).getByRole("button", { name: "Apply Character preset directly" }));
+
+    expect(promptEditorText(screen.getByLabelText("Character 1 prompt"))).toBe(
+      "solo, 1girl, blue eyes",
+    );
+    await user.click(within(card).getByRole("tab", { name: "Undesired Content" }));
+    expect(promptEditorText(screen.getByLabelText("Character 1 negative prompt"))).toBe(
+      "extra arms",
+    );
+    expect(within(card).getByLabelText("Character preset")).toHaveValue("No character preset");
   });
 
   it("imports an image resource into i2i before submit", async () => {
@@ -1383,6 +1498,8 @@ describe("GeneratePage queue and preview behavior", () => {
     await waitFor(() =>
       expect(screen.queryByRole("option", { name: /cinematic_lighting/u })).not.toBeInTheDocument(),
     );
+    const characterCard = screen.getByRole("article", { name: "Character 1" });
+    await user.click(within(characterCard).getByRole("tab", { name: "Undesired Content" }));
     const characterNegativePrompt = screen.getByLabelText("Character 1 negative prompt");
     typeInPromptEditor(characterNegativePrompt, "$chunk(li");
     expect(startPromptCompletion(characterNegativePrompt)).toBe(true);

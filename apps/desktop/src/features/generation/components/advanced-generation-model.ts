@@ -1,6 +1,7 @@
 import type { CharacterReferenceTypeDto } from "@/types";
 
 import type { GenerationDraft } from "../model/generation-draft";
+import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 
 export const REFERENCE_TYPE_OPTIONS = [
   { value: "character", label: "Character" },
@@ -27,13 +28,17 @@ export function patchPreciseReference(
 
 export function patchCharacter(
   draft: GenerationDraft,
-  onPatch: (patch: Partial<GenerationDraft>) => void,
+  onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void,
   id: string,
   patch: Partial<GenerationDraft["characters"][number]>,
+  options?: GenerationDraftPatchOptions,
 ) {
-  onPatch({
-    characters: draft.characters.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-  });
+  onPatch(
+    {
+      characters: draft.characters.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    },
+    options,
+  );
 }
 
 export function createLocalId(prefix: string): string {

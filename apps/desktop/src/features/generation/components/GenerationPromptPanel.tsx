@@ -20,7 +20,9 @@ import {
   toUcPreset,
   toSelectOptions,
 } from "../model/generation-options";
+import { applyPromptPreset } from "../model/prompt-preset-model";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
+import { GenerationPresetControl } from "./GenerationPresetControl";
 
 type PromptTab = "positive" | "negative";
 
@@ -66,17 +68,6 @@ export const GenerationPromptPanel = forwardRef<
     [t],
   );
   const textareaRef = useRef<NaiPromptEditorHandle>(null);
-  const mainPresetOptions = useMemo(
-    () => [
-      {
-        value: "",
-        label: mainPresetsPending ? t("loadingPresets") : t("noMainPreset"),
-      },
-      ...mainPresets.map((preset) => ({ value: preset.preset_id, label: preset.name })),
-    ],
-    [mainPresets, mainPresetsPending, t],
-  );
-
   const focusPositive = useCallback(() => {
     setActiveTab("positive");
     window.requestAnimationFrame(() => textareaRef.current?.focus());
@@ -175,20 +166,25 @@ export const GenerationPromptPanel = forwardRef<
         <p className="text-[11px] text-app-muted">{t("promptTabsHint")}</p>
       </div>
 
-      <label
-        htmlFor="generation-main-preset"
-        className="grid gap-1.5 text-xs font-semibold text-app-muted uppercase"
-      >
-        {t("mainPreset")}
-        <AppSelect
-          id="generation-main-preset"
-          aria-label={t("mainPreset")}
-          value={draft.mainPresetId ?? ""}
-          options={mainPresetOptions}
-          onValueChange={(value) => onPatch({ mainPresetId: value || null })}
-          onBlur={onFlush}
-        />
-      </label>
+      <GenerationPresetControl
+        label={t("mainPreset")}
+        noPresetLabel={t("noMainPreset")}
+        libraryTitle={t("mainPresetLibrary")}
+        presets={mainPresets}
+        selectedPresetId={draft.mainPresetId}
+        pending={mainPresetsPending}
+        onSelect={(mainPresetId) => onPatch({ mainPresetId }, { persist: "immediate" })}
+        onClear={() => onPatch({ mainPresetId: null }, { persist: "immediate" })}
+        onApply={(preset) =>
+          onPatch(
+            {
+              ...applyPromptPreset(preset, draft.prompt, draft.negativePrompt),
+              mainPresetId: null,
+            },
+            { persist: "immediate" },
+          )
+        }
+      />
     </section>
   );
 });
