@@ -105,20 +105,17 @@ export const GenerationPromptPanel = forwardRef<
 
   return (
     <section className="space-y-4 border-b border-app-border p-4">
-      <label
-        htmlFor="generation-model"
-        className="grid gap-1.5 text-xs font-semibold text-app-muted uppercase"
-      >
+      <label htmlFor="generation-model" className="sr-only">
         {t("model")}
-        <AppSelect
-          id="generation-model"
-          aria-label={t("model")}
-          value={draft.model}
-          options={MODEL_OPTIONS}
-          onValueChange={(value) => onPatch({ model: toImageModel(value) })}
-          onBlur={onFlush}
-        />
       </label>
+      <AppSelect
+        id="generation-model"
+        aria-label={t("model")}
+        value={draft.model}
+        options={MODEL_OPTIONS}
+        onValueChange={(value) => onPatch({ model: toImageModel(value) })}
+        onBlur={onFlush}
+      />
 
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">

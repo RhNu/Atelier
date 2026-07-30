@@ -180,9 +180,6 @@ export function AdvancedGenerationInputs({
 
   return (
     <section className="space-y-3 border-b border-app-border p-4">
-      <header>
-        <h2 className="text-xs font-bold text-app-muted uppercase">{t("imageGuidance")}</h2>
-      </header>
       <div className="grid gap-1 text-sm text-app-text">
         {error ? <p className="text-rose-100">{error}</p> : null}
         <ImageToImageSection
