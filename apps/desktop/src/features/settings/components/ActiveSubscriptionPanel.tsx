@@ -1,7 +1,7 @@
 import { Loader2, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton } from "@/components/ui";
+import { AppIconButton } from "@/components/ui";
 import type { SubscriptionSummaryDto } from "@/types";
 
 import { formatError } from "../settings-utils";
@@ -29,30 +29,27 @@ export function ActiveSubscriptionPanel({
       : pending
         ? t("checkingSubscription")
         : null;
+  const showStatusRow = Boolean(status) || refreshing || (Boolean(error) && !missingActiveKey);
   return (
-    <section className="border border-app-border bg-app-surface/45">
-      <header className="flex min-h-10 items-center justify-between gap-3 border-b border-app-border px-3 py-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <h3 className="shrink-0 text-sm font-semibold text-app-text">
-            {t("activeSubscription")}
-          </h3>
-          {status ? <span className="truncate text-xs text-app-muted">{status}</span> : null}
+    <section className="border-y border-app-border">
+      {showStatusRow ? (
+        <div className="flex min-h-10 items-center justify-between gap-3 px-3 py-2">
+          <div className="min-w-0">
+            {status ? <span className="truncate text-xs text-app-muted">{status}</span> : null}
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {refreshing ? (
+              <Loader2
+                aria-label={t("refreshingSubscription")}
+                className="size-4 animate-spin text-app-muted"
+              />
+            ) : null}
+            {error && !missingActiveKey ? (
+              <AppIconButton icon={RotateCcw} label={t("retrySubscription")} onClick={onRetry} />
+            ) : null}
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {refreshing ? (
-            <Loader2
-              aria-label={t("refreshingSubscription")}
-              className="size-4 animate-spin text-app-muted"
-            />
-          ) : null}
-          {error && !missingActiveKey ? (
-            <AppButton variant="ghost" className="h-8 px-2 text-xs" onClick={onRetry}>
-              <RotateCcw aria-hidden="true" className="size-3.5" />
-              {t("retrySubscription")}
-            </AppButton>
-          ) : null}
-        </div>
-      </header>
+      ) : null}
       <SubscriptionSummary
         summary={summary}
         placeholder={pending || missingActiveKey || Boolean(error)}

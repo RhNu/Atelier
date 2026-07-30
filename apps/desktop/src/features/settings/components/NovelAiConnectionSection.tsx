@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { reportBackgroundPromise } from "@/app/logger";
-import { AppButton, AppModal, EmptyState } from "@/components/ui";
+import { AppButton, AppIconButton, AppModal, EmptyState } from "@/components/ui";
 import type { ApiKeyRecordDto } from "@/types";
 
 import {
@@ -24,18 +24,15 @@ export function NovelAiConnectionSection() {
 
   return (
     <>
-      <section className="grid max-w-2xl gap-3" aria-labelledby="novelai-connection-title">
-        <header className="flex flex-wrap items-start justify-between gap-3 border border-app-border bg-app-surface/45 p-4">
-          <div>
-            <h2 id="novelai-connection-title" className="text-sm font-semibold text-white">
-              {t("novelAiServiceName")}
-            </h2>
-            <p className="mt-1 text-xs text-app-muted">{t("novelAiConnectionDescription")}</p>
-          </div>
-          <AppButton variant="secondary" onClick={account.openCreate}>
-            <Plus aria-hidden="true" className="size-4" />
-            {t("addApiKey")}
-          </AppButton>
+      <section
+        className="w-full border border-app-border bg-app-surface/45"
+        aria-labelledby="novelai-connection-title"
+      >
+        <header className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <h2 id="novelai-connection-title" className="text-sm font-semibold text-white">
+            {t("novelAiServiceName")}
+          </h2>
+          <AppIconButton icon={Plus} label={t("addApiKey")} onClick={account.openCreate} />
         </header>
         <ActiveSubscriptionPanel
           pending={account.activeSummary.isPending}
@@ -216,7 +213,7 @@ function ApiKeyList({
   if (keys.length === 0) return <EmptyState title={t("noApiKeys")} />;
 
   return (
-    <div className="border border-app-border bg-app-surface/45">
+    <div className="max-h-72 overflow-y-auto">
       {keys.map((key) => (
         <ApiKeyRow
           key={key.id}

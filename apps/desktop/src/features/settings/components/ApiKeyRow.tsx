@@ -2,7 +2,7 @@ import { PencilLine, Power, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton } from "@/components/ui";
+import { AppIconButton } from "@/components/ui";
 import type { ApiKeyRecordDto } from "@/types";
 
 export type ApiKeyEditState = {
@@ -80,41 +80,32 @@ function ApiKeyActions({
   onDelete: () => void;
 }) {
   const { t } = useTranslation("settings");
-  const { t: translateCommon } = useTranslation("common");
   return (
     <div className="flex flex-wrap gap-1.5">
       {!item.is_active ? (
-        <AppButton
-          variant="ghost"
-          className="h-8 px-2 text-xs"
+        <AppIconButton
+          size="sm"
+          icon={Power}
+          label={t("setActive", { name: item.display_name })}
           disabled={busy}
-          aria-label={t("setActive", { name: item.display_name })}
           onClick={onSetActive}
-        >
-          <Power aria-hidden="true" className="size-3.5" />
-          {t("activate")}
-        </AppButton>
+        />
       ) : null}
-      <AppButton
-        variant="ghost"
-        className="h-8 px-2 text-xs"
+      <AppIconButton
+        size="sm"
+        icon={PencilLine}
+        label={t("editKey", { name: item.display_name })}
         disabled={busy}
-        aria-label={t("editKey", { name: item.display_name })}
         onClick={onEdit}
-      >
-        <PencilLine aria-hidden="true" className="size-3.5" />
-        {translateCommon("edit")}
-      </AppButton>
-      <AppButton
+      />
+      <AppIconButton
+        size="sm"
+        icon={Trash2}
+        label={t("deleteKey", { name: item.display_name })}
         variant="danger"
-        className="h-8 px-2 text-xs"
         disabled={busy}
-        aria-label={t("deleteKey", { name: item.display_name })}
         onClick={onDelete}
-      >
-        <Trash2 aria-hidden="true" className="size-3.5" />
-        {translateCommon("delete")}
-      </AppButton>
+      />
     </div>
   );
 }

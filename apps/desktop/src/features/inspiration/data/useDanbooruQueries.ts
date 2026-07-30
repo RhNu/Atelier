@@ -81,7 +81,7 @@ export function useDanbooruMediaQuery(
 export function useDanbooruAccountQuery() {
   return useQuery({
     queryKey: queryKeys.danbooru.account(),
-    queryFn: () => danbooruApi.account(),
+    queryFn: async () => toStoredDanbooruAccount(await danbooruApi.account()),
   });
 }
 
@@ -95,7 +95,7 @@ export function useDanbooruGlobalSettingsQuery() {
 export function useDanbooruAccountMutations() {
   const queryClient = useQueryClient();
   const update = (account: Awaited<ReturnType<typeof danbooruApi.account>>) => {
-    queryClient.setQueryData(queryKeys.danbooru.account(), account);
+    queryClient.setQueryData(queryKeys.danbooru.account(), toStoredDanbooruAccount(account));
     void queryClient.invalidateQueries({ queryKey: queryKeys.danbooru.root() });
   };
   return {
@@ -105,13 +105,16 @@ export function useDanbooruAccountMutations() {
     }),
     probe: useMutation({
       mutationFn: () => danbooruApi.probeAccount(),
-      onSuccess: update,
     }),
     remove: useMutation({
       mutationFn: () => danbooruApi.deleteAccount(),
       onSuccess: update,
     }),
   };
+}
+
+function toStoredDanbooruAccount(account: Awaited<ReturnType<typeof danbooruApi.account>>) {
+  return { configured: account.configured, username: account.username };
 }
 
 export function useDanbooruTagCompletion(query: string) {

@@ -1,8 +1,8 @@
-import { ExternalLink, PencilLine, Plus } from "lucide-react";
+import { ExternalLink, PencilLine, PlugZap, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppModal, AppPanel } from "@/components/ui";
+import { AppButton, AppIconButton, AppModal, AppPanel } from "@/components/ui";
 import {
   useDanbooruAccountMutations,
   useDanbooruAccountQuery,
@@ -107,7 +107,7 @@ function DanbooruConnectionSection() {
 
   if (account.isPending) {
     return (
-      <section className="max-w-2xl border border-app-border bg-app-surface/45">
+      <section className="w-full border border-app-border bg-app-surface/45">
         <LoadingPanel label={t("loadingDanbooruAccount")} />
       </section>
     );
@@ -115,7 +115,7 @@ function DanbooruConnectionSection() {
 
   return (
     <>
-      <section className="grid max-w-2xl gap-4 border border-app-border bg-app-surface/45 p-4">
+      <section className="grid w-full gap-4 border border-app-border bg-app-surface/45 p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -128,37 +128,32 @@ function DanbooruConnectionSection() {
               <p className="mt-1 text-xs text-app-muted">{account.data.username}</p>
             ) : null}
           </div>
-          <span className="border border-app-border bg-black/20 px-2 py-1 text-xs text-app-muted">
-            {account.data ? t(`danbooruStates.${account.data.state}`) : t("unavailable")}
-          </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2 border-t border-app-border pt-3">
-          <AppButton variant="secondary" disabled={busy} onClick={openEditor}>
-            {account.data?.configured ? (
-              <PencilLine aria-hidden="true" className="size-4" />
-            ) : (
-              <Plus aria-hidden="true" className="size-4" />
-            )}
-            {account.data?.configured ? t("editDanbooru") : t("configureDanbooru")}
-          </AppButton>
-          <AppButton
-            variant="secondary"
+        <div className="flex flex-wrap items-center justify-end gap-1 border-t border-app-border pt-3">
+          <AppIconButton
+            icon={account.data?.configured ? PencilLine : Plus}
+            label={account.data?.configured ? t("editDanbooru") : t("configureDanbooru")}
+            disabled={busy}
+            onClick={openEditor}
+          />
+          <AppIconButton
+            icon={PlugZap}
+            label={mutations.probe.isPending ? t("checkingDanbooru") : t("testDanbooru")}
             disabled={busy || !account.data?.configured}
             onClick={probe}
-          >
-            {mutations.probe.isPending ? t("checkingDanbooru") : t("testDanbooru")}
-          </AppButton>
-          <AppButton
+          />
+          <AppIconButton
+            icon={Trash2}
+            label={t("removeDanbooru")}
             variant="danger"
             disabled={busy || !account.data?.configured}
             onClick={openDelete}
-          >
-            {t("removeDanbooru")}
-          </AppButton>
-          <AppButton variant="ghost" className="ml-auto" onClick={openProfile}>
-            <ExternalLink aria-hidden="true" className="size-4" />
-            {t("openDanbooruProfile")}
-          </AppButton>
+          />
+          <AppIconButton
+            icon={ExternalLink}
+            label={t("openDanbooruProfile")}
+            onClick={openProfile}
+          />
         </div>
       </section>
       <DanbooruConnectionModal

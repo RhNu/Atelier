@@ -192,7 +192,7 @@ function lastGlobalSettingsUpdate(): UpdateGlobalSettingsRequestDto {
   return request;
 }
 
-function setup(keys: ApiKeyRecordDto[] = []) {
+function setup(keys: ApiKeyRecordDto[] = [], danbooruConfigured = false) {
   mocks.settingsApi.get.mockResolvedValue(cloneSettings());
   mocks.settingsApi.update.mockImplementation(async ({ settings }) => settings);
   mocks.settingsApi.reset.mockResolvedValue({ settings: cloneSettings() });
@@ -220,9 +220,9 @@ function setup(keys: ApiKeyRecordDto[] = []) {
   mocks.accountApi.setActive.mockResolvedValue(undefined);
   mocks.accountApi.probeActive.mockResolvedValue(activeSubscription);
   mocks.danbooruApi.account.mockResolvedValue({
-    configured: false,
-    state: "anonymous",
-    username: null,
+    configured: danbooruConfigured,
+    state: danbooruConfigured ? "configured" : "anonymous",
+    username: danbooruConfigured ? "atelier-user" : null,
     level: null,
   });
   mocks.danbooruApi.saveAccount.mockImplementation(async (request) => ({
@@ -348,6 +348,17 @@ describe("SettingsPage commands", () => {
       ).not.toBeInTheDocument(),
     );
     expect(screen.queryByText("danbooru-secret")).not.toBeInTheDocument();
+  });
+
+  it("reports Danbooru test results through a toast without rendering verification state", async () => {
+    const { user } = setup([], true);
+
+    await user.click(await screen.findByRole("button", { name: "Connections" }));
+    await user.click(screen.getByRole("button", { name: "Test connection" }));
+
+    expect(await screen.findByText("Danbooru account verified (2).")).toBeInTheDocument();
+    expect(screen.queryByText("Verified")).not.toBeInTheDocument();
+    expect(screen.queryByText("Configured · unverified")).not.toBeInTheDocument();
   });
 
   it("creates API keys with generated ids and never displays the secret", async () => {
