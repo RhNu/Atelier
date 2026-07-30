@@ -1,7 +1,6 @@
 import {
   FolderCog,
   Image,
-  KeyRound,
   MonitorCog,
   Plug,
   ShieldCheck,
@@ -15,7 +14,6 @@ import { AppPanel } from "@/components/ui";
 
 export type SettingsSection =
   | "workspace"
-  | "account"
   | "connections"
   | "generation"
   | "images"
@@ -24,20 +22,12 @@ export type SettingsSection =
 
 type SettingSection = {
   id: SettingsSection;
-  labelKey:
-    | "interface"
-    | "safety"
-    | "connections"
-    | "workspace"
-    | "account"
-    | "generation"
-    | "images";
+  labelKey: "interface" | "safety" | "connections" | "workspace" | "generation" | "images";
   descriptionKey:
     | "interfaceDescription"
     | "safetyDescription"
     | "connectionsDescription"
     | "workspaceDescription"
-    | "accountDescription"
     | "generationDescription"
     | "imagesDescription";
   icon: LucideIcon;
@@ -70,12 +60,6 @@ const workspaceSections: ReadonlyArray<SettingSection> = [
     labelKey: "workspace",
     descriptionKey: "workspaceDescription",
     icon: FolderCog,
-  },
-  {
-    id: "account",
-    labelKey: "account",
-    descriptionKey: "accountDescription",
-    icon: KeyRound,
   },
   {
     id: "generation",

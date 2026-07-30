@@ -8,7 +8,6 @@ import { useToastStore } from "@/stores/toast-store";
 import type { GlobalSettingsDto, WorkspaceSettingsDto } from "@/types";
 
 import { useWorkspaceStatus } from "../workspace/useWorkspaceStatus";
-import { AccountSettingsSection } from "./components/AccountSettingsSection";
 import { ConnectionsSettingsSection } from "./components/ConnectionsSettingsSection";
 import { FrontendSettingsSection } from "./components/FrontendSettingsSection";
 import { GenerationSettingsSection } from "./components/GenerationSettingsSection";
@@ -37,7 +36,7 @@ export function SettingsPage() {
   const updateWorkspaceMutation = useUpdateWorkspaceSettingsMutation();
   const resetWorkspaceMutation = useResetWorkspaceSettingsMutation();
   const updateGlobalMutation = useUpdateGlobalSettingsMutation();
-  const [activeSection, setActiveSection] = useState<SettingsSection>("account");
+  const [activeSection, setActiveSection] = useState<SettingsSection>("connections");
   const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceSettingsDto | null>(null);
   const [globalDraft, setGlobalDraft] = useState<GlobalSettingsDto | null>(null);
 
@@ -186,10 +185,6 @@ function SettingsContent({
   resetSettings,
 }: SettingsContentProps) {
   const { t } = useTranslation("settings");
-  if (activeSection === "account") {
-    return <AccountSettingsSection />;
-  }
-
   if (activeSection === "connections") {
     return <ConnectionsSettingsSection />;
   }

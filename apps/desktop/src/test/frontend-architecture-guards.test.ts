@@ -193,7 +193,7 @@ describe("frontend architecture guards", () => {
       path.join(projectRoot, "..", "..", "docs/agents/frontend-architecture.md"),
     );
     const accountSource = [
-      "src/features/settings/components/AccountSettingsSection.tsx",
+      "src/features/settings/components/NovelAiConnectionSection.tsx",
       "src/features/settings/components/ApiKeyRow.tsx",
       "src/features/settings/components/ActiveSubscriptionPanel.tsx",
     ]

@@ -4,6 +4,7 @@ members = [
     "crates/app",
     "crates/app-api",
     "crates/adapters/keyring",
+    "crates/adapters/secrets-fs",
     "crates/adapters/novelai",
     "crates/adapters/image-analysis-onnx",
     "crates/adapters/image-codec",
@@ -64,6 +65,7 @@ atelier-adapter-danbooru = { path = "crates/adapters/danbooru" }
 atelier-adapter-image-analysis-onnx = { path = "crates/adapters/image-analysis-onnx" }
 atelier-adapter-image-codec = { path = "crates/adapters/image-codec" }
 atelier-adapter-keyring = { path = "crates/adapters/keyring" }
+atelier-adapter-secrets-fs = { path = "crates/adapters/secrets-fs" }
 atelier-adapter-novelai = { path = "crates/adapters/novelai" }
 atelier-adapter-onnx-runtime = { path = "crates/adapters/onnx-runtime" }
 atelier-adapter-lexicon-bundle = { path = "crates/adapters/lexicon-bundle" }

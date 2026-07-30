@@ -10,7 +10,7 @@ The core experience should grow around:
 - Stable submission of NovelAI parameters, models, Vibe data, reference images, and Director tools.
 - Observable, cancellable, retryable, and replayable generation work.
 - Artifact gallery, metadata, export, replay, and safety markings.
-- Multiple API keys with explicit user-controlled switching.
+- Application-wide API keys with explicit user-controlled switching across workspaces.
 
 ## Design Preferences
 

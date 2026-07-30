@@ -1,26 +1,24 @@
 use super::{
     ApiKeyId, ApiKeyRecordDto, AppError, AppResult, CreateApiKeyRequestDto, NovelAiClientFactory,
-    SecretStore, SecretValue, SubscriptionSummaryDto, UpdateApiKeyRequestDto, WorkspaceSession,
+    SecretStore, SecretValue, SubscriptionSummaryDto, UpdateApiKeyRequestDto,
     api_key_record_to_dto, create_api_key_to_domain, subscription_to_dto,
 };
+use crate::ports::AppApiKeyService;
 
-pub struct AccountUseCases<'a, S, F, E> {
-    pub(crate) app: &'a WorkspaceSession<S, F, E>,
+pub struct AccountUseCases<'a, S, F> {
+    pub(crate) api_keys: &'a AppApiKeyService<S, F>,
 }
 
-impl<S, F, E> AccountUseCases<'_, S, F, E>
+impl<S, F> AccountUseCases<'_, S, F>
 where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
-    E: Send + Sync,
 {
     pub async fn create_api_key(
         &self,
         request: CreateApiKeyRequestDto,
     ) -> AppResult<ApiKeyRecordDto> {
-        self.app
-            .inner
-            .api_keys
+        self.api_keys
             .create_api_key(create_api_key_to_domain(request))
             .await
             .map(|record| api_key_record_to_dto(&record))
@@ -31,9 +29,7 @@ where
         &self,
         request: UpdateApiKeyRequestDto,
     ) -> AppResult<ApiKeyRecordDto> {
-        self.app
-            .inner
-            .api_keys
+        self.api_keys
             .update_api_key(atelier_secrets::UpdateApiKeyRequest {
                 id: ApiKeyId::new(request.id),
                 display_name: request.display_name,
@@ -45,18 +41,14 @@ where
     }
 
     pub async fn delete_api_key(&self, id: &str) -> AppResult<bool> {
-        self.app
-            .inner
-            .api_keys
+        self.api_keys
             .delete_api_key(&ApiKeyId::new(id))
             .await
             .map_err(AppError::from)
     }
 
     pub async fn list_api_keys(&self) -> AppResult<Vec<ApiKeyRecordDto>> {
-        self.app
-            .inner
-            .api_keys
+        self.api_keys
             .list_api_keys()
             .await
             .map(|items| items.iter().map(api_key_record_to_dto).collect())
@@ -64,18 +56,14 @@ where
     }
 
     pub async fn set_active_api_key(&self, id: &str) -> AppResult<()> {
-        self.app
-            .inner
-            .api_keys
+        self.api_keys
             .set_active_api_key(&ApiKeyId::new(id))
             .await
             .map_err(AppError::from)
     }
 
     pub async fn probe_key(&self, id: &str) -> AppResult<SubscriptionSummaryDto> {
-        self.app
-            .inner
-            .api_keys
+        self.api_keys
             .probe_key(&ApiKeyId::new(id))
             .await
             .map(|summary| subscription_to_dto(&summary))
@@ -84,8 +72,6 @@ where
 
     pub async fn probe_active(&self) -> AppResult<SubscriptionSummaryDto> {
         let active = self
-            .app
-            .inner
             .api_keys
             .list_api_keys()
             .await?

@@ -15,7 +15,6 @@ atelier-kernel = { workspace = true }
 atelier-prompt-resources = { workspace = true }
 atelier-resource-catalog = { workspace = true }
 atelier-safety = { workspace = true }
-atelier-secrets = { workspace = true }
 atelier-settings = { workspace = true }
 atelier-vibe = { workspace = true }
 rusqlite = { workspace = true, features = ["bundled"] }

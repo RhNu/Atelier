@@ -10,9 +10,23 @@ import {
 import { desktopApi } from "@/platform/atelier";
 import { useToastStore } from "@/stores/toast-store";
 
+import { NovelAiConnectionSection } from "./NovelAiConnectionSection";
 import { LoadingPanel, SectionHeader, TextField } from "./SettingsControls";
 
 export function ConnectionsSettingsSection() {
+  const { t } = useTranslation("settings");
+  return (
+    <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
+      <SectionHeader title={t("connections")} />
+      <div className="grid min-h-0 flex-1 content-start gap-6 overflow-auto p-3">
+        <NovelAiConnectionSection />
+        <DanbooruConnectionSection />
+      </div>
+    </AppPanel>
+  );
+}
+
+function DanbooruConnectionSection() {
   const { t } = useTranslation("settings");
   const pushToast = useToastStore((state) => state.push);
   const account = useDanbooruAccountQuery();
@@ -91,59 +105,62 @@ export function ConnectionsSettingsSection() {
     void desktopApi.openExternalUrl("https://danbooru.donmai.us/profile").catch(failure);
   }, [failure]);
 
-  if (account.isPending) return <LoadingPanel label={t("loadingDanbooruAccount")} />;
+  if (account.isPending) {
+    return (
+      <section className="max-w-2xl border border-app-border bg-app-surface/45">
+        <LoadingPanel label={t("loadingDanbooruAccount")} />
+      </section>
+    );
+  }
 
   return (
-    <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
-      <SectionHeader title={t("connections")} />
-      <div className="min-h-0 flex-1 overflow-auto p-3">
-        <section className="grid max-w-2xl gap-4 border border-app-border bg-app-surface/45 p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-white">{t("danbooruServiceName")}</h2>
-                <span className="border border-app-border bg-black/20 px-2 py-0.5 text-[10px] font-semibold text-app-muted uppercase">
-                  {t("optional")}
-                </span>
-              </div>
-              {account.data?.username ? (
-                <p className="mt-1 text-xs text-app-muted">{account.data.username}</p>
-              ) : null}
+    <>
+      <section className="grid max-w-2xl gap-4 border border-app-border bg-app-surface/45 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-white">{t("danbooruServiceName")}</h2>
+              <span className="border border-app-border bg-black/20 px-2 py-0.5 text-[10px] font-semibold text-app-muted uppercase">
+                {t("optional")}
+              </span>
             </div>
-            <span className="border border-app-border bg-black/20 px-2 py-1 text-xs text-app-muted">
-              {account.data ? t(`danbooruStates.${account.data.state}`) : t("unavailable")}
-            </span>
+            {account.data?.username ? (
+              <p className="mt-1 text-xs text-app-muted">{account.data.username}</p>
+            ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-app-border pt-3">
-            <AppButton variant="secondary" disabled={busy} onClick={openEditor}>
-              {account.data?.configured ? (
-                <PencilLine aria-hidden="true" className="size-4" />
-              ) : (
-                <Plus aria-hidden="true" className="size-4" />
-              )}
-              {account.data?.configured ? t("editDanbooru") : t("configureDanbooru")}
-            </AppButton>
-            <AppButton
-              variant="secondary"
-              disabled={busy || !account.data?.configured}
-              onClick={probe}
-            >
-              {mutations.probe.isPending ? t("checkingDanbooru") : t("testDanbooru")}
-            </AppButton>
-            <AppButton
-              variant="danger"
-              disabled={busy || !account.data?.configured}
-              onClick={openDelete}
-            >
-              {t("removeDanbooru")}
-            </AppButton>
-            <AppButton variant="ghost" className="ml-auto" onClick={openProfile}>
-              <ExternalLink aria-hidden="true" className="size-4" />
-              {t("openDanbooruProfile")}
-            </AppButton>
-          </div>
-        </section>
-      </div>
+          <span className="border border-app-border bg-black/20 px-2 py-1 text-xs text-app-muted">
+            {account.data ? t(`danbooruStates.${account.data.state}`) : t("unavailable")}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-app-border pt-3">
+          <AppButton variant="secondary" disabled={busy} onClick={openEditor}>
+            {account.data?.configured ? (
+              <PencilLine aria-hidden="true" className="size-4" />
+            ) : (
+              <Plus aria-hidden="true" className="size-4" />
+            )}
+            {account.data?.configured ? t("editDanbooru") : t("configureDanbooru")}
+          </AppButton>
+          <AppButton
+            variant="secondary"
+            disabled={busy || !account.data?.configured}
+            onClick={probe}
+          >
+            {mutations.probe.isPending ? t("checkingDanbooru") : t("testDanbooru")}
+          </AppButton>
+          <AppButton
+            variant="danger"
+            disabled={busy || !account.data?.configured}
+            onClick={openDelete}
+          >
+            {t("removeDanbooru")}
+          </AppButton>
+          <AppButton variant="ghost" className="ml-auto" onClick={openProfile}>
+            <ExternalLink aria-hidden="true" className="size-4" />
+            {t("openDanbooruProfile")}
+          </AppButton>
+        </div>
+      </section>
       <DanbooruConnectionModal
         open={editorOpen}
         configured={account.data?.configured === true}
@@ -161,7 +178,7 @@ export function ConnectionsSettingsSection() {
         onClose={closeDelete}
         onRemove={remove}
       />
-    </AppPanel>
+    </>
   );
 }
 

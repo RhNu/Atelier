@@ -39,7 +39,7 @@ Before completing pnpm frontend work, confirm `pnpm fmt:check`, `pnpm lint`, and
 - `crates/foundation/`: shared primitives that are stable across features.
 - `crates/features/`: feature-owned domain models, rules, ports, and tests.
 - `crates/kernel/`: runtime state and cross-feature workflow orchestration.
-- `crates/adapters/`: concrete I/O implementations for storage, database, image codecs, keyring, NovelAI, and optional safety scanning.
+- `crates/adapters/`: concrete I/O implementations for storage, database, image codecs, application-level secret metadata, keyring, NovelAI, and optional safety scanning.
 - `docs/agents/`: project intent and the small set of current architecture guidance documents.
 - `xtask/`: local maintenance checks such as line-budget enforcement.
 

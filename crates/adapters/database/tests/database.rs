@@ -5,9 +5,9 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use atelier_adapter_database::{
-    DatabaseApiKeyRegistryStore, DatabaseArtifactRepository, DatabaseConnection,
-    DatabaseGalleryIndex, DatabaseGenerationPayloadStore, DatabaseResourceCatalogRepository,
-    DatabaseVibeRepository, GalleryHardDeletePlan, GalleryTransientOwner,
+    DatabaseArtifactRepository, DatabaseConnection, DatabaseGalleryIndex,
+    DatabaseGenerationPayloadStore, DatabaseResourceCatalogRepository, DatabaseVibeRepository,
+    GalleryHardDeletePlan, GalleryTransientOwner,
 };
 use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactRecord, ArtifactReplayManifest,
@@ -44,9 +44,6 @@ use atelier_resource_catalog::{
 use atelier_safety::{
     ImageSafetyScore, SafetyAssessment, SafetyLabel, SafetyModelEvidence, SafetyResult,
     SafetyReviewOutcome, SafetyRiskBand,
-};
-use atelier_secrets::{
-    ApiKeyId, ApiKeyRecord, ApiKeyRegistryStore, SecretRecordId, SecretsErrorKind,
 };
 use atelier_vibe::{
     VibeDocumentEntry, VibeDocumentResources, VibeDocumentSummary, VibeEncodeSettings,
@@ -134,15 +131,6 @@ fn test_safety_assessment(
         },
         review: SafetyReviewOutcome::NotNeeded,
         assessed_at_ms: None,
-    }
-}
-
-fn api_key_record(id: &str, display_name: &str, is_active: bool) -> ApiKeyRecord {
-    ApiKeyRecord {
-        id: ApiKeyId::new(id),
-        display_name: display_name.to_owned(),
-        secret_record_id: SecretRecordId::for_api_key(&ApiKeyId::new(id)),
-        is_active,
     }
 }
 

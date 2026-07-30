@@ -9,6 +9,7 @@ use atelier_adapter_danbooru::ReqwestDanbooruClient;
 use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_lexicon_bundle::LexiconBundle;
 use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
+use atelier_adapter_secrets_fs::FileSystemApiKeyRegistryStore;
 use atelier_adapter_settings_fs::FileSystemGlobalSettingsRepository;
 use atelier_app::{AtelierRuntime, GenerationWorkerCancel};
 use atelier_app_api::event::{AppEventDto, AppEventKindDto};
@@ -319,6 +320,7 @@ pub fn build_desktop_state(
                 .map(|pipeline| pipeline as Arc<dyn atelier_safety::SafetyScanner>),
             lexicon,
         )
+        .with_api_key_registry(Arc::new(application_api_key_registry(&system)))
         .with_danbooru_client(Arc::new(ReqwestDanbooruClient::new()?));
     let primary_installer = image_analysis.clone();
     if let Some(analysis) = image_analysis {
@@ -352,6 +354,10 @@ pub fn build_desktop_state(
         system,
         worker: DesktopGenerationWorker::default(),
     })
+}
+
+fn application_api_key_registry(system: &DesktopSystem) -> FileSystemApiKeyRegistryStore {
+    FileSystemApiKeyRegistryStore::new(system.paths().app_config_dir.join("novelai-api-keys.json"))
 }
 
 fn resolve_desktop_paths(app_handle: &AppHandle) -> Result<DesktopPaths, tauri::Error> {

@@ -266,10 +266,11 @@ describe("SettingsPage", () => {
     const { user } = setup();
 
     const sectionNav = await screen.findByRole("navigation", { name: "Settings sections" });
-    expect(within(sectionNav).getByRole("button", { name: "Account" })).toHaveAttribute(
+    expect(within(sectionNav).getByRole("button", { name: "Connections" })).toHaveAttribute(
       "aria-current",
       "page",
     );
+    expect(within(sectionNav).queryByRole("button", { name: "Account" })).not.toBeInTheDocument();
     expect(within(sectionNav).getByRole("button", { name: "Workspace" })).toBeInTheDocument();
     expect(within(sectionNav).getByRole("button", { name: "Generation" })).toBeInTheDocument();
     expect(within(sectionNav).getByRole("button", { name: "Images" })).toBeInTheDocument();
@@ -323,7 +324,11 @@ describe("SettingsPage commands", () => {
     const { user } = setup();
 
     await user.click(await screen.findByRole("button", { name: "Connections" }));
-    expect(await screen.findByText("Danbooru")).toBeInTheDocument();
+    const novelAi = await screen.findByRole("heading", { name: "NovelAI" });
+    const danbooru = screen.getByRole("heading", { name: "Danbooru" });
+    expect(
+      novelAi.compareDocumentPosition(danbooru) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByText("Optional")).toBeInTheDocument();
     expect(screen.queryByLabelText("Danbooru username")).not.toBeInTheDocument();
 

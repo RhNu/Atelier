@@ -2,11 +2,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
 
 use atelier_adapter_database::{
-    DatabaseApiKeyRegistryStore, DatabaseArtifactRepository, DatabaseConnection,
-    DatabaseGalleryIndex, DatabaseGenerationDraftRepository, DatabaseGenerationPayloadStore,
-    DatabaseJobQueueRepository, DatabasePromptResourceRepository,
-    DatabaseResourceCatalogRepository, DatabaseRunHistoryRepository, DatabaseSettingsRepository,
-    DatabaseVibeRepository,
+    DatabaseArtifactRepository, DatabaseConnection, DatabaseGalleryIndex,
+    DatabaseGenerationDraftRepository, DatabaseGenerationPayloadStore, DatabaseJobQueueRepository,
+    DatabasePromptResourceRepository, DatabaseResourceCatalogRepository,
+    DatabaseRunHistoryRepository, DatabaseSettingsRepository, DatabaseVibeRepository,
 };
 use atelier_adapter_image_codec::ImageMetadataBlobStore;
 use atelier_adapter_keyring::KeyringSecretStore;
@@ -37,7 +36,7 @@ use futures::lock::Mutex;
 use crate::events::AppEventHub;
 use crate::ports::{
     AppApiKeyService, AppArtifactService, AppGalleryService, AppImageSourceReader, AppKernelPorts,
-    AppResourceCatalog, AppResourceReader, SharedWorkspaceSettings,
+    AppResourceCatalog, AppResourceReader, SharedWorkspaceSettings, TransientApiKeyRegistryStore,
 };
 use crate::usecases::{
     AccountUseCases, DirectorUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases,
@@ -184,6 +183,29 @@ where
         extractor: E,
         safety_scanner: Option<Arc<dyn SafetyScanner>>,
     ) -> AppResult<Self> {
+        let api_keys = ApiKeyRegistryService::new(
+            Arc::new(TransientApiKeyRegistryStore::default())
+                as Arc<dyn atelier_secrets::ApiKeyRegistryStore>,
+            secrets,
+            NovelAiSubscriptionProbeClient::new(factory.clone()),
+        );
+        Self::open_workspace_with_api_keys_and_extractor_and_safety_scanner(
+            root,
+            api_keys,
+            factory,
+            extractor,
+            safety_scanner,
+        )
+        .await
+    }
+
+    pub(crate) async fn open_workspace_with_api_keys_and_extractor_and_safety_scanner(
+        root: PathBuf,
+        api_keys: AppApiKeyService<S, F>,
+        factory: F,
+        extractor: E,
+        safety_scanner: Option<Arc<dyn SafetyScanner>>,
+    ) -> AppResult<Self> {
         let root = WorkspaceRoot::new(root);
         let layout = WorkspaceLayout;
         let manifest = FileSystemWorkspaceStore::new()
@@ -193,14 +215,8 @@ where
             .acquire(&root, &layout)
             .await?;
         let connection = DatabaseConnection::open(workspace_database_path(&root))?;
-        let api_key_store = DatabaseApiKeyRegistryStore::new(connection.clone());
         let queue_repository = DatabaseJobQueueRepository::new(connection.clone());
         let run_history = DatabaseRunHistoryRepository::new(connection.clone());
-        let api_keys = ApiKeyRegistryService::new(
-            api_key_store,
-            secrets,
-            NovelAiSubscriptionProbeClient::new(factory.clone()),
-        );
         let resource_repository = DatabaseResourceCatalogRepository::new(connection.clone());
         let prompt_repository = DatabasePromptResourceRepository::new(connection.clone());
         let settings_repository = DatabaseSettingsRepository::new(connection.clone());
@@ -315,8 +331,10 @@ impl<S, F, E> WorkspaceSession<S, F, E> {
     }
 
     #[must_use]
-    pub const fn account(&self) -> AccountUseCases<'_, S, F, E> {
-        AccountUseCases { app: self }
+    pub const fn account(&self) -> AccountUseCases<'_, S, F> {
+        AccountUseCases {
+            api_keys: &self.inner.api_keys,
+        }
     }
 
     #[must_use]

@@ -41,7 +41,7 @@ use atelier_resource_catalog::{
     ResourceResult, ResourceVariantKind, VariantId,
 };
 use atelier_safety::{SafetyAssessment, SafetyError, SafetyResult, SafetyScanInput, SafetyScanner};
-use atelier_secrets::{ApiKeyRegistryService, SecretStore};
+use atelier_secrets::{ApiKeyRegistryService, ApiKeyRegistryStore, SecretStore};
 use atelier_settings::{ImageVariantSettings, WorkspaceSettings};
 use atelier_vibe::{
     EmbeddedVibeDocumentExtractor, VibeDocumentEntry, VibeDomainResult, VibeEncodeSettings,
@@ -49,11 +49,13 @@ use atelier_vibe::{
 };
 
 mod external;
+mod transient_api_keys;
 
 use crate::events::AppEventHub;
+pub use transient_api_keys::TransientApiKeyRegistryStore;
 
 pub type AppApiKeyService<S, F> = ApiKeyRegistryService<
-    atelier_adapter_database::DatabaseApiKeyRegistryStore,
+    Arc<dyn ApiKeyRegistryStore>,
     S,
     atelier_adapter_novelai::NovelAiSubscriptionProbeClient<F>,
 >;

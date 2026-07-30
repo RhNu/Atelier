@@ -1,4 +1,5 @@
 export const settings = {
+  novelAiServiceName: "NovelAI",
   danbooruServiceName: "Danbooru",
   sections: "Settings sections",
   application: "Application",
@@ -8,8 +9,6 @@ export const settings = {
   safetyDescription: "Rating models and automatic review",
   connections: "Connections",
   connectionsDescription: "Application-wide external service accounts",
-  account: "Account",
-  accountDescription: "NovelAI API keys and subscription probes",
   workspace: "Workspace",
   workspaceDescription: "Current workspace and lifecycle",
   frontend: "Frontend",
@@ -105,7 +104,8 @@ export const settings = {
   mainKeyPlaceholder: "Main NovelAI key",
   pasteKeyPlaceholder: "Paste key",
   saveApiKeyChanges: "Save API key changes",
-  accountDescriptionLong: "Manage workspace API keys without exposing stored secrets.",
+  novelAiConnectionDescription:
+    "Manage multiple application-wide API keys, active-key switching, and subscription status.",
   apiKeyDisplayName: "API key display name",
   apiKeySecret: "NovelAI API key secret",
   addApiKey: "Add API key",

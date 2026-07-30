@@ -26,7 +26,7 @@ fn schema_initializes_once_and_file_backed_database_reopens() {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .unwrap();
-        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 2));
+        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 3));
         drop(raw);
 
         let reopened = DatabaseConnection::open(&path).unwrap();
@@ -123,7 +123,7 @@ fn version_one_database_migrates_at_a_single_testable_boundary() {
                 |row| row.get::<_, i64>(0)
             )
             .unwrap(),
-            2
+            3
         );
         let row: (String, Option<String>) = raw
             .query_row(
@@ -138,22 +138,49 @@ fn version_one_database_migrates_at_a_single_testable_boundary() {
 }
 
 #[test]
-fn api_key_registry_store_round_trips_metadata_without_secret_value() {
-    block_on(async {
-        let store = DatabaseApiKeyRegistryStore::new(DatabaseConnection::open_memory().unwrap());
-        let record = api_key_record("main", "Main key", false);
-
-        store.save_api_key_record(record.clone()).await.unwrap();
-
-        assert_eq!(
-            store
-                .get_api_key_record(&ApiKeyId::new("main"))
-                .await
-                .unwrap(),
-            Some(record.clone())
+fn version_two_database_drops_workspace_api_key_metadata() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("atelier.sqlite3");
+    drop(DatabaseConnection::open(&path).unwrap());
+    let raw = Connection::open(&path).unwrap();
+    raw.execute_batch(
+        r"
+        CREATE TABLE api_key_records (
+            id TEXT PRIMARY KEY,
+            display_name TEXT NOT NULL,
+            secret_record_id TEXT NOT NULL,
+            is_active INTEGER NOT NULL CHECK (is_active IN (0, 1))
         );
-        assert_eq!(store.list_api_key_records().await.unwrap(), vec![record]);
-    });
+        CREATE UNIQUE INDEX idx_api_key_records_active
+            ON api_key_records(is_active)
+            WHERE is_active = 1;
+        INSERT INTO api_key_records(id, display_name, secret_record_id, is_active)
+        VALUES ('legacy', 'Legacy key', 'novelai-api-key:legacy', 1);
+        UPDATE atelier_schema SET schema_version = 2 WHERE singleton = 1;
+        ",
+    )
+    .unwrap();
+    drop(raw);
+
+    drop(DatabaseConnection::open(&path).unwrap());
+    let raw = Connection::open(path).unwrap();
+    let api_key_table_exists: bool = raw
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = 'api_key_records')",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(!api_key_table_exists);
+    assert_eq!(
+        raw.query_row(
+            "SELECT schema_version FROM atelier_schema WHERE singleton = 1",
+            [],
+            |row| row.get::<_, i64>(0)
+        )
+        .unwrap(),
+        3
+    );
 }
 
 #[test]
@@ -199,8 +226,8 @@ fn old_migration_database_is_rejected_without_changes() {
 fn database_rejects_unknown_format_and_non_current_versions() {
     for (format, version) in [
         ("atelier-workspace-database", 0),
-        ("atelier-workspace-database", 3),
-        ("another-database", 2),
+        ("atelier-workspace-database", 4),
+        ("another-database", 3),
     ] {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("atelier.sqlite3");
@@ -301,52 +328,5 @@ fn artifact_warnings_use_only_the_current_structured_shape() {
 
         let repository = DatabaseArtifactRepository::new(DatabaseConnection::open(&path).unwrap());
         assert!(repository.get_artifact(&record.id).await.is_err());
-    });
-}
-
-#[test]
-fn api_key_registry_store_keeps_one_active_key_and_does_not_auto_select_on_delete() {
-    block_on(async {
-        let store = DatabaseApiKeyRegistryStore::new(DatabaseConnection::open_memory().unwrap());
-        store
-            .save_api_key_record(api_key_record("first", "First", false))
-            .await
-            .unwrap();
-        store
-            .save_api_key_record(api_key_record("second", "Second", false))
-            .await
-            .unwrap();
-
-        store
-            .set_active_api_key(&ApiKeyId::new("first"))
-            .await
-            .unwrap();
-        store
-            .set_active_api_key(&ApiKeyId::new("second"))
-            .await
-            .unwrap();
-        assert_eq!(
-            store
-                .get_active_api_key_record()
-                .await
-                .unwrap()
-                .unwrap()
-                .id
-                .as_str(),
-            "second"
-        );
-
-        assert!(
-            store
-                .delete_api_key_record(&ApiKeyId::new("second"))
-                .await
-                .unwrap()
-        );
-        assert!(store.get_active_api_key_record().await.unwrap().is_none());
-        let error = store
-            .set_active_api_key(&ApiKeyId::new("missing"))
-            .await
-            .unwrap_err();
-        assert_eq!(error.kind, SecretsErrorKind::MetadataStore);
     });
 }

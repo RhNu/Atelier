@@ -24,12 +24,13 @@ use atelier_danbooru::{DanbooruClient, UnavailableDanbooruClient};
 use atelier_image_analysis::ImageAnalysisModelManager;
 use atelier_prompt_lexicon::{LexiconEngine, UnavailableLexicon};
 use atelier_safety::{SafetyPolicyControl, SafetyScanner};
-use atelier_secrets::SecretStore;
+use atelier_secrets::{ApiKeyRegistryService, ApiKeyRegistryStore, SecretStore};
 use atelier_settings::{
     GlobalSettings, GlobalSettingsRepository, GlobalSettingsService, SettingsResult,
 };
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
+use crate::ports::{AppApiKeyService, TransientApiKeyRegistryStore};
 use crate::{AppError, AppEventListener, AppResult, WorkspaceSession};
 
 pub type CommandResult<T> = Result<T, ErrorEnvelopeDto>;
@@ -53,6 +54,7 @@ pub struct AtelierRuntime<
     danbooru_account_gate: futures::lock::Mutex<()>,
     event_listeners: Mutex<Vec<AppEventListener>>,
     global_settings: GlobalSettingsService,
+    api_keys: AppApiKeyService<S, F>,
 }
 
 impl AtelierRuntime<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbeddedVibeExtractor> {
@@ -70,14 +72,23 @@ impl AtelierRuntime<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbe
 
 impl<S, F> AtelierRuntime<S, F, NovelAiEmbeddedVibeExtractor> {
     #[must_use]
-    pub fn with_dependencies(secrets: S, factory: F) -> Self {
+    pub fn with_dependencies(secrets: S, factory: F) -> Self
+    where
+        S: Clone,
+        F: Clone,
+    {
         Self::with_dependencies_and_extractor(secrets, factory, NovelAiEmbeddedVibeExtractor)
     }
 }
 
 impl<S, F, E> AtelierRuntime<S, F, E> {
     #[must_use]
-    pub fn with_dependencies_and_extractor(secrets: S, factory: F, extractor: E) -> Self {
+    pub fn with_dependencies_and_extractor(secrets: S, factory: F, extractor: E) -> Self
+    where
+        S: Clone,
+        F: Clone,
+    {
+        let api_keys = transient_api_key_service(secrets.clone(), factory.clone());
         Self {
             session: Mutex::new(None),
             secrets,
@@ -91,6 +102,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
+            api_keys,
         }
     }
 
@@ -100,7 +112,12 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
         factory: F,
         extractor: E,
         safety_scanner: Option<Arc<dyn SafetyScanner>>,
-    ) -> Self {
+    ) -> Self
+    where
+        S: Clone,
+        F: Clone,
+    {
+        let api_keys = transient_api_key_service(secrets.clone(), factory.clone());
         Self {
             session: Mutex::new(None),
             secrets,
@@ -114,6 +131,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
+            api_keys,
         }
     }
 
@@ -124,7 +142,12 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
         factory: F,
         extractor: E,
         safety_scanner: Option<Arc<dyn SafetyScanner>>,
-    ) -> Self {
+    ) -> Self
+    where
+        S: Clone,
+        F: Clone,
+    {
+        let api_keys = transient_api_key_service(secrets.clone(), factory.clone());
         Self {
             session: Mutex::new(None),
             secrets,
@@ -138,6 +161,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings,
+            api_keys,
         }
     }
 
@@ -149,7 +173,12 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
         extractor: E,
         safety_scanner: Option<Arc<dyn SafetyScanner>>,
         lexicon: Arc<dyn LexiconEngine>,
-    ) -> Self {
+    ) -> Self
+    where
+        S: Clone,
+        F: Clone,
+    {
+        let api_keys = transient_api_key_service(secrets.clone(), factory.clone());
         Self {
             session: Mutex::new(None),
             secrets,
@@ -163,7 +192,22 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings,
+            api_keys,
         }
+    }
+
+    #[must_use]
+    pub fn with_api_key_registry(mut self, metadata: Arc<dyn ApiKeyRegistryStore>) -> Self
+    where
+        S: Clone,
+        F: Clone,
+    {
+        self.api_keys = ApiKeyRegistryService::new(
+            metadata,
+            self.secrets.clone(),
+            atelier_adapter_novelai::NovelAiSubscriptionProbeClient::new(self.factory.clone()),
+        );
+        self
     }
 
     #[must_use]
@@ -244,9 +288,9 @@ where
         root: std::path::PathBuf,
     ) -> CommandResult<Arc<WorkspaceSession<S, F, E>>> {
         let session = Arc::new(
-            WorkspaceSession::open_workspace_with_dependencies_and_extractor_and_safety_scanner(
+            WorkspaceSession::open_workspace_with_api_keys_and_extractor_and_safety_scanner(
                 root,
-                self.secrets.clone(),
+                self.api_keys.clone(),
                 self.factory.clone(),
                 self.extractor.clone(),
                 self.safety_scanner.clone(),
@@ -310,6 +354,14 @@ impl GlobalSettingsRepository for TransientGlobalSettingsRepository {
 
 fn transient_global_settings_service() -> GlobalSettingsService {
     GlobalSettingsService::new(Arc::new(TransientGlobalSettingsRepository::default()))
+}
+
+fn transient_api_key_service<S, F>(secrets: S, factory: F) -> AppApiKeyService<S, F> {
+    ApiKeyRegistryService::new(
+        Arc::new(TransientApiKeyRegistryStore::default()) as Arc<dyn ApiKeyRegistryStore>,
+        secrets,
+        atelier_adapter_novelai::NovelAiSubscriptionProbeClient::new(factory),
+    )
 }
 
 fn workspace_not_open() -> ErrorEnvelopeDto {

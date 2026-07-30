@@ -1,6 +1,5 @@
 //! `SQLite` database adapters for Atelier.
 
-mod api_keys;
 mod artifacts;
 mod codec;
 mod connection;
@@ -16,7 +15,6 @@ mod schema;
 mod settings;
 mod vibe;
 
-pub use api_keys::DatabaseApiKeyRegistryStore;
 pub use artifacts::DatabaseArtifactRepository;
 pub use connection::DatabaseConnection;
 pub use error::{DatabaseError, DatabaseErrorKind, DatabaseResult};

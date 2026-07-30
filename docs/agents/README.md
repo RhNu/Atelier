@@ -70,6 +70,7 @@ Implemented or partially implemented:
 - `crates/adapters/database`
 - `crates/adapters/image-codec`
 - `crates/adapters/keyring`
+- `crates/adapters/secrets-fs`
 - `crates/adapters/novelai`
 - `crates/adapters/image-analysis-onnx`
 - `crates/adapters/settings-fs`

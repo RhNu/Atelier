@@ -89,7 +89,29 @@ fn bootstrap_rejects_old_workspace_schema_without_mutating_it() {
 }
 
 #[test]
-fn account_and_prompt_chunk_commands_share_session() {
+fn account_commands_are_application_scoped_across_workspace_lifecycle() {
+    block_on(async {
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        let factory = RecordingFactory::default();
+        let host = test_host_with_factory(factory.clone());
+
+        create_active_key(&host).await;
+        assert_eq!(host.list_api_keys().await.unwrap().len(), 1);
+
+        open_workspace(&host, &first).await;
+        open_workspace(&host, &second).await;
+        host.close_workspace().unwrap();
+
+        let subscription = host.probe_active_api_key().await.unwrap();
+        assert_eq!(subscription.anlas_balance, 100);
+        assert_eq!(factory.secrets(), vec!["active-secret".to_owned()]);
+        assert_eq!(host.list_api_keys().await.unwrap()[0].id, "main");
+    });
+}
+
+#[test]
+fn account_and_prompt_chunk_commands_share_runtime() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
         let factory = RecordingFactory::default();

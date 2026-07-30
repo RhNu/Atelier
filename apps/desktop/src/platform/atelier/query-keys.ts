@@ -31,9 +31,9 @@ export const queryKeys = {
     status: () => ["app", "workspace-status"] as const,
   },
   account: {
-    root: () => ["workspace", "account"] as const,
-    apiKeys: () => ["workspace", "account", "api-keys"] as const,
-    activeSummary: () => ["workspace", "account", "active-summary"] as const,
+    root: () => ["app", "account"] as const,
+    apiKeys: () => ["app", "account", "api-keys"] as const,
+    activeSummary: () => ["app", "account", "active-summary"] as const,
   },
   danbooru: {
     root: () => ["app", "danbooru"] as const,

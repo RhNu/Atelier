@@ -86,7 +86,9 @@ Atelier uses a dark desktop workbench style:
 - No rounded corners, decorative orbs, marketing-style landing pages, or single-page catch-all settings surfaces.
 - No nested card stacks. Use full-height split layouts, panel columns, or section navigation instead.
 
-Settings pages should use a second-level section navigator inside the Settings route. The global icon rail remains the top-level app navigation; the Settings inner navigator owns Account, Generation, Images, and future Frontend preferences.
+Settings pages should use a second-level section navigator inside the Settings route. The global
+icon rail remains the top-level app navigation; the Settings inner navigator owns application-level
+Connections, Interface, and Safety sections plus workspace lifecycle, Generation, and Images.
 
 ### Modal Surfaces
 
@@ -102,6 +104,9 @@ Settings pages should use a second-level section navigator inside the Settings r
 The current Settings frontend separates application and workspace scopes:
 
 - Application / Interface: global language, Gallery SFW blur, and developer-mode preferences stored in the user configuration directory.
+- Application / Connections: NovelAI API key registry, active-key switching, and automatically
+  refreshed subscription summary shared across workspaces, followed by other service accounts such
+  as Danbooru.
 
 ## Localization
 
@@ -111,7 +116,6 @@ The current Settings frontend separates application and workspace scopes:
 - Raw NovelAI model and sampler identifiers remain wire values only. User-facing controls use centralized canonical display names such as `NAI Diffusion 4.5 Full` and `Euler A`; these canonical names are shared across locales.
 - User-visible frontend labels, placeholders, actions, empty states, accessibility text, and frontend-owned fallback messages use typed translation keys.
 - Workspace: current workspace path and lifecycle action.
-- Account: API key registry, active key, and automatically refreshed subscription summary.
 - Generation: workspace-local NovelAI image defaults.
 - Images: resource thumbnail and preview long-edge sizes.
 

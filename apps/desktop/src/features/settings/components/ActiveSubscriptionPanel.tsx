@@ -30,7 +30,7 @@ export function ActiveSubscriptionPanel({
         ? t("checkingSubscription")
         : null;
   return (
-    <section className="mb-3 border border-app-border bg-app-surface/45">
+    <section className="border border-app-border bg-app-surface/45">
       <header className="flex min-h-10 items-center justify-between gap-3 border-b border-app-border px-3 py-2">
         <div className="flex min-w-0 items-center gap-3">
           <h3 className="shrink-0 text-sm font-semibold text-app-text">

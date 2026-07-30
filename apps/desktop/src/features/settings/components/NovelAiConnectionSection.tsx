@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { reportBackgroundPromise } from "@/app/logger";
-import { AppButton, AppModal, AppPanel, EmptyState } from "@/components/ui";
+import { AppButton, AppModal, EmptyState } from "@/components/ui";
 import type { ApiKeyRecordDto } from "@/types";
 
 import {
@@ -12,9 +12,9 @@ import {
 } from "../state/useAccountSettingsController";
 import { ActiveSubscriptionPanel } from "./ActiveSubscriptionPanel";
 import { ApiKeyRow, type ApiKeyEditState } from "./ApiKeyRow";
-import { LoadingPanel, SectionHeader, TextField } from "./SettingsControls";
+import { LoadingPanel, TextField } from "./SettingsControls";
 
-export function AccountSettingsSection() {
+export function NovelAiConnectionSection() {
   const { t } = useTranslation("settings");
   const account = useAccountSettingsController();
   const refetchActiveSummary = account.activeSummary.refetch;
@@ -23,52 +23,56 @@ export function AccountSettingsSection() {
   }, [refetchActiveSummary]);
 
   return (
-    <div className="h-full min-h-0">
-      <AppPanel variant="section" className="flex min-h-0 flex-col overflow-hidden">
-        <SectionHeader title={t("account")}>
+    <>
+      <section className="grid max-w-2xl gap-3" aria-labelledby="novelai-connection-title">
+        <header className="flex flex-wrap items-start justify-between gap-3 border border-app-border bg-app-surface/45 p-4">
+          <div>
+            <h2 id="novelai-connection-title" className="text-sm font-semibold text-white">
+              {t("novelAiServiceName")}
+            </h2>
+            <p className="mt-1 text-xs text-app-muted">{t("novelAiConnectionDescription")}</p>
+          </div>
           <AppButton variant="secondary" onClick={account.openCreate}>
             <Plus aria-hidden="true" className="size-4" />
             {t("addApiKey")}
           </AppButton>
-        </SectionHeader>
-        <div className="min-h-0 flex-1 overflow-auto p-3">
-          <ActiveSubscriptionPanel
-            pending={account.activeSummary.isPending}
-            refreshing={account.activeSummary.isFetching && !account.activeSummary.isPending}
-            missingActiveKey={isMissingActiveKey(account.activeSummary.error)}
-            error={account.activeSummary.isError ? account.activeSummary.error : null}
-            summary={account.activeSummary.data ?? null}
-            onRetry={retryActiveSummary}
-          />
-          <ApiKeyList
-            keys={account.keys}
-            pending={account.keysPending}
-            error={account.keysError}
-            busy={account.busy}
-            onEdit={account.setEditing}
-            onSetActive={account.setActive}
-            onDelete={account.deleteKey}
-          />
-        </div>
-        <CreateKeyModal
-          open={account.createOpen}
-          displayName={account.displayName}
-          secret={account.secret}
-          disabled={account.createDisabled}
-          onDisplayNameChange={account.setDisplayName}
-          onSecretChange={account.setSecret}
-          onCreate={account.createKey}
-          onClose={account.cancelCreate}
+        </header>
+        <ActiveSubscriptionPanel
+          pending={account.activeSummary.isPending}
+          refreshing={account.activeSummary.isFetching && !account.activeSummary.isPending}
+          missingActiveKey={isMissingActiveKey(account.activeSummary.error)}
+          error={account.activeSummary.isError ? account.activeSummary.error : null}
+          summary={account.activeSummary.data ?? null}
+          onRetry={retryActiveSummary}
         />
-        <EditKeyModal
-          editing={account.editing}
+        <ApiKeyList
+          keys={account.keys}
+          pending={account.keysPending}
+          error={account.keysError}
           busy={account.busy}
-          onEditChange={account.setEditing}
-          onSave={account.saveEdit}
-          onClose={account.cancelEdit}
+          onEdit={account.setEditing}
+          onSetActive={account.setActive}
+          onDelete={account.deleteKey}
         />
-      </AppPanel>
-    </div>
+      </section>
+      <CreateKeyModal
+        open={account.createOpen}
+        displayName={account.displayName}
+        secret={account.secret}
+        disabled={account.createDisabled}
+        onDisplayNameChange={account.setDisplayName}
+        onSecretChange={account.setSecret}
+        onCreate={account.createKey}
+        onClose={account.cancelCreate}
+      />
+      <EditKeyModal
+        editing={account.editing}
+        busy={account.busy}
+        onEditChange={account.setEditing}
+        onSave={account.saveEdit}
+        onClose={account.cancelEdit}
+      />
+    </>
   );
 }
 

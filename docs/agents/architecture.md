@@ -69,6 +69,7 @@ crates/
     image-analysis-onnx/
     keyring/
     novelai/
+    secrets-fs/
     settings-fs/
     storage-fs/
 
@@ -123,6 +124,8 @@ Adapters are the boundary for real I/O:
 - `image-analysis-onnx`: pinned dbrating and optional WD Tagger package download, verification,
   preprocessing, lazy ONNX sessions, rating extraction, and future general/character tag output.
 - `settings-fs`: user-level global settings stored below the desktop host-provided application configuration directory.
+- `secrets-fs`: application-level NovelAI API key metadata stored below the desktop host-provided
+  application configuration directory. Secret values remain in the system keyring.
 
 Persistence and secret boundaries are adapter contracts:
 
@@ -133,9 +136,11 @@ Persistence and secret boundaries are adapter contracts:
   unknown, unmarked, and wrong-format schemas are rejected. Global settings follow the same
   one-version-boundary rule below `settings-fs/src/migrations`. Feature and application models
   must not become persistence schemas through serialization derives.
-- `features/secrets` stores only key metadata through the database port. Secret values go through
-  `SecretStore` and the keyring adapter, and must not appear in SQLite, API responses, events,
-  history, logs, or diagnostics.
+- `features/secrets` stores application-level key metadata through its registry port. The
+  `secrets-fs` adapter persists that metadata independently of any workspace. Secret values go
+  through `SecretStore` and the keyring adapter, and must not appear in workspace SQLite, API
+  responses, events, history, logs, or diagnostics. Workspace database migrations delete legacy
+  API key metadata without importing it into application storage.
 
 Desktop host glue lives inside `apps/desktop/src-tauri`, not a reusable adapter crate. The frontend should invoke Tauri commands that perform picker, read, write, and host actions together; it should not directly read arbitrary user files through frontend filesystem capabilities.
 
@@ -147,7 +152,12 @@ External library types should not leak upward into feature crates, `kernel`, or 
 
 `app` should be host-neutral. It should map `app-api` DTOs to feature/kernel inputs, hold runtime state, inject adapters, apply runtime guards, and expose use case groups. It must not depend on Tauri.
 
-The process-level `AtelierRuntime` owns global settings, event listeners, injected external dependencies, and an optional `WorkspaceSession`. A `WorkspaceSession` owns only services and runtime state tied to one opened workspace. Opening a replacement workspace builds the candidate session and persists its recent-workspace state before publishing it.
+The process-level `AtelierRuntime` owns global settings, the application-level API key registry,
+event listeners, injected external dependencies, and an optional `WorkspaceSession`. A
+`WorkspaceSession` owns only services and runtime state tied to one opened workspace, while its
+NovelAI adapter resolves the active key through the shared application registry. Opening a
+replacement workspace builds the candidate session and persists its recent-workspace state before
+publishing it.
 
 ## Resource Rule
 

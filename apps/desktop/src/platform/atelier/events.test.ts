@@ -28,7 +28,7 @@ describe("applyAtelierEventInvalidations", () => {
     expect(invalidated).toContainEqual(["workspace", "generation"]);
     expect(invalidated).toContainEqual(["workspace", "history"]);
     expect(invalidated).toContainEqual(["workspace", "gallery"]);
-    expect(invalidated).toContainEqual(["workspace", "account", "active-summary"]);
+    expect(invalidated).toContainEqual(["app", "account", "active-summary"]);
     expect(invalidateQueries).toHaveBeenCalledTimes(4);
   });
 

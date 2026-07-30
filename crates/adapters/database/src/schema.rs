@@ -5,7 +5,7 @@ use crate::error::{DatabaseError, DatabaseResult};
 mod migrations;
 
 const DATABASE_FORMAT: &str = "atelier-workspace-database";
-const DATABASE_SCHEMA_VERSION: i64 = 2;
+const DATABASE_SCHEMA_VERSION: i64 = 3;
 
 const SCHEMA_SQL: &str = r"
 CREATE TABLE atelier_schema (
@@ -15,7 +15,7 @@ CREATE TABLE atelier_schema (
 );
 
 INSERT INTO atelier_schema(singleton, format, schema_version)
-VALUES (1, 'atelier-workspace-database', 2);
+VALUES (1, 'atelier-workspace-database', 3);
 
 CREATE TABLE resources (
     id TEXT PRIMARY KEY,
@@ -123,17 +123,6 @@ CREATE INDEX idx_gallery_items_effective_safety_label
     ON gallery_items(effective_safety_label);
 CREATE INDEX idx_gallery_items_safety_scan_state
     ON gallery_items(safety_scan_state, indexed_at_ms, item_id);
-
-CREATE TABLE api_key_records (
-    id TEXT PRIMARY KEY,
-    display_name TEXT NOT NULL,
-    secret_record_id TEXT NOT NULL,
-    is_active INTEGER NOT NULL CHECK (is_active IN (0, 1))
-);
-
-CREATE UNIQUE INDEX idx_api_key_records_active
-    ON api_key_records(is_active)
-    WHERE is_active = 1;
 
 CREATE TABLE prompt_chunks (
     chunk_id TEXT PRIMARY KEY,

@@ -2,6 +2,7 @@ import type { LocaleShape } from "../../locale-types";
 import { settings as enSettings } from "../en/settings";
 
 export const settings = {
+  novelAiServiceName: "NovelAI",
   danbooruServiceName: "Danbooru",
   sections: "设置分类",
   application: "应用",
@@ -11,8 +12,6 @@ export const settings = {
   safetyDescription: "分级模型与自动复核",
   connections: "服务连接",
   connectionsDescription: "应用级外部服务账户",
-  account: "账户",
-  accountDescription: "NovelAI API 密钥和订阅检测",
   workspace: "工作区",
   workspaceDescription: "当前工作区及其生命周期",
   frontend: "界面",
@@ -104,7 +103,7 @@ export const settings = {
   mainKeyPlaceholder: "主要 NovelAI 密钥",
   pasteKeyPlaceholder: "粘贴密钥",
   saveApiKeyChanges: "保存 API 密钥更改",
-  accountDescriptionLong: "管理工作区 API 密钥，同时不暴露已存储的密钥内容。",
+  novelAiConnectionDescription: "管理多个应用级 API 密钥、活动密钥切换与订阅状态。",
   apiKeyDisplayName: "API 密钥显示名称",
   apiKeySecret: "NovelAI API 密钥",
   addApiKey: "添加 API 密钥",

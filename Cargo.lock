@@ -448,7 +448,6 @@ dependencies = [
  "atelier-prompt-resources",
  "atelier-resource-catalog",
  "atelier-safety",
- "atelier-secrets",
  "atelier-settings",
  "atelier-vibe",
  "futures-executor",
@@ -552,6 +551,18 @@ version = "0.1.0"
 dependencies = [
  "ort",
  "thiserror 2.0.19",
+]
+
+[[package]]
+name = "atelier-adapter-secrets-fs"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-secrets",
+ "futures-executor",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -664,6 +675,7 @@ dependencies = [
  "atelier-adapter-lexicon-bundle",
  "atelier-adapter-novelai",
  "atelier-adapter-onnx-runtime",
+ "atelier-adapter-secrets-fs",
  "atelier-adapter-settings-fs",
  "atelier-app",
  "atelier-app-api",
