@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::generation::{
-    ImageFormatDto, ImageModelDto, ImageSizeDto, NoiseScheduleDto, SamplerDto, UcPresetDto,
+    ImageFormatDto, ImageModelDto, ImageSizeDto, NoiseScheduleDto, QualityPresetDto, SamplerDto,
+    UcPresetDto,
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -17,7 +18,8 @@ pub struct WorkspaceSettingsDto {
 pub struct GenerationDefaultsDto {
     pub model: ImageModelDto,
     pub size: ImageSizeDto,
-    pub quality: bool,
+    pub quality: QualityPresetDto,
+    pub transparent_background: bool,
     pub uc_preset: UcPresetDto,
     pub steps: u32,
     pub scale: f32,
@@ -37,7 +39,8 @@ impl Default for GenerationDefaultsDto {
         Self {
             model: ImageModelDto::default(),
             size: ImageSizeDto::default(),
-            quality: true,
+            quality: QualityPresetDto::Standard,
+            transparent_background: false,
             uc_preset: UcPresetDto::default(),
             steps: 23,
             scale: 5.0,

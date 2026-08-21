@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { PromptPresetDto, PromptPresetKindDto } from "@/types";
+import type { ImageModelDto, PromptPresetDto, PromptPresetKindDto } from "@/types";
 
 import { presetSearchText } from "../preset-editor-model";
 import { matchesSearch, type ResourceViewMode } from "../resource-model";
@@ -18,6 +18,7 @@ export function PresetWorkspace({
   newRequest,
   viewMode,
   categorySuggestions,
+  defaultModel,
 }: {
   kind: PromptPresetKindDto;
   presets: ReadonlyArray<PromptPresetDto>;
@@ -27,6 +28,7 @@ export function PresetWorkspace({
   newRequest: number;
   viewMode: ResourceViewMode;
   categorySuggestions: ReadonlyArray<string>;
+  defaultModel: ImageModelDto;
 }) {
   const { t } = useTranslation("resources");
   const [editorPreset, setEditorPreset] = useState<PromptPresetDto | null | undefined>(undefined);
@@ -78,6 +80,7 @@ export function PresetWorkspace({
           kind={kind}
           preset={editorPreset}
           categorySuggestions={categorySuggestions}
+          defaultModel={defaultModel}
           onClose={() => setEditorPreset(undefined)}
         />
       ) : null}

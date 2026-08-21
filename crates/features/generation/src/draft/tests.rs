@@ -17,10 +17,10 @@ fn generation_draft_rejects_invalid_numeric_and_position_values() {
     );
 
     let mut draft = sample_draft();
-    draft.characters[0].position.x = 1.1;
+    draft.prompt_states[0].characters[0].position.x = 1.1;
     assert_eq!(
         draft.validate().unwrap_err().field.as_deref(),
-        Some("characters[0].position.x")
+        Some("prompt_states[0].characters[0].position.x")
     );
 }
 
@@ -33,15 +33,28 @@ fn generation_draft_rejects_vibe_and_precise_reference_conflict() {
 
 fn sample_draft() -> GenerationDraftSnapshot {
     GenerationDraftSnapshot {
-        main_preset_id: Some("main-preset".to_owned()),
-        prompt: "1girl, cinematic lighting".to_owned(),
-        negative_prompt: "low quality".to_owned(),
         model: ImageModel::NaiDiffusion45Full,
+        prompt_states: vec![GenerationDraftPromptState {
+            model: ImageModel::NaiDiffusion45Full,
+            main_preset_id: Some("main-preset".to_owned()),
+            prompt: "1girl, cinematic lighting".to_owned(),
+            negative_prompt: "low quality".to_owned(),
+            characters: vec![GenerationDraftCharacter {
+                id: "character-slot".to_owned(),
+                preset_id: Some("character-preset".to_owned()),
+                prompt: "red hair".to_owned(),
+                negative_prompt: "hat".to_owned(),
+                enabled: true,
+                position: CharacterPosition { x: 0.25, y: 0.75 },
+            }],
+            character_position_mode: GenerationDraftCharacterPositionMode::Manual,
+        }],
         size: ImageSize {
             width: 832,
             height: 1216,
         },
-        quality: true,
+        quality: QualityPreset::Standard,
+        transparent_background: false,
         uc_preset: UcPreset::Light,
         steps: 28,
         scale: 5.5,
@@ -74,6 +87,7 @@ fn sample_draft() -> GenerationDraftSnapshot {
                 display_name: "Warm film".to_owned(),
                 source_image: Some(resource("resource:vibe-source")),
                 source_sha256: Some("abc123".to_owned()),
+                model: ImageModel::NaiDiffusion45Full,
             }],
         },
         precise_references: vec![GenerationDraftPreciseReference {
@@ -84,15 +98,6 @@ fn sample_draft() -> GenerationDraftSnapshot {
             strength: 0.6,
             display_name: "Hero".to_owned(),
         }],
-        characters: vec![GenerationDraftCharacter {
-            id: "character-slot".to_owned(),
-            preset_id: Some("character-preset".to_owned()),
-            prompt: "red hair".to_owned(),
-            negative_prompt: "hat".to_owned(),
-            enabled: true,
-            position: CharacterPosition { x: 0.25, y: 0.75 },
-        }],
-        character_position_mode: GenerationDraftCharacterPositionMode::Manual,
     }
 }
 

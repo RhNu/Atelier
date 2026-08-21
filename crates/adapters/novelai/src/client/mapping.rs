@@ -1,10 +1,11 @@
 use super::{
-    Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
-    DirectorTool, EncodeVibeRequest, GenerateImageRequest, GenerateImageStreamRequest,
-    GeneratedImage, GeneratedImageMetadata, GeneratedImageMetadataWarning, ImageFormat, ImageModel,
-    ImageSize, ImageStreamEvent, Img2ImgRequest, NoiseSchedule, NovelAiBridgeError,
-    ParsedGeneratedImageMetadata, RunDirectorToolRequest, Sampler, SecretsError, StreamMode,
-    SubscriptionSummary, UcPreset, VibeModel, bridge,
+    Character, CharacterPosition, CharacterReference, CharacterReferenceType, DirectorTool,
+    EncodeVibeRequest, GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage,
+    GeneratedImageMetadata, GeneratedImageMetadataWarning, ImageFormat, ImageModel, ImageSize,
+    ImageStreamEvent, Img2ImgRequest, NoiseSchedule, NovelAiBridgeError,
+    ParsedGeneratedImageMetadata, QualityPreset, RunDirectorToolRequest, Sampler, SecretsError,
+    StreamMode, SubscriptionSummary, UcPreset, V5UsageStatus, VibeModel, VibeTransferConfig,
+    bridge,
 };
 
 pub(super) fn map_secrets_error(error: &SecretsError) -> NovelAiBridgeError {
@@ -14,34 +15,47 @@ pub(super) fn map_secrets_error(error: &SecretsError) -> NovelAiBridgeError {
 pub(super) fn to_bridge_generate_request(
     request: GenerateImageRequest,
 ) -> bridge::GenerateImageRequest {
+    let references = bridge::ReferenceSet {
+        vibe_transfer: request.vibe_transfer.map(to_bridge_vibe_transfer),
+        character_references: request
+            .character_references
+            .unwrap_or_default()
+            .into_iter()
+            .map(to_bridge_character_reference)
+            .collect(),
+    };
     bridge::GenerateImageRequest {
-        prompt: request.prompt,
-        model: to_bridge_model(request.model),
-        size: to_bridge_size(request.size),
-        negative_prompt: request.negative_prompt,
-        quality: request.quality,
-        uc_preset: to_bridge_uc_preset(request.uc_preset),
-        steps: request.steps,
-        scale: request.scale,
-        sampler: to_bridge_sampler(request.sampler),
-        noise_schedule: to_bridge_noise_schedule(request.noise_schedule),
-        seed: request.seed,
-        n_samples: request.n_samples,
-        cfg_rescale: request.cfg_rescale,
-        variety_boost: request.variety_boost,
-        i2i: request.i2i.map(to_bridge_i2i),
-        controlnet: request.controlnet.map(to_bridge_controlnet),
-        character_references: request.character_references.map(|items| {
-            items
-                .into_iter()
-                .map(to_bridge_character_reference)
-                .collect()
+        core: bridge::GenerationCore {
+            prompt: request.prompt,
+            negative_prompt: request.negative_prompt,
+            model: to_bridge_model(request.model),
+            size: to_bridge_size(request.size),
+            seed: request.seed,
+            n_samples: request.n_samples,
+            quality: to_bridge_quality(request.quality),
+            transparent_background: request.transparent_background,
+            uc_preset: to_bridge_uc_preset(request.uc_preset),
+        },
+        sampling: bridge::SamplingParams {
+            steps: request.steps,
+            scale: request.scale,
+            sampler: to_bridge_sampler(request.sampler),
+            noise_schedule: to_bridge_noise_schedule(request.noise_schedule),
+            cfg_rescale: request.cfg_rescale,
+        },
+        characters: request.characters.map(|items| bridge::CharacterSet {
+            characters: items.into_iter().map(to_bridge_character).collect(),
+            use_coords: request.use_coords,
         }),
-        characters: request
-            .characters
-            .map(|items| items.into_iter().map(to_bridge_character).collect()),
-        use_coords: request.use_coords,
-        image_format: request.image_format.map(to_bridge_image_format),
+        guidance: bridge::GuidanceParams {
+            variety_boost: request.variety_boost,
+            ..bridge::GuidanceParams::default()
+        },
+        img2img: request.img2img.map(to_bridge_i2i),
+        references: (!references.is_empty()).then_some(references),
+        output: bridge::OutputParams {
+            image_format: request.image_format.map(to_bridge_image_format),
+        },
         strict_mode: request.strict_mode,
     }
 }
@@ -151,11 +165,18 @@ pub(super) fn from_bridge_subscription(
         tier: subscription.tier,
         tier_name: subscription.tier_name,
         expires_at_ms: subscription.expires_at_ms,
+        v5_usage: subscription.v5_usage.map(|usage| V5UsageStatus {
+            is_negative: usage.is_negative,
+            percent: usage.percent,
+            seconds_until_next_percent: usage.seconds_until_next_percent,
+        }),
     }
 }
 
 pub(super) const fn to_bridge_model(model: ImageModel) -> bridge::Model {
     match model {
+        ImageModel::NaiDiffusion5Full => bridge::Model::NaiDiffusion5Full,
+        ImageModel::NaiDiffusion5Curated => bridge::Model::NaiDiffusion5Curated,
         ImageModel::NaiDiffusion45Full => bridge::Model::NaiDiffusion45Full,
         ImageModel::NaiDiffusion45Curated => bridge::Model::NaiDiffusion45Curated,
         ImageModel::NaiDiffusion4Full => bridge::Model::NaiDiffusion4Full,
@@ -167,6 +188,8 @@ pub(super) const fn to_bridge_model(model: ImageModel) -> bridge::Model {
 
 pub(super) const fn to_bridge_vibe_model(model: VibeModel) -> bridge::Model {
     match model {
+        VibeModel::NaiDiffusion5Full => bridge::Model::NaiDiffusion5Full,
+        VibeModel::NaiDiffusion5Curated => bridge::Model::NaiDiffusion5Curated,
         VibeModel::NaiDiffusion45Full => bridge::Model::NaiDiffusion45Full,
         VibeModel::NaiDiffusion45Curated => bridge::Model::NaiDiffusion45Curated,
         VibeModel::NaiDiffusion4Full => bridge::Model::NaiDiffusion4Full,
@@ -190,14 +213,17 @@ pub(super) const fn to_bridge_sampler(sampler: Sampler) -> bridge::Sampler {
         Sampler::KDpm2 => bridge::Sampler::KDpm2,
         Sampler::KDpm2Ancestral => bridge::Sampler::KDpm2Ancestral,
         Sampler::KDpmpp2m => bridge::Sampler::KDpmpp2m,
+        Sampler::KDpmpp2mSde => bridge::Sampler::KDpmpp2mSde,
         Sampler::KDpmpp2sAncestral => bridge::Sampler::KDpmpp2sAncestral,
         Sampler::KDpmppSde => bridge::Sampler::KDpmppSde,
         Sampler::Ddim => bridge::Sampler::Ddim,
+        Sampler::DdimV3 => bridge::Sampler::DdimV3,
     }
 }
 
 pub(super) const fn to_bridge_noise_schedule(schedule: NoiseSchedule) -> bridge::NoiseSchedule {
     match schedule {
+        NoiseSchedule::Native => bridge::NoiseSchedule::Native,
         NoiseSchedule::Karras => bridge::NoiseSchedule::Karras,
         NoiseSchedule::Exponential => bridge::NoiseSchedule::Exponential,
         NoiseSchedule::Polyexponential => bridge::NoiseSchedule::Polyexponential,
@@ -228,23 +254,19 @@ pub(super) const fn to_bridge_stream_mode(mode: StreamMode) -> bridge::StreamMod
 }
 
 pub(super) fn to_bridge_i2i(request: Img2ImgRequest) -> bridge::Img2ImgRequest {
-    bridge::Img2ImgRequest {
-        image: request.image,
-        strength: request.strength,
-        noise: request.noise,
-        mask: request.mask,
-    }
+    let mut result = bridge::Img2ImgRequest::new(request.image, request.strength, request.noise);
+    result.mask = request.mask;
+    result
 }
 
-pub(super) fn to_bridge_controlnet(config: ControlNetConfig) -> bridge::ControlNetConfig {
-    bridge::ControlNetConfig {
-        images: config
-            .images
+pub(super) fn to_bridge_vibe_transfer(config: VibeTransferConfig) -> bridge::VibeTransferConfig {
+    bridge::VibeTransferConfig {
+        references: config
+            .references
             .into_iter()
-            .map(|input| bridge::ControlNetInput {
-                vibe_data_cache: input.vibe_data_cache,
-                info_extracted: input.info_extracted,
-                strength: input.strength,
+            .map(|reference| bridge::VibeReference {
+                vibe_data_cache: reference.vibe_data_cache,
+                strength: reference.strength,
             })
             .collect(),
         strength: config.strength,
@@ -278,6 +300,16 @@ pub(super) const fn to_bridge_character_reference_type(
         CharacterReferenceType::CharacterAndStyle => {
             bridge::CharacterReferenceType::CharacterAndStyle
         }
+        CharacterReferenceType::Costume => bridge::CharacterReferenceType::Costume,
+        CharacterReferenceType::Delta => bridge::CharacterReferenceType::Delta,
+    }
+}
+
+pub(super) const fn to_bridge_quality(quality: QualityPreset) -> bridge::QualityPreset {
+    match quality {
+        QualityPreset::Standard => bridge::QualityPreset::Standard,
+        QualityPreset::Light => bridge::QualityPreset::Light,
+        QualityPreset::None => bridge::QualityPreset::None,
     }
 }
 

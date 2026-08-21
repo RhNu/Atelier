@@ -371,7 +371,7 @@ fn prompt_lexicon_and_vibe_commands_are_available_through_facade() {
                 vibe_id,
                 source_sha256: "source-sha".to_owned(),
                 image: "source-image-base64".to_owned(),
-                model: VibeModelDto::NaiDiffusion45Full,
+                model: ImageModelDto::NaiDiffusion45Full,
                 information_extracted: 0.7,
             })
             .await

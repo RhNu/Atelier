@@ -1,11 +1,11 @@
 use super::{
-    Character, CharacterPosition, CharacterReference, ControlNetConfig, ControlNetInput,
-    DatabaseResult, Deserialize, GenerateImageRequest, GenerateImageStreamRequest,
-    GenerationWorkRequest, ImageSize, Img2ImgRequest, Serialize, character_reference_type_as_str,
+    Character, CharacterPosition, CharacterReference, DatabaseResult, Deserialize,
+    GenerateImageRequest, GenerateImageStreamRequest, GenerationWorkRequest, ImageSize,
+    Img2ImgRequest, Serialize, VibeReference, VibeTransferConfig, character_reference_type_as_str,
     character_reference_type_from_str, image_format_as_str, image_format_from_str,
     image_model_as_str, image_model_from_str, noise_schedule_as_str, noise_schedule_from_str,
-    sampler_as_str, sampler_from_str, stream_mode_as_str, stream_mode_from_str, uc_preset_as_str,
-    uc_preset_from_str,
+    quality_preset_as_str, quality_preset_from_str, sampler_as_str, sampler_from_str,
+    stream_mode_as_str, stream_mode_from_str, uc_preset_as_str, uc_preset_from_str,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -68,7 +68,8 @@ pub(super) struct GenerateImageRequestDto {
     width: u32,
     height: u32,
     negative_prompt: Option<String>,
-    quality: bool,
+    quality: String,
+    transparent_background: bool,
     uc_preset: String,
     steps: u32,
     scale: f32,
@@ -78,8 +79,8 @@ pub(super) struct GenerateImageRequestDto {
     n_samples: u32,
     cfg_rescale: f32,
     variety_boost: bool,
-    i2i: Option<Img2ImgRequestDto>,
-    controlnet: Option<ControlNetConfigDto>,
+    img2img: Option<Img2ImgRequestDto>,
+    vibe_transfer: Option<VibeTransferConfigDto>,
     character_references: Option<Vec<CharacterReferenceDto>>,
     characters: Option<Vec<CharacterDto>>,
     use_coords: Option<bool>,
@@ -95,7 +96,8 @@ impl From<&GenerateImageRequest> for GenerateImageRequestDto {
             width: value.size.width,
             height: value.size.height,
             negative_prompt: value.negative_prompt.clone(),
-            quality: value.quality,
+            quality: quality_preset_as_str(value.quality).to_owned(),
+            transparent_background: value.transparent_background,
             uc_preset: uc_preset_as_str(value.uc_preset).to_owned(),
             steps: value.steps,
             scale: value.scale,
@@ -105,8 +107,11 @@ impl From<&GenerateImageRequest> for GenerateImageRequestDto {
             n_samples: value.n_samples,
             cfg_rescale: value.cfg_rescale,
             variety_boost: value.variety_boost,
-            i2i: value.i2i.as_ref().map(Img2ImgRequestDto::from),
-            controlnet: value.controlnet.as_ref().map(ControlNetConfigDto::from),
+            img2img: value.img2img.as_ref().map(Img2ImgRequestDto::from),
+            vibe_transfer: value
+                .vibe_transfer
+                .as_ref()
+                .map(VibeTransferConfigDto::from),
             character_references: value
                 .character_references
                 .as_ref()
@@ -135,7 +140,8 @@ impl GenerateImageRequestDto {
                 height: self.height,
             },
             negative_prompt: self.negative_prompt,
-            quality: self.quality,
+            quality: quality_preset_from_str(&self.quality)?,
+            transparent_background: self.transparent_background,
             uc_preset: uc_preset_from_str(&self.uc_preset)?,
             steps: self.steps,
             scale: self.scale,
@@ -145,8 +151,8 @@ impl GenerateImageRequestDto {
             n_samples: self.n_samples,
             cfg_rescale: self.cfg_rescale,
             variety_boost: self.variety_boost,
-            i2i: self.i2i.map(Into::into),
-            controlnet: self.controlnet.map(Into::into),
+            img2img: self.img2img.map(Into::into),
+            vibe_transfer: self.vibe_transfer.map(Into::into),
             character_references: self
                 .character_references
                 .map(|items| {
@@ -201,51 +207,52 @@ impl From<Img2ImgRequestDto> for Img2ImgRequest {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub(super) struct ControlNetInputDto {
+pub(super) struct VibeReferenceDto {
     vibe_data_cache: String,
-    info_extracted: f32,
     strength: f32,
 }
 
-impl From<&ControlNetInput> for ControlNetInputDto {
-    fn from(value: &ControlNetInput) -> Self {
+impl From<&VibeReference> for VibeReferenceDto {
+    fn from(value: &VibeReference) -> Self {
         Self {
             vibe_data_cache: value.vibe_data_cache.clone(),
-            info_extracted: value.info_extracted,
             strength: value.strength,
         }
     }
 }
 
-impl From<ControlNetInputDto> for ControlNetInput {
-    fn from(value: ControlNetInputDto) -> Self {
+impl From<VibeReferenceDto> for VibeReference {
+    fn from(value: VibeReferenceDto) -> Self {
         Self {
             vibe_data_cache: value.vibe_data_cache,
-            info_extracted: value.info_extracted,
             strength: value.strength,
         }
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub(super) struct ControlNetConfigDto {
-    images: Vec<ControlNetInputDto>,
+pub(super) struct VibeTransferConfigDto {
+    references: Vec<VibeReferenceDto>,
     strength: f32,
 }
 
-impl From<&ControlNetConfig> for ControlNetConfigDto {
-    fn from(value: &ControlNetConfig) -> Self {
+impl From<&VibeTransferConfig> for VibeTransferConfigDto {
+    fn from(value: &VibeTransferConfig) -> Self {
         Self {
-            images: value.images.iter().map(ControlNetInputDto::from).collect(),
+            references: value
+                .references
+                .iter()
+                .map(VibeReferenceDto::from)
+                .collect(),
             strength: value.strength,
         }
     }
 }
 
-impl From<ControlNetConfigDto> for ControlNetConfig {
-    fn from(value: ControlNetConfigDto) -> Self {
+impl From<VibeTransferConfigDto> for VibeTransferConfig {
+    fn from(value: VibeTransferConfigDto) -> Self {
         Self {
-            images: value.images.into_iter().map(Into::into).collect(),
+            references: value.references.into_iter().map(Into::into).collect(),
             strength: value.strength,
         }
     }

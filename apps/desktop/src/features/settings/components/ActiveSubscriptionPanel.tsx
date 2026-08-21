@@ -72,6 +72,14 @@ function SubscriptionSummary({
       <CompactMetric label={t("tier")} value={formatTier(summary?.tier_name) ?? "—"} />
       <CompactMetric label="Anlas" value={summary ? `${summary.anlas_balance} Anlas` : "—"} />
       <CompactMetric
+        label={t("v5Allowance")}
+        value={
+          summary?.v5_usage
+            ? `${summary.v5_usage.is_negative ? `${t("negativeAllowance")} · ` : ""}${summary.v5_usage.percent}%`
+            : "—"
+        }
+      />
+      <CompactMetric
         label={t("expires")}
         value={
           summary?.expires_at_ms

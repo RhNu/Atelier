@@ -28,5 +28,12 @@ pub fn subscription_to_dto(value: &atelier_secrets::SubscriptionSummary) -> Subs
         tier: value.tier,
         tier_name: value.tier_name.clone(),
         expires_at_ms: value.expires_at_ms,
+        v5_usage: value
+            .v5_usage
+            .map(|usage| atelier_app_api::account::V5UsageStatusDto {
+                is_negative: usage.is_negative,
+                percent: usage.percent,
+                seconds_until_next_percent: usage.seconds_until_next_percent,
+            }),
     }
 }

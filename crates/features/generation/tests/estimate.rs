@@ -76,8 +76,8 @@ fn applies_opus_free_image_discount_when_conditions_match() {
     });
 
     assert!(result.opus_discount_applied);
-    assert_eq!(result.per_request_cost, 20);
-    assert_eq!(result.total_cost, 20);
+    assert_eq!(result.per_request_cost, 0);
+    assert_eq!(result.total_cost, 0);
 }
 
 #[test]

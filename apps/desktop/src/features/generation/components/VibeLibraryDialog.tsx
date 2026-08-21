@@ -25,7 +25,10 @@ export function VibeLibraryDialog({
 }) {
   const { t } = useTranslation("generation");
   const [offset, setOffset] = useState(0);
-  const query = useVibeDocumentsQuery({ offset, limit: PAGE_LIMIT, include_hidden: false }, open);
+  const query = useVibeDocumentsQuery(
+    { offset, limit: PAGE_LIMIT, include_hidden: false, model },
+    open,
+  );
   const entries = useMemo(
     () =>
       (query.data?.items ?? []).filter((entry) => findVibeEncodingForModel(entry, model) !== null),

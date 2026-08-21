@@ -1,18 +1,19 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { lexiconApi, promptApi, queryKeys } from "@/platform/atelier";
-import type { LexiconSearchItemDto, PromptChunkDto } from "@/types";
+import type { ImageModelDto, LexiconSearchItemDto, PromptChunkDto } from "@/types";
 
-const CHUNK_QUERY = { offset: 0, limit: 200 } as const;
 const LEXICON_LIMIT = 20;
 const COMPLETION_STALE_TIME_MS = 30_000;
 
 export async function fetchPromptCompletionChunks(
   queryClient: QueryClient,
+  model: ImageModelDto | null = null,
 ): Promise<PromptChunkDto[]> {
+  const query = { offset: 0, limit: 200, model } as const;
   const page = await queryClient.fetchQuery({
-    queryKey: queryKeys.prompt.chunks(CHUNK_QUERY),
-    queryFn: () => promptApi.listChunks(CHUNK_QUERY),
+    queryKey: queryKeys.prompt.chunks(query),
+    queryFn: () => promptApi.listChunks(query),
     staleTime: COMPLETION_STALE_TIME_MS,
   });
   return page.items;

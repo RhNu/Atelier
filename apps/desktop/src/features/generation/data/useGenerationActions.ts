@@ -17,6 +17,7 @@ import type {
   CompileGenerationPromptRequestDto,
   GalleryImageReferenceRequestDto,
   ImageModelDto,
+  ModelCapabilitiesDto,
   ImageResourceKindDto,
   GenerationEstimateRequestDto,
   ListPromptPresetsRequestDto,
@@ -28,7 +29,6 @@ import type {
   SaveResourceImageRequestDto,
   SaveResourceImagesZipRequestDto,
   SubmitGenerationBatchRequestDto,
-  VibeModelDto,
 } from "@/types";
 
 import type { GenerationDraft } from "../model/generation-draft";
@@ -87,9 +87,15 @@ export function useClearGenerationDraftMutation() {
   });
 }
 
-export function useGenerationEstimateQuery(draft: GenerationDraft | null, isOpus: boolean) {
-  const request = draft ? buildGenerationEstimateRequest(draft, { isOpus }) : null;
-  const estimateKey = draft ? buildGenerationEstimateCacheKey(draft, { isOpus }) : null;
+export function useGenerationEstimateQuery(
+  draft: GenerationDraft | null,
+  isOpus: boolean,
+  capabilities?: ModelCapabilitiesDto,
+) {
+  const request = draft ? buildGenerationEstimateRequest(draft, { isOpus, capabilities }) : null;
+  const estimateKey = draft
+    ? buildGenerationEstimateCacheKey(draft, { isOpus, capabilities })
+    : null;
 
   return useQuery({
     queryKey: estimateKey
@@ -131,7 +137,7 @@ export function useEnsureVibeEncodingFromResourceMutation() {
             vibe_id: resource.id,
             source_sha256: sourceSha256,
             image: image.image_base64,
-            model: model as VibeModelDto,
+            model,
             information_extracted: informationExtracted,
           });
           return {

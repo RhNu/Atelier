@@ -65,6 +65,17 @@ describe("CodeMirror prompt completion source", () => {
     ]);
   });
 
+  it("scopes reusable chunk completion to the editor model", async () => {
+    const source = createNaiPromptCompletion(queryClient(), messages, "nai-diffusion-5-full");
+    await complete(source, "$chunk(li", true);
+
+    expect(mocks.listChunks).toHaveBeenCalledWith({
+      offset: 0,
+      limit: 200,
+      model: "nai-diffusion-5-full",
+    });
+  });
+
   it("keeps usable candidates when an independent source fails", async () => {
     mocks.listChunks.mockRejectedValue(new Error("workspace unavailable"));
     const source = createNaiPromptCompletion(queryClient(), messages);
@@ -282,6 +293,7 @@ function chunkPage(): PromptChunkPageDto {
         preview: null,
         created_at_ms: 1,
         updated_at_ms: 1,
+        models: ["nai-diffusion-4-5-full"],
       },
     ],
     total: 1,

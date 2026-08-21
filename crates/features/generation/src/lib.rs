@@ -11,8 +11,9 @@ mod request_plan;
 pub use draft::{
     GenerationDraftCharacter, GenerationDraftCharacterPositionMode, GenerationDraftError,
     GenerationDraftErrorKind, GenerationDraftI2i, GenerationDraftPreciseReference,
-    GenerationDraftRepository, GenerationDraftResult, GenerationDraftSeedMode,
-    GenerationDraftService, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
+    GenerationDraftPromptState, GenerationDraftRepository, GenerationDraftResult,
+    GenerationDraftSeedMode, GenerationDraftService, GenerationDraftSnapshot, GenerationDraftVibe,
+    GenerationDraftVibeSlot,
 };
 pub use error::{
     ClientApiErrorContext, ClientApiErrorReason, ClientDecodeContext, ClientDecodeTarget,
@@ -22,11 +23,12 @@ pub use error::{
 };
 pub use estimate::{AnlasEstimate, AnlasEstimateInput, estimate_anlas_cost};
 pub use model::{
-    Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
-    ControlNetInput, GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
-    GeneratedImage, GeneratedImageMetadata, GeneratedImageMetadataWarning, ImageFormat, ImageModel,
-    ImageSize, ImageStreamEvent, Img2ImgRequest, NoiseSchedule, ParsedGeneratedImageMetadata,
-    Sampler, StreamMode, UcPreset,
+    Character, CharacterPosition, CharacterReference, CharacterReferenceType, GenerateImageRequest,
+    GenerateImageResult, GenerateImageStreamRequest, GeneratedImage, GeneratedImageMetadata,
+    GeneratedImageMetadataWarning, ImageFormat, ImageModel, ImageSize, ImageStreamEvent,
+    Img2ImgRequest, ModelCapabilities, NoiseSchedule, ParsedGeneratedImageMetadata,
+    PromptStructure, QualityPreset, Sampler, StreamMode, UcPreset, VibeReference,
+    VibeTransferConfig,
 };
 pub use normalize::normalize_generate_request;
 pub use ports::{
@@ -55,6 +57,6 @@ mod tests {
         assert_eq!(request.size, ImageSize::portrait());
         assert_eq!(request.steps, 23);
         assert_eq!(request.n_samples, 1);
-        assert!(request.quality);
+        assert_eq!(request.quality, QualityPreset::Standard);
     }
 }

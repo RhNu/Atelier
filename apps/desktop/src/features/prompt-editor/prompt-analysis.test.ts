@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import corpus from "../../../../../assets/prompt-syntax/corpus.json";
 import { analyzePrompt, type NaiPromptProfile, type PromptSemanticSpan } from "./prompt-analysis";
 
+it("keeps V5 natural-language Unicode and punctuation intact", () => {
+  const text = "一位画家（微笑）😀：soft light\nKeep (all) punctuation!?";
+  expect(analyzePrompt(text, "novelai_v5").diagnostics).toEqual([]);
+});
+
 describe("NAI prompt syntax corpus", () => {
   it.each(corpus.cases)("$name", (syntaxCase) => {
     const analysis = analyzePrompt(syntaxCase.text, parseProfile(syntaxCase.profile));

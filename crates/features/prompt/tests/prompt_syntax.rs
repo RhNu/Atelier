@@ -3,6 +3,14 @@ use atelier_prompt::{
 };
 
 #[test]
+fn v5_natural_language_is_lossless_and_advisory() {
+    let source = "一位画家（微笑）😀：soft light\nKeep (all) punctuation!? $not_a_call";
+    let parsed = parse_prompt(source);
+    assert_eq!(parsed.to_lossless_text(), source);
+    let _diagnostics = parsed.diagnostics(&PromptSyntaxProfile::novelai_v5());
+}
+
+#[test]
 fn parses_v4_prompt_syntax_losslessly() {
     let source =
         r#"1girl, {blue eyes}, [lowres], 1.5::rain, night::, ||red|blue||, $chunk("face")"#;

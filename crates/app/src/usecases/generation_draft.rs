@@ -4,8 +4,8 @@ use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::{GenerationDraftDto, SaveGenerationDraftRequestDto};
 use atelier_app_api::prompt::LexiconDraftTargetDto;
 use atelier_generation::{
-    GenerationDraftCharacterPositionMode, GenerationDraftSeedMode, GenerationDraftSnapshot,
-    GenerationDraftVibe,
+    GenerationDraftCharacterPositionMode, GenerationDraftPromptState, GenerationDraftSeedMode,
+    GenerationDraftSnapshot, GenerationDraftVibe,
 };
 use atelier_prompt_lexicon::{ResolvedLexiconEntity, canonical_comparison_key};
 use atelier_resource_catalog::{ResourceId, ResourceOwner, ResourceOwnerKind, ResourceRelation};
@@ -116,9 +116,20 @@ where
             let settings = self.app.inner.settings.get_workspace_settings().await?;
             default_draft(&settings)
         };
+        let current_model = draft.model;
+        let state = draft
+            .prompt_states
+            .iter_mut()
+            .find(|state| state.model == current_model)
+            .ok_or_else(|| {
+                crate::AppError::new(
+                    "generation_draft_invalid_value",
+                    "current model prompt state is missing",
+                )
+            })?;
         let prompt = match target {
-            LexiconDraftTargetDto::Positive => &mut draft.prompt,
-            LexiconDraftTargetDto::Negative => &mut draft.negative_prompt,
+            LexiconDraftTargetDto::Positive => &mut state.prompt,
+            LexiconDraftTargetDto::Negative => &mut state.negative_prompt,
         };
         append_canonical_tags(prompt, entities);
         let saved = self.app.inner.generation_drafts.save(draft).await?;
@@ -126,15 +137,21 @@ where
     }
 }
 
-const fn default_draft(settings: &atelier_settings::WorkspaceSettings) -> GenerationDraftSnapshot {
+fn default_draft(settings: &atelier_settings::WorkspaceSettings) -> GenerationDraftSnapshot {
     let defaults = &settings.generation;
     GenerationDraftSnapshot {
-        main_preset_id: None,
-        prompt: String::new(),
-        negative_prompt: String::new(),
         model: defaults.model,
+        prompt_states: vec![GenerationDraftPromptState {
+            model: defaults.model,
+            main_preset_id: None,
+            prompt: String::new(),
+            negative_prompt: String::new(),
+            characters: Vec::new(),
+            character_position_mode: GenerationDraftCharacterPositionMode::Global,
+        }],
         size: defaults.size,
         quality: defaults.quality,
+        transparent_background: defaults.transparent_background,
         uc_preset: defaults.uc_preset,
         steps: defaults.steps,
         scale: defaults.scale,
@@ -160,8 +177,6 @@ const fn default_draft(settings: &atelier_settings::WorkspaceSettings) -> Genera
             slots: Vec::new(),
         },
         precise_references: Vec::new(),
-        characters: Vec::new(),
-        character_position_mode: GenerationDraftCharacterPositionMode::Global,
     }
 }
 

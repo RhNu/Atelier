@@ -56,6 +56,7 @@ import type {
   GetResourceImageRequestDto,
   GetVibeDocumentRequestDto,
   ImageResourceKindDto,
+  ImageModelDescriptorDto,
   ImageAnalysisModelInstallProgressDto,
   ImageAnalysisModelRequestDto,
   ImageAnalysisModelStatusDto,
@@ -307,6 +308,8 @@ export const settingsApi = {
 };
 
 export const generationApi = {
+  listModels: () =>
+    invokeAtelierCommand<ImageModelDescriptorDto[]>(atelierCommands.listImageModels),
   getDraft: () =>
     invokeAtelierCommand<GenerationDraftDto | null>(atelierCommands.getGenerationDraft),
   saveDraft: (request: SaveGenerationDraftRequestDto) =>

@@ -3,7 +3,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppModal } from "@/components/ui";
-import type { CompiledPromptDto, PromptPresetDto, PromptPresetKindDto } from "@/types";
+import type {
+  CompiledPromptDto,
+  ImageModelDto,
+  PromptPresetDto,
+  PromptPresetKindDto,
+} from "@/types";
 
 import {
   useCompilePromptPreviewMutation,
@@ -18,6 +23,7 @@ import {
   presetToEditorDraft,
 } from "../preset-editor-model";
 import { formatError } from "../resource-model";
+import { ModelBindingField, PreviewModelField } from "./ModelBindingField";
 import { PresetPromptFields } from "./PresetPromptFields";
 import {
   CategoryInput,
@@ -33,6 +39,7 @@ type PresetEditorDialogProps = {
   preset: PromptPresetDto | null;
   categorySuggestions: ReadonlyArray<string>;
   onClose: () => void;
+  defaultModel: ImageModelDto;
 };
 
 export function PresetEditorDialog({
@@ -40,12 +47,14 @@ export function PresetEditorDialog({
   preset,
   categorySuggestions,
   onClose,
+  defaultModel,
 }: PresetEditorDialogProps) {
   const { t } = useTranslation("resources");
   const [draft, setDraft] = useState(() =>
-    preset ? presetToEditorDraft(preset) : blankPresetEditorDraft(kind),
+    preset ? presetToEditorDraft(preset) : blankPresetEditorDraft(kind, defaultModel),
   );
   const [preview, setPreview] = useState<CompiledPromptDto | null>(null);
+  const [previewModel, setPreviewModel] = useState(preset?.models[0] ?? defaultModel);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const upsertMutation = useUpsertPromptPresetMutation();
   const deleteMutation = useDeletePromptPresetMutation();
@@ -75,9 +84,18 @@ export function PresetEditorDialog({
   function compile() {
     setErrorMessage(null);
     void compileMutation
-      .mutateAsync({ prompt: presetPreviewSource(draft), max_depth: 8 })
+      .mutateAsync({
+        prompt: presetPreviewSource(draft),
+        max_depth: 8,
+        model: previewModel,
+      })
       .then(setPreview)
       .catch((error: unknown) => setErrorMessage(formatError(error)));
+  }
+
+  function updateModels(models: ImageModelDto[]) {
+    setDraft({ ...draft, models });
+    if (!models.includes(previewModel)) setPreviewModel(models[0] ?? defaultModel);
   }
 
   function importPreview(source: "clipboard" | "file") {
@@ -110,6 +128,8 @@ export function PresetEditorDialog({
           />
         }
       >
+        <ModelBindingField models={draft.models} onChange={updateModels} />
+        <PreviewModelField models={draft.models} value={previewModel} onChange={setPreviewModel} />
         <TextInput
           label={t("name")}
           value={draft.name}
@@ -141,6 +161,7 @@ export function PresetEditorDialog({
         </details>
         <PresetPromptFields
           draft={draft}
+          previewModel={previewModel}
           preview={preview}
           compilePending={compileMutation.isPending}
           previewPending={previewMutation.isPending}

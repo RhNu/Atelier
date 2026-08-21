@@ -6,11 +6,10 @@ use super::{
     DeletePromptPresetResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkId, PromptChunkKey, PromptChunkPageDto,
     PromptPresetDto, PromptPresetId, PromptPresetPageDto, UpsertPromptChunkRequestDto,
-    UpsertPromptPresetRequestDto, WorkspaceSession, compiled_prompt_to_dto, prompt_chunk_to_dto,
-    prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
-    upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain,
+    UpsertPromptPresetRequestDto, WorkspaceSession, compiled_prompt_to_dto, image_model_to_domain,
+    prompt_chunk_to_dto, prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
+    quality_preset_to_dto, upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain,
 };
-use atelier_prompt::{FunctionRegistry, PromptDiagnosticKind, PromptSyntaxProfile, parse_prompt};
 use atelier_resource_catalog::{
     ResourceCatalogErrorKind, ResourceId, ResourceOwner, ResourceOwnerKind, ResourceRef,
     ResourceRelation,
@@ -117,7 +116,12 @@ where
         &self,
         request: ListPromptChunksRequestDto,
     ) -> AppResult<PromptChunkPageDto> {
-        let chunks = self.app.inner.prompt_chunks.list_chunks().await?;
+        let chunks = self
+            .app
+            .inner
+            .prompt_chunks
+            .list_chunks(request.model.map(image_model_to_domain))
+            .await?;
         let total = chunks.len();
         let start = request.offset.min(total);
         let end = start.saturating_add(request.limit).min(total);
@@ -214,7 +218,10 @@ where
             .app
             .inner
             .prompt_presets
-            .list_presets(request.kind.map(prompt_preset_kind_to_domain))
+            .list_presets(
+                request.kind.map(prompt_preset_kind_to_domain),
+                request.model.map(image_model_to_domain),
+            )
             .await?;
         let total = presets.len();
         let start = request.offset.min(total);
@@ -253,12 +260,12 @@ where
         &self,
         request: CompilePromptRequestDto,
     ) -> AppResult<CompiledPromptDto> {
-        validate_prompt_syntax(&request.prompt)?;
         self.app
             .inner
             .prompt_compiler
             .compile(CompilePromptRequest {
                 prompt: request.prompt,
+                model: image_model_to_domain(request.model),
                 max_depth: request.max_depth,
             })
             .await
@@ -270,7 +277,6 @@ where
         &self,
         request: CompileGenerationPromptRequestDto,
     ) -> AppResult<CompiledGenerationPromptDto> {
-        validate_generation_prompt_syntax(&request)?;
         let enabled_flags = request
             .characters
             .iter()
@@ -282,6 +288,7 @@ where
             .inner
             .prompt_compiler
             .compile_generation_prompt(CompileGenerationPromptRequest {
+                model: image_model_to_domain(request.model),
                 main_preset_id: request.main_preset_id.map(PromptPresetId::new),
                 prompt: request.prompt,
                 negative_prompt: request.negative_prompt.unwrap_or_default(),
@@ -344,6 +351,7 @@ where
                 let empty = self
                     .compile_preview(CompilePromptRequestDto {
                         prompt: String::new(),
+                        model: request.model,
                         max_depth,
                     })
                     .await?;
@@ -358,7 +366,7 @@ where
             prompt,
             negative_prompt,
             characters,
-            quality_override: compiled.quality_override,
+            quality_override: compiled.quality_override.map(quality_preset_to_dto),
             uc_preset_override: compiled.uc_preset_override,
         })
     }
@@ -464,41 +472,4 @@ where
         Err(error) if error.kind == ResourceCatalogErrorKind::NotFound => Ok(()),
         Err(error) => Err(error.into()),
     }
-}
-
-fn validate_prompt_syntax(prompt: &str) -> AppResult<()> {
-    let diagnostics = parse_prompt(prompt).diagnostics_with_functions(
-        &PromptSyntaxProfile::novelai_v45(),
-        &FunctionRegistry::atelier_defaults(),
-    );
-    if let Some(diagnostic) = diagnostics.into_iter().find(|item| {
-        !matches!(
-            item.kind,
-            PromptDiagnosticKind::UnclosedStrengthening
-                | PromptDiagnosticKind::UnclosedWeakening
-                | PromptDiagnosticKind::UnclosedNumericEmphasis
-                | PromptDiagnosticKind::UnclosedRandomizer
-                | PromptDiagnosticKind::UnclosedFunctionCall
-        )
-    }) {
-        return Err(AppError::new(
-            "prompt_syntax",
-            format!("{} at byte {}", diagnostic.message, diagnostic.span.start),
-        ));
-    }
-    Ok(())
-}
-
-fn validate_generation_prompt_syntax(request: &CompileGenerationPromptRequestDto) -> AppResult<()> {
-    validate_prompt_syntax(&request.prompt)?;
-    if let Some(negative_prompt) = &request.negative_prompt {
-        validate_prompt_syntax(negative_prompt)?;
-    }
-    for character in &request.characters {
-        validate_prompt_syntax(&character.prompt)?;
-        if let Some(negative_prompt) = &character.negative_prompt {
-            validate_prompt_syntax(negative_prompt)?;
-        }
-    }
-    Ok(())
 }

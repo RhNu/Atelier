@@ -148,4 +148,7 @@ export const settings = {
   closingWorkspace: "正在关闭工作区",
   closeWorkspace: "关闭工作区",
   root: "根目录",
+  transparentBackground: "透明背景",
+  v5Allowance: "V5 配额",
+  negativeAllowance: "负值",
 } satisfies LocaleShape<typeof enSettings>;

@@ -1,6 +1,7 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 import { AppCombobox, AppSelect } from "@/components/ui";
-import { NaiPromptEditor } from "@/features/prompt-editor";
+import { NaiPromptEditor, promptProfileForModel } from "@/features/prompt-editor";
+import type { ImageModelDto } from "@/types";
 
 export function TextInput({
   label,
@@ -103,11 +104,13 @@ export function PromptTextArea({
   label,
   value,
   minHeight = 160,
+  model,
   onChange,
 }: {
   label: string;
   value: string;
   minHeight?: number;
+  model?: ImageModelDto;
   onChange: (value: string) => void;
 }) {
   return (
@@ -117,7 +120,8 @@ export function PromptTextArea({
         aria-label={label}
         value={value}
         onChange={onChange}
-        profile="novelai_v45"
+        profile={model ? promptProfileForModel(model) : "novelai_v45"}
+        model={model}
         minHeight={minHeight}
       />
     </label>

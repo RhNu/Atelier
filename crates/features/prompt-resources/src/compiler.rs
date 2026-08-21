@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
+use atelier_generation::{ImageModel, QualityPreset};
 use atelier_prompt::{ExtensionCall, parse_prompt};
 
 use crate::functions::{PromptFunctionContext, PromptFunctionRegistry, PromptFunctionTraceEntry};
@@ -15,6 +16,7 @@ const DEFAULT_MAX_EXPANSION_DEPTH: usize = 16;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompilePromptRequest {
     pub prompt: String,
+    pub model: ImageModel,
     pub max_depth: usize,
 }
 
@@ -23,6 +25,7 @@ impl CompilePromptRequest {
     pub fn new(prompt: impl Into<String>) -> Self {
         Self {
             prompt: prompt.into(),
+            model: ImageModel::default(),
             max_depth: DEFAULT_MAX_EXPANSION_DEPTH,
         }
     }
@@ -51,6 +54,7 @@ pub struct CompileCharacterPromptRequest {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompileGenerationPromptRequest {
+    pub model: ImageModel,
     pub main_preset_id: Option<PromptPresetId>,
     pub prompt: String,
     pub negative_prompt: String,
@@ -72,7 +76,7 @@ pub struct CompiledGenerationPrompt {
     pub prompt: String,
     pub negative_prompt: String,
     pub characters: Vec<CompiledCharacterPrompt>,
-    pub quality_override: Option<String>,
+    pub quality_override: Option<QualityPreset>,
     pub uc_preset_override: Option<String>,
     pub trace: PromptOrchestrationTrace,
 }
@@ -99,7 +103,7 @@ struct AppliedPromptFields {
 struct AppliedMainPromptFields {
     prompt: String,
     negative_prompt: String,
-    quality_override: Option<String>,
+    quality_override: Option<QualityPreset>,
     uc_preset_override: Option<String>,
 }
 
@@ -143,6 +147,7 @@ where
         let expanded_prompt = self
             .expand_text(
                 &request.prompt,
+                request.model,
                 0,
                 request.max_depth,
                 &mut Vec::new(),
@@ -178,21 +183,29 @@ where
         } = self
             .apply_main_preset(
                 request.main_preset_id.as_ref(),
+                request.model,
                 request.prompt,
                 request.negative_prompt,
                 &mut trace,
             )
             .await?;
 
-        let prompt = self.compile_prompt_text(prompt, request.max_depth).await?;
+        let prompt = self
+            .compile_prompt_text(prompt, request.model, request.max_depth)
+            .await?;
         let negative_prompt = self
-            .compile_prompt_text(negative_prompt, request.max_depth)
+            .compile_prompt_text(negative_prompt, request.model, request.max_depth)
             .await?;
         trace.main_prompt = Some(prompt.trace.clone());
         trace.main_negative_prompt = Some(negative_prompt.trace.clone());
 
         let characters = self
-            .compile_character_prompts(request.characters, request.max_depth, &mut trace)
+            .compile_character_prompts(
+                request.characters,
+                request.model,
+                request.max_depth,
+                &mut trace,
+            )
             .await?;
 
         Ok(CompiledGenerationPrompt {
@@ -208,6 +221,7 @@ where
     async fn compile_character_prompts(
         &self,
         characters: Vec<CompileCharacterPromptRequest>,
+        model: ImageModel,
         max_depth: usize,
         trace: &mut PromptOrchestrationTrace,
     ) -> PromptResourceResult<Vec<CompiledCharacterPrompt>> {
@@ -217,10 +231,11 @@ where
             let AppliedPromptFields {
                 prompt,
                 negative_prompt,
-            } = self.apply_character_preset(character, trace).await?;
-            let compiled_prompt = self.compile_prompt_text(prompt, max_depth).await?;
-            let compiled_negative_prompt =
-                self.compile_prompt_text(negative_prompt, max_depth).await?;
+            } = self.apply_character_preset(character, model, trace).await?;
+            let compiled_prompt = self.compile_prompt_text(prompt, model, max_depth).await?;
+            let compiled_negative_prompt = self
+                .compile_prompt_text(negative_prompt, model, max_depth)
+                .await?;
             compiled.push(CompiledCharacterPrompt {
                 character_index,
                 prompt: compiled_prompt.expanded_prompt,
@@ -235,6 +250,7 @@ where
     async fn apply_main_preset(
         &self,
         preset_id: Option<&PromptPresetId>,
+        model: ImageModel,
         prompt: String,
         negative_prompt: String,
         trace: &mut PromptOrchestrationTrace,
@@ -248,7 +264,7 @@ where
             });
         };
         let preset = self
-            .require_preset(preset_id, PromptPresetKind::Main)
+            .require_preset(preset_id, PromptPresetKind::Main, model)
             .await?;
         trace_used_preset(trace, &preset);
         let fields = apply_preset_fields(&prompt, &negative_prompt, &preset);
@@ -263,6 +279,7 @@ where
     async fn apply_character_preset(
         &self,
         character: CompileCharacterPromptRequest,
+        model: ImageModel,
         trace: &mut PromptOrchestrationTrace,
     ) -> PromptResourceResult<AppliedPromptFields> {
         let Some(preset_id) = &character.preset_id else {
@@ -272,7 +289,7 @@ where
             });
         };
         let preset = self
-            .require_preset(preset_id, PromptPresetKind::Character)
+            .require_preset(preset_id, PromptPresetKind::Character, model)
             .await?;
         trace_used_preset(trace, &preset);
         Ok(apply_preset_fields(
@@ -285,16 +302,22 @@ where
     async fn compile_prompt_text(
         &self,
         prompt: String,
+        model: ImageModel,
         max_depth: usize,
     ) -> PromptResourceResult<CompiledPrompt> {
-        self.compile(CompilePromptRequest { prompt, max_depth })
-            .await
+        self.compile(CompilePromptRequest {
+            prompt,
+            model,
+            max_depth,
+        })
+        .await
     }
 
     async fn require_preset(
         &self,
         id: &PromptPresetId,
         kind: PromptPresetKind,
+        model: ImageModel,
     ) -> PromptResourceResult<PromptPreset> {
         let preset = self
             .repository
@@ -307,12 +330,20 @@ where
                 id.as_str()
             )));
         }
+        if !preset.models.contains(&model) {
+            return Err(PromptResourceError::invalid_request(format!(
+                "preset `{}` is not bound to model `{}`",
+                id.as_str(),
+                model.as_str()
+            )));
+        }
         Ok(preset)
     }
 
     fn expand_text<'a>(
         &'a self,
         text: &'a str,
+        model: ImageModel,
         depth: usize,
         max_depth: usize,
         active_scopes: &'a mut Vec<String>,
@@ -322,7 +353,7 @@ where
             let mut current = text.to_owned();
             loop {
                 let expanded = self
-                    .expand_one_pass(&current, depth, max_depth, active_scopes, trace)
+                    .expand_one_pass(&current, model, depth, max_depth, active_scopes, trace)
                     .await?;
                 if expanded == current {
                     return Ok(expanded);
@@ -335,6 +366,7 @@ where
     async fn expand_one_pass(
         &self,
         text: &str,
+        model: ImageModel,
         depth: usize,
         max_depth: usize,
         active_scopes: &mut Vec<String>,
@@ -351,7 +383,7 @@ where
         for call in ast.extension_calls() {
             fragments.push(ExpandedPromptFragment::text(&text[cursor..call.span.start]));
             let replacement = self
-                .expand_call(call, text, depth, max_depth, active_scopes, trace)
+                .expand_call(call, text, model, (depth, max_depth), active_scopes, trace)
                 .await?;
             fragments.push(ExpandedPromptFragment::expansion(replacement));
             cursor = call.span.end;
@@ -364,11 +396,12 @@ where
         &self,
         call: &ExtensionCall,
         source: &str,
-        depth: usize,
-        max_depth: usize,
+        model: ImageModel,
+        depth_and_limit: (usize, usize),
         active_scopes: &mut Vec<String>,
         trace: &mut Vec<PromptFunctionTraceEntry>,
     ) -> PromptResourceResult<String> {
+        let (depth, max_depth) = depth_and_limit;
         let call_depth = depth + 1;
         if call_depth > max_depth {
             return Err(PromptResourceError::conflict(
@@ -378,6 +411,7 @@ where
         let function = self.functions.get(&call.name)?;
         let context = PromptFunctionContext {
             resources: &self.repository,
+            model,
         };
         let output = function.execute(call, &context).await?;
         if let Some(scope) = &output.scope
@@ -403,12 +437,12 @@ where
         if let Some(scope) = output.scope {
             active_scopes.push(scope);
             let expanded = self
-                .expand_text(&text, call_depth, max_depth, active_scopes, trace)
+                .expand_text(&text, model, call_depth, max_depth, active_scopes, trace)
                 .await;
             active_scopes.pop();
             expanded
         } else {
-            self.expand_text(&text, call_depth, max_depth, active_scopes, trace)
+            self.expand_text(&text, model, call_depth, max_depth, active_scopes, trace)
                 .await
         }
     }

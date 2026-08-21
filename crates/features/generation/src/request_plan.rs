@@ -91,9 +91,9 @@ fn build_plan(
         steps: normalized_request.steps,
         n_samples: normalized_request.n_samples,
         request_count: context.request_count,
-        has_img2img: normalized_request.i2i.is_some(),
+        has_img2img: normalized_request.img2img.is_some(),
         img2img_strength: normalized_request
-            .i2i
+            .img2img
             .as_ref()
             .map_or(0.7, |i2i| i2i.strength),
         has_director_reference: normalized_request

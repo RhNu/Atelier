@@ -1,4 +1,9 @@
-import type { PromptChunkDto, ResourceRefDto, UpsertPromptChunkRequestDto } from "@/types";
+import type {
+  ImageModelDto,
+  PromptChunkDto,
+  ResourceRefDto,
+  UpsertPromptChunkRequestDto,
+} from "@/types";
 
 import { nullableText } from "./resource-model";
 
@@ -9,9 +14,12 @@ export type ChunkEditorDraft = {
   category: string;
   description: string;
   preview: ResourceRefDto | null;
+  models: ImageModelDto[];
 };
 
-export function blankChunkEditorDraft(): ChunkEditorDraft {
+export function blankChunkEditorDraft(
+  model: ImageModelDto = "nai-diffusion-4-5-full",
+): ChunkEditorDraft {
   return {
     chunkId: null,
     key: "",
@@ -19,6 +27,7 @@ export function blankChunkEditorDraft(): ChunkEditorDraft {
     category: "",
     description: "",
     preview: null,
+    models: [model],
   };
 }
 
@@ -30,6 +39,7 @@ export function chunkToEditorDraft(chunk: PromptChunkDto): ChunkEditorDraft {
     category: chunk.category ?? "",
     description: chunk.description ?? "",
     preview: chunk.preview,
+    models: [...chunk.models],
   };
 }
 
@@ -41,5 +51,6 @@ export function editorDraftToChunkRequest(draft: ChunkEditorDraft): UpsertPrompt
     category: nullableText(draft.category),
     description: nullableText(draft.description),
     preview: draft.preview,
+    models: draft.models,
   };
 }

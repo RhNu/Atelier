@@ -208,4 +208,9 @@ export const generation = {
   character: "Character {{index}}",
   characterNegative: "Character {{index}} undesired content",
   addCharacter: "Add character prompt",
+  transparentBackground: "Transparent background",
+  dormantGuidanceSummary:
+    "Unsupported guidance is preserved in this draft but is not enabled for the current model.",
+  v5Allowance: "V5 allowance",
+  negativeAllowance: "negative",
 } as const;

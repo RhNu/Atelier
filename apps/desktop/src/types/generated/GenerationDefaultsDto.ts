@@ -3,13 +3,15 @@ import type { ImageFormatDto } from "./ImageFormatDto";
 import type { ImageModelDto } from "./ImageModelDto";
 import type { ImageSizeDto } from "./ImageSizeDto";
 import type { NoiseScheduleDto } from "./NoiseScheduleDto";
+import type { QualityPresetDto } from "./QualityPresetDto";
 import type { SamplerDto } from "./SamplerDto";
 import type { UcPresetDto } from "./UcPresetDto";
 
 export type GenerationDefaultsDto = {
   model: ImageModelDto;
   size: ImageSizeDto;
-  quality: boolean;
+  quality: QualityPresetDto;
+  transparent_background: boolean;
   uc_preset: UcPresetDto;
   steps: number;
   scale: number;

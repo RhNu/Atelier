@@ -1,6 +1,6 @@
 use super::{
-    CharacterReferenceType, DatabaseResult, ImageFormat, ImageModel, NoiseSchedule, Sampler,
-    StreamMode, UcPreset, decode_error,
+    CharacterReferenceType, DatabaseResult, ImageFormat, ImageModel, NoiseSchedule, QualityPreset,
+    Sampler, StreamMode, UcPreset, decode_error,
 };
 
 pub const fn image_model_as_str(value: ImageModel) -> &'static str {
@@ -9,12 +9,14 @@ pub const fn image_model_as_str(value: ImageModel) -> &'static str {
 
 pub fn image_model_from_str(value: &str) -> DatabaseResult<ImageModel> {
     match value {
+        "nai-diffusion-5-full" => Ok(ImageModel::NaiDiffusion5Full),
+        "nai-diffusion-5-curated" => Ok(ImageModel::NaiDiffusion5Curated),
         "nai-diffusion-4-5-full" => Ok(ImageModel::NaiDiffusion45Full),
         "nai-diffusion-4-5-curated" => Ok(ImageModel::NaiDiffusion45Curated),
         "nai-diffusion-4-full" => Ok(ImageModel::NaiDiffusion4Full),
         "nai-diffusion-4-curated" => Ok(ImageModel::NaiDiffusion4Curated),
         "nai-diffusion-3" => Ok(ImageModel::NaiDiffusion3),
-        "nai-diffusion-3-furry" => Ok(ImageModel::NaiDiffusion3Furry),
+        "nai-diffusion-furry-3" | "nai-diffusion-3-furry" => Ok(ImageModel::NaiDiffusion3Furry),
         _ => Err(decode_error("image model", value)),
     }
 }
@@ -26,9 +28,11 @@ pub const fn sampler_as_str(value: Sampler) -> &'static str {
         Sampler::KDpm2 => "k_dpm2",
         Sampler::KDpm2Ancestral => "k_dpm2_ancestral",
         Sampler::KDpmpp2m => "k_dpmpp_2m",
+        Sampler::KDpmpp2mSde => "k_dpmpp_2m_sde",
         Sampler::KDpmpp2sAncestral => "k_dpmpp_2s_ancestral",
         Sampler::KDpmppSde => "k_dpmpp_sde",
         Sampler::Ddim => "ddim",
+        Sampler::DdimV3 => "ddim_v3",
     }
 }
 
@@ -39,15 +43,18 @@ pub fn sampler_from_str(value: &str) -> DatabaseResult<Sampler> {
         "k_dpm2" => Ok(Sampler::KDpm2),
         "k_dpm2_ancestral" => Ok(Sampler::KDpm2Ancestral),
         "k_dpmpp_2m" => Ok(Sampler::KDpmpp2m),
+        "k_dpmpp_2m_sde" => Ok(Sampler::KDpmpp2mSde),
         "k_dpmpp_2s_ancestral" => Ok(Sampler::KDpmpp2sAncestral),
         "k_dpmpp_sde" => Ok(Sampler::KDpmppSde),
         "ddim" => Ok(Sampler::Ddim),
+        "ddim_v3" => Ok(Sampler::DdimV3),
         _ => Err(decode_error("sampler", value)),
     }
 }
 
 pub const fn noise_schedule_as_str(value: NoiseSchedule) -> &'static str {
     match value {
+        NoiseSchedule::Native => "native",
         NoiseSchedule::Karras => "karras",
         NoiseSchedule::Exponential => "exponential",
         NoiseSchedule::Polyexponential => "polyexponential",
@@ -56,6 +63,7 @@ pub const fn noise_schedule_as_str(value: NoiseSchedule) -> &'static str {
 
 pub fn noise_schedule_from_str(value: &str) -> DatabaseResult<NoiseSchedule> {
     match value {
+        "native" => Ok(NoiseSchedule::Native),
         "karras" => Ok(NoiseSchedule::Karras),
         "exponential" => Ok(NoiseSchedule::Exponential),
         "polyexponential" => Ok(NoiseSchedule::Polyexponential),
@@ -117,6 +125,8 @@ pub const fn character_reference_type_as_str(value: CharacterReferenceType) -> &
         CharacterReferenceType::Character => "character",
         CharacterReferenceType::Style => "style",
         CharacterReferenceType::CharacterAndStyle => "character_and_style",
+        CharacterReferenceType::Costume => "costume",
+        CharacterReferenceType::Delta => "delta",
     }
 }
 
@@ -125,6 +135,25 @@ pub fn character_reference_type_from_str(value: &str) -> DatabaseResult<Characte
         "character" => Ok(CharacterReferenceType::Character),
         "style" => Ok(CharacterReferenceType::Style),
         "character_and_style" => Ok(CharacterReferenceType::CharacterAndStyle),
+        "costume" => Ok(CharacterReferenceType::Costume),
+        "delta" => Ok(CharacterReferenceType::Delta),
         _ => Err(decode_error("character reference type", value)),
+    }
+}
+
+pub const fn quality_preset_as_str(value: QualityPreset) -> &'static str {
+    match value {
+        QualityPreset::Standard => "standard",
+        QualityPreset::Light => "light",
+        QualityPreset::None => "none",
+    }
+}
+
+pub fn quality_preset_from_str(value: &str) -> DatabaseResult<QualityPreset> {
+    match value {
+        "standard" => Ok(QualityPreset::Standard),
+        "light" => Ok(QualityPreset::Light),
+        "none" => Ok(QualityPreset::None),
+        _ => Err(decode_error("quality preset", value)),
     }
 }

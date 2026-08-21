@@ -1,7 +1,7 @@
 use atelier_generation::{
-    Character, CharacterPosition, CharacterReference, CharacterReferenceType, ControlNetConfig,
-    ControlNetInput, GenerateImageRequest, GenerationErrorKind, ImageModel, ImageSize,
-    Img2ImgRequest, normalize_generate_request,
+    Character, CharacterPosition, CharacterReference, CharacterReferenceType, GenerateImageRequest,
+    GenerationErrorKind, ImageModel, ImageSize, Img2ImgRequest, QualityPreset, VibeReference,
+    VibeTransferConfig, normalize_generate_request,
 };
 
 fn assert_f32_eq(actual: f32, expected: f32) {
@@ -103,17 +103,16 @@ fn non_strict_mode_clamps_and_snaps_request_values() {
         scale: 11.0,
         n_samples: 9,
         cfg_rescale: 2.0,
-        i2i: Some(Img2ImgRequest {
+        img2img: Some(Img2ImgRequest {
             image: "image-payload-left-to-adapter".to_owned(),
             strength: 0.0,
             noise: 2.0,
             mask: None,
         }),
-        controlnet: Some(ControlNetConfig {
+        vibe_transfer: Some(VibeTransferConfig {
             strength: 2.0,
-            images: vec![ControlNetInput {
+            references: vec![VibeReference {
                 vibe_data_cache: "encoded-vibe".to_owned(),
-                info_extracted: 2.0,
                 strength: -1.0,
             }],
         }),
@@ -133,13 +132,12 @@ fn non_strict_mode_clamps_and_snaps_request_values() {
     assert_f32_eq(normalized.scale, 10.0);
     assert_eq!(normalized.n_samples, 4);
     assert_f32_eq(normalized.cfg_rescale, 1.0);
-    let i2i = normalized.i2i.unwrap();
+    let i2i = normalized.img2img.unwrap();
     assert_f32_eq(i2i.strength, 0.01);
     assert_f32_eq(i2i.noise, 0.99);
-    let controlnet = normalized.controlnet.unwrap();
-    assert_f32_eq(controlnet.strength, 1.0);
-    assert_f32_eq(controlnet.images[0].info_extracted, 1.0);
-    assert_f32_eq(controlnet.images[0].strength, 0.0);
+    let vibe = normalized.vibe_transfer.unwrap();
+    assert_f32_eq(vibe.strength, 1.0);
+    assert_f32_eq(vibe.references[0].strength, 0.0);
 }
 
 #[test]
@@ -147,6 +145,7 @@ fn model_capability_gates_reject_invalid_feature_combinations() {
     let characters_on_v3 = GenerateImageRequest {
         prompt: "1girl".to_owned(),
         model: ImageModel::NaiDiffusion3,
+        strict_mode: true,
         characters: Some(vec![Character {
             prompt: "alice".to_owned(),
             negative_prompt: None,
@@ -164,6 +163,7 @@ fn model_capability_gates_reject_invalid_feature_combinations() {
     let reference_on_v4 = GenerateImageRequest {
         prompt: "1girl".to_owned(),
         model: ImageModel::NaiDiffusion4Full,
+        strict_mode: true,
         character_references: Some(vec![CharacterReference {
             image: "image-payload-left-to-adapter".to_owned(),
             reference_type: CharacterReferenceType::Character,
@@ -180,11 +180,10 @@ fn model_capability_gates_reject_invalid_feature_combinations() {
 
     let controlnet_with_reference = GenerateImageRequest {
         prompt: "1girl".to_owned(),
-        controlnet: Some(ControlNetConfig {
+        vibe_transfer: Some(VibeTransferConfig {
             strength: 0.5,
-            images: vec![ControlNetInput {
+            references: vec![VibeReference {
                 vibe_data_cache: "encoded-vibe".to_owned(),
-                info_extracted: 0.5,
                 strength: 0.5,
             }],
         }),
@@ -202,6 +201,38 @@ fn model_capability_gates_reject_invalid_feature_combinations() {
     assert_eq!(error.kind, GenerationErrorKind::UnsupportedFieldCombination);
     assert_eq!(
         error.field.as_deref(),
-        Some("controlnet+character_references")
+        Some("vibe_transfer+character_references")
     );
+}
+
+#[test]
+fn v5_preserves_supported_outputs_and_gates_dormant_guidance() {
+    let request = GenerateImageRequest {
+        prompt: "一位角色 😀".to_owned(),
+        model: ImageModel::NaiDiffusion5Full,
+        quality: QualityPreset::Light,
+        transparent_background: true,
+        variety_boost: true,
+        vibe_transfer: Some(VibeTransferConfig {
+            strength: 1.0,
+            references: vec![VibeReference {
+                vibe_data_cache: "encoded".to_owned(),
+                strength: 1.0,
+            }],
+        }),
+        ..Default::default()
+    };
+
+    let normalized = normalize_generate_request(request.clone()).unwrap();
+    assert_eq!(normalized.quality, QualityPreset::Light);
+    assert!(normalized.transparent_background);
+    assert!(!normalized.variety_boost);
+    assert!(normalized.vibe_transfer.is_none());
+
+    let error = normalize_generate_request(GenerateImageRequest {
+        strict_mode: true,
+        ..request
+    })
+    .unwrap_err();
+    assert_eq!(error.kind, GenerationErrorKind::UnsupportedModelFeature);
 }

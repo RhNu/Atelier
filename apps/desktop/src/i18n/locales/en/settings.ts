@@ -150,4 +150,7 @@ export const settings = {
   closingWorkspace: "Closing workspace",
   closeWorkspace: "Close workspace",
   root: "Root",
+  transparentBackground: "Transparent background",
+  v5Allowance: "V5 allowance",
+  negativeAllowance: "negative",
 } as const;

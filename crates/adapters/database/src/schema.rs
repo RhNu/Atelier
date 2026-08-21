@@ -5,7 +5,7 @@ use crate::error::{DatabaseError, DatabaseResult};
 mod migrations;
 
 const DATABASE_FORMAT: &str = "atelier-workspace-database";
-const DATABASE_SCHEMA_VERSION: i64 = 3;
+const DATABASE_SCHEMA_VERSION: i64 = 4;
 
 const SCHEMA_SQL: &str = r"
 CREATE TABLE atelier_schema (
@@ -15,7 +15,7 @@ CREATE TABLE atelier_schema (
 );
 
 INSERT INTO atelier_schema(singleton, format, schema_version)
-VALUES (1, 'atelier-workspace-database', 3);
+VALUES (1, 'atelier-workspace-database', 4);
 
 CREATE TABLE resources (
     id TEXT PRIMARY KEY,
@@ -139,6 +139,16 @@ CREATE TABLE prompt_chunks (
 CREATE INDEX idx_prompt_chunks_key
     ON prompt_chunks(chunk_key);
 
+CREATE TABLE prompt_chunk_models (
+    chunk_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    PRIMARY KEY (chunk_id, model),
+    FOREIGN KEY (chunk_id) REFERENCES prompt_chunks(chunk_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_prompt_chunk_models_model
+    ON prompt_chunk_models(model, chunk_id);
+
 CREATE TABLE prompt_presets (
     preset_id TEXT PRIMARY KEY,
     preset_kind TEXT NOT NULL,
@@ -164,6 +174,16 @@ CREATE TABLE prompt_presets (
 
 CREATE INDEX idx_prompt_presets_kind_order
     ON prompt_presets(preset_kind, sort_order, name, preset_id);
+
+CREATE TABLE prompt_preset_models (
+    preset_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    PRIMARY KEY (preset_id, model),
+    FOREIGN KEY (preset_id) REFERENCES prompt_presets(preset_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_prompt_preset_models_model
+    ON prompt_preset_models(model, preset_id);
 
 CREATE TABLE workspace_settings (
     setting_key TEXT PRIMARY KEY,

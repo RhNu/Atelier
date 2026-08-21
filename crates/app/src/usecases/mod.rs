@@ -8,11 +8,11 @@ use atelier_app_api::director::{
 use atelier_app_api::event::AppEventDto;
 use atelier_app_api::gallery::{GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto};
 use atelier_app_api::generation::{
-    CharacterDto, CharacterReferenceDto, CharacterReferenceTypeDto, ControlNetConfigDto,
-    GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationAnlasEstimateDto,
-    GenerationEstimateRequestDto, GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto,
-    QueueDirectiveDto, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
-    SubmitGenerationRequestDto, UcPresetDto,
+    CharacterDto, CharacterReferenceDto, CharacterReferenceTypeDto, GenerateImageRequestDto,
+    GenerateImageStreamRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
+    GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto, QueueDirectiveDto,
+    SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
+    UcPresetDto, VibeTransferConfigDto,
 };
 use atelier_app_api::prompt::{
     CompileGenerationPromptRequestDto, CompilePromptRequestDto,
@@ -39,8 +39,8 @@ use atelier_director::{DirectorTool, RunDirectorToolRequest};
 use atelier_gallery::{GalleryItemId, GalleryQuery, GallerySourceKind};
 use atelier_generation::{
     AnlasEstimate, Character, CharacterPosition, CharacterReference, CharacterReferenceType,
-    ControlNetConfig, ControlNetInput, GenerateImageRequest, GenerateImageStreamRequest, ImageSize,
-    Img2ImgRequest, plan_generation_request,
+    GenerateImageRequest, GenerateImageStreamRequest, ImageSize, Img2ImgRequest, VibeReference,
+    VibeTransferConfig, plan_generation_request,
 };
 use atelier_jobs::{
     BatchId, JobId, JobStatus, RunHistoryKind, RunHistoryRecord, RunHistoryRepository,
@@ -78,11 +78,11 @@ use crate::mapping::{
     image_model_to_domain, image_reference_target_to_domain, imported_vibes_to_dto,
     noise_schedule_to_domain, plan_context_to_domain, prompt_chunk_to_dto,
     prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
-    queue_directive_to_dto, resource_ref_from_dto, resource_ref_to_dto, safety_override_to_domain,
-    sampler_to_domain, stream_mode_to_domain, subscription_to_dto, uc_preset_to_domain,
-    upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain, vibe_entry_to_dto,
-    vibe_format_to_domain, vibe_model_to_domain, workspace_settings_to_domain,
-    workspace_settings_to_dto,
+    quality_preset_to_domain, quality_preset_to_dto, queue_directive_to_dto, resource_ref_from_dto,
+    resource_ref_to_dto, safety_override_to_domain, sampler_to_domain, stream_mode_to_domain,
+    subscription_to_dto, uc_preset_to_domain, upsert_prompt_chunk_to_domain,
+    upsert_prompt_preset_to_domain, vibe_entry_to_dto, vibe_format_to_domain, vibe_model_to_domain,
+    workspace_settings_to_domain, workspace_settings_to_dto,
 };
 use crate::{AppError, AppResult};
 
@@ -131,6 +131,8 @@ const fn character_reference_type_to_domain(
         CharacterReferenceTypeDto::Character => CharacterReferenceType::Character,
         CharacterReferenceTypeDto::Style => CharacterReferenceType::Style,
         CharacterReferenceTypeDto::CharacterAndStyle => CharacterReferenceType::CharacterAndStyle,
+        CharacterReferenceTypeDto::Costume => CharacterReferenceType::Costume,
+        CharacterReferenceTypeDto::Delta => CharacterReferenceType::Delta,
     }
 }
 

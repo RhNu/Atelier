@@ -91,4 +91,8 @@ export const resources = {
   pastePreview: "Paste image",
   clearPreview: "Clear preview",
   previewImportHint: "Choose an image or press Ctrl+V while no input is focused.",
+  models: "Models",
+  previewModel: "Preview model",
+  modelFilter: "Model filter",
+  allModels: "All Models",
 } as const;

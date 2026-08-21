@@ -1,8 +1,8 @@
 use super::{
     EnsuredVibeEncoding, EnsuredVibeEncodingDto, ExportedVibeDocument, ExportedVibeDocumentDto,
-    ImportedVibeDocuments, ImportedVibeDocumentsDto, VibeDocumentEntry, VibeDocumentEntryDto,
-    VibeEncodingConfigDto, VibeExportFormat, VibeExportFormatDto, VibeModel, VibeModelDto,
-    resource_ref_to_dto,
+    ImageModelDto, ImportedVibeDocuments, ImportedVibeDocumentsDto, VibeDocumentEntry,
+    VibeDocumentEntryDto, VibeEncodingConfigDto, VibeExportFormat, VibeExportFormatDto, VibeModel,
+    image_model_to_domain, image_model_to_dto, resource_ref_to_dto,
 };
 
 pub fn imported_vibes_to_dto(value: ImportedVibeDocuments) -> ImportedVibeDocumentsDto {
@@ -59,26 +59,12 @@ pub fn vibe_entry_to_dto(value: VibeDocumentEntry) -> VibeDocumentEntryDto {
     }
 }
 
-pub const fn vibe_model_to_dto(value: VibeModel) -> VibeModelDto {
-    match value {
-        VibeModel::NaiDiffusion45Full => VibeModelDto::NaiDiffusion45Full,
-        VibeModel::NaiDiffusion45Curated => VibeModelDto::NaiDiffusion45Curated,
-        VibeModel::NaiDiffusion4Full => VibeModelDto::NaiDiffusion4Full,
-        VibeModel::NaiDiffusion4Curated => VibeModelDto::NaiDiffusion4Curated,
-        VibeModel::NaiDiffusion3 => VibeModelDto::NaiDiffusion3,
-        VibeModel::NaiDiffusion3Furry => VibeModelDto::NaiDiffusion3Furry,
-    }
+pub const fn vibe_model_to_dto(value: VibeModel) -> ImageModelDto {
+    image_model_to_dto(value)
 }
 
-pub const fn vibe_model_to_domain(value: VibeModelDto) -> VibeModel {
-    match value {
-        VibeModelDto::NaiDiffusion45Full => VibeModel::NaiDiffusion45Full,
-        VibeModelDto::NaiDiffusion45Curated => VibeModel::NaiDiffusion45Curated,
-        VibeModelDto::NaiDiffusion4Full => VibeModel::NaiDiffusion4Full,
-        VibeModelDto::NaiDiffusion4Curated => VibeModel::NaiDiffusion4Curated,
-        VibeModelDto::NaiDiffusion3 => VibeModel::NaiDiffusion3,
-        VibeModelDto::NaiDiffusion3Furry => VibeModel::NaiDiffusion3Furry,
-    }
+pub const fn vibe_model_to_domain(value: ImageModelDto) -> VibeModel {
+    image_model_to_domain(value)
 }
 
 pub const fn vibe_format_to_domain(value: VibeExportFormatDto) -> VibeExportFormat {

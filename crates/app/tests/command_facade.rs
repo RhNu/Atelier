@@ -19,10 +19,10 @@ use atelier_app_api::gallery::{
 };
 use atelier_app_api::generation::{
     GenerateImageRequestDto, GenerationDraftCharacterPositionModeDto, GenerationDraftDto,
-    GenerationDraftSeedModeDto, GenerationDraftVibeDto, GenerationDraftVibeSlotDto,
-    GenerationPlanContextDto, GenerationStatusQueryDto, GenerationWorkRequestDto, ImageModelDto,
-    QueueDirectiveDto, RunGenerationJobRequestDto, SaveGenerationDraftRequestDto,
-    SubmitGenerationRequestDto,
+    GenerationDraftPromptStateDto, GenerationDraftSeedModeDto, GenerationDraftVibeDto,
+    GenerationDraftVibeSlotDto, GenerationPlanContextDto, GenerationStatusQueryDto,
+    GenerationWorkRequestDto, ImageModelDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    SaveGenerationDraftRequestDto, SubmitGenerationRequestDto,
 };
 use atelier_app_api::history::{RunHistoryOutputStateDto, RunHistoryQueryDto};
 use atelier_app_api::prompt::{
@@ -43,7 +43,7 @@ use atelier_app_api::settings::{
 use atelier_app_api::vibe::{
     EnsureVibeEncodingRequestDto, ExportVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
     ListVibeDocumentsRequestDto, RenameVibeDocumentRequestDto, SetVibeDocumentHiddenRequestDto,
-    VibeExportFormatDto, VibeModelDto,
+    VibeExportFormatDto,
 };
 use atelier_app_api::workspace::OpenWorkspaceRequestDto;
 use atelier_director::{
@@ -149,6 +149,7 @@ async fn upsert_hero_chunk(
             content: "1girl".to_owned(),
             category: Some("subject".to_owned()),
             description: None,
+            models: vec![ImageModelDto::NaiDiffusion45Full],
             preview: None,
         })
         .await
@@ -166,6 +167,7 @@ async fn upsert_scene_chunk(
         content: "$chunk(hero), blue sky".to_owned(),
         category: None,
         description: None,
+        models: vec![ImageModelDto::NaiDiffusion45Full],
         preview: None,
     })
     .await
@@ -409,6 +411,7 @@ impl NovelAiDirectorClient for RecordingClient {
 impl SubscriptionClient for RecordingClient {
     async fn get_subscription(&self) -> SubscriptionResult<SubscriptionSummary> {
         Ok(SubscriptionSummary {
+            v5_usage: None,
             anlas_balance: 100,
             is_opus: false,
             tier: 1,

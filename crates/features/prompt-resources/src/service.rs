@@ -1,5 +1,7 @@
+use atelier_generation::{ImageModel, QualityPreset};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::references::chunk_reference_keys_in_text;
 use crate::{
     DeletePromptChunkResult, DeletePromptPresetResult, PromptChunk, PromptChunkId, PromptPreset,
     PromptPresetId, PromptPresetKind, PromptResourceError, PromptResourceRepository,
@@ -41,8 +43,11 @@ where
     /// repository operations fail.
     pub async fn upsert_chunk(
         &self,
-        request: UpsertPromptChunkRequest,
+        mut request: UpsertPromptChunkRequest,
     ) -> PromptResourceResult<PromptChunk> {
+        normalize_models(&mut request.models)?;
+        self.validate_references(&request.content, &request.models)
+            .await?;
         if let Some(existing) = self.repository.get_chunk_by_key(&request.key).await?
             && request
                 .chunk_id
@@ -60,6 +65,9 @@ where
             Some(id) => Some(self.require_chunk(id).await?),
             None => None,
         };
+        if let Some(existing) = &existing {
+            self.validate_dependents(existing, &request.models).await?;
+        }
         let id = match (&request.chunk_id, &existing) {
             (Some(id), _) => id.clone(),
             (None, _) => self.repository.allocate_chunk_id().await?,
@@ -73,6 +81,7 @@ where
             category: request.category,
             description: request.description,
             preview_thumb: request.preview_thumb,
+            models: request.models,
             created_at_ms,
             updated_at_ms: now,
         };
@@ -114,8 +123,11 @@ where
     ///
     /// # Errors
     /// Returns an error when the repository cannot be queried.
-    pub async fn list_chunks(&self) -> PromptResourceResult<Vec<PromptChunk>> {
-        let mut chunks = self.repository.list_chunks().await?;
+    pub async fn list_chunks(
+        &self,
+        model: Option<ImageModel>,
+    ) -> PromptResourceResult<Vec<PromptChunk>> {
+        let mut chunks = self.repository.list_chunks(model).await?;
         chunks.sort_by(|left, right| left.key.cmp(&right.key));
         Ok(chunks)
     }
@@ -146,6 +158,45 @@ where
             .await?
             .ok_or_else(|| PromptResourceError::not_found("chunk does not exist"))
     }
+
+    async fn validate_references(
+        &self,
+        content: &str,
+        models: &[ImageModel],
+    ) -> PromptResourceResult<()> {
+        for key in chunk_reference_keys_in_text(content) {
+            let target = self
+                .repository
+                .get_chunk_by_key(&key)
+                .await?
+                .ok_or_else(|| {
+                    PromptResourceError::not_found(format!(
+                        "chunk `{}` does not exist",
+                        key.as_str()
+                    ))
+                })?;
+            ensure_model_coverage(models, &target.models, key.as_str())?;
+        }
+        Ok(())
+    }
+
+    async fn validate_dependents(
+        &self,
+        existing: &PromptChunk,
+        new_models: &[ImageModel],
+    ) -> PromptResourceResult<()> {
+        for chunk in self.repository.list_chunks(None).await? {
+            if chunk.id != existing.id && chunk.references_chunk(&existing.key) {
+                ensure_model_coverage(&chunk.models, new_models, existing.key.as_str())?;
+            }
+        }
+        for preset in self.repository.list_presets(None, None).await? {
+            if preset.references_chunk(&existing.key) {
+                ensure_model_coverage(&preset.models, new_models, existing.key.as_str())?;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<R> PromptPresetService<R>
@@ -159,9 +210,11 @@ where
     /// or repository operations fail.
     pub async fn upsert_preset(
         &self,
-        request: UpsertPromptPresetRequest,
+        mut request: UpsertPromptPresetRequest,
     ) -> PromptResourceResult<PromptPreset> {
+        normalize_models(&mut request.models)?;
         validate_preset_request(&request)?;
+        self.validate_preset_references(&request).await?;
 
         let now = unix_ms();
         let existing = match &request.preset_id {
@@ -182,9 +235,10 @@ where
             order: request.order,
             prompt_behavior: request.prompt_behavior,
             uc_behavior: request.uc_behavior,
-            quality_override: normalize_optional_text(request.quality_override),
+            quality_override: request.quality_override,
             uc_preset_override: normalize_optional_text(request.uc_preset_override),
             preview_thumb: request.preview_thumb,
+            models: request.models,
             created_at_ms,
             updated_at_ms: now,
         };
@@ -210,8 +264,9 @@ where
     pub async fn list_presets(
         &self,
         kind: Option<PromptPresetKind>,
+        model: Option<ImageModel>,
     ) -> PromptResourceResult<Vec<PromptPreset>> {
-        let mut presets = self.repository.list_presets(kind).await?;
+        let mut presets = self.repository.list_presets(kind, model).await?;
         presets.sort_by(|left, right| {
             left.order
                 .cmp(&right.order)
@@ -242,15 +297,48 @@ where
             .await?
             .ok_or_else(|| PromptResourceError::not_found("preset does not exist"))
     }
+
+    async fn validate_preset_references(
+        &self,
+        request: &UpsertPromptPresetRequest,
+    ) -> PromptResourceResult<()> {
+        let texts = match &request.prompt_behavior {
+            crate::PromptPresetBehavior::Surround { before, after } => {
+                vec![before.as_str(), after.as_str()]
+            }
+            crate::PromptPresetBehavior::Replace { text } => vec![text.as_str()],
+        };
+        let uc_texts = match &request.uc_behavior {
+            crate::PromptPresetBehavior::Surround { before, after } => {
+                vec![before.as_str(), after.as_str()]
+            }
+            crate::PromptPresetBehavior::Replace { text } => vec![text.as_str()],
+        };
+        for key in texts
+            .into_iter()
+            .chain(uc_texts)
+            .flat_map(chunk_reference_keys_in_text)
+        {
+            let target = self
+                .repository
+                .get_chunk_by_key(&key)
+                .await?
+                .ok_or_else(|| {
+                    PromptResourceError::not_found(format!(
+                        "chunk `{}` does not exist",
+                        key.as_str()
+                    ))
+                })?;
+            ensure_model_coverage(&request.models, &target.models, key.as_str())?;
+        }
+        Ok(())
+    }
 }
 
 fn validate_preset_request(request: &UpsertPromptPresetRequest) -> PromptResourceResult<()> {
     normalize_required_name(&request.name)?;
     if request.kind == PromptPresetKind::Character
-        && (request
-            .quality_override
-            .as_ref()
-            .is_some_and(|value| !value.trim().is_empty())
+        && (request.quality_override.is_some()
             || request
                 .uc_preset_override
                 .as_ref()
@@ -260,7 +348,45 @@ fn validate_preset_request(request: &UpsertPromptPresetRequest) -> PromptResourc
             "character presets cannot define generation overrides",
         ));
     }
+    if request.quality_override == Some(QualityPreset::Light)
+        && request
+            .models
+            .iter()
+            .any(|model| !model.capabilities().supports_light_quality_preset)
+    {
+        return Err(PromptResourceError::invalid_request(
+            "Light quality override requires every bound model to support Light quality",
+        ));
+    }
     Ok(())
+}
+
+fn normalize_models(models: &mut Vec<ImageModel>) -> PromptResourceResult<()> {
+    models.sort_by_key(|model| model.as_str());
+    models.dedup();
+    if models.is_empty() {
+        return Err(PromptResourceError::invalid_request(
+            "prompt resources must be bound to at least one model",
+        ));
+    }
+    Ok(())
+}
+
+fn ensure_model_coverage(
+    owner_models: &[ImageModel],
+    target_models: &[ImageModel],
+    key: &str,
+) -> PromptResourceResult<()> {
+    if owner_models
+        .iter()
+        .all(|model| target_models.contains(model))
+    {
+        Ok(())
+    } else {
+        Err(PromptResourceError::conflict(format!(
+            "chunk `{key}` does not cover every model bound to the referencing resource"
+        )))
+    }
 }
 
 fn normalize_required_name(value: &str) -> PromptResourceResult<String> {

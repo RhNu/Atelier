@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
         preview: null,
         created_at_ms: 1,
         updated_at_ms: 1,
+        models: ["nai-diffusion-4-5-full"],
       },
     ],
     total: 1,
@@ -117,7 +118,7 @@ describe("NaiPromptEditor", () => {
     await waitFor(() => expect(promptEditorText(content)).toBe("external"));
   });
 
-  it("highlights function markers together and weakens the complete comment call", () => {
+  it("highlights function markers together and weakens the complete comment call", async () => {
     render(
       editor({
         value: '$chunk(hero), $comment("draft")',
@@ -126,8 +127,10 @@ describe("NaiPromptEditor", () => {
     );
 
     const content = screen.getByLabelText("Highlighted prompt");
-    expect(highlightedText(content, ".nai-function:not(.nai-function-comment)")).toBe("$chunk");
-    expect(highlightedText(content, ".nai-function-comment")).toBe('$comment("draft")');
+    await waitFor(() => {
+      expect(highlightedText(content, ".nai-function:not(.nai-function-comment)")).toBe("$chunk");
+      expect(highlightedText(content, ".nai-function-comment")).toBe('$comment("draft")');
+    });
   });
 
   it("wires Tab, Enter, Escape, and Ctrl-Space through the CodeMirror completion state", async () => {

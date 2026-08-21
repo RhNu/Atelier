@@ -1,6 +1,6 @@
 use crate::{
-    Character, CharacterReference, ControlNetConfig, GenerateImageRequest, GenerationError,
-    Img2ImgRequest,
+    Character, CharacterReference, GenerateImageRequest, GenerationError, Img2ImgRequest,
+    QualityPreset, VibeTransferConfig,
 };
 
 const IMAGE_DIMENSION_MIN: u32 = 64;
@@ -21,12 +21,12 @@ pub fn normalize_generate_request(
     validate_prompt(&request)?;
     let strict_mode = request.strict_mode;
     normalize_base_fields(&mut request, strict_mode)?;
-    validate_model_features(&request)?;
+    normalize_model_features(&mut request)?;
     validate_character_inputs(request.characters.as_deref())?;
     normalize_character_positions(request.characters.as_mut(), strict_mode)?;
     normalize_character_references(request.character_references.as_mut(), strict_mode)?;
-    normalize_i2i(request.i2i.as_mut(), strict_mode)?;
-    normalize_controlnet(request.controlnet.as_mut(), strict_mode)?;
+    normalize_i2i(request.img2img.as_mut(), strict_mode)?;
+    normalize_vibe_transfer(request.vibe_transfer.as_mut(), strict_mode)?;
     Ok(request)
 }
 
@@ -70,46 +70,122 @@ fn normalize_base_fields(
     Ok(())
 }
 
-fn validate_model_features(request: &GenerateImageRequest) -> Result<(), GenerationError> {
+fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), GenerationError> {
+    let capabilities = request.model.capabilities();
     if request
         .character_references
         .as_ref()
         .is_some_and(|refs| !refs.is_empty())
-        && !request.model.is_v45()
+        && !capabilities.supports_character_reference
     {
-        return Err(GenerationError::unsupported_model_feature(
+        reject_or_clear(
+            request.strict_mode,
             "character_references",
-            "V4.5 models",
-        ));
+            "models with precise reference support",
+            || request.character_references = None,
+        )?;
     }
 
     if request
         .characters
         .as_ref()
         .is_some_and(|characters| !characters.is_empty())
-        && !request.model.is_v4()
+        && capabilities.max_characters == 0
     {
-        return Err(GenerationError::unsupported_model_feature(
+        reject_or_clear(
+            request.strict_mode,
             "characters",
-            "V4/V4.5 models",
-        ));
+            "models with character prompt support",
+            || request.characters = None,
+        )?;
+    } else if request
+        .characters
+        .as_ref()
+        .is_some_and(|characters| characters.len() > capabilities.max_characters as usize)
+    {
+        if request.strict_mode {
+            return Err(GenerationError::unsupported_model_feature(
+                "characters",
+                "the model character prompt limit",
+            ));
+        }
+        request
+            .characters
+            .as_mut()
+            .expect("checked above")
+            .truncate(capabilities.max_characters as usize);
     }
 
     if request
-        .controlnet
+        .vibe_transfer
         .as_ref()
-        .is_some_and(|controlnet| !controlnet.images.is_empty())
+        .is_some_and(|vibe| !vibe.references.is_empty())
+        && !capabilities.supports_encoded_vibe
+    {
+        reject_or_clear(
+            request.strict_mode,
+            "vibe_transfer",
+            "models with encoded vibe transfer support",
+            || request.vibe_transfer = None,
+        )?;
+    }
+
+    if request
+        .vibe_transfer
+        .as_ref()
+        .is_some_and(|vibe| !vibe.references.is_empty())
         && request
             .character_references
             .as_ref()
             .is_some_and(|refs| !refs.is_empty())
     {
         return Err(GenerationError::unsupported_field_combination(
-            "controlnet+character_references",
-            "controlnet and character_references cannot be used together",
+            "vibe_transfer+character_references",
+            "vibe_transfer and character_references cannot be used together",
         ));
     }
 
+    if request.variety_boost && !capabilities.supports_variety_boost {
+        reject_or_clear(
+            request.strict_mode,
+            "variety_boost",
+            "models with variety boost support",
+            || request.variety_boost = false,
+        )?;
+    }
+    if request.transparent_background && !capabilities.supports_transparent_background {
+        reject_or_clear(
+            request.strict_mode,
+            "transparent_background",
+            "models with transparent background support",
+            || request.transparent_background = false,
+        )?;
+    }
+    if request.quality == QualityPreset::Light && !capabilities.supports_light_quality_preset {
+        reject_or_clear(
+            request.strict_mode,
+            "quality.light",
+            "models with the Light quality preset",
+            || request.quality = QualityPreset::Standard,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn reject_or_clear(
+    strict_mode: bool,
+    field: &'static str,
+    supported_by: &'static str,
+    clear: impl FnOnce(),
+) -> Result<(), GenerationError> {
+    if strict_mode {
+        return Err(GenerationError::unsupported_model_feature(
+            field,
+            supported_by,
+        ));
+    }
+    clear();
     Ok(())
 }
 
@@ -198,41 +274,34 @@ fn normalize_i2i(
     Ok(())
 }
 
-fn normalize_controlnet(
-    controlnet: Option<&mut ControlNetConfig>,
+fn normalize_vibe_transfer(
+    vibe_transfer: Option<&mut VibeTransferConfig>,
     strict_mode: bool,
 ) -> Result<(), GenerationError> {
-    let Some(controlnet) = controlnet else {
+    let Some(vibe_transfer) = vibe_transfer else {
         return Ok(());
     };
 
-    controlnet.strength = normalize_f32_range(
-        "controlnet.strength",
-        controlnet.strength,
+    vibe_transfer.strength = normalize_f32_range(
+        "vibe_transfer.strength",
+        vibe_transfer.strength,
         0.0,
         1.0,
         strict_mode,
     )?;
-    if controlnet.images.is_empty() {
-        return Err(GenerationError::empty_field("controlnet.images"));
+    if vibe_transfer.references.is_empty() {
+        return Err(GenerationError::empty_field("vibe_transfer.references"));
     }
 
-    for (idx, image) in controlnet.images.iter_mut().enumerate() {
-        if image.vibe_data_cache.trim().is_empty() {
+    for (idx, reference) in vibe_transfer.references.iter_mut().enumerate() {
+        if reference.vibe_data_cache.trim().is_empty() {
             return Err(GenerationError::empty_field(format!(
-                "controlnet.images[{idx}].vibe_data_cache"
+                "vibe_transfer.references[{idx}].vibe_data_cache"
             )));
         }
-        image.info_extracted = normalize_f32_range(
-            &format!("controlnet.images[{idx}].info_extracted"),
-            image.info_extracted,
-            0.01,
-            1.0,
-            strict_mode,
-        )?;
-        image.strength = normalize_f32_range(
-            &format!("controlnet.images[{idx}].strength"),
-            image.strength,
+        reference.strength = normalize_f32_range(
+            &format!("vibe_transfer.references[{idx}].strength"),
+            reference.strength,
             0.0,
             1.0,
             strict_mode,

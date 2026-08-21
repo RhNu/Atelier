@@ -73,18 +73,42 @@ where
     ) -> AppResult<VibeDocumentPageDto> {
         let (entries, total) = {
             let kernel = self.app.inner.kernel.lock().await;
-            let entries = kernel
-                .ports()
-                .list_documents(request.offset, request.limit, request.include_hidden)
-                .await
-                .map_err(AppError::from)?;
-            let total = kernel
-                .ports()
-                .count_documents(request.include_hidden)
-                .await
-                .map_err(AppError::from)?;
+            let entries = if let Some(model) = request.model {
+                let model = vibe_model_to_domain(model);
+                let all = kernel
+                    .ports()
+                    .list_documents(0, usize::MAX, request.include_hidden)
+                    .await
+                    .map_err(AppError::from)?;
+                let filtered = all
+                    .into_iter()
+                    .filter(|entry| {
+                        entry
+                            .summary
+                            .available_encoding_configs
+                            .iter()
+                            .any(|config| config.model == model)
+                    })
+                    .collect::<Vec<_>>();
+                let total = filtered.len();
+                let start = request.offset.min(total);
+                let end = start.saturating_add(request.limit).min(total);
+                (filtered[start..end].to_vec(), total)
+            } else {
+                let entries = kernel
+                    .ports()
+                    .list_documents(request.offset, request.limit, request.include_hidden)
+                    .await
+                    .map_err(AppError::from)?;
+                let total = kernel
+                    .ports()
+                    .count_documents(request.include_hidden)
+                    .await
+                    .map_err(AppError::from)?;
+                (entries, total)
+            };
             drop(kernel);
-            (entries, total)
+            entries
         };
         Ok(VibeDocumentPageDto {
             items: entries.into_iter().map(vibe_entry_to_dto).collect(),

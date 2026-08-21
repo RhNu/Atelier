@@ -43,12 +43,14 @@ import {
   useGenerationHistoryQuery,
   useGenerationStatusQuery,
 } from "./data/useGenerationStatusQuery";
+import { findModelDescriptor, useImageModelCatalog } from "./data/useImageModelCatalog";
 import { formatGenerationError as formatError } from "./generation-page-utils";
 import {
   buildSubmitGenerationBatchRequest,
   canSubmitGenerationDraft,
   createGenerationDraft,
   resetGenerationParameters,
+  switchGenerationModel,
 } from "./model/generation-draft";
 import { buildGenerationBatchView, selectDefaultRequest } from "./model/generation-preview-model";
 import { useGenerationEventStore } from "./state/generation-event-store";
@@ -70,6 +72,7 @@ export function GeneratePage() {
   const clearDraftMutation = useClearGenerationDraftMutation();
   const statusQuery = useGenerationStatusQuery();
   const accountQuery = useActiveAccountSummaryQuery();
+  const modelCatalogQuery = useImageModelCatalog();
   const submitMutation = useSubmitGenerationMutation();
   const pauseMutation = usePauseGenerationMutation();
   const resumeMutation = useResumeGenerationMutation();
@@ -97,16 +100,21 @@ export function GeneratePage() {
   });
   const mainPresetsQuery = usePromptPresetsQuery({
     kind: "main",
+    model: draft?.model ?? null,
     offset: 0,
     limit: PRESET_LIBRARY_LIMIT,
   });
   const characterPresetsQuery = usePromptPresetsQuery({
     kind: "character",
+    model: draft?.model ?? null,
     offset: 0,
     limit: PRESET_LIBRARY_LIMIT,
   });
   const isOpus = accountQuery.data?.is_opus ?? false;
-  const estimateQuery = useGenerationEstimateQuery(draft, isOpus);
+  const capabilities = draft
+    ? findModelDescriptor(modelCatalogQuery.data, draft.model)?.capabilities
+    : undefined;
+  const estimateQuery = useGenerationEstimateQuery(draft, isOpus, capabilities);
   const liveBatchId = useGenerationEventStore((state) => state.liveBatchId);
   const storedViewBatchId = useGenerationEventStore((state) => state.viewBatchId);
   const latestJobId = useGenerationEventStore((state) => state.latestJobId);
@@ -236,7 +244,7 @@ export function GeneratePage() {
     flushDraft();
     frontendLogger.info("Generation batch submission started");
     void submitMutation
-      .mutateAsync(buildSubmitGenerationBatchRequest(draft, undefined, { isOpus }))
+      .mutateAsync(buildSubmitGenerationBatchRequest(draft, undefined, { isOpus, capabilities }))
       .then(() => {
         frontendLogger.info("Generation batch submission completed");
       })
@@ -246,7 +254,7 @@ export function GeneratePage() {
         });
         setSubmitError(formatError(error));
       });
-  }, [draft, flushDraft, isOpus, submitMutation, t]);
+  }, [capabilities, draft, flushDraft, isOpus, submitMutation, t]);
 
   const handleCompile = useCallback(() => {
     if (!draft) {
@@ -258,6 +266,7 @@ export function GeneratePage() {
     frontendLogger.info("Generation prompt compilation started");
     void compileMutation
       .mutateAsync({
+        model: draft.model,
         prompt: draft.prompt,
         main_preset_id: draft.mainPresetId,
         negative_prompt: draft.negativePrompt.trim() ? draft.negativePrompt : null,
@@ -285,6 +294,18 @@ export function GeneratePage() {
         setCompileError(formatError(error));
       });
   }, [compileMutation, draft]);
+
+  const handleModelChange = useCallback(
+    (model: Parameters<typeof findModelDescriptor>[1]) => {
+      if (!draft) return;
+      const descriptor = findModelDescriptor(modelCatalogQuery.data, model);
+      if (!descriptor) return;
+      replaceDraft(switchGenerationModel(draft, model, descriptor.capabilities), {
+        persist: "immediate",
+      });
+    },
+    [draft, modelCatalogQuery.data, replaceDraft],
+  );
 
   const handleClearStoredDraft = useCallback(() => {
     if (!settingsQuery.data) {
@@ -343,6 +364,9 @@ export function GeneratePage() {
                 mainPresetsPending={mainPresetsQuery.isPending}
                 onPatch={patchDraft}
                 onFlush={flushDraft}
+                onModelChange={handleModelChange}
+                modelCatalog={modelCatalogQuery.data}
+                capabilities={capabilities}
               />
               <AdvancedGenerationInputs
                 draft={draft}
@@ -360,6 +384,7 @@ export function GeneratePage() {
                 onImportVibeDocuments={generationActions.handleImportVibeDocuments}
                 onExportVibeDocument={generationActions.handleExportVibeDocument}
                 developerMode={globalSettingsQuery.data?.frontend.developer_mode === true}
+                capabilities={capabilities}
               />
               <GenerationParamsPanel
                 draft={draft}
@@ -391,6 +416,8 @@ export function GeneratePage() {
               }
               onRetryDraftSave={retrySave}
               onClearStoredDraft={handleClearStoredDraft}
+              capabilities={capabilities}
+              v5Usage={capabilities?.uses_v5_extensions ? accountQuery.data?.v5_usage : null}
             />
           </>
         }

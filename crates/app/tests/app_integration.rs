@@ -432,6 +432,7 @@ impl NovelAiDirectorClient for RecordingClient {
 impl SubscriptionClient for RecordingClient {
     async fn get_subscription(&self) -> SubscriptionResult<SubscriptionSummary> {
         Ok(SubscriptionSummary {
+            v5_usage: None,
             anlas_balance: 100,
             is_opus: false,
             tier: 1,

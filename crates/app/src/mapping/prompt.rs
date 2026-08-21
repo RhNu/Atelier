@@ -10,6 +10,7 @@ use super::{
     PromptPreset, PromptPresetBehavior, PromptPresetBehaviorDto, PromptPresetDto, PromptPresetId,
     PromptPresetKind, PromptPresetKindDto, PromptTrace, PromptTraceDto, UpsertPromptChunkRequest,
     UpsertPromptChunkRequestDto, UpsertPromptPresetRequest, UpsertPromptPresetRequestDto,
+    image_model_to_domain, image_model_to_dto, quality_preset_to_domain, quality_preset_to_dto,
     resource_ref_from_dto, resource_ref_to_dto,
 };
 pub fn prompt_chunk_to_dto(chunk: &PromptChunk) -> PromptChunkDto {
@@ -20,6 +21,12 @@ pub fn prompt_chunk_to_dto(chunk: &PromptChunk) -> PromptChunkDto {
         category: chunk.category.clone(),
         description: chunk.description.clone(),
         preview: chunk.preview_thumb.as_ref().map(resource_ref_to_dto),
+        models: chunk
+            .models
+            .iter()
+            .copied()
+            .map(image_model_to_dto)
+            .collect(),
         created_at_ms: chunk.created_at_ms,
         updated_at_ms: chunk.updated_at_ms,
     }
@@ -35,9 +42,15 @@ pub fn prompt_preset_to_dto(preset: &PromptPreset) -> PromptPresetDto {
         order: preset.order,
         prompt_behavior: prompt_preset_behavior_to_dto(&preset.prompt_behavior),
         uc_behavior: prompt_preset_behavior_to_dto(&preset.uc_behavior),
-        quality_override: preset.quality_override.clone(),
+        quality_override: preset.quality_override.map(quality_preset_to_dto),
         uc_preset_override: preset.uc_preset_override.clone(),
         preview: preset.preview_thumb.as_ref().map(resource_ref_to_dto),
+        models: preset
+            .models
+            .iter()
+            .copied()
+            .map(image_model_to_dto)
+            .collect(),
         created_at_ms: preset.created_at_ms,
         updated_at_ms: preset.updated_at_ms,
     }
@@ -55,9 +68,14 @@ pub fn upsert_prompt_preset_to_domain(
         order: request.order,
         prompt_behavior: prompt_preset_behavior_to_domain(request.prompt_behavior),
         uc_behavior: prompt_preset_behavior_to_domain(request.uc_behavior),
-        quality_override: request.quality_override,
+        quality_override: request.quality_override.map(quality_preset_to_domain),
         uc_preset_override: request.uc_preset_override,
         preview_thumb: request.preview.map(resource_ref_from_dto),
+        models: request
+            .models
+            .into_iter()
+            .map(image_model_to_domain)
+            .collect(),
     }
 }
 
@@ -106,6 +124,11 @@ pub fn upsert_prompt_chunk_to_domain(
         category: request.category,
         description: request.description,
         preview_thumb: request.preview.map(resource_ref_from_dto),
+        models: request
+            .models
+            .into_iter()
+            .map(image_model_to_domain)
+            .collect(),
     })
 }
 

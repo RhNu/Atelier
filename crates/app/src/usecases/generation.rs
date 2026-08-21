@@ -1,24 +1,24 @@
 use super::generation_support::{
     ensure_generation_batch_target_is_new, estimate_generation_anlas, parse_uc_preset_override,
-    quality_override_to_bool,
 };
 use super::{
     AppError, AppResult, ArtifactSource, BatchId, CharacterReference, CharacterReferenceDto,
-    CompileCharacterPromptRequest, CompileGenerationPromptRequest, ControlNetConfig,
-    ControlNetConfigDto, ControlNetInput, GalleryQuery, GallerySourceKind, GenerateImageRequest,
-    GenerateImageRequestDto, GenerateImageStreamRequest, GenerateImageStreamRequestDto,
-    GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationHistoryPosition,
-    GenerationHistoryUpdate, GenerationStatusDto, GenerationWorkRequest, GenerationWorkRequestDto,
-    ImageInputDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId, NovelAiClientFactory,
-    PromptPresetId, QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus,
-    RunOutputRecord, RunOutputState, SecretStore, SecretsErrorKind, SubmitGenerationBatch,
-    SubmitGenerationBatchJob, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
-    SubmitGenerationRequestDto, WorkspaceSession, character_reference_type_to_domain,
+    CompileCharacterPromptRequest, CompileGenerationPromptRequest, GalleryQuery, GallerySourceKind,
+    GenerateImageRequest, GenerateImageRequestDto, GenerateImageStreamRequest,
+    GenerateImageStreamRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
+    GenerationHistoryPosition, GenerationHistoryUpdate, GenerationStatusDto, GenerationWorkRequest,
+    GenerationWorkRequestDto, ImageInputDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId,
+    NovelAiClientFactory, PromptPresetId, QueueDirectiveDto, RunHistoryRecord,
+    RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState, SecretStore,
+    SecretsErrorKind, SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationBatchJobDto,
+    SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, VibeReference, VibeTransferConfig,
+    VibeTransferConfigDto, WorkspaceSession, character_reference_type_to_domain,
     characters_to_domain, generation_status_to_dto, generation_work_title, image_format_to_domain,
     image_model_to_domain, noise_schedule_to_domain, plan_context_to_domain,
-    queue_directive_to_dto, resource_ref_from_dto, resource_variant_kind_as_str,
-    run_history_status_from_job_status, sampler_to_domain, stream_mode_to_domain,
-    uc_preset_to_domain, upsert_generation_history_record, visual_asset_role_as_str,
+    quality_preset_to_domain, quality_preset_to_dto, queue_directive_to_dto, resource_ref_from_dto,
+    resource_variant_kind_as_str, run_history_status_from_job_status, sampler_to_domain,
+    stream_mode_to_domain, uc_preset_to_domain, upsert_generation_history_record,
+    visual_asset_role_as_str,
 };
 pub struct GenerationUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -293,7 +293,8 @@ where
                 height: value.size.height,
             },
             negative_prompt: value.negative_prompt,
-            quality: value.quality,
+            quality: quality_preset_to_domain(value.quality),
+            transparent_background: value.transparent_background,
             uc_preset: uc_preset_to_domain(value.uc_preset),
             steps: value.steps,
             scale: value.scale,
@@ -303,8 +304,10 @@ where
             n_samples: value.n_samples,
             cfg_rescale: value.cfg_rescale,
             variety_boost: value.variety_boost,
-            i2i: self.optional_i2i_to_domain(value.i2i).await?,
-            controlnet: self.optional_controlnet_to_domain(value.controlnet).await?,
+            img2img: self.optional_i2i_to_domain(value.img2img).await?,
+            vibe_transfer: self
+                .optional_vibe_transfer_to_domain(value.vibe_transfer)
+                .await?,
             character_references: self
                 .optional_character_references_to_domain(value.character_references)
                 .await?,
@@ -334,6 +337,7 @@ where
             .inner
             .prompt_compiler
             .compile_generation_prompt(CompileGenerationPromptRequest {
+                model: image_model_to_domain(value.model),
                 main_preset_id: value.main_preset_id.take().map(PromptPresetId::new),
                 prompt: value.prompt.clone(),
                 negative_prompt: value.negative_prompt.clone().unwrap_or_default(),
@@ -354,8 +358,8 @@ where
         value.prompt = compiled.prompt;
         value.negative_prompt =
             (!compiled.negative_prompt.trim().is_empty()).then_some(compiled.negative_prompt);
-        if let Some(quality_override) = compiled.quality_override.as_deref() {
-            value.quality = quality_override_to_bool(quality_override);
+        if let Some(quality_override) = compiled.quality_override {
+            value.quality = quality_preset_to_dto(quality_override);
         }
         if let Some(uc_preset_override) = compiled.uc_preset_override.as_deref() {
             value.uc_preset = parse_uc_preset_override(uc_preset_override)?;
@@ -378,16 +382,16 @@ where
         Ok(value)
     }
 
-    async fn optional_controlnet_to_domain(
+    async fn optional_vibe_transfer_to_domain(
         &self,
-        value: Option<ControlNetConfigDto>,
-    ) -> AppResult<Option<ControlNetConfig>> {
+        value: Option<VibeTransferConfigDto>,
+    ) -> AppResult<Option<VibeTransferConfig>> {
         let Some(config) = value else {
             return Ok(None);
         };
-        let mut images = Vec::with_capacity(config.images.len());
-        for image in config.images {
-            let reference = resource_ref_from_dto(image.encoding);
+        let mut references = Vec::with_capacity(config.references.len());
+        for item in config.references {
+            let reference = resource_ref_from_dto(item.encoding);
             let vibe_data_cache = self
                 .app
                 .inner
@@ -395,14 +399,13 @@ where
                 .read_resource_base64(&reference)
                 .await
                 .map_err(AppError::from)?;
-            images.push(ControlNetInput {
+            references.push(VibeReference {
                 vibe_data_cache,
-                info_extracted: image.info_extracted,
-                strength: image.strength,
+                strength: item.strength,
             });
         }
-        Ok(Some(ControlNetConfig {
-            images,
+        Ok(Some(VibeTransferConfig {
+            references,
             strength: config.strength,
         }))
     }

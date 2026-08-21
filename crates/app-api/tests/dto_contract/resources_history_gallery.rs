@@ -103,7 +103,7 @@ fn vibe_catalog_dtos_have_stable_metadata_shapes() {
         hidden: false,
         available_model_keys: vec!["v4-5full".to_owned()],
         available_encoding_configs: vec![VibeEncodingConfigDto {
-            model: VibeModelDto::NaiDiffusion45Full,
+            model: ImageModelDto::NaiDiffusion45Full,
             information_extracted: 0.7,
         }],
         created_at_ms: 10,
@@ -128,6 +128,7 @@ fn vibe_catalog_dtos_have_stable_metadata_shapes() {
 
     assert_eq!(
         serde_json::to_value(ListVibeDocumentsRequestDto {
+            model: None,
             offset: 0,
             limit: 20,
             include_hidden: true,

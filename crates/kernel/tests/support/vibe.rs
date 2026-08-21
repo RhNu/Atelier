@@ -20,7 +20,7 @@ impl NovelAiVibeClient for MemoryKernelPorts {
             Ok(EncodedVibe {
                 payload: format!(
                     "encoded:{}:{}",
-                    request.model.vibe_model_key(),
+                    request.model.vibe_model_key().expect("vibe model"),
                     request.information_extracted
                 ),
             })

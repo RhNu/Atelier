@@ -2,8 +2,9 @@ use async_trait::async_trait;
 use atelier_generation::{
     CharacterPosition, GenerationDraftCharacter, GenerationDraftCharacterPositionMode,
     GenerationDraftError, GenerationDraftI2i, GenerationDraftPreciseReference,
-    GenerationDraftRepository, GenerationDraftResult, GenerationDraftSeedMode,
-    GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot, ImageSize,
+    GenerationDraftPromptState, GenerationDraftRepository, GenerationDraftResult,
+    GenerationDraftSeedMode, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
+    ImageSize,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
 use rusqlite::{OptionalExtension, params};
@@ -13,13 +14,13 @@ use crate::codec::{decode_json, encode_json};
 use crate::generation_codec::scalars::{
     character_reference_type_as_str, character_reference_type_from_str, image_format_as_str,
     image_format_from_str, image_model_as_str, image_model_from_str, noise_schedule_as_str,
-    noise_schedule_from_str, sampler_as_str, sampler_from_str, uc_preset_as_str,
-    uc_preset_from_str,
+    noise_schedule_from_str, quality_preset_as_str, quality_preset_from_str, sampler_as_str,
+    sampler_from_str, uc_preset_as_str, uc_preset_from_str,
 };
 use crate::{DatabaseConnection, DatabaseError};
 
 const DRAFT_KEY: &str = "generation.draft";
-const JSON_SCHEMA_VERSION: u32 = 1;
+const JSON_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone, Debug)]
 pub struct DatabaseGenerationDraftRepository {
@@ -89,13 +90,12 @@ impl GenerationDraftRepository for DatabaseGenerationDraftRepository {
 #[allow(clippy::struct_excessive_bools)]
 struct GenerationDraftDto {
     schema_version: u32,
-    main_preset_id: Option<String>,
-    prompt: String,
-    negative_prompt: String,
     model: String,
+    prompt_states: Vec<GenerationDraftPromptStateDto>,
     width: u32,
     height: u32,
-    quality: bool,
+    quality: String,
+    transparent_background: bool,
     uc_preset: String,
     steps: u32,
     scale: f32,
@@ -113,21 +113,22 @@ struct GenerationDraftDto {
     i2i: Option<GenerationDraftI2iDto>,
     vibe: GenerationDraftVibeDto,
     precise_references: Vec<GenerationDraftPreciseReferenceDto>,
-    characters: Vec<GenerationDraftCharacterDto>,
-    character_position_mode: String,
 }
 
 impl GenerationDraftDto {
     fn from_domain(value: &GenerationDraftSnapshot) -> Self {
         Self {
             schema_version: JSON_SCHEMA_VERSION,
-            main_preset_id: value.main_preset_id.clone(),
-            prompt: value.prompt.clone(),
-            negative_prompt: value.negative_prompt.clone(),
             model: image_model_as_str(value.model).to_owned(),
+            prompt_states: value
+                .prompt_states
+                .iter()
+                .map(GenerationDraftPromptStateDto::from_domain)
+                .collect(),
             width: value.size.width,
             height: value.size.height,
-            quality: value.quality,
+            quality: quality_preset_as_str(value.quality).to_owned(),
+            transparent_background: value.transparent_background,
             uc_preset: uc_preset_as_str(value.uc_preset).to_owned(),
             steps: value.steps,
             scale: value.scale,
@@ -152,27 +153,24 @@ impl GenerationDraftDto {
                 .iter()
                 .map(GenerationDraftPreciseReferenceDto::from_domain)
                 .collect(),
-            characters: value
-                .characters
-                .iter()
-                .map(GenerationDraftCharacterDto::from_domain)
-                .collect(),
-            character_position_mode: position_mode_as_str(value.character_position_mode).to_owned(),
         }
     }
 
     fn into_domain(self) -> GenerationDraftResult<GenerationDraftSnapshot> {
         ensure_schema(self.schema_version)?;
         Ok(GenerationDraftSnapshot {
-            main_preset_id: self.main_preset_id,
-            prompt: self.prompt,
-            negative_prompt: self.negative_prompt,
             model: map_database(image_model_from_str(&self.model))?,
+            prompt_states: self
+                .prompt_states
+                .into_iter()
+                .map(GenerationDraftPromptStateDto::into_domain)
+                .collect::<GenerationDraftResult<_>>()?,
             size: ImageSize {
                 width: self.width,
                 height: self.height,
             },
-            quality: self.quality,
+            quality: map_database(quality_preset_from_str(&self.quality))?,
+            transparent_background: self.transparent_background,
             uc_preset: map_database(uc_preset_from_str(&self.uc_preset))?,
             steps: self.steps,
             scale: self.scale,
@@ -193,18 +191,12 @@ impl GenerationDraftDto {
             strict_mode: self.strict_mode,
             stream_enabled: self.stream_enabled,
             i2i: self.i2i.map(GenerationDraftI2iDto::into_domain),
-            vibe: self.vibe.into_domain(),
+            vibe: self.vibe.into_domain()?,
             precise_references: self
                 .precise_references
                 .into_iter()
                 .map(GenerationDraftPreciseReferenceDto::into_domain)
                 .collect::<GenerationDraftResult<_>>()?,
-            characters: self
-                .characters
-                .into_iter()
-                .map(GenerationDraftCharacterDto::into_domain)
-                .collect(),
-            character_position_mode: position_mode_from_str(&self.character_position_mode)?,
         })
     }
 
@@ -267,16 +259,16 @@ impl GenerationDraftVibeDto {
         }
     }
 
-    fn into_domain(self) -> GenerationDraftVibe {
-        GenerationDraftVibe {
+    fn into_domain(self) -> GenerationDraftResult<GenerationDraftVibe> {
+        Ok(GenerationDraftVibe {
             enabled: self.enabled,
             strength: self.strength,
             slots: self
                 .slots
                 .into_iter()
                 .map(GenerationDraftVibeSlotDto::into_domain)
-                .collect(),
-        }
+                .collect::<GenerationDraftResult<_>>()?,
+        })
     }
 }
 
@@ -290,6 +282,7 @@ struct GenerationDraftVibeSlotDto {
     display_name: String,
     source_image: Option<ResourceRefDto>,
     source_sha256: Option<String>,
+    model: String,
 }
 
 impl GenerationDraftVibeSlotDto {
@@ -303,11 +296,12 @@ impl GenerationDraftVibeSlotDto {
             display_name: value.display_name.clone(),
             source_image: value.source_image.as_ref().map(ResourceRefDto::from_domain),
             source_sha256: value.source_sha256.clone(),
+            model: image_model_as_str(value.model).to_owned(),
         }
     }
 
-    fn into_domain(self) -> GenerationDraftVibeSlot {
-        GenerationDraftVibeSlot {
+    fn into_domain(self) -> GenerationDraftResult<GenerationDraftVibeSlot> {
+        Ok(GenerationDraftVibeSlot {
             id: self.id,
             encoding: self.encoding.into_domain(),
             vibe_id: self.vibe_id,
@@ -316,7 +310,50 @@ impl GenerationDraftVibeSlotDto {
             display_name: self.display_name,
             source_image: self.source_image.map(ResourceRefDto::into_domain),
             source_sha256: self.source_sha256,
+            model: map_database(image_model_from_str(&self.model))?,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct GenerationDraftPromptStateDto {
+    model: String,
+    main_preset_id: Option<String>,
+    prompt: String,
+    negative_prompt: String,
+    characters: Vec<GenerationDraftCharacterDto>,
+    character_position_mode: String,
+}
+
+impl GenerationDraftPromptStateDto {
+    fn from_domain(value: &GenerationDraftPromptState) -> Self {
+        Self {
+            model: image_model_as_str(value.model).to_owned(),
+            main_preset_id: value.main_preset_id.clone(),
+            prompt: value.prompt.clone(),
+            negative_prompt: value.negative_prompt.clone(),
+            characters: value
+                .characters
+                .iter()
+                .map(GenerationDraftCharacterDto::from_domain)
+                .collect(),
+            character_position_mode: position_mode_as_str(value.character_position_mode).to_owned(),
         }
+    }
+
+    fn into_domain(self) -> GenerationDraftResult<GenerationDraftPromptState> {
+        Ok(GenerationDraftPromptState {
+            model: map_database(image_model_from_str(&self.model))?,
+            main_preset_id: self.main_preset_id,
+            prompt: self.prompt,
+            negative_prompt: self.negative_prompt,
+            characters: self
+                .characters
+                .into_iter()
+                .map(GenerationDraftCharacterDto::into_domain)
+                .collect(),
+            character_position_mode: position_mode_from_str(&self.character_position_mode)?,
+        })
     }
 }
 

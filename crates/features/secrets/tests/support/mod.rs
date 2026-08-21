@@ -227,6 +227,7 @@ impl SubscriptionProbeClient for FakeProbe {
             tier: 3,
             tier_name: "opus".to_owned(),
             expires_at_ms: Some(1_700_000_000_000),
+            v5_usage: None,
         })
     }
 }

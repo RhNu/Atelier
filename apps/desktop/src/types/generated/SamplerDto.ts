@@ -6,6 +6,8 @@ export type SamplerDto =
   | "k_dpm2"
   | "k_dpm2_ancestral"
   | "k_dpmpp2m"
+  | "k_dpmpp2m_sde"
   | "k_dpmpp2s_ancestral"
   | "k_dpmpp_sde"
-  | "ddim";
+  | "ddim"
+  | "ddim_v3";

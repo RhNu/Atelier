@@ -4,7 +4,12 @@ import { useTranslation } from "react-i18next";
 
 import { AppButton, AppPanel } from "@/components/ui";
 import { SeedInput } from "@/features/generation/components/SeedInput";
-import type { GenerationDefaultsDto, WorkspaceSettingsDto } from "@/types";
+import {
+  findModelDescriptor,
+  useImageModelCatalog,
+} from "@/features/generation/data/useImageModelCatalog";
+import { toQualityPreset } from "@/features/generation/model/generation-options";
+import type { GenerationDefaultsDto, ModelCapabilitiesDto, WorkspaceSettingsDto } from "@/types";
 
 import {
   modelSelectOptions,
@@ -19,6 +24,11 @@ import {
   ucPresetSelectOptions,
 } from "../settings-options";
 import { CheckboxField, NumberField, SectionHeader, SelectField } from "./SettingsControls";
+
+type GenerationFieldChange = <Key extends keyof GenerationDefaultsDto>(
+  key: Key,
+  value: GenerationDefaultsDto[Key],
+) => void;
 
 export function GenerationSettingsSection({
   draft,
@@ -61,6 +71,7 @@ export function GenerationSettingsSection({
       </SectionHeader>
       <GenerationFields
         generation={generation}
+        onGenerationChange={updateGeneration}
         onFieldChange={updateField}
         onSizeChange={updateSize}
       />
@@ -70,17 +81,29 @@ export function GenerationSettingsSection({
 
 function GenerationFields({
   generation,
+  onGenerationChange,
   onFieldChange,
   onSizeChange,
 }: {
   generation: GenerationDefaultsDto;
-  onFieldChange: <Key extends keyof GenerationDefaultsDto>(
-    key: Key,
-    value: GenerationDefaultsDto[Key],
-  ) => void;
+  onGenerationChange: (generation: GenerationDefaultsDto) => void;
+  onFieldChange: GenerationFieldChange;
   onSizeChange: (key: "width" | "height", value: number) => void;
 }) {
   const { t } = useTranslation("settings");
+  const modelCatalog = useImageModelCatalog();
+  const capabilities = findModelDescriptor(modelCatalog.data, generation.model)?.capabilities;
+  const availableModelOptions = useMemo(
+    () =>
+      modelCatalog.data?.map(
+        ({ model }) =>
+          modelSelectOptions.find((option) => option.value === model) ?? {
+            value: model,
+            label: model,
+          },
+      ) ?? modelSelectOptions,
+    [modelCatalog.data],
+  );
   const ucPresetOptions = useMemo(
     () =>
       ucPresetSelectOptions({
@@ -93,8 +116,16 @@ function GenerationFields({
     [t],
   );
   const modelChange = useCallback(
-    (value: string) => onFieldChange("model", toImageModel(value)),
-    [onFieldChange],
+    (value: string) => {
+      const model = toImageModel(value);
+      const descriptor = findModelDescriptor(modelCatalog.data, model);
+      onGenerationChange({
+        ...generation,
+        model,
+        scale: descriptor?.capabilities.default_scale ?? generation.scale,
+      });
+    },
+    [generation, modelCatalog.data, onGenerationChange],
   );
   const widthChange = useCallback((value: number) => onSizeChange("width", value), [onSizeChange]);
   const heightChange = useCallback(
@@ -134,18 +165,6 @@ function GenerationFields({
     (value: string) => onFieldChange("image_format", toImageFormat(value)),
     [onFieldChange],
   );
-  const qualityChange = useCallback(
-    (value: boolean) => onFieldChange("quality", value),
-    [onFieldChange],
-  );
-  const varietyChange = useCallback(
-    (value: boolean) => onFieldChange("variety_boost", value),
-    [onFieldChange],
-  );
-  const strictChange = useCallback(
-    (value: boolean) => onFieldChange("strict_mode", value),
-    [onFieldChange],
-  );
 
   return (
     <div className="min-h-0 flex-1 overflow-auto p-3">
@@ -153,7 +172,7 @@ function GenerationFields({
         <SelectField
           label={t("model")}
           value={generation.model}
-          options={modelSelectOptions}
+          options={availableModelOptions}
           onChange={modelChange}
         />
         <NumberField label={t("width")} value={generation.size.width} onChange={widthChange} />
@@ -203,19 +222,76 @@ function GenerationFields({
           onChange={formatChange}
         />
       </div>
-      <div className="mt-4 grid gap-2 border-t border-app-border pt-4 md:grid-cols-3">
-        <CheckboxField label={t("quality")} checked={generation.quality} onChange={qualityChange} />
+      <GenerationCapabilityFields
+        generation={generation}
+        capabilities={capabilities}
+        onFieldChange={onFieldChange}
+      />
+    </div>
+  );
+}
+
+function GenerationCapabilityFields({
+  generation,
+  capabilities,
+  onFieldChange,
+}: {
+  generation: GenerationDefaultsDto;
+  capabilities?: ModelCapabilitiesDto;
+  onFieldChange: GenerationFieldChange;
+}) {
+  const { t } = useTranslation("settings");
+  const qualityOptions = useMemo(
+    () => [
+      { value: "standard", label: "Standard" },
+      ...(capabilities?.supports_light_quality_preset ? [{ value: "light", label: "Light" }] : []),
+      { value: "none", label: "None" },
+    ],
+    [capabilities?.supports_light_quality_preset],
+  );
+  const qualityChange = useCallback(
+    (value: string) => onFieldChange("quality", toQualityPreset(value)),
+    [onFieldChange],
+  );
+  const transparentChange = useCallback(
+    (value: boolean) => onFieldChange("transparent_background", value),
+    [onFieldChange],
+  );
+  const varietyChange = useCallback(
+    (value: boolean) => onFieldChange("variety_boost", value),
+    [onFieldChange],
+  );
+  const strictChange = useCallback(
+    (value: boolean) => onFieldChange("strict_mode", value),
+    [onFieldChange],
+  );
+  return (
+    <div className="mt-4 grid gap-2 border-t border-app-border pt-4 md:grid-cols-3">
+      <SelectField
+        label={t("quality")}
+        value={generation.quality}
+        options={qualityOptions}
+        onChange={qualityChange}
+      />
+      {capabilities?.supports_transparent_background ? (
+        <CheckboxField
+          label={t("transparentBackground")}
+          checked={generation.transparent_background}
+          onChange={transparentChange}
+        />
+      ) : null}
+      {capabilities?.supports_variety_boost !== false ? (
         <CheckboxField
           label={t("varietyBoost")}
           checked={generation.variety_boost}
           onChange={varietyChange}
         />
-        <CheckboxField
-          label={t("strictMode")}
-          checked={generation.strict_mode}
-          onChange={strictChange}
-        />
-      </div>
+      ) : null}
+      <CheckboxField
+        label={t("strictMode")}
+        checked={generation.strict_mode}
+        onChange={strictChange}
+      />
     </div>
   );
 }

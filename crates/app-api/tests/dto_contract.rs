@@ -16,11 +16,11 @@ use atelier_app_api::gallery::{
 };
 use atelier_app_api::generation::{
     CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
-    ControlNetConfigDto, ControlNetInputDto, GenerateImageRequestDto, GenerationAnlasEstimateDto,
-    GenerationEstimateRequestDto, GenerationRequestStatusDto, GenerationStatusDto,
-    GenerationStatusQueryDto, ImageModelDto, Img2ImgRequestDto, QueueDirectiveDto,
-    RunGenerationJobRequestDto, StreamModeDto, SubmitGenerationBatchJobDto,
-    SubmitGenerationBatchRequestDto,
+    GenerateImageRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
+    GenerationRequestStatusDto, GenerationStatusDto, GenerationStatusQueryDto, ImageModelDto,
+    Img2ImgRequestDto, QueueDirectiveDto, RunGenerationJobRequestDto, StreamModeDto,
+    SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, VibeReferenceDto,
+    VibeTransferConfigDto,
 };
 use atelier_app_api::history::{
     DeleteGenerationHistoryBatchesRequestDto, DeleteGenerationHistoryBatchesResponseDto,
@@ -52,7 +52,7 @@ use atelier_app_api::settings::{
 };
 use atelier_app_api::vibe::{
     GetVibeDocumentRequestDto, ListVibeDocumentsRequestDto, VibeDocumentEntryDto,
-    VibeDocumentPageDto, VibeEncodingConfigDto, VibeModelDto,
+    VibeDocumentPageDto, VibeEncodingConfigDto,
 };
 use atelier_app_api::workspace::CloseWorkspaceResponseDto;
 use serde_json::json;
@@ -270,7 +270,8 @@ fn workspace_settings_dtos_have_stable_json_field_names() {
                 "generation": {
                     "model": "nai-diffusion-4-5-full",
                     "size": { "width": 832, "height": 1216 },
-                    "quality": true,
+                    "quality": "standard",
+                    "transparent_background": false,
                     "uc_preset": "light",
                     "steps": 23,
                     "scale": 5.0,
@@ -296,7 +297,8 @@ fn workspace_settings_dtos_have_stable_json_field_names() {
                 "generation": {
                     "model": "nai-diffusion-4-5-full",
                     "size": { "width": 832, "height": 1216 },
-                    "quality": true,
+                    "quality": "standard",
+                    "transparent_background": false,
                     "uc_preset": "light",
                     "steps": 23,
                     "scale": 5.0,

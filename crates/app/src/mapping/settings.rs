@@ -5,7 +5,8 @@ use super::{
     GlobalSettingsDto, ImageSize, ImageSizeDto, ImageVariantSettings, ImageVariantSettingsDto,
     WorkspaceSettings, WorkspaceSettingsDto, image_format_to_domain, image_format_to_dto,
     image_model_to_domain, image_model_to_dto, noise_schedule_to_domain, noise_schedule_to_dto,
-    sampler_to_domain, sampler_to_dto, uc_preset_to_domain, uc_preset_to_dto,
+    quality_preset_to_domain, quality_preset_to_dto, sampler_to_domain, sampler_to_dto,
+    uc_preset_to_domain, uc_preset_to_dto,
 };
 
 pub fn workspace_settings_to_dto(value: &WorkspaceSettings) -> WorkspaceSettingsDto {
@@ -89,7 +90,8 @@ fn generation_defaults_to_dto(value: &GenerationDefaults) -> GenerationDefaultsD
             width: value.size.width,
             height: value.size.height,
         },
-        quality: value.quality,
+        quality: quality_preset_to_dto(value.quality),
+        transparent_background: value.transparent_background,
         uc_preset: uc_preset_to_dto(value.uc_preset),
         steps: value.steps,
         scale: value.scale,
@@ -111,7 +113,8 @@ fn generation_defaults_to_domain(value: &GenerationDefaultsDto) -> GenerationDef
             width: value.size.width,
             height: value.size.height,
         },
-        quality: value.quality,
+        quality: quality_preset_to_domain(value.quality),
+        transparent_background: value.transparent_background,
         uc_preset: uc_preset_to_domain(value.uc_preset),
         steps: value.steps,
         scale: value.scale,

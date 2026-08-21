@@ -94,4 +94,8 @@ export const resources = {
   pastePreview: "粘贴图片",
   clearPreview: "清除预览",
   previewImportHint: "选择图片，或在输入框未聚焦时按 Ctrl+V。",
+  models: "模型",
+  previewModel: "预览模型",
+  modelFilter: "模型筛选",
+  allModels: "全部模型",
 } satisfies LocaleShape<typeof enResources>;

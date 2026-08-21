@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { PromptChunkDto } from "@/types";
+import type { ImageModelDto, PromptChunkDto } from "@/types";
 
 import { matchesSearch, type ResourceViewMode } from "../resource-model";
 import { ChunkEditorDialog } from "./ChunkEditorDialog";
@@ -16,6 +16,7 @@ export function ChunkWorkspace({
   newRequest,
   viewMode,
   categorySuggestions,
+  defaultModel,
 }: {
   chunks: ReadonlyArray<PromptChunkDto>;
   pending: boolean;
@@ -24,6 +25,7 @@ export function ChunkWorkspace({
   newRequest: number;
   viewMode: ResourceViewMode;
   categorySuggestions: ReadonlyArray<string>;
+  defaultModel: ImageModelDto;
 }) {
   const { t } = useTranslation("resources");
   const [editorChunk, setEditorChunk] = useState<PromptChunkDto | null | undefined>(undefined);
@@ -65,6 +67,7 @@ export function ChunkWorkspace({
           key={editorChunk?.chunk_id ?? `new-${newRequest}`}
           chunk={editorChunk}
           categorySuggestions={categorySuggestions}
+          defaultModel={defaultModel}
           onClose={() => setEditorChunk(undefined)}
         />
       ) : null}

@@ -9,8 +9,8 @@ use atelier_app_api::gallery::{
 };
 use atelier_app_api::generation::{
     GenerationPlanContextDto, GenerationRequestStatusDto, GenerationStatusDto, ImageFormatDto,
-    ImageModelDto, ImageSizeDto, NoiseScheduleDto, QueueDelayDto, QueueDirectiveDto, SamplerDto,
-    StreamModeDto, UcPresetDto,
+    ImageModelDto, ImageSizeDto, NoiseScheduleDto, PromptStructureDto, QualityPresetDto,
+    QueueDelayDto, QueueDirectiveDto, SamplerDto, StreamModeDto, UcPresetDto,
 };
 use atelier_app_api::history::{
     GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto, GenerationHistoryPageDto,
@@ -36,7 +36,7 @@ use atelier_app_api::settings::{
 };
 use atelier_app_api::vibe::{
     EnsuredVibeEncodingDto, ExportedVibeDocumentDto, ImportedVibeDocumentsDto,
-    VibeDocumentEntryDto, VibeEncodingConfigDto, VibeExportFormatDto, VibeModelDto,
+    VibeDocumentEntryDto, VibeEncodingConfigDto, VibeExportFormatDto,
 };
 use atelier_artifacts::{
     ArtifactKind, EmbeddedMetadataStatus, EmbeddedMetadataWarning, VisualAssetRole,
@@ -46,8 +46,8 @@ use atelier_gallery::{
     GallerySourceKind, ImageReferenceTarget,
 };
 use atelier_generation::{
-    GenerationPlanContext, ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, StreamMode,
-    UcPreset,
+    GenerationPlanContext, ImageFormat, ImageModel, ImageSize, NoiseSchedule, PromptStructure,
+    QualityPreset, Sampler, StreamMode, UcPreset,
 };
 use atelier_image_analysis::{
     ImageAnalysisModelId, ImageAnalysisModelState, ImageAnalysisModelStatus,
@@ -105,6 +105,8 @@ pub use vibe::*;
 
 pub const fn image_model_to_domain(value: ImageModelDto) -> ImageModel {
     match value {
+        ImageModelDto::NaiDiffusion5Full => ImageModel::NaiDiffusion5Full,
+        ImageModelDto::NaiDiffusion5Curated => ImageModel::NaiDiffusion5Curated,
         ImageModelDto::NaiDiffusion45Full => ImageModel::NaiDiffusion45Full,
         ImageModelDto::NaiDiffusion45Curated => ImageModel::NaiDiffusion45Curated,
         ImageModelDto::NaiDiffusion4Full => ImageModel::NaiDiffusion4Full,
@@ -114,8 +116,10 @@ pub const fn image_model_to_domain(value: ImageModelDto) -> ImageModel {
     }
 }
 
-const fn image_model_to_dto(value: ImageModel) -> ImageModelDto {
+pub const fn image_model_to_dto(value: ImageModel) -> ImageModelDto {
     match value {
+        ImageModel::NaiDiffusion5Full => ImageModelDto::NaiDiffusion5Full,
+        ImageModel::NaiDiffusion5Curated => ImageModelDto::NaiDiffusion5Curated,
         ImageModel::NaiDiffusion45Full => ImageModelDto::NaiDiffusion45Full,
         ImageModel::NaiDiffusion45Curated => ImageModelDto::NaiDiffusion45Curated,
         ImageModel::NaiDiffusion4Full => ImageModelDto::NaiDiffusion4Full,
@@ -132,9 +136,11 @@ pub const fn sampler_to_domain(value: SamplerDto) -> Sampler {
         SamplerDto::KDpm2 => Sampler::KDpm2,
         SamplerDto::KDpm2Ancestral => Sampler::KDpm2Ancestral,
         SamplerDto::KDpmpp2m => Sampler::KDpmpp2m,
+        SamplerDto::KDpmpp2mSde => Sampler::KDpmpp2mSde,
         SamplerDto::KDpmpp2sAncestral => Sampler::KDpmpp2sAncestral,
         SamplerDto::KDpmppSde => Sampler::KDpmppSde,
         SamplerDto::Ddim => Sampler::Ddim,
+        SamplerDto::DdimV3 => Sampler::DdimV3,
     }
 }
 
@@ -145,14 +151,17 @@ const fn sampler_to_dto(value: Sampler) -> SamplerDto {
         Sampler::KDpm2 => SamplerDto::KDpm2,
         Sampler::KDpm2Ancestral => SamplerDto::KDpm2Ancestral,
         Sampler::KDpmpp2m => SamplerDto::KDpmpp2m,
+        Sampler::KDpmpp2mSde => SamplerDto::KDpmpp2mSde,
         Sampler::KDpmpp2sAncestral => SamplerDto::KDpmpp2sAncestral,
         Sampler::KDpmppSde => SamplerDto::KDpmppSde,
         Sampler::Ddim => SamplerDto::Ddim,
+        Sampler::DdimV3 => SamplerDto::DdimV3,
     }
 }
 
 pub const fn noise_schedule_to_domain(value: NoiseScheduleDto) -> NoiseSchedule {
     match value {
+        NoiseScheduleDto::Native => NoiseSchedule::Native,
         NoiseScheduleDto::Karras => NoiseSchedule::Karras,
         NoiseScheduleDto::Exponential => NoiseSchedule::Exponential,
         NoiseScheduleDto::Polyexponential => NoiseSchedule::Polyexponential,
@@ -161,9 +170,61 @@ pub const fn noise_schedule_to_domain(value: NoiseScheduleDto) -> NoiseSchedule 
 
 const fn noise_schedule_to_dto(value: NoiseSchedule) -> NoiseScheduleDto {
     match value {
+        NoiseSchedule::Native => NoiseScheduleDto::Native,
         NoiseSchedule::Karras => NoiseScheduleDto::Karras,
         NoiseSchedule::Exponential => NoiseScheduleDto::Exponential,
         NoiseSchedule::Polyexponential => NoiseScheduleDto::Polyexponential,
+    }
+}
+
+pub const fn quality_preset_to_domain(value: QualityPresetDto) -> QualityPreset {
+    match value {
+        QualityPresetDto::Standard => QualityPreset::Standard,
+        QualityPresetDto::Light => QualityPreset::Light,
+        QualityPresetDto::None => QualityPreset::None,
+    }
+}
+
+pub const fn quality_preset_to_dto(value: QualityPreset) -> QualityPresetDto {
+    match value {
+        QualityPreset::Standard => QualityPresetDto::Standard,
+        QualityPreset::Light => QualityPresetDto::Light,
+        QualityPreset::None => QualityPresetDto::None,
+    }
+}
+
+pub const fn prompt_structure_to_dto(value: PromptStructure) -> PromptStructureDto {
+    match value {
+        PromptStructure::Legacy => PromptStructureDto::Legacy,
+        PromptStructure::V4 => PromptStructureDto::V4,
+    }
+}
+
+pub const fn model_descriptor_to_dto(
+    model: ImageModel,
+) -> atelier_app_api::generation::ImageModelDescriptorDto {
+    let capabilities = model.capabilities();
+    atelier_app_api::generation::ImageModelDescriptorDto {
+        model: image_model_to_dto(model),
+        capabilities: atelier_app_api::generation::ModelCapabilitiesDto {
+            prompt_structure: prompt_structure_to_dto(capabilities.prompt_structure),
+            params_version: capabilities.params_version,
+            default_steps: capabilities.default_steps,
+            default_scale: capabilities.default_scale,
+            max_characters: capabilities.max_characters,
+            supports_vibe_transfer: capabilities.supports_vibe_transfer,
+            supports_encoded_vibe: capabilities.supports_encoded_vibe,
+            supports_character_reference: capabilities.supports_character_reference,
+            supports_variety_boost: capabilities.supports_variety_boost,
+            supports_inpainting: capabilities.supports_inpainting,
+            supports_smea: capabilities.supports_smea,
+            supports_dynamic_thresholding: capabilities.supports_dynamic_thresholding,
+            uses_v5_extensions: capabilities.uses_v5_extensions,
+            supports_light_quality_preset: capabilities.supports_light_quality_preset,
+            supports_transparent_background: capabilities.supports_transparent_background,
+            variety_sigma_coefficient: capabilities.variety_sigma_coefficient,
+            prompt_token_limit: capabilities.prompt_token_limit,
+        },
     }
 }
 

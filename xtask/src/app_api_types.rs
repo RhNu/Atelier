@@ -5,7 +5,7 @@ use atelier_app_api::{
     account::{
         ApiKeyRecordDto, CreateApiKeyRequestDto, DeleteApiKeyRequestDto, DeleteApiKeyResponseDto,
         ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto, SubscriptionSummaryDto,
-        UpdateApiKeyRequestDto,
+        UpdateApiKeyRequestDto, V5UsageStatusDto,
     },
     danbooru::{
         DanbooruAccountDto, DanbooruAccountStateDto, DanbooruAuthModeDto, DanbooruMediaRequestDto,
@@ -29,16 +29,18 @@ use atelier_app_api::{
     },
     generation::{
         CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
-        ControlNetConfigDto, ControlNetInputDto, GenerateImageRequestDto,
-        GenerateImageStreamRequestDto, GenerationAnlasEstimateDto, GenerationDraftCharacterDto,
-        GenerationDraftCharacterPositionModeDto, GenerationDraftDto, GenerationDraftI2iDto,
-        GenerationDraftPreciseReferenceDto, GenerationDraftSeedModeDto, GenerationDraftVibeDto,
-        GenerationDraftVibeSlotDto, GenerationEstimateRequestDto, GenerationPlanContextDto,
-        GenerationRequestStatusDto, GenerationStatusDto, GenerationStatusQueryDto,
-        GenerationWorkRequestDto, ImageFormatDto, ImageModelDto, ImageSizeDto, Img2ImgRequestDto,
-        NoiseScheduleDto, QueueDelayDto, QueueDirectiveDto, RunGenerationJobRequestDto, SamplerDto,
+        GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationAnlasEstimateDto,
+        GenerationDraftCharacterDto, GenerationDraftCharacterPositionModeDto, GenerationDraftDto,
+        GenerationDraftI2iDto, GenerationDraftPreciseReferenceDto, GenerationDraftPromptStateDto,
+        GenerationDraftSeedModeDto, GenerationDraftVibeDto, GenerationDraftVibeSlotDto,
+        GenerationEstimateRequestDto, GenerationPlanContextDto, GenerationRequestStatusDto,
+        GenerationStatusDto, GenerationStatusQueryDto, GenerationWorkRequestDto, ImageFormatDto,
+        ImageModelDescriptorDto, ImageModelDto, ImageSizeDto, Img2ImgRequestDto,
+        ModelCapabilitiesDto, NoiseScheduleDto, PromptStructureDto, QualityPresetDto,
+        QueueDelayDto, QueueDirectiveDto, RunGenerationJobRequestDto, SamplerDto,
         SaveGenerationDraftRequestDto, StreamModeDto, SubmitGenerationBatchJobDto,
-        SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, UcPresetDto,
+        SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, UcPresetDto, VibeReferenceDto,
+        VibeTransferConfigDto,
     },
     history::{
         DeleteGenerationHistoryBatchesRequestDto, DeleteGenerationHistoryBatchesResponseDto,
@@ -92,7 +94,7 @@ use atelier_app_api::{
         ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocumentRequestDto,
         ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto, RenameVibeDocumentRequestDto,
         SetVibeDocumentHiddenRequestDto, VibeDocumentEntryDto, VibeDocumentPageDto,
-        VibeEncodingConfigDto, VibeExportFormatDto, VibeModelDto,
+        VibeEncodingConfigDto, VibeExportFormatDto,
     },
     workspace::{
         AppBootstrapDto, CloseWorkspaceResponseDto, OpenWorkspaceRequestDto,
@@ -187,6 +189,7 @@ fn export_account_types(config: &Config) -> Result<(), String> {
         ProbeApiKeyRequestDto,
         ApiKeyRecordDto,
         SubscriptionSummaryDto,
+        V5UsageStatusDto,
     )
 }
 
@@ -247,15 +250,19 @@ fn export_generation_types(config: &Config) -> Result<(), String> {
     export_types!(
         config,
         ImageModelDto,
+        ImageModelDescriptorDto,
+        ModelCapabilitiesDto,
+        PromptStructureDto,
         ImageSizeDto,
         SamplerDto,
         NoiseScheduleDto,
         UcPresetDto,
         ImageFormatDto,
         StreamModeDto,
+        QualityPresetDto,
         Img2ImgRequestDto,
-        ControlNetInputDto,
-        ControlNetConfigDto,
+        VibeReferenceDto,
+        VibeTransferConfigDto,
         CharacterReferenceTypeDto,
         CharacterReferenceDto,
         CharacterPositionDto,
@@ -267,6 +274,7 @@ fn export_generation_types(config: &Config) -> Result<(), String> {
         GenerationDraftVibeDto,
         GenerationDraftPreciseReferenceDto,
         GenerationDraftCharacterDto,
+        GenerationDraftPromptStateDto,
         GenerationDraftDto,
         SaveGenerationDraftRequestDto,
         GenerateImageRequestDto,
@@ -416,7 +424,6 @@ fn export_settings_types(config: &Config) -> Result<(), String> {
 fn export_vibe_types(config: &Config) -> Result<(), String> {
     export_types!(
         config,
-        VibeModelDto,
         VibeExportFormatDto,
         ImportVibeDocumentRequestDto,
         ImportEmbeddedPngVibeDocumentRequestDto,

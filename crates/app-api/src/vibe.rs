@@ -1,24 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::generation::ImageModelDto;
 use crate::resource::ResourceRefDto;
-
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub enum VibeModelDto {
-    #[default]
-    #[serde(rename = "nai-diffusion-4-5-full")]
-    NaiDiffusion45Full,
-    #[serde(rename = "nai-diffusion-4-5-curated")]
-    NaiDiffusion45Curated,
-    #[serde(rename = "nai-diffusion-4-full")]
-    NaiDiffusion4Full,
-    #[serde(rename = "nai-diffusion-4-curated")]
-    NaiDiffusion4Curated,
-    #[serde(rename = "nai-diffusion-3")]
-    NaiDiffusion3,
-    #[serde(rename = "nai-diffusion-3-furry")]
-    NaiDiffusion3Furry,
-}
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -51,18 +35,20 @@ pub struct EnsureVibeEncodingRequestDto {
     pub vibe_id: String,
     pub source_sha256: String,
     pub image: String,
-    pub model: VibeModelDto,
+    pub model: ImageModelDto,
     pub information_extracted: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct VibeEncodingConfigDto {
-    pub model: VibeModelDto,
+    pub model: ImageModelDto,
     pub information_extracted: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ListVibeDocumentsRequestDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<ImageModelDto>,
     pub offset: usize,
     pub limit: usize,
     pub include_hidden: bool,
@@ -74,6 +60,7 @@ impl Default for ListVibeDocumentsRequestDto {
             offset: 0,
             limit: 50,
             include_hidden: false,
+            model: None,
         }
     }
 }

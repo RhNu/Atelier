@@ -35,6 +35,8 @@ import type {
   GetResourceImageRequestDto,
   ImportImageResourceResponseDto,
   ImageResourceKindDto,
+  ImageModelDescriptorDto,
+  ImageModelDto,
   ImportedVibeDocumentsDto,
   ListVibeDocumentsRequestDto,
   ListPromptPresetsRequestDto,
@@ -78,6 +80,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   generationApi: {
+    listModels: vi.fn<() => Promise<ImageModelDescriptorDto[]>>(),
     getDraft: vi.fn<() => Promise<GenerationDraftDto | null>>(),
     saveDraft: vi.fn<(request: SaveGenerationDraftRequestDto) => Promise<GenerationDraftDto>>(),
     clearDraft: vi.fn<() => Promise<void>>(),
@@ -250,7 +253,8 @@ const defaultSettings: WorkspaceSettingsDto = {
   generation: {
     model: "nai-diffusion-4-5-full",
     size: { width: 832, height: 1216 },
-    quality: true,
+    quality: "standard",
+    transparent_background: false,
     uc_preset: "light",
     steps: 23,
     scale: 5,
@@ -279,6 +283,45 @@ const defaultGlobalSettings: GlobalSettingsDto = {
   safety: { wd_auto_review_enabled: false },
 };
 
+const imageModelRows: ReadonlyArray<readonly [ImageModelDto, number, boolean]> = [
+  ["nai-diffusion-5-full", 7, true],
+  ["nai-diffusion-5-curated", 7, true],
+  ["nai-diffusion-4-5-full", 5, false],
+  ["nai-diffusion-4-5-curated", 5, false],
+  ["nai-diffusion-4-full", 5.5, false],
+  ["nai-diffusion-4-curated", 5.5, false],
+  ["nai-diffusion-3", 5, false],
+  ["nai-diffusion-furry-3", 6.2, false],
+];
+
+const imageModelCatalog: ImageModelDescriptorDto[] = imageModelRows.map(
+  ([model, defaultScale, isV5]) => ({
+    model,
+    capabilities: {
+      prompt_structure:
+        model === "nai-diffusion-3" || model === "nai-diffusion-furry-3" ? "legacy" : "v4",
+      params_version: isV5 ? 4 : 3,
+      default_steps: 23,
+      default_scale: defaultScale,
+      max_characters: model === "nai-diffusion-3" || model === "nai-diffusion-furry-3" ? 0 : 6,
+      supports_vibe_transfer: !isV5,
+      supports_encoded_vibe:
+        !isV5 && model !== "nai-diffusion-3" && model !== "nai-diffusion-furry-3",
+      supports_character_reference: !isV5 && String(model).includes("4-5"),
+      supports_variety_boost: !isV5 && String(model).includes("diffusion-4"),
+      supports_inpainting: true,
+      supports_smea: model === "nai-diffusion-3" || model === "nai-diffusion-furry-3",
+      supports_dynamic_thresholding:
+        model === "nai-diffusion-3" || model === "nai-diffusion-furry-3",
+      uses_v5_extensions: Boolean(isV5),
+      supports_light_quality_preset: Boolean(isV5),
+      supports_transparent_background: Boolean(isV5),
+      variety_sigma_coefficient: null,
+      prompt_token_limit: isV5 ? 1471 : 512,
+    },
+  }),
+);
+
 function appEvent(kind: AppEventDto["kind"], sequence = 1): AppEventDto {
   return { sequence, kind };
 }
@@ -296,6 +339,7 @@ function setup(options?: {
   characterPresets?: PromptPresetPageDto;
   developerMode?: boolean;
 }) {
+  mocks.generationApi.listModels.mockResolvedValue(imageModelCatalog);
   if (options?.settingsError) {
     mocks.settingsApi.get.mockRejectedValue(options.settingsError);
   } else {
@@ -415,6 +459,7 @@ function setup(options?: {
         preview: null,
         created_at_ms: 1,
         updated_at_ms: 1,
+        models: ["nai-diffusion-4-5-full"],
       },
       {
         chunk_id: "chunk-hero",
@@ -425,6 +470,7 @@ function setup(options?: {
         preview: null,
         created_at_ms: 2,
         updated_at_ms: 2,
+        models: ["nai-diffusion-4-5-full"],
       },
     ],
     total: 2,
@@ -501,6 +547,7 @@ function setup(options?: {
     tier: 1,
     tier_name: "Tablet",
     expires_at_ms: null,
+    v5_usage: null,
   });
 
   return {
@@ -598,12 +645,20 @@ function emptyPresetPage(): PromptPresetPageDto {
 
 function storedDraft(overrides: Partial<GenerationDraftDto> = {}): GenerationDraftDto {
   return {
-    main_preset_id: null,
-    prompt: "restored prompt",
-    negative_prompt: "restored negative",
     model: defaultSettings.generation.model,
+    prompt_states: [
+      {
+        model: defaultSettings.generation.model,
+        main_preset_id: null,
+        prompt: "restored prompt",
+        negative_prompt: "restored negative",
+        characters: [],
+        character_position_mode: "global",
+      },
+    ],
     size: { ...defaultSettings.generation.size },
     quality: defaultSettings.generation.quality,
+    transparent_background: false,
     uc_preset: defaultSettings.generation.uc_preset,
     steps: defaultSettings.generation.steps,
     scale: defaultSettings.generation.scale,
@@ -621,8 +676,6 @@ function storedDraft(overrides: Partial<GenerationDraftDto> = {}): GenerationDra
     i2i: null,
     vibe: { enabled: false, strength: 1, slots: [] },
     precise_references: [],
-    characters: [],
-    character_position_mode: "global",
     ...overrides,
   };
 }
@@ -755,7 +808,7 @@ describe("GeneratePage", () => {
       timeout: 2_000,
     });
     const savedRequest = mocks.generationApi.saveDraft.mock.lastCall?.[0];
-    expect(savedRequest?.draft.prompt).toBe("restored prompt, detailed eyes");
+    expect(savedRequest?.draft.prompt_states[0]?.prompt).toBe("restored prompt, detailed eyes");
   });
 
   it("isolates undo history between positive and undesired prompts", async () => {
@@ -784,7 +837,7 @@ describe("GeneratePage", () => {
 
     await waitFor(() => expect(mocks.generationApi.saveDraft.mock.calls.length).toBeGreaterThan(1));
     const retriedRequest = mocks.generationApi.saveDraft.mock.lastCall?.[0];
-    expect(retriedRequest?.draft.prompt).toBe("restored prompt, retry me");
+    expect(retriedRequest?.draft.prompt_states[0]?.prompt).toBe("restored prompt, retry me");
   });
 
   it("submits batch stream generation work from the current draft", async () => {
@@ -813,8 +866,8 @@ describe("GeneratePage", () => {
                 prompt: "1girl, atelier lighting",
                 negative_prompt: "low quality",
                 steps: 28,
-                i2i: null,
-                controlnet: null,
+                img2img: null,
+                vibe_transfer: null,
                 character_references: null,
                 characters: null,
                 use_coords: null,
@@ -881,6 +934,7 @@ describe("GeneratePage", () => {
             preview: null,
             created_at_ms: 1,
             updated_at_ms: 1,
+            models: ["nai-diffusion-4-5-full"],
           },
         ],
         total: 1,
@@ -927,6 +981,7 @@ describe("GeneratePage", () => {
             preview: null,
             created_at_ms: 1,
             updated_at_ms: 1,
+            models: ["nai-diffusion-4-5-full"],
           },
           {
             preset_id: "preset-other",
@@ -942,6 +997,7 @@ describe("GeneratePage", () => {
             preview: null,
             created_at_ms: 2,
             updated_at_ms: 2,
+            models: ["nai-diffusion-4-5-full"],
           },
         ],
         total: 2,
@@ -992,6 +1048,7 @@ describe("GeneratePage", () => {
             preview: null,
             created_at_ms: 1,
             updated_at_ms: 1,
+            models: ["nai-diffusion-4-5-full"],
           },
         ],
         total: 1,
@@ -1035,7 +1092,7 @@ describe("GeneratePage", () => {
       kind: "stream",
       request: {
         base: {
-          i2i: {
+          img2img: {
             image: {
               kind: "resource_ref",
               resource: { id: "source-image", variant_id: null },
@@ -1093,7 +1150,7 @@ describe("GeneratePage", () => {
       kind: "stream",
       request: {
         base: {
-          controlnet: null,
+          vibe_transfer: null,
           character_references: [
             {
               image: { kind: "resource_ref", resource: reference },
@@ -1152,11 +1209,10 @@ describe("GeneratePage", () => {
       kind: "stream",
       request: {
         base: {
-          controlnet: {
-            images: [
+          vibe_transfer: {
+            references: [
               {
                 encoding: { id: "vibe-encoding:vibe-1:v4-5full:1", variant_id: null },
-                info_extracted: 0.7,
               },
             ],
           },
@@ -1165,7 +1221,7 @@ describe("GeneratePage", () => {
     });
   });
 
-  it("encodes a picked Vibe source image before submitting controlnet", async () => {
+  it("encodes a picked Vibe source image before submitting Vibe transfer", async () => {
     const { user } = setup();
     mocks.desktopApi.pickAndImportImageResources.mockResolvedValueOnce([
       { resource: { id: "control-source", variant_id: null } },
@@ -1200,8 +1256,8 @@ describe("GeneratePage", () => {
       kind: "stream",
       request: {
         base: {
-          controlnet: {
-            images: [
+          vibe_transfer: {
+            references: [
               {
                 encoding: { id: "vibe-encoding:control-source", variant_id: null },
               },
@@ -1441,6 +1497,7 @@ describe("GeneratePage queue and preview behavior", () => {
     await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
     expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith({
       prompt: "$chunk(hero)",
+      model: "nai-diffusion-4-5-full",
       main_preset_id: null,
       negative_prompt: "bad anatomy",
       characters: [],

@@ -9,7 +9,7 @@ import { Transaction } from "@codemirror/state";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { frontendLogger } from "@/app/logger";
-import type { LexiconSearchItemDto, PromptChunkDto } from "@/types";
+import type { ImageModelDto, LexiconSearchItemDto, PromptChunkDto } from "@/types";
 
 import { fetchPromptCompletionChunks, fetchPromptCompletionTags } from "./completion-data";
 import {
@@ -33,14 +33,16 @@ type NaiCompletion = Completion & { [activateArguments]?: boolean };
 export function createNaiPromptCompletion(
   queryClient: QueryClient,
   messages: PromptCompletionMessages,
+  model: ImageModelDto | null = null,
 ): CompletionSource {
-  return async (context) => completePrompt(context, queryClient, messages);
+  return async (context) => completePrompt(context, queryClient, messages, model);
 }
 
 async function completePrompt(
   context: CompletionContext,
   queryClient: QueryClient,
   messages: PromptCompletionMessages,
+  model: ImageModelDto | null,
 ): Promise<CompletionResult | null> {
   context.addEventListener("abort", () => undefined, { onDocChange: true });
   const source = context.state.doc.toString();
@@ -74,7 +76,7 @@ async function completePrompt(
 
   const [chunks, tags] = await Promise.all([
     shouldFetchChunks(promptContext)
-      ? recover(fetchPromptCompletionChunks(queryClient))
+      ? recover(fetchPromptCompletionChunks(queryClient, model))
       : Promise.resolve([]),
     shouldFetchTags(promptContext)
       ? recover(fetchPromptCompletionTags(queryClient, promptContext.query.trim()))

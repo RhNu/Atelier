@@ -16,6 +16,10 @@ Item {
   InvalidNumber |
   Number |
   Identifier |
+  LParen |
+  RParen |
+  Dollar |
+  Equals |
   Text
 }
 
@@ -25,10 +29,10 @@ NumericEmphasis {
   Number !numeric DoubleColon NumericContent* DoubleColon |
   InvalidNumber !numeric DoubleColon NumericContent* DoubleColon
 }
-NumericContent { ExtensionCall | Randomizer | Strengthening | Weakening | Pipe | Comma | Escaped | String | UnterminatedString | Tag | InvalidNumber | Number | Identifier | Text }
+NumericContent { ExtensionCall | Randomizer | Strengthening | Weakening | Pipe | Comma | Escaped | String | UnterminatedString | Tag | InvalidNumber | Number | Identifier | LParen | RParen | Dollar | Equals | Text }
 Randomizer { DoublePipe RandomizerContent* DoublePipe }
 RandomizerContent { ExtensionCall | Strengthening | Weakening | NumericEmphasis | Pipe | Comma | Escaped | String | Tag | Number | Identifier | Text }
-ExtensionCall { Dollar Identifier LParen ExtensionItem* RParen }
+ExtensionCall { Dollar !extension Identifier LParen ExtensionItem* RParen }
 ExtensionItem { String | UnterminatedString | Tag | InvalidNumber | Number | Identifier | Equals | Comma | Escaped | DoublePipe | DoubleColon | LBrace | RBrace | LBracket | RBracket | Pipe | Text }
 CloseAll { DoubleColon }
 
@@ -59,4 +63,4 @@ CloseAll { DoubleColon }
 
 @skip { whitespace }
 
-@precedence { numeric @left }
+@precedence { extension @right, numeric @left }

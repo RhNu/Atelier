@@ -1,10 +1,10 @@
 use super::{
-    AnlasEstimate, AppError, AppResult, CharacterReference, ControlNetConfig, ControlNetInput,
-    GenerateImageRequest, GenerateImageRequestDto, GenerationAnlasEstimateDto,
-    GenerationEstimateRequestDto, ImageSize, Img2ImgRequest, RunHistoryRepository, UcPresetDto,
+    AnlasEstimate, AppError, AppResult, CharacterReference, GenerateImageRequest,
+    GenerateImageRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto, ImageSize,
+    Img2ImgRequest, RunHistoryRepository, UcPresetDto, VibeReference, VibeTransferConfig,
     character_reference_type_to_domain, characters_to_domain, image_format_to_domain,
     image_model_to_domain, noise_schedule_to_domain, plan_context_to_domain,
-    plan_generation_request, sampler_to_domain, uc_preset_to_domain,
+    plan_generation_request, quality_preset_to_domain, sampler_to_domain, uc_preset_to_domain,
 };
 
 pub(super) async fn ensure_generation_batch_target_is_new<'a, R, I>(
@@ -93,7 +93,8 @@ fn estimate_request_to_domain(value: &GenerateImageRequestDto) -> GenerateImageR
             height: value.size.height,
         },
         negative_prompt: value.negative_prompt.clone(),
-        quality: value.quality,
+        quality: quality_preset_to_domain(value.quality),
+        transparent_background: value.transparent_background,
         uc_preset: uc_preset_to_domain(value.uc_preset),
         steps: value.steps,
         scale: value.scale,
@@ -103,27 +104,23 @@ fn estimate_request_to_domain(value: &GenerateImageRequestDto) -> GenerateImageR
         n_samples: value.n_samples,
         cfg_rescale: value.cfg_rescale,
         variety_boost: value.variety_boost,
-        i2i: value.i2i.as_ref().map(|i2i| Img2ImgRequest {
+        img2img: value.img2img.as_ref().map(|i2i| Img2ImgRequest {
             image: "estimate".to_owned(),
             strength: i2i.strength,
             noise: i2i.noise,
             mask: i2i.mask.as_ref().map(|_| "estimate".to_owned()),
         }),
-        controlnet: value
-            .controlnet
-            .as_ref()
-            .map(|controlnet| ControlNetConfig {
-                images: controlnet
-                    .images
-                    .iter()
-                    .map(|image| ControlNetInput {
-                        vibe_data_cache: "estimate".to_owned(),
-                        info_extracted: image.info_extracted,
-                        strength: image.strength,
-                    })
-                    .collect(),
-                strength: controlnet.strength,
-            }),
+        vibe_transfer: value.vibe_transfer.as_ref().map(|vibe| VibeTransferConfig {
+            references: vibe
+                .references
+                .iter()
+                .map(|reference| VibeReference {
+                    vibe_data_cache: "estimate".to_owned(),
+                    strength: reference.strength,
+                })
+                .collect(),
+            strength: vibe.strength,
+        }),
         character_references: value.character_references.as_ref().map(|references| {
             references
                 .iter()
@@ -140,13 +137,6 @@ fn estimate_request_to_domain(value: &GenerateImageRequestDto) -> GenerateImageR
         image_format: value.image_format.map(image_format_to_domain),
         strict_mode: value.strict_mode,
     }
-}
-
-pub(super) fn quality_override_to_bool(value: &str) -> bool {
-    !matches!(
-        value.trim().to_ascii_lowercase().as_str(),
-        "" | "false" | "off" | "none" | "disabled"
-    )
 }
 
 pub(super) fn parse_uc_preset_override(value: &str) -> AppResult<UcPresetDto> {

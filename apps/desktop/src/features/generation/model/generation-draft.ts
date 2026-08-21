@@ -1,17 +1,19 @@
 /* eslint-disable max-lines */
 import type {
-  CharacterReferenceTypeDto,
   CharacterDto,
+  CharacterReferenceTypeDto,
   GenerateImageRequestDto,
-  GenerationPlanContextDto,
-  GenerationEstimateRequestDto,
   GenerationDraftDto,
+  GenerationEstimateRequestDto,
+  GenerationPlanContextDto,
   GenerationWorkRequestDto,
   ImageFormatDto,
   ImageInputDto,
   ImageModelDto,
   ImageSizeDto,
+  ModelCapabilitiesDto,
   NoiseScheduleDto,
+  QualityPresetDto,
   ResourceRefDto,
   SamplerDto,
   SubmitGenerationBatchRequestDto,
@@ -21,14 +23,12 @@ import type {
 
 export type GenerationSeedMode = "random" | "fixed";
 export type GenerationCharacterPositionMode = "global" | "manual";
-
 export type GenerationI2iDraft = {
   image: ResourceRefDto;
   mask: ResourceRefDto | null;
   strength: number;
   noise: number;
 };
-
 export type GenerationVibeSlotDraft = {
   id: string;
   encoding: ResourceRefDto;
@@ -38,8 +38,8 @@ export type GenerationVibeSlotDraft = {
   displayName: string;
   sourceImage: ResourceRefDto | null;
   sourceSha256: string | null;
+  model: ImageModelDto;
 };
-
 export type GenerationPreciseReferenceDraft = {
   id: string;
   image: ResourceRefDto;
@@ -48,7 +48,6 @@ export type GenerationPreciseReferenceDraft = {
   strength: number;
   displayName: string;
 };
-
 export type GenerationCharacterDraft = {
   id: string;
   presetId: string | null;
@@ -57,14 +56,23 @@ export type GenerationCharacterDraft = {
   enabled: boolean;
   position: { x: number; y: number };
 };
-
+export type GenerationPromptState = {
+  model: ImageModelDto;
+  mainPresetId: string | null;
+  prompt: string;
+  negativePrompt: string;
+  characters: GenerationCharacterDraft[];
+  characterPositionMode: GenerationCharacterPositionMode;
+};
 export type GenerationDraft = {
   mainPresetId: string | null;
   prompt: string;
   negativePrompt: string;
   model: ImageModelDto;
+  promptStates: GenerationPromptState[];
   size: ImageSizeDto;
-  quality: boolean;
+  quality: QualityPresetDto;
+  transparentBackground: boolean;
   ucPreset: UcPresetDto;
   steps: number;
   scale: number;
@@ -80,34 +88,61 @@ export type GenerationDraft = {
   strictMode: boolean;
   streamEnabled: boolean;
   i2i: GenerationI2iDraft | null;
-  vibe: {
-    strength: number;
-    slots: GenerationVibeSlotDraft[];
-  };
+  vibe: { strength: number; slots: GenerationVibeSlotDraft[] };
   preciseReferences: GenerationPreciseReferenceDraft[];
   characters: GenerationCharacterDraft[];
   characterPositionMode: GenerationCharacterPositionMode;
 };
+export type GenerationRunIds = { batchId: string; jobIds: string[] };
+export type GenerationPlanOptions = { isOpus?: boolean; capabilities?: ModelCapabilitiesDto };
 
-export type GenerationRunIds = {
-  batchId: string;
-  jobIds: string[];
-};
+function activePromptState(draft: GenerationDraft): GenerationPromptState {
+  return {
+    model: draft.model,
+    mainPresetId: draft.mainPresetId,
+    prompt: draft.prompt,
+    negativePrompt: draft.negativePrompt,
+    characters: draft.characters.map(copyCharacter),
+    characterPositionMode: draft.characterPositionMode,
+  };
+}
 
-export type GenerationPlanOptions = {
-  isOpus?: boolean;
-};
+function mergeActivePromptState(draft: GenerationDraft): GenerationPromptState[] {
+  return [
+    ...draft.promptStates.filter((state) => state.model !== draft.model),
+    activePromptState(draft),
+  ];
+}
+
+export function switchGenerationModel(
+  draft: GenerationDraft,
+  model: ImageModelDto,
+  capabilities: ModelCapabilitiesDto,
+): GenerationDraft {
+  if (model === draft.model) return draft;
+  const states = mergeActivePromptState(draft);
+  const restored = states.find((state) => state.model === model) ?? emptyPromptState(model);
+  return {
+    ...draft,
+    model,
+    promptStates: states,
+    scale: capabilities.default_scale,
+    mainPresetId: restored.mainPresetId,
+    prompt: restored.prompt,
+    negativePrompt: restored.negativePrompt,
+    characters: restored.characters.map(copyCharacter),
+    characterPositionMode: restored.characterPositionMode,
+  };
+}
 
 export function createGenerationDraft(settings: WorkspaceSettingsDto): GenerationDraft {
   const defaults = settings.generation;
-
   return {
-    mainPresetId: null,
-    prompt: "",
-    negativePrompt: "",
-    model: defaults.model,
+    ...emptyPromptState(defaults.model),
+    promptStates: [],
     size: { ...defaults.size },
     quality: defaults.quality,
+    transparentBackground: defaults.transparent_background,
     ucPreset: defaults.uc_preset,
     steps: defaults.steps,
     scale: defaults.scale,
@@ -125,19 +160,27 @@ export function createGenerationDraft(settings: WorkspaceSettingsDto): Generatio
     i2i: null,
     vibe: { strength: 1, slots: [] },
     preciseReferences: [],
-    characters: [],
-    characterPositionMode: "global",
   };
 }
 
 export function generationDraftFromDto(value: GenerationDraftDto): GenerationDraft {
+  const promptStates = value.prompt_states.map((state) => ({
+    model: state.model,
+    mainPresetId: state.main_preset_id,
+    prompt: state.prompt,
+    negativePrompt: state.negative_prompt,
+    characters: state.characters.map(fromCharacterDto),
+    characterPositionMode: state.character_position_mode,
+  }));
+  const active =
+    promptStates.find((state) => state.model === value.model) ?? emptyPromptState(value.model);
   return {
-    mainPresetId: value.main_preset_id ?? null,
-    prompt: value.prompt,
-    negativePrompt: value.negative_prompt,
-    model: value.model,
+    ...active,
+    characters: active.characters.map(copyCharacter),
+    promptStates,
     size: { ...value.size },
     quality: value.quality,
+    transparentBackground: value.transparent_background,
     ucPreset: value.uc_preset,
     steps: value.steps,
     scale: value.scale,
@@ -149,13 +192,13 @@ export function generationDraftFromDto(value: GenerationDraftDto): GenerationDra
     requestCount: value.request_count,
     cfgRescale: value.cfg_rescale,
     varietyBoost: value.variety_boost,
-    imageFormat: value.image_format ?? null,
+    imageFormat: value.image_format,
     strictMode: value.strict_mode,
     streamEnabled: value.stream_enabled,
     i2i: value.i2i
       ? {
           image: value.i2i.image,
-          mask: value.i2i.mask ?? null,
+          mask: value.i2i.mask,
           strength: value.i2i.strength,
           noise: value.i2i.noise,
         }
@@ -165,12 +208,13 @@ export function generationDraftFromDto(value: GenerationDraftDto): GenerationDra
       slots: value.vibe.slots.map((slot) => ({
         id: slot.id,
         encoding: slot.encoding,
-        vibeId: slot.vibe_id ?? null,
+        vibeId: slot.vibe_id,
         informationExtracted: slot.information_extracted,
         strength: slot.strength,
         displayName: slot.display_name,
-        sourceImage: slot.source_image ?? null,
-        sourceSha256: slot.source_sha256 ?? null,
+        sourceImage: slot.source_image,
+        sourceSha256: slot.source_sha256,
+        model: slot.model,
       })),
     },
     preciseReferences: value.precise_references.map((reference) => ({
@@ -181,26 +225,23 @@ export function generationDraftFromDto(value: GenerationDraftDto): GenerationDra
       strength: reference.strength,
       displayName: reference.display_name,
     })),
-    characters: value.characters.map((character) => ({
-      id: character.id,
-      presetId: character.preset_id ?? null,
-      prompt: character.prompt,
-      negativePrompt: character.negative_prompt,
-      enabled: character.enabled,
-      position: { ...character.position },
-    })),
-    characterPositionMode: value.character_position_mode,
   };
 }
 
 export function generationDraftToDto(value: GenerationDraft): GenerationDraftDto {
   return {
-    main_preset_id: value.mainPresetId,
-    prompt: value.prompt,
-    negative_prompt: value.negativePrompt,
     model: value.model,
+    prompt_states: mergeActivePromptState(value).map((state) => ({
+      model: state.model,
+      main_preset_id: state.mainPresetId,
+      prompt: state.prompt,
+      negative_prompt: state.negativePrompt,
+      characters: state.characters.map(toCharacterDto),
+      character_position_mode: state.characterPositionMode,
+    })),
     size: { ...value.size },
     quality: value.quality,
+    transparent_background: value.transparentBackground,
     uc_preset: value.ucPreset,
     steps: value.steps,
     scale: value.scale,
@@ -235,6 +276,7 @@ export function generationDraftToDto(value: GenerationDraft): GenerationDraftDto
         display_name: slot.displayName,
         source_image: slot.sourceImage,
         source_sha256: slot.sourceSha256,
+        model: slot.model,
       })),
     },
     precise_references: value.preciseReferences.map((reference) => ({
@@ -245,15 +287,6 @@ export function generationDraftToDto(value: GenerationDraft): GenerationDraftDto
       strength: reference.strength,
       display_name: reference.displayName,
     })),
-    characters: value.characters.map((character) => ({
-      id: character.id,
-      preset_id: character.presetId,
-      prompt: character.prompt,
-      negative_prompt: character.negativePrompt,
-      enabled: character.enabled,
-      position: { ...character.position },
-    })),
-    character_position_mode: value.characterPositionMode,
   };
 }
 
@@ -264,9 +297,9 @@ export function resetGenerationParameters(
   const reset = createGenerationDraft(settings);
   return {
     ...draft,
-    model: reset.model,
     size: reset.size,
     quality: reset.quality,
+    transparentBackground: reset.transparentBackground,
     ucPreset: reset.ucPreset,
     steps: reset.steps,
     scale: reset.scale,
@@ -303,13 +336,17 @@ export function buildSubmitGenerationBatchRequest(
   const jobIds = ids.jobIds.length > 0 ? ids.jobIds : createGenerationRunIds(1).jobIds;
   const jobs = jobIds.map((jobId) => ({
     job_id: jobId,
-    work: buildGenerationWorkRequest(draft),
+    work: buildGenerationWorkRequest(draft, options.capabilities),
   }));
-
   return {
     batch_id: ids.batchId,
     jobs,
-    context: buildGenerationPlanContext(draft, jobs.length, options.isOpus ?? false),
+    context: buildGenerationPlanContext(
+      draft,
+      jobs.length,
+      options.isOpus ?? false,
+      options.capabilities,
+    ),
   };
 }
 
@@ -318,8 +355,13 @@ export function buildGenerationEstimateRequest(
   options: GenerationPlanOptions = {},
 ): GenerationEstimateRequestDto {
   return {
-    request: buildBaseGenerateRequest(draft),
-    context: buildGenerationPlanContext(draft, draft.requestCount, options.isOpus ?? false),
+    request: buildBaseGenerateRequest(draft, options.capabilities),
+    context: buildGenerationPlanContext(
+      draft,
+      draft.requestCount,
+      options.isOpus ?? false,
+      options.capabilities,
+    ),
   };
 }
 
@@ -327,7 +369,7 @@ export function buildGenerationEstimateCacheKey(
   draft: GenerationDraft,
   options: GenerationPlanOptions = {},
 ) {
-  const preciseReferences = buildPreciseReferences(draft);
+  const preciseReferences = buildPreciseReferences(draft, options.capabilities);
   return {
     model: draft.model,
     size: { ...draft.size },
@@ -340,51 +382,57 @@ export function buildGenerationEstimateCacheKey(
     hasI2i: Boolean(draft.i2i),
     i2iStrength: draft.i2i?.strength ?? null,
     preciseReferenceCount: preciseReferences?.length ?? 0,
-    vibeSlotCount: preciseReferences ? 0 : (buildControlNet(draft)?.images.length ?? 0),
-    pendingVibeEncodeCount: buildPendingVibeEncodeCount(draft),
+    vibeSlotCount: preciseReferences
+      ? 0
+      : (buildVibeTransfer(draft, options.capabilities)?.references.length ?? 0),
+    pendingVibeEncodeCount: buildPendingVibeEncodeCount(draft, options.capabilities),
     isOpus: options.isOpus ?? false,
   };
 }
 
-function buildGenerationWorkRequest(draft: GenerationDraft): GenerationWorkRequestDto {
-  const base = buildBaseGenerateRequest(draft);
+function buildGenerationWorkRequest(
+  draft: GenerationDraft,
+  capabilities?: ModelCapabilitiesDto,
+): GenerationWorkRequestDto {
+  const base = buildBaseGenerateRequest(draft, capabilities);
   return draft.streamEnabled
-    ? {
-        kind: "stream",
-        request: {
-          base,
-          stream: "sse",
-        },
-      }
-    : {
-        kind: "image",
-        request: base,
-      };
+    ? { kind: "stream", request: { base, stream: "sse" } }
+    : { kind: "image", request: base };
 }
 
 function buildGenerationPlanContext(
   draft: GenerationDraft,
   requestCount: number,
   isOpus: boolean,
+  capabilities?: ModelCapabilitiesDto,
 ): GenerationPlanContextDto {
   return {
     request_count: clampInteger(requestCount, 1, 8),
-    pending_vibe_encode_count: buildPendingVibeEncodeCount(draft),
+    pending_vibe_encode_count: buildPendingVibeEncodeCount(draft, capabilities),
     is_opus: isOpus,
   };
 }
 
-function buildBaseGenerateRequest(draft: GenerationDraft): GenerateImageRequestDto {
-  const preciseReferences = buildPreciseReferences(draft);
-  const characters = buildCharacters(draft);
-
+function buildBaseGenerateRequest(
+  draft: GenerationDraft,
+  capabilities?: ModelCapabilitiesDto,
+): GenerateImageRequestDto {
+  const preciseReferences = buildPreciseReferences(draft, capabilities);
+  const characters = buildCharacters(draft, capabilities);
+  const quality =
+    draft.quality === "light" && capabilities && !capabilities.supports_light_quality_preset
+      ? "standard"
+      : draft.quality;
   return {
     main_preset_id: draft.mainPresetId,
     prompt: draft.prompt,
     model: draft.model,
     size: { ...draft.size },
     negative_prompt: normalizeOptionalText(draft.negativePrompt),
-    quality: draft.quality,
+    quality,
+    transparent_background: capabilities?.supports_transparent_background
+      ? draft.transparentBackground
+      : false,
     uc_preset: draft.ucPreset,
     steps: draft.steps,
     scale: draft.scale,
@@ -393,9 +441,9 @@ function buildBaseGenerateRequest(draft: GenerationDraft): GenerateImageRequestD
     seed: draft.seedMode === "fixed" ? draft.seed : 0,
     n_samples: draft.nSamples,
     cfg_rescale: draft.cfgRescale,
-    variety_boost: draft.varietyBoost,
+    variety_boost: capabilities?.supports_variety_boost === false ? false : draft.varietyBoost,
     strict_mode: draft.strictMode,
-    i2i: draft.i2i
+    img2img: draft.i2i
       ? {
           image: resourceImageInput(draft.i2i.image),
           strength: draft.i2i.strength,
@@ -403,7 +451,7 @@ function buildBaseGenerateRequest(draft: GenerationDraft): GenerateImageRequestD
           mask: draft.i2i.mask ? resourceImageInput(draft.i2i.mask) : null,
         }
       : null,
-    controlnet: preciseReferences ? null : buildControlNet(draft),
+    vibe_transfer: preciseReferences ? null : buildVibeTransfer(draft, capabilities),
     character_references: preciseReferences,
     characters,
     use_coords:
@@ -412,49 +460,69 @@ function buildBaseGenerateRequest(draft: GenerationDraft): GenerateImageRequestD
   };
 }
 
-function buildCharacters(draft: GenerationDraft): CharacterDto[] | null {
-  const eligibleCharacters = draft.characters.filter(
+function buildCharacters(
+  draft: GenerationDraft,
+  capabilities?: ModelCapabilitiesDto,
+): CharacterDto[] | null {
+  if (capabilities?.max_characters === 0) return null;
+  const eligible = draft.characters.filter(
     (character) =>
       character.enabled && (character.prompt.trim().length > 0 || Boolean(character.presetId)),
   );
-  const useManualPositions =
-    eligibleCharacters.length >= 2 && draft.characterPositionMode === "manual";
-  const characters = eligibleCharacters.map((character) => ({
+  const limited = capabilities ? eligible.slice(0, capabilities.max_characters) : eligible;
+  const manual = limited.length >= 2 && draft.characterPositionMode === "manual";
+  const characters = limited.map((character) => ({
     preset_id: character.presetId,
     prompt: character.prompt,
     negative_prompt: normalizeOptionalText(character.negativePrompt),
-    position: useManualPositions ? { ...character.position } : { x: 0.5, y: 0.5 },
+    position: manual ? { ...character.position } : { x: 0.5, y: 0.5 },
     enabled: true,
   }));
   return characters.length ? characters : null;
 }
 
-function buildPendingVibeEncodeCount(draft: GenerationDraft): number {
-  return isVibeActive(draft) ? draft.vibe.slots.filter((slot) => !slot.encoding).length : 0;
+function currentVibeSlots(draft: GenerationDraft) {
+  return draft.vibe.slots.filter((slot) => slot.model === draft.model);
 }
 
-function buildControlNet(draft: GenerationDraft): GenerateImageRequestDto["controlnet"] {
-  const images = isVibeActive(draft)
-    ? draft.vibe.slots
+function buildPendingVibeEncodeCount(
+  draft: GenerationDraft,
+  capabilities?: ModelCapabilitiesDto,
+): number {
+  return isVibeActive(draft, capabilities)
+    ? currentVibeSlots(draft).filter((slot) => !slot.encoding).length
+    : 0;
+}
+
+function buildVibeTransfer(
+  draft: GenerationDraft,
+  capabilities?: ModelCapabilitiesDto,
+): GenerateImageRequestDto["vibe_transfer"] {
+  if (capabilities?.supports_vibe_transfer === false) return null;
+  const references = isVibeActive(draft, capabilities)
+    ? currentVibeSlots(draft)
         .filter((slot) => Boolean(slot.encoding))
-        .map((slot) => ({
-          encoding: slot.encoding,
-          info_extracted: slot.informationExtracted,
-          strength: slot.strength,
-        }))
+        .map((slot) => ({ encoding: slot.encoding, strength: slot.strength }))
     : [];
-
-  return images.length ? { images, strength: draft.vibe.strength } : null;
+  return references.length ? { references, strength: draft.vibe.strength } : null;
 }
 
-export function isVibeActive(draft: GenerationDraft): boolean {
-  return draft.preciseReferences.length === 0 && draft.vibe.slots.length > 0;
+export function isVibeActive(draft: GenerationDraft, capabilities?: ModelCapabilitiesDto): boolean {
+  return (
+    capabilities?.supports_vibe_transfer !== false &&
+    draft.preciseReferences.length === 0 &&
+    currentVibeSlots(draft).length > 0
+  );
 }
 
 function buildPreciseReferences(
   draft: GenerationDraft,
+  capabilities?: ModelCapabilitiesDto,
 ): GenerateImageRequestDto["character_references"] {
-  if (draft.preciseReferences.length === 0) {
+  if (
+    capabilities?.supports_character_reference === false ||
+    draft.preciseReferences.length === 0
+  ) {
     return null;
   }
   return draft.preciseReferences.map((reference) => ({
@@ -465,26 +533,57 @@ function buildPreciseReferences(
   }));
 }
 
+function emptyPromptState(model: ImageModelDto): GenerationPromptState {
+  return {
+    model,
+    mainPresetId: null,
+    prompt: "",
+    negativePrompt: "",
+    characters: [],
+    characterPositionMode: "global",
+  };
+}
+
+function copyCharacter(character: GenerationCharacterDraft): GenerationCharacterDraft {
+  return { ...character, position: { ...character.position } };
+}
+
+function fromCharacterDto(
+  character: GenerationDraftDto["prompt_states"][number]["characters"][number],
+): GenerationCharacterDraft {
+  return {
+    id: character.id,
+    presetId: character.preset_id,
+    prompt: character.prompt,
+    negativePrompt: character.negative_prompt,
+    enabled: character.enabled,
+    position: { ...character.position },
+  };
+}
+
+function toCharacterDto(character: GenerationCharacterDraft) {
+  return {
+    id: character.id,
+    preset_id: character.presetId,
+    prompt: character.prompt,
+    negative_prompt: character.negativePrompt,
+    enabled: character.enabled,
+    position: { ...character.position },
+  };
+}
+
 function resourceImageInput(resource: ResourceRefDto): ImageInputDto {
   return { kind: "resource_ref", resource };
 }
-
 function normalizeOptionalText(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
-
 function clampInteger(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) {
-    return min;
-  }
-  return Math.min(max, Math.max(min, Math.floor(value)));
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, Math.floor(value))) : min;
 }
-
 function createId(): string {
-  if (globalThis.crypto && "randomUUID" in globalThis.crypto) {
-    return globalThis.crypto.randomUUID();
-  }
-
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return globalThis.crypto && "randomUUID" in globalThis.crypto
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

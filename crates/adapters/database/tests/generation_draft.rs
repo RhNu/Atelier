@@ -4,9 +4,9 @@ use atelier_adapter_database::{
 use atelier_generation::{
     CharacterPosition, CharacterReferenceType, GenerationDraftCharacter,
     GenerationDraftCharacterPositionMode, GenerationDraftI2i, GenerationDraftPreciseReference,
-    GenerationDraftRepository, GenerationDraftSeedMode, GenerationDraftSnapshot,
-    GenerationDraftVibe, GenerationDraftVibeSlot, ImageFormat, ImageModel, ImageSize,
-    NoiseSchedule, Sampler, UcPreset,
+    GenerationDraftPromptState, GenerationDraftRepository, GenerationDraftSeedMode,
+    GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot, ImageFormat, ImageModel,
+    ImageSize, NoiseSchedule, QualityPreset, Sampler, UcPreset,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef};
 use atelier_settings::{WorkspaceSettings, WorkspaceSettingsRepository};
@@ -80,15 +80,28 @@ fn draft_reports_corrupt_and_unknown_schema_payloads() {
 
 fn sample_draft() -> GenerationDraftSnapshot {
     GenerationDraftSnapshot {
-        main_preset_id: Some("main-preset".to_owned()),
-        prompt: "1girl, cinematic lighting".to_owned(),
-        negative_prompt: "low quality".to_owned(),
         model: ImageModel::NaiDiffusion4Curated,
+        prompt_states: vec![GenerationDraftPromptState {
+            model: ImageModel::NaiDiffusion4Curated,
+            main_preset_id: Some("main-preset".to_owned()),
+            prompt: "1girl, cinematic lighting".to_owned(),
+            negative_prompt: "low quality".to_owned(),
+            characters: vec![GenerationDraftCharacter {
+                id: "character-slot".to_owned(),
+                preset_id: Some("character-preset".to_owned()),
+                prompt: "red hair".to_owned(),
+                negative_prompt: "hat".to_owned(),
+                enabled: true,
+                position: CharacterPosition { x: 0.2, y: 0.8 },
+            }],
+            character_position_mode: GenerationDraftCharacterPositionMode::Manual,
+        }],
         size: ImageSize {
             width: 1024,
             height: 1536,
         },
-        quality: false,
+        quality: QualityPreset::None,
+        transparent_background: false,
         uc_preset: UcPreset::None,
         steps: 31,
         scale: 7.5,
@@ -121,6 +134,7 @@ fn sample_draft() -> GenerationDraftSnapshot {
                 display_name: "Warm film".to_owned(),
                 source_image: Some(resource("resource:vibe-source")),
                 source_sha256: Some("abc123".to_owned()),
+                model: ImageModel::NaiDiffusion4Curated,
             }],
         },
         precise_references: vec![GenerationDraftPreciseReference {
@@ -131,15 +145,6 @@ fn sample_draft() -> GenerationDraftSnapshot {
             strength: 0.7,
             display_name: "Painterly".to_owned(),
         }],
-        characters: vec![GenerationDraftCharacter {
-            id: "character-slot".to_owned(),
-            preset_id: Some("character-preset".to_owned()),
-            prompt: "red hair".to_owned(),
-            negative_prompt: "hat".to_owned(),
-            enabled: true,
-            position: CharacterPosition { x: 0.2, y: 0.8 },
-        }],
-        character_position_mode: GenerationDraftCharacterPositionMode::Manual,
     }
 }
 

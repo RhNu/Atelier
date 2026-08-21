@@ -5,6 +5,10 @@ use crate::resource::{ImageInputDto, ResourceRefDto};
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum ImageModelDto {
+    #[serde(rename = "nai-diffusion-5-full")]
+    NaiDiffusion5Full,
+    #[serde(rename = "nai-diffusion-5-curated")]
+    NaiDiffusion5Curated,
     #[default]
     #[serde(rename = "nai-diffusion-4-5-full")]
     NaiDiffusion45Full,
@@ -16,8 +20,43 @@ pub enum ImageModelDto {
     NaiDiffusion4Curated,
     #[serde(rename = "nai-diffusion-3")]
     NaiDiffusion3,
-    #[serde(rename = "nai-diffusion-3-furry")]
+    #[serde(rename = "nai-diffusion-furry-3")]
     NaiDiffusion3Furry,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PromptStructureDto {
+    Legacy,
+    V4,
+}
+
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct ModelCapabilitiesDto {
+    pub prompt_structure: PromptStructureDto,
+    pub params_version: u32,
+    pub default_steps: u32,
+    pub default_scale: f32,
+    pub max_characters: u32,
+    pub supports_vibe_transfer: bool,
+    pub supports_encoded_vibe: bool,
+    pub supports_character_reference: bool,
+    pub supports_variety_boost: bool,
+    pub supports_inpainting: bool,
+    pub supports_smea: bool,
+    pub supports_dynamic_thresholding: bool,
+    pub uses_v5_extensions: bool,
+    pub supports_light_quality_preset: bool,
+    pub supports_transparent_background: bool,
+    pub variety_sigma_coefficient: Option<f32>,
+    pub prompt_token_limit: u32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct ImageModelDescriptorDto {
+    pub model: ImageModelDto,
+    pub capabilities: ModelCapabilitiesDto,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -44,14 +83,17 @@ pub enum SamplerDto {
     KDpm2,
     KDpm2Ancestral,
     KDpmpp2m,
+    KDpmpp2mSde,
     KDpmpp2sAncestral,
     KDpmppSde,
     Ddim,
+    DdimV3,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum NoiseScheduleDto {
+    Native,
     #[default]
     Karras,
     Exponential,
@@ -93,16 +135,24 @@ pub struct Img2ImgRequestDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct ControlNetInputDto {
+pub struct VibeReferenceDto {
     pub encoding: ResourceRefDto,
-    pub info_extracted: f32,
     pub strength: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-pub struct ControlNetConfigDto {
-    pub images: Vec<ControlNetInputDto>,
+pub struct VibeTransferConfigDto {
+    pub references: Vec<VibeReferenceDto>,
     pub strength: f32,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum QualityPresetDto {
+    #[default]
+    Standard,
+    Light,
+    None,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -111,6 +161,8 @@ pub enum CharacterReferenceTypeDto {
     Character,
     Style,
     CharacterAndStyle,
+    Costume,
+    Delta,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -180,6 +232,7 @@ pub struct GenerationDraftVibeSlotDto {
     pub source_image: Option<ResourceRefDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_sha256: Option<String>,
+    pub model: ImageModelDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -211,15 +264,24 @@ pub struct GenerationDraftCharacterDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[allow(clippy::struct_excessive_bools)]
-pub struct GenerationDraftDto {
+pub struct GenerationDraftPromptStateDto {
+    pub model: ImageModelDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub main_preset_id: Option<String>,
     pub prompt: String,
     pub negative_prompt: String,
+    pub characters: Vec<GenerationDraftCharacterDto>,
+    pub character_position_mode: GenerationDraftCharacterPositionModeDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct GenerationDraftDto {
     pub model: ImageModelDto,
+    pub prompt_states: Vec<GenerationDraftPromptStateDto>,
     pub size: ImageSizeDto,
-    pub quality: bool,
+    pub quality: QualityPresetDto,
+    pub transparent_background: bool,
     pub uc_preset: UcPresetDto,
     pub steps: u32,
     pub scale: f32,
@@ -239,8 +301,6 @@ pub struct GenerationDraftDto {
     pub i2i: Option<GenerationDraftI2iDto>,
     pub vibe: GenerationDraftVibeDto,
     pub precise_references: Vec<GenerationDraftPreciseReferenceDto>,
-    pub characters: Vec<GenerationDraftCharacterDto>,
-    pub character_position_mode: GenerationDraftCharacterPositionModeDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -257,7 +317,8 @@ pub struct GenerateImageRequestDto {
     pub size: ImageSizeDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub negative_prompt: Option<String>,
-    pub quality: bool,
+    pub quality: QualityPresetDto,
+    pub transparent_background: bool,
     pub uc_preset: UcPresetDto,
     pub steps: u32,
     pub scale: f32,
@@ -269,9 +330,9 @@ pub struct GenerateImageRequestDto {
     pub variety_boost: bool,
     pub strict_mode: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub i2i: Option<Img2ImgRequestDto>,
+    pub img2img: Option<Img2ImgRequestDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub controlnet: Option<ControlNetConfigDto>,
+    pub vibe_transfer: Option<VibeTransferConfigDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub character_references: Option<Vec<CharacterReferenceDto>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -290,7 +351,8 @@ impl Default for GenerateImageRequestDto {
             model: ImageModelDto::default(),
             size: ImageSizeDto::default(),
             negative_prompt: None,
-            quality: true,
+            quality: QualityPresetDto::Standard,
+            transparent_background: false,
             uc_preset: UcPresetDto::default(),
             steps: 23,
             scale: 5.0,
@@ -301,8 +363,8 @@ impl Default for GenerateImageRequestDto {
             cfg_rescale: 0.0,
             variety_boost: false,
             strict_mode: false,
-            i2i: None,
-            controlnet: None,
+            img2img: None,
+            vibe_transfer: None,
             character_references: None,
             characters: None,
             use_coords: None,

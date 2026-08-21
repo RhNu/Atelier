@@ -103,6 +103,7 @@ fn open_workspace_and_generation_are_explicitly_driven() {
                 content: "1girl".to_owned(),
                 category: None,
                 description: None,
+                models: vec![ImageModelDto::NaiDiffusion45Full],
                 preview: None,
             })
             .await
@@ -169,6 +170,7 @@ fn valid_generated_images_get_best_effort_gallery_variants() {
                 content: "1girl".to_owned(),
                 category: None,
                 description: None,
+                models: vec![ImageModelDto::NaiDiffusion45Full],
                 preview: None,
             })
             .await
@@ -243,6 +245,7 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
                 content: "cinematic lighting".to_owned(),
                 category: None,
                 description: None,
+                models: vec![ImageModelDto::NaiDiffusion45Full],
                 preview: None,
             })
             .await
@@ -260,6 +263,7 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
                 uc_behavior: surround("bad anatomy", ""),
                 quality_override: None,
                 uc_preset_override: Some("heavy".to_owned()),
+                models: vec![ImageModelDto::NaiDiffusion45Full],
                 preview: None,
             })
             .await
@@ -277,6 +281,7 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
                 uc_behavior: surround("", "extra arms"),
                 quality_override: None,
                 uc_preset_override: None,
+                models: vec![ImageModelDto::NaiDiffusion45Full],
                 preview: None,
             })
             .await
@@ -345,6 +350,7 @@ fn generation_estimate_applies_character_prompt_presets() {
                 uc_behavior: surround("", ""),
                 quality_override: None,
                 uc_preset_override: None,
+                models: vec![ImageModelDto::NaiDiffusion45Full],
                 preview: None,
             })
             .await
@@ -385,6 +391,7 @@ fn valid_streamed_images_get_best_effort_gallery_variants() {
                 content: "1girl".to_owned(),
                 category: None,
                 description: None,
+                models: vec![ImageModelDto::NaiDiffusion45Full],
                 preview: None,
             })
             .await
@@ -436,6 +443,7 @@ fn updated_variant_settings_drive_generated_variant_dimensions() {
                 content: "1girl".to_owned(),
                 category: None,
                 description: None,
+                models: vec![ImageModelDto::NaiDiffusion45Full],
                 preview: None,
             })
             .await
@@ -525,7 +533,7 @@ fn resource_backed_generation_inputs_are_resolved_before_novelai_submission() {
                 job_id: "job-1".to_owned(),
                 work: GenerationWorkRequestDto::Image(GenerateImageRequestDto {
                     prompt: "1girl".to_owned(),
-                    i2i: Some(Img2ImgRequestDto {
+                    img2img: Some(Img2ImgRequestDto {
                         image: ImageInputDto::ResourceRef {
                             resource: source.clone(),
                         },
@@ -543,7 +551,7 @@ fn resource_backed_generation_inputs_are_resolved_before_novelai_submission() {
 
         let generated = factory.generated_requests();
         assert_eq!(generated.len(), 1);
-        assert_eq!(generated[0].i2i.as_ref().unwrap().image, "AQID");
+        assert_eq!(generated[0].img2img.as_ref().unwrap().image, "AQID");
     });
 }
 

@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
+use atelier_generation::{
+    ImageFormat, ImageModel, ImageSize, NoiseSchedule, QualityPreset, Sampler, UcPreset,
+};
 
 use crate::{SettingsError, SettingsResult};
 
@@ -28,7 +30,8 @@ impl WorkspaceSettings {
 pub struct GenerationDefaults {
     pub model: ImageModel,
     pub size: ImageSize,
-    pub quality: bool,
+    pub quality: QualityPreset,
+    pub transparent_background: bool,
     pub uc_preset: UcPreset,
     pub steps: u32,
     pub scale: f32,
@@ -47,7 +50,8 @@ impl Default for GenerationDefaults {
         Self {
             model: ImageModel::default(),
             size: ImageSize::default(),
-            quality: true,
+            quality: QualityPreset::Standard,
+            transparent_background: false,
             uc_preset: UcPreset::default(),
             steps: 23,
             scale: 5.0,

@@ -1,8 +1,9 @@
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::{
     GenerationAnlasEstimateDto, GenerationDraftDto, GenerationEstimateRequestDto,
-    GenerationStatusDto, GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
-    SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
+    GenerationStatusDto, GenerationStatusQueryDto, ImageModelDescriptorDto, QueueDirectiveDto,
+    RunGenerationJobRequestDto, SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto,
+    SubmitGenerationRequestDto,
 };
 use atelier_app_api::prompt::AppendLexiconEntitiesRequestDto;
 use atelier_secrets::SecretStore;
@@ -16,6 +17,18 @@ where
     F: NovelAiClientFactory + Clone + Send + Sync,
     E: EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
 {
+    /// Returns Atelier's authoritative, static `NovelAI` image model catalog.
+    ///
+    /// # Errors
+    /// This static catalog currently cannot fail; the command result keeps the
+    /// same envelope as the rest of the generation command API.
+    pub fn list_image_models(&self) -> CommandResult<Vec<ImageModelDescriptorDto>> {
+        Ok(atelier_generation::ImageModel::ALL
+            .into_iter()
+            .map(crate::mapping::model_descriptor_to_dto)
+            .collect())
+    }
+
     /// Returns the persisted generation workbench draft for the current workspace.
     ///
     /// # Errors

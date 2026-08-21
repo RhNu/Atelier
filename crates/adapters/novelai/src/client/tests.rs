@@ -1,3 +1,4 @@
+use super::mapping::to_bridge_model;
 use super::*;
 
 use std::pin::Pin;
@@ -11,8 +12,8 @@ use async_trait::async_trait;
 use atelier_generation::{
     ClientApiErrorReason as GenerationApiErrorReason,
     ClientInvalidRequestKind as GenerationInvalidRequestKind, GenerateImageRequest, GeneratedImage,
-    GenerationClientError, ImageModel, ImageSize, NoiseSchedule, NovelAiGenerationClient, Sampler,
-    UcPreset,
+    GenerationClientError, ImageModel, ImageSize, NoiseSchedule, NovelAiGenerationClient,
+    QualityPreset, Sampler, UcPreset,
 };
 use atelier_secrets::{
     SecretResolver, SecretValue, SecretsError, SecretsResult, SubscriptionClient,
@@ -37,6 +38,79 @@ fn crate_metadata_is_available() {
 }
 
 #[test]
+fn atelier_model_catalog_matches_bridge_capabilities() {
+    for model in ImageModel::ALL {
+        let local = model.capabilities();
+        let upstream = to_bridge_model(model).capabilities();
+        assert_eq!(local.params_version, upstream.params_version, "{model:?}");
+        assert_eq!(local.default_steps, upstream.default_steps, "{model:?}");
+        assert_eq!(
+            local.default_scale.to_bits(),
+            upstream.default_scale.to_bits(),
+            "{model:?}"
+        );
+        assert_eq!(local.max_characters, upstream.max_characters, "{model:?}");
+        assert_eq!(
+            local.supports_vibe_transfer, upstream.supports_vibe_transfer,
+            "{model:?}"
+        );
+        assert_eq!(
+            local.supports_encoded_vibe, upstream.supports_encoded_vibe,
+            "{model:?}"
+        );
+        assert_eq!(
+            local.supports_character_reference, upstream.supports_character_reference,
+            "{model:?}"
+        );
+        assert_eq!(
+            local.supports_variety_boost, upstream.supports_variety_boost,
+            "{model:?}"
+        );
+        assert_eq!(
+            local.supports_inpainting, upstream.supports_inpainting,
+            "{model:?}"
+        );
+        assert_eq!(local.supports_smea, upstream.supports_smea, "{model:?}");
+        assert_eq!(
+            local.supports_dynamic_thresholding, upstream.supports_dynamic_thresholding,
+            "{model:?}"
+        );
+        assert_eq!(
+            local.uses_v5_extensions, upstream.uses_v5_extensions,
+            "{model:?}"
+        );
+        assert_eq!(
+            local.supports_light_quality_preset, upstream.supports_light_quality_preset,
+            "{model:?}"
+        );
+        assert_eq!(
+            local.supports_transparent_background, upstream.supports_transparent_background,
+            "{model:?}"
+        );
+        assert_eq!(
+            local.variety_sigma_coefficient.map(f32::to_bits),
+            upstream.variety_sigma_coefficient.map(f32::to_bits),
+            "{model:?}"
+        );
+        assert_eq!(
+            local.prompt_token_limit, upstream.prompt_token_limit,
+            "{model:?}"
+        );
+        assert_eq!(
+            matches!(
+                local.prompt_structure,
+                atelier_generation::PromptStructure::V4
+            ),
+            matches!(
+                upstream.prompt_structure,
+                novelai_bridge::PromptStructure::V4
+            ),
+            "{model:?}"
+        );
+    }
+}
+
+#[test]
 fn maps_generation_request_to_bridge_request() {
     let request = GenerateImageRequest {
         prompt: "1girl".to_owned(),
@@ -46,7 +120,7 @@ fn maps_generation_request_to_bridge_request() {
             height: 1024,
         },
         negative_prompt: Some("lowres".to_owned()),
-        quality: false,
+        quality: QualityPreset::None,
         uc_preset: UcPreset::Heavy,
         steps: 28,
         scale: 6.5,
@@ -60,16 +134,76 @@ fn maps_generation_request_to_bridge_request() {
 
     let bridge = to_bridge_generate_request(request);
 
-    assert_eq!(bridge.prompt, "1girl");
-    assert_eq!(bridge.model, novelai_bridge::Model::NaiDiffusion3);
-    assert_eq!(bridge.size.width, 1024);
-    assert_eq!(bridge.uc_preset, novelai_bridge::UcPreset::Heavy);
-    assert_eq!(bridge.sampler, novelai_bridge::Sampler::KDpmpp2m);
+    assert_eq!(bridge.core.prompt, "1girl");
+    assert_eq!(bridge.core.model, novelai_bridge::Model::NaiDiffusion3);
+    assert_eq!(bridge.core.size.width, 1024);
+    assert_eq!(bridge.core.uc_preset, novelai_bridge::UcPreset::Heavy);
+    assert_eq!(bridge.sampling.sampler, novelai_bridge::Sampler::KDpmpp2m);
     assert_eq!(
-        bridge.noise_schedule,
+        bridge.sampling.noise_schedule,
         novelai_bridge::NoiseSchedule::Exponential
     );
-    assert_eq!(bridge.n_samples, 2);
+    assert_eq!(bridge.core.n_samples, 2);
+}
+
+#[test]
+fn maps_v5_extensions_and_rc1_enum_additions() {
+    let request = GenerateImageRequest {
+        prompt: "a natural-language scene".to_owned(),
+        model: ImageModel::NaiDiffusion5Curated,
+        quality: QualityPreset::Light,
+        transparent_background: true,
+        sampler: Sampler::DdimV3,
+        noise_schedule: NoiseSchedule::Native,
+        img2img: Some(Img2ImgRequest {
+            image: "source".to_owned(),
+            strength: 0.6,
+            noise: 0.1,
+            mask: Some("mask".to_owned()),
+        }),
+        character_references: Some(vec![atelier_generation::CharacterReference {
+            image: "reference".to_owned(),
+            reference_type: atelier_generation::CharacterReferenceType::Costume,
+            fidelity: 0.5,
+            strength: 0.75,
+        }]),
+        ..Default::default()
+    };
+
+    let bridge = to_bridge_generate_request(request);
+
+    assert_eq!(
+        bridge.core.model,
+        novelai_bridge::Model::NaiDiffusion5Curated
+    );
+    assert_eq!(bridge.core.quality, novelai_bridge::QualityPreset::Light);
+    assert!(bridge.core.transparent_background);
+    assert_eq!(bridge.sampling.sampler, novelai_bridge::Sampler::DdimV3);
+    assert_eq!(
+        bridge
+            .img2img
+            .as_ref()
+            .and_then(|value| value.mask.as_deref()),
+        Some("mask")
+    );
+    assert_eq!(
+        bridge.sampling.noise_schedule,
+        novelai_bridge::NoiseSchedule::Native
+    );
+    assert_eq!(
+        bridge.references.unwrap().character_references[0].reference_type,
+        novelai_bridge::CharacterReferenceType::Costume
+    );
+    assert_eq!(
+        super::mapping::to_bridge_sampler(Sampler::KDpmpp2mSde),
+        novelai_bridge::Sampler::KDpmpp2mSde
+    );
+    assert_eq!(
+        super::mapping::to_bridge_character_reference_type(
+            atelier_generation::CharacterReferenceType::Delta
+        ),
+        novelai_bridge::CharacterReferenceType::Delta
+    );
 }
 
 #[test]
@@ -96,6 +230,25 @@ fn maps_bridge_generated_image_to_domain() {
             .and_then(|metadata| metadata.prompt.as_deref()),
         Some("1girl")
     );
+}
+
+#[test]
+fn maps_v5_subscription_allowance_without_anlas_inference() {
+    let summary = from_bridge_subscription(novelai_bridge::SubscriptionInfo {
+        anlas_balance: 17,
+        is_opus: true,
+        tier: 3,
+        tier_name: "opus".to_owned(),
+        expires_at_ms: None,
+        v5_usage: Some(novelai_bridge::V5UsageStatus {
+            is_negative: true,
+            percent: 12,
+            seconds_until_next_percent: 30,
+        }),
+    });
+    assert_eq!(summary.anlas_balance, 17);
+    assert_eq!(summary.v5_usage.unwrap().percent, 12);
+    assert!(summary.v5_usage.unwrap().is_negative);
 }
 
 #[test]
@@ -527,6 +680,7 @@ impl SubscriptionClient for RecordingClient {
             tier: 1,
             tier_name: "tablet".to_owned(),
             expires_at_ms: None,
+            v5_usage: None,
         })
     }
 }

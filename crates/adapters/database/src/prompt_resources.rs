@@ -1,6 +1,7 @@
 #![allow(clippy::significant_drop_tightening)]
 
 use async_trait::async_trait;
+use atelier_generation::{ImageModel, QualityPreset};
 use atelier_prompt_resources::{
     ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptPreset, PromptPresetBehavior,
     PromptPresetId, PromptPresetKind, PromptResourceError, PromptResourceReader,
@@ -56,10 +57,19 @@ impl PromptResourceReader for DatabasePromptResourceRepository {
             .map_err(sql_error)
     }
 
-    async fn list_chunks(&self) -> PromptResourceResult<Vec<PromptChunk>> {
+    async fn list_chunks(
+        &self,
+        model: Option<ImageModel>,
+    ) -> PromptResourceResult<Vec<PromptChunk>> {
         let connection = self.connection.lock().map_err(prompt_error)?;
+        let where_clause = model.map_or(String::new(), |model| format!(
+            "WHERE EXISTS (SELECT 1 FROM prompt_chunk_models pcm WHERE pcm.chunk_id = prompt_chunks.chunk_id AND pcm.model = '{}')",
+            model.as_str()
+        ));
         let mut statement = connection
-            .prepare(prompt_chunk_select("ORDER BY chunk_key ASC").as_str())
+            .prepare(
+                prompt_chunk_select(&format!("{where_clause} ORDER BY chunk_key ASC")).as_str(),
+            )
             .map_err(sql_error)?;
         let rows = statement
             .query_map([], prompt_chunk_from_row)
@@ -85,11 +95,25 @@ impl PromptResourceReader for DatabasePromptResourceRepository {
     async fn list_presets(
         &self,
         kind: Option<PromptPresetKind>,
+        model: Option<ImageModel>,
     ) -> PromptResourceResult<Vec<PromptPreset>> {
         let connection = self.connection.lock().map_err(prompt_error)?;
-        let (where_clause, kind_text) = kind.map_or(("", None), |kind| {
-            ("WHERE preset_kind = ?1", Some(preset_kind_to_str(kind)))
+        let model_filter = model.map(|model| format!(
+            "EXISTS (SELECT 1 FROM prompt_preset_models ppm WHERE ppm.preset_id = prompt_presets.preset_id AND ppm.model = '{}')",
+            model.as_str()
+        ));
+        let (kind_filter, kind_text) = kind.map_or((None, None), |kind| {
+            (Some("preset_kind = ?1"), Some(preset_kind_to_str(kind)))
         });
+        let filters = [kind_filter.map(str::to_owned), model_filter]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let where_clause = if filters.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", filters.join(" AND "))
+        };
         let mut statement = connection
             .prepare(
                 prompt_preset_select(&format!(
@@ -138,8 +162,11 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
     }
 
     async fn save_chunk(&self, chunk: PromptChunk) -> PromptResourceResult<()> {
-        let connection = self.connection.lock().map_err(prompt_error)?;
-        upsert_chunk(&*connection, &chunk)
+        let mut connection = self.connection.lock().map_err(prompt_error)?;
+        let tx = connection.transaction().map_err(sql_error)?;
+        upsert_chunk(&tx, &chunk)?;
+        replace_chunk_models(&tx, &chunk)?;
+        tx.commit().map_err(sql_error)
     }
 
     async fn save_chunk_and_rewrite_references(
@@ -150,6 +177,7 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
         let mut connection = self.connection.lock().map_err(prompt_error)?;
         let tx = connection.transaction().map_err(sql_error)?;
         upsert_chunk(&tx, &chunk)?;
+        replace_chunk_models(&tx, &chunk)?;
 
         let mut statement = tx
             .prepare(
@@ -217,7 +245,7 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
         key: &PromptChunkKey,
     ) -> PromptResourceResult<Vec<ChunkReference>> {
         let mut references = self
-            .list_chunks()
+            .list_chunks(None)
             .await?
             .into_iter()
             .filter(|chunk| chunk.references_chunk(key))
@@ -227,7 +255,7 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
             })
             .collect::<Vec<_>>();
         references.extend(
-            self.list_presets(None)
+            self.list_presets(None, None)
                 .await?
                 .into_iter()
                 .filter(|preset| preset.references_chunk(key))
@@ -264,8 +292,11 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
     }
 
     async fn save_preset(&self, preset: PromptPreset) -> PromptResourceResult<()> {
-        let connection = self.connection.lock().map_err(prompt_error)?;
-        upsert_preset(&*connection, &preset)
+        let mut connection = self.connection.lock().map_err(prompt_error)?;
+        let tx = connection.transaction().map_err(sql_error)?;
+        upsert_preset(&tx, &preset)?;
+        replace_preset_models(&tx, &preset)?;
+        tx.commit().map_err(sql_error)
     }
 
     async fn delete_preset(&self, id: &PromptPresetId) -> PromptResourceResult<()> {
@@ -368,7 +399,7 @@ fn upsert_preset(connection: &impl SqlExecutor, preset: &PromptPreset) -> Prompt
                 uc_before,
                 uc_after,
                 uc_replace,
-                preset.quality_override.as_deref(),
+                preset.quality_override.map(quality_preset_to_str),
                 preset.uc_preset_override.as_deref(),
                 preset.preview_thumb.as_ref().map(|value| value.id.as_str()),
                 preset
@@ -406,7 +437,9 @@ fn prompt_chunk_select(where_clause: &str) -> String {
     format!(
         r"
         SELECT chunk_id, chunk_key, content, category, description,
-               preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms
+               preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms,
+               (SELECT GROUP_CONCAT(model, char(10)) FROM prompt_chunk_models pcm
+                WHERE pcm.chunk_id = prompt_chunks.chunk_id)
         FROM prompt_chunks {where_clause}
         "
     )
@@ -426,6 +459,7 @@ fn prompt_chunk_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptChun
         }),
         created_at_ms: i64_to_u64(row.get(7)?)?,
         updated_at_ms: i64_to_u64(row.get(8)?)?,
+        models: parse_models(row.get::<_, Option<String>>(9)?).map_err(to_sql_error)?,
     })
 }
 
@@ -435,7 +469,9 @@ fn prompt_preset_select(where_clause: &str) -> String {
         SELECT preset_id, preset_kind, name, category, description, sort_order, prompt_mode,
                uc_mode, before_text, after_text, replace_text, uc_before_text,
                uc_after_text, uc_replace_text, quality_override, uc_preset_override,
-               preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms
+               preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms,
+               (SELECT GROUP_CONCAT(model, char(10)) FROM prompt_preset_models ppm
+                WHERE ppm.preset_id = prompt_presets.preset_id)
         FROM prompt_presets {where_clause}
         "
     )
@@ -467,14 +503,96 @@ fn prompt_preset_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptPre
         order: row.get(5)?,
         prompt_behavior,
         uc_behavior,
-        quality_override: row.get(14)?,
+        quality_override: row
+            .get::<_, Option<String>>(14)?
+            .map(|value| quality_preset_from_str(&value))
+            .transpose()
+            .map_err(to_sql_error)?,
         uc_preset_override: row.get(15)?,
         preview_thumb: preview_resource_id.map(|id| {
             ResourceRef::new(ResourceId::new(id), preview_variant_id.map(VariantId::new))
         }),
         created_at_ms: i64_to_u64(row.get(18)?)?,
         updated_at_ms: i64_to_u64(row.get(19)?)?,
+        models: parse_models(row.get::<_, Option<String>>(20)?).map_err(to_sql_error)?,
     })
+}
+
+fn replace_chunk_models(
+    transaction: &rusqlite::Transaction<'_>,
+    chunk: &PromptChunk,
+) -> PromptResourceResult<()> {
+    transaction
+        .execute(
+            "DELETE FROM prompt_chunk_models WHERE chunk_id = ?1",
+            params![chunk.id.as_str()],
+        )
+        .map_err(sql_error)?;
+    for model in &chunk.models {
+        transaction
+            .execute(
+                "INSERT INTO prompt_chunk_models(chunk_id, model) VALUES (?1, ?2)",
+                params![chunk.id.as_str(), model.as_str()],
+            )
+            .map_err(sql_error)?;
+    }
+    Ok(())
+}
+
+fn replace_preset_models(
+    transaction: &rusqlite::Transaction<'_>,
+    preset: &PromptPreset,
+) -> PromptResourceResult<()> {
+    transaction
+        .execute(
+            "DELETE FROM prompt_preset_models WHERE preset_id = ?1",
+            params![preset.id.as_str()],
+        )
+        .map_err(sql_error)?;
+    for model in &preset.models {
+        transaction
+            .execute(
+                "INSERT INTO prompt_preset_models(preset_id, model) VALUES (?1, ?2)",
+                params![preset.id.as_str(), model.as_str()],
+            )
+            .map_err(sql_error)?;
+    }
+    Ok(())
+}
+
+fn parse_models(value: Option<String>) -> PromptResourceResult<Vec<ImageModel>> {
+    value
+        .unwrap_or_default()
+        .split('\n')
+        .filter(|value| !value.is_empty())
+        .map(image_model_from_str)
+        .collect()
+}
+
+fn image_model_from_str(value: &str) -> PromptResourceResult<ImageModel> {
+    ImageModel::ALL
+        .into_iter()
+        .find(|model| model.as_str() == value)
+        .ok_or_else(|| PromptResourceError::repository(format!("unknown image model `{value}`")))
+}
+
+const fn quality_preset_to_str(value: QualityPreset) -> &'static str {
+    match value {
+        QualityPreset::Standard => "standard",
+        QualityPreset::Light => "light",
+        QualityPreset::None => "none",
+    }
+}
+
+fn quality_preset_from_str(value: &str) -> PromptResourceResult<QualityPreset> {
+    match value {
+        "standard" | "true" => Ok(QualityPreset::Standard),
+        "light" => Ok(QualityPreset::Light),
+        "none" | "false" => Ok(QualityPreset::None),
+        _ => Err(PromptResourceError::repository(format!(
+            "unknown quality preset `{value}`"
+        ))),
+    }
 }
 
 fn preset_behavior_fields(behavior: &PromptPresetBehavior) -> (&'static str, &str, &str, &str) {

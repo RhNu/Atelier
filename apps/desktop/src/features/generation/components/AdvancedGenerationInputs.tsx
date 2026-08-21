@@ -1,8 +1,14 @@
 /* eslint-disable max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { describeError, frontendLogger } from "@/app/logger";
-import type { CharacterReferenceTypeDto, PromptPresetDto, ResourceRefDto } from "@/types";
+import type {
+  CharacterReferenceTypeDto,
+  ModelCapabilitiesDto,
+  PromptPresetDto,
+  ResourceRefDto,
+} from "@/types";
 
 import type { EnsuredVibeEncodingFromResource } from "../data/useGenerationActions";
 import type { GenerationDraft } from "../model/generation-draft";
@@ -28,6 +34,7 @@ type AdvancedGenerationInputsProps = {
   onImportVibeDocuments: () => void;
   onExportVibeDocument: (vibeId: string) => void;
   developerMode: boolean;
+  capabilities?: ModelCapabilitiesDto;
 };
 
 const DEFAULT_REFERENCE_TYPE: CharacterReferenceTypeDto = "character";
@@ -48,7 +55,9 @@ export function AdvancedGenerationInputs({
   onImportVibeDocuments,
   onExportVibeDocument,
   developerMode,
+  capabilities,
 }: AdvancedGenerationInputsProps) {
+  const { t } = useTranslation("generation");
   const [error, setError] = useState<string | null>(null);
   const updateI2i = useCallback(
     (patch: Partial<NonNullable<GenerationDraft["i2i"]>>) => {
@@ -157,6 +166,7 @@ export function AdvancedGenerationInputs({
                   displayName: "Uploaded Vibe",
                   sourceImage: null,
                   sourceSha256: ensured.sourceSha256,
+                  model: draft.model,
                 },
               ],
             },
@@ -186,7 +196,7 @@ export function AdvancedGenerationInputs({
           onFlush={onFlush}
           developerMode={developerMode}
         />
-        {draft.preciseReferences.length === 0 ? (
+        {capabilities?.supports_vibe_transfer !== false && draft.preciseReferences.length === 0 ? (
           <VibeGuidanceSection
             draft={draft}
             onPatch={onPatch}
@@ -201,21 +211,31 @@ export function AdvancedGenerationInputs({
             developerMode={developerMode}
           />
         ) : null}
-        <PreciseReferenceSection
-          draft={draft}
-          onPatch={onPatch}
-          pickPreciseReference={pickPreciseReference}
-          imageImportPending={imageImportPending}
-          releaseImages={releaseImages}
-          onFlush={onFlush}
-          developerMode={developerMode}
-        />
-        <CharacterGuidanceSection
-          draft={draft}
-          onPatch={onPatch}
-          characterPresets={characterPresets}
-          characterPresetsPending={characterPresetsPending}
-        />
+        {capabilities?.supports_character_reference !== false ? (
+          <PreciseReferenceSection
+            draft={draft}
+            onPatch={onPatch}
+            pickPreciseReference={pickPreciseReference}
+            imageImportPending={imageImportPending}
+            releaseImages={releaseImages}
+            onFlush={onFlush}
+            developerMode={developerMode}
+          />
+        ) : null}
+        {(capabilities?.max_characters ?? 6) > 0 ? (
+          <CharacterGuidanceSection
+            draft={draft}
+            onPatch={onPatch}
+            characterPresets={characterPresets}
+            characterPresetsPending={characterPresetsPending}
+          />
+        ) : null}
+        {(!capabilities?.supports_vibe_transfer && draft.vibe.slots.length > 0) ||
+        (!capabilities?.supports_character_reference && draft.preciseReferences.length > 0) ? (
+          <p className="border border-app-border bg-black/20 p-2 text-xs text-app-muted">
+            {t("dormantGuidanceSummary")}
+          </p>
+        ) : null}
       </div>
     </section>
   );

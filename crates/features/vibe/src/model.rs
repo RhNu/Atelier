@@ -1,3 +1,4 @@
+pub use atelier_generation::ImageModel as VibeModel;
 use atelier_resource_catalog::ResourceRef;
 use serde_json::Value;
 
@@ -17,56 +18,6 @@ impl VibeId {
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
-    }
-}
-
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub enum VibeModel {
-    #[default]
-    NaiDiffusion45Full,
-    NaiDiffusion45Curated,
-    NaiDiffusion4Full,
-    NaiDiffusion4Curated,
-    NaiDiffusion3,
-    NaiDiffusion3Furry,
-}
-
-impl VibeModel {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::NaiDiffusion45Full => "nai-diffusion-4-5-full",
-            Self::NaiDiffusion45Curated => "nai-diffusion-4-5-curated",
-            Self::NaiDiffusion4Full => "nai-diffusion-4-full",
-            Self::NaiDiffusion4Curated => "nai-diffusion-4-curated",
-            Self::NaiDiffusion3 => "nai-diffusion-3",
-            Self::NaiDiffusion3Furry => "nai-diffusion-3-furry",
-        }
-    }
-
-    #[must_use]
-    pub const fn vibe_model_key(self) -> &'static str {
-        match self {
-            Self::NaiDiffusion45Full => "v4-5full",
-            Self::NaiDiffusion45Curated => "v4-5curated",
-            Self::NaiDiffusion4Full => "v4full",
-            Self::NaiDiffusion4Curated => "v4curated",
-            Self::NaiDiffusion3 => "v3",
-            Self::NaiDiffusion3Furry => "v3furry",
-        }
-    }
-
-    #[must_use]
-    pub fn from_vibe_model_key(value: &str) -> Option<Self> {
-        match value {
-            "v4-5full" => Some(Self::NaiDiffusion45Full),
-            "v4-5curated" => Some(Self::NaiDiffusion45Curated),
-            "v4full" => Some(Self::NaiDiffusion4Full),
-            "v4curated" => Some(Self::NaiDiffusion4Curated),
-            "v3" => Some(Self::NaiDiffusion3),
-            "v3furry" => Some(Self::NaiDiffusion3Furry),
-            _ => None,
-        }
     }
 }
 
@@ -107,6 +58,11 @@ impl VibeEncodeSettings {
     /// Returns an error when `information_extracted` is outside `[0.01, 1.0]`
     /// or is not finite.
     pub fn new(model: VibeModel, information_extracted: f32) -> VibeDomainResult<Self> {
+        if !model.capabilities().supports_vibe_transfer {
+            return Err(VibeError::invalid_settings(
+                "selected model does not support vibe encoding",
+            ));
+        }
         if !information_extracted.is_finite()
             || !(0.01_f32..=1.0_f32).contains(&information_extracted)
         {
@@ -135,7 +91,7 @@ impl VibeEncodeSettings {
         format!(
             "vibe|source_image_sha256|{}|{}|{}",
             source.content_hash,
-            self.model.vibe_model_key(),
+            self.model.vibe_model_key().unwrap_or("unsupported"),
             self.information_extracted_key()
         )
     }

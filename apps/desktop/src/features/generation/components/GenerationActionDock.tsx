@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppRangeField, AppSelect } from "@/components/ui";
+import type { ModelCapabilitiesDto, V5UsageStatusDto } from "@/types";
 
 import type { GenerationDraft } from "../model/generation-draft";
 import {
@@ -38,6 +39,8 @@ type GenerationActionDockProps = {
   onResetParameters: () => void;
   onRetryDraftSave: () => void;
   onClearStoredDraft: () => void;
+  capabilities?: ModelCapabilitiesDto;
+  v5Usage?: V5UsageStatusDto | null;
 };
 
 const NOISE_OPTIONS = toSelectOptions(generationNoiseScheduleOptions);
@@ -61,6 +64,8 @@ export function GenerationActionDock({
   onResetParameters,
   onRetryDraftSave,
   onClearStoredDraft,
+  capabilities,
+  v5Usage,
 }: GenerationActionDockProps) {
   const { t } = useTranslation("generation");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -118,21 +123,23 @@ export function GenerationActionDock({
             max={10}
             step={0.1}
             action={
-              <button
-                type="button"
-                aria-pressed={draft.varietyBoost}
-                className={[
-                  "border px-2 py-1 text-[11px] font-semibold",
-                  draft.varietyBoost
-                    ? "border-brand-400/60 bg-brand-500/20 text-brand-100"
-                    : "border-app-border text-app-muted hover:text-app-text",
-                ].join(" ")}
-                onClick={() =>
-                  onPatch({ varietyBoost: !draft.varietyBoost }, { persist: "immediate" })
-                }
-              >
-                {t("varietyBoost")}
-              </button>
+              capabilities?.supports_variety_boost ? (
+                <button
+                  type="button"
+                  aria-pressed={draft.varietyBoost}
+                  className={[
+                    "border px-2 py-1 text-[11px] font-semibold",
+                    draft.varietyBoost
+                      ? "border-brand-400/60 bg-brand-500/20 text-brand-100"
+                      : "border-app-border text-app-muted hover:text-app-text",
+                  ].join(" ")}
+                  onClick={() =>
+                    onPatch({ varietyBoost: !draft.varietyBoost }, { persist: "immediate" })
+                  }
+                >
+                  {t("varietyBoost")}
+                </button>
+              ) : undefined
             }
             onChange={(scale) => onPatch({ scale })}
             onCommit={onFlush}
@@ -227,6 +234,12 @@ export function GenerationActionDock({
             </div>
           </div>
           {balanceError ? <p className="text-amber-200">{balanceError}</p> : null}
+          {v5Usage ? (
+            <p className={v5Usage.is_negative ? "text-amber-200" : "text-app-muted"}>
+              {t("v5Allowance")}: {v5Usage.is_negative ? `${t("negativeAllowance")} · ` : ""}
+              {v5Usage.percent}%
+            </p>
+          ) : null}
           {estimateError ? <p className="text-amber-200">{estimateError}</p> : null}
           {insufficientBalance ? (
             <p className="text-amber-200">{t("insufficientBalance")}</p>

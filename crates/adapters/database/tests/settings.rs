@@ -1,5 +1,7 @@
 use atelier_adapter_database::{DatabaseConnection, DatabaseSettingsRepository};
-use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
+use atelier_generation::{
+    ImageFormat, ImageModel, ImageSize, NoiseSchedule, QualityPreset, Sampler, UcPreset,
+};
 use atelier_settings::{
     GenerationDefaults, ImageVariantSettings, WorkspaceSettings, WorkspaceSettingsRepository,
 };
@@ -23,7 +25,8 @@ fn settings_repository_defaults_saves_reopens_and_resets() {
             generation: GenerationDefaults {
                 model: ImageModel::NaiDiffusion4Curated,
                 size: ImageSize::square(),
-                quality: false,
+                quality: QualityPreset::None,
+                transparent_background: false,
                 uc_preset: UcPreset::None,
                 steps: 31,
                 scale: 7.5,
@@ -71,12 +74,13 @@ fn settings_repository_reads_workspace_payload_without_global_fields() {
                 .execute(
                     "INSERT INTO workspace_settings(setting_key, value_json) VALUES ('workspace', ?1)",
                     [r#"{
-                        "schema_version": 1,
+                            "schema_version": 2,
                         "generation": {
                             "model": "nai-diffusion-4-5-full",
                             "width": 832,
                             "height": 1216,
-                            "quality": true,
+                            "quality": "standard",
+                            "transparent_background": false,
                             "uc_preset": "light",
                             "steps": 23,
                             "scale": 5.0,

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use atelier_generation::ImageModel;
 
 use crate::{
     ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptPreset, PromptPresetId,
@@ -17,7 +18,10 @@ pub trait PromptResourceReader: Send + Sync {
         key: &PromptChunkKey,
     ) -> PromptResourceResult<Option<PromptChunk>>;
 
-    async fn list_chunks(&self) -> PromptResourceResult<Vec<PromptChunk>>;
+    async fn list_chunks(
+        &self,
+        model: Option<ImageModel>,
+    ) -> PromptResourceResult<Vec<PromptChunk>>;
 
     async fn get_preset_by_id(
         &self,
@@ -27,6 +31,7 @@ pub trait PromptResourceReader: Send + Sync {
     async fn list_presets(
         &self,
         kind: Option<PromptPresetKind>,
+        model: Option<ImageModel>,
     ) -> PromptResourceResult<Vec<PromptPreset>>;
 }
 

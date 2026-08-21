@@ -32,6 +32,7 @@ fn prompt_previews_survive_reopen_and_are_released_with_their_resources() {
         let reopened_preset = host
             .list_prompt_presets(ListPromptPresetsRequestDto {
                 kind: Some(PromptPresetKindDto::Main),
+                model: None,
                 offset: 0,
                 limit: 10,
             })
@@ -60,6 +61,7 @@ fn prompt_previews_survive_reopen_and_are_released_with_their_resources() {
             content: reopened_chunk.content,
             category: reopened_chunk.category,
             description: reopened_chunk.description,
+            models: reopened_chunk.models,
             preview: None,
         })
         .await
@@ -120,6 +122,7 @@ async fn create_prompt_resources_with_previews(
             content: "1girl".to_owned(),
             category: None,
             description: None,
+            models: vec![ImageModelDto::NaiDiffusion45Full],
             preview: Some(chunk_preview.clone()),
         })
         .await
@@ -142,6 +145,7 @@ async fn create_prompt_resources_with_previews(
             },
             quality_override: None,
             uc_preset_override: None,
+            models: vec![ImageModelDto::NaiDiffusion45Full],
             preview: Some(preset_preview.clone()),
         })
         .await

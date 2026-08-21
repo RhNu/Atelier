@@ -49,6 +49,16 @@ vi.mock("../features/resources/data/useResourcesData", () => ({
   useResourceImageQuery: () => ({ data: undefined }),
 }));
 
+vi.mock("../features/generation/data/useImageModelCatalog", () => ({
+  useImageModelCatalog: () => ({
+    data: [
+      { model: "nai-diffusion-5-full" },
+      { model: "nai-diffusion-4-5-full" },
+      { model: "nai-diffusion-3" },
+    ],
+  }),
+}));
+
 const chunk: PromptChunkDto = {
   chunk_id: "chunk-1",
   key: "lighting",
@@ -58,6 +68,7 @@ const chunk: PromptChunkDto = {
   preview: null,
   created_at_ms: 1,
   updated_at_ms: 1,
+  models: ["nai-diffusion-4-5-full"],
 };
 const CHUNKS = [chunk];
 const CHUNK_CATEGORIES = ["Style"];
@@ -75,6 +86,7 @@ const preset: PromptPresetDto = {
   preview: null,
   created_at_ms: 1,
   updated_at_ms: 1,
+  models: ["nai-diffusion-4-5-full"],
 };
 const PRESETS = [preset];
 const PRESET_CATEGORIES = ["Characters", "Style"];
@@ -231,6 +243,7 @@ function workspace(newRequest: number, chunks: ReadonlyArray<PromptChunkDto> = C
         newRequest={newRequest}
         viewMode="list"
         categorySuggestions={CHUNK_CATEGORIES}
+        defaultModel="nai-diffusion-4-5-full"
       />
     </QueryClientProvider>
   );
@@ -248,6 +261,7 @@ function renderPresetWorkspace() {
         newRequest={0}
         viewMode="list"
         categorySuggestions={PRESET_CATEGORIES}
+        defaultModel="nai-diffusion-4-5-full"
       />
     </QueryClientProvider>,
   );

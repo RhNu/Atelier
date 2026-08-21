@@ -2,6 +2,8 @@ import type {
   PromptPresetBehaviorDto,
   PromptPresetDto,
   PromptPresetKindDto,
+  ImageModelDto,
+  QualityPresetDto,
   ResourceRefDto,
   UpsertPromptPresetRequestDto,
 } from "@/types";
@@ -26,12 +28,16 @@ export type PresetEditorDraft = {
   order: number;
   prompt: PromptBehaviorDraft;
   uc: PromptBehaviorDraft;
-  qualityOverride: string;
+  qualityOverride: QualityPresetDto | "";
   ucPresetOverride: string;
   preview: ResourceRefDto | null;
+  models: ImageModelDto[];
 };
 
-export function blankPresetEditorDraft(kind: PromptPresetKindDto): PresetEditorDraft {
+export function blankPresetEditorDraft(
+  kind: PromptPresetKindDto,
+  model: ImageModelDto = "nai-diffusion-4-5-full",
+): PresetEditorDraft {
   return {
     presetId: null,
     kind,
@@ -44,6 +50,7 @@ export function blankPresetEditorDraft(kind: PromptPresetKindDto): PresetEditorD
     qualityOverride: "",
     ucPresetOverride: "",
     preview: null,
+    models: [model],
   };
 }
 
@@ -60,6 +67,7 @@ export function presetToEditorDraft(preset: PromptPresetDto): PresetEditorDraft 
     qualityOverride: preset.quality_override ?? "",
     ucPresetOverride: preset.uc_preset_override ?? "",
     preview: preset.preview,
+    models: [...preset.models],
   };
 }
 
@@ -76,9 +84,10 @@ export function editorDraftToUpsertRequest(
     order: draft.order,
     prompt_behavior: promptBehaviorToDto(draft.prompt),
     uc_behavior: promptBehaviorToDto(draft.uc),
-    quality_override: kind === "main" ? nullableText(draft.qualityOverride) : null,
+    quality_override: kind === "main" && draft.qualityOverride ? draft.qualityOverride : null,
     uc_preset_override: kind === "main" ? nullableText(draft.ucPresetOverride) : null,
     preview: draft.preview,
+    models: draft.models,
   };
 }
 

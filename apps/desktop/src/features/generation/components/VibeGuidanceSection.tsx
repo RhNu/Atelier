@@ -1,6 +1,6 @@
-/* eslint-disable react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises */
+/* eslint-disable max-lines, react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises */
 import { Download, ImagePlus, Library, Trash2, Upload } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { reportBackgroundPromise } from "@/app/logger";
@@ -19,6 +19,20 @@ import {
 import { findVibeEncodingForModel } from "./vibe-guidance-model";
 import { VibeLibraryDialog } from "./VibeLibraryDialog";
 
+type VibeGuidanceSectionProps = {
+  draft: GenerationDraft;
+  onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
+  onFlush: () => void;
+  vibeImportPending: boolean;
+  vibeExportPending: boolean;
+  vibeEnsurePending: boolean;
+  pickVibeEncoding: () => Promise<void>;
+  onImportVibeDocuments: () => void;
+  onExportVibeDocument: (vibeId: string) => void;
+  releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
+  developerMode: boolean;
+};
+
 export function VibeGuidanceSection({
   draft,
   onPatch,
@@ -31,22 +45,14 @@ export function VibeGuidanceSection({
   onExportVibeDocument,
   releaseImages,
   developerMode,
-}: {
-  draft: GenerationDraft;
-  onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
-  onFlush: () => void;
-  vibeImportPending: boolean;
-  vibeExportPending: boolean;
-  vibeEnsurePending: boolean;
-  pickVibeEncoding: () => Promise<void>;
-  onImportVibeDocuments: () => void;
-  onExportVibeDocument: (vibeId: string) => void;
-  releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
-  developerMode: boolean;
-}) {
+}: VibeGuidanceSectionProps) {
   const { t } = useTranslation("generation");
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const slots = draft.vibe.slots;
+  const slots = useMemo(
+    () => draft.vibe.slots.filter((slot) => slot.model === draft.model),
+    [draft.model, draft.vibe.slots],
+  );
+  const openLibrary = useCallback(() => setLibraryOpen(true), []);
 
   function updateVibe(patch: Partial<GenerationDraft["vibe"]>) {
     onPatch({ vibe: { ...draft.vibe, ...patch } });
@@ -62,7 +68,7 @@ export function VibeGuidanceSection({
         vibe: {
           ...draft.vibe,
           slots: [
-            ...slots,
+            ...draft.vibe.slots,
             {
               id: createLocalId("vibe"),
               encoding: selected.encoding,
@@ -72,6 +78,7 @@ export function VibeGuidanceSection({
               displayName: entry.display_name,
               sourceImage: entry.source_image,
               sourceSha256: null,
+              model: draft.model,
             },
           ],
         },
@@ -84,49 +91,36 @@ export function VibeGuidanceSection({
       "Release precise reference images",
     );
   }
+  const actions = useMemo(
+    () => (
+      <VibeActions
+        draft={draft}
+        slots={slots}
+        onPatch={onPatch}
+        pickVibeEncoding={pickVibeEncoding}
+        onImportVibeDocuments={onImportVibeDocuments}
+        releaseImages={releaseImages}
+        vibeImportPending={vibeImportPending}
+        vibeEnsurePending={vibeEnsurePending}
+        openLibrary={openLibrary}
+      />
+    ),
+    [
+      draft,
+      onImportVibeDocuments,
+      onPatch,
+      openLibrary,
+      pickVibeEncoding,
+      releaseImages,
+      slots,
+      vibeEnsurePending,
+      vibeImportPending,
+    ],
+  );
 
   return (
     <>
-      <GuidanceSection
-        title={t("vibeTransfer")}
-        actions={
-          <>
-            <AppIconButton
-              icon={ImagePlus}
-              label={t("addVibeFromImage")}
-              size="sm"
-              onClick={pickVibeEncoding}
-              disabled={vibeEnsurePending}
-            />
-            <AppIconButton
-              icon={Library}
-              label={t("chooseVibeLibrary")}
-              size="sm"
-              onClick={() => setLibraryOpen(true)}
-            />
-            <AppIconButton
-              icon={Upload}
-              label={t("importVibeFile")}
-              size="sm"
-              onClick={onImportVibeDocuments}
-              disabled={vibeImportPending}
-            />
-            {slots.length > 0 ? (
-              <AppIconButton
-                icon={Trash2}
-                label={t("clearVibeStack")}
-                size="sm"
-                variant="danger"
-                onClick={() => {
-                  const resources = slots.map((slot) => slot.sourceImage);
-                  onPatch({ vibe: { ...draft.vibe, slots: [] } }, { persist: "immediate" });
-                  reportBackgroundPromise(releaseImages(resources), "Release Vibe source images");
-                }}
-              />
-            ) : null}
-          </>
-        }
-      >
+      <GuidanceSection title={t("vibeTransfer")} actions={actions}>
         {slots.length > 0 ? (
           <>
             <AppRangeField
@@ -164,6 +158,77 @@ export function VibeGuidanceSection({
         onClose={() => setLibraryOpen(false)}
         onSelect={selectLibraryEntry}
       />
+    </>
+  );
+}
+
+function VibeActions({
+  draft,
+  slots,
+  onPatch,
+  pickVibeEncoding,
+  onImportVibeDocuments,
+  releaseImages,
+  vibeImportPending,
+  vibeEnsurePending,
+  openLibrary,
+}: Pick<
+  VibeGuidanceSectionProps,
+  | "draft"
+  | "onPatch"
+  | "pickVibeEncoding"
+  | "onImportVibeDocuments"
+  | "releaseImages"
+  | "vibeImportPending"
+  | "vibeEnsurePending"
+> & {
+  slots: GenerationDraft["vibe"]["slots"];
+  openLibrary: () => void;
+}) {
+  const { t } = useTranslation("generation");
+  return (
+    <>
+      <AppIconButton
+        icon={ImagePlus}
+        label={t("addVibeFromImage")}
+        size="sm"
+        onClick={pickVibeEncoding}
+        disabled={vibeEnsurePending}
+      />
+      <AppIconButton
+        icon={Library}
+        label={t("chooseVibeLibrary")}
+        size="sm"
+        onClick={openLibrary}
+      />
+      <AppIconButton
+        icon={Upload}
+        label={t("importVibeFile")}
+        size="sm"
+        onClick={onImportVibeDocuments}
+        disabled={vibeImportPending}
+      />
+      {slots.length > 0 ? (
+        <AppIconButton
+          icon={Trash2}
+          label={t("clearVibeStack")}
+          size="sm"
+          variant="danger"
+          onClick={() => {
+            const resources = slots.map((slot) => slot.sourceImage);
+            onPatch(
+              {
+                vibe: {
+                  ...draft.vibe,
+                  slots: draft.vibe.slots.filter((slot) => slot.model !== draft.model),
+                },
+              },
+              { persist: "immediate" },
+            );
+            reportBackgroundPromise(releaseImages(resources), "Release Vibe source images");
+          }}
+        />
+      ) : null}
     </>
   );
 }

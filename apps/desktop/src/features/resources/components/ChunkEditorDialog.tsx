@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppModal, AppTabs } from "@/components/ui";
-import type { CompiledPromptDto, PromptChunkDto } from "@/types";
+import type { CompiledPromptDto, ImageModelDto, PromptChunkDto } from "@/types";
 
 import {
   blankChunkEditorDraft,
@@ -18,6 +18,7 @@ import {
   useUpsertPromptChunkMutation,
 } from "../data/useResourcesData";
 import { formatError } from "../resource-model";
+import { ModelBindingField, PreviewModelField } from "./ModelBindingField";
 import {
   CategoryInput,
   CompiledPreview,
@@ -33,14 +34,21 @@ type ChunkEditorDialogProps = {
   chunk: PromptChunkDto | null;
   categorySuggestions: ReadonlyArray<string>;
   onClose: () => void;
+  defaultModel: ImageModelDto;
 };
 
-export function ChunkEditorDialog({ chunk, categorySuggestions, onClose }: ChunkEditorDialogProps) {
+export function ChunkEditorDialog({
+  chunk,
+  categorySuggestions,
+  onClose,
+  defaultModel,
+}: ChunkEditorDialogProps) {
   const { t } = useTranslation("resources");
   const [draft, setDraft] = useState(() =>
-    chunk ? chunkToEditorDraft(chunk) : blankChunkEditorDraft(),
+    chunk ? chunkToEditorDraft(chunk) : blankChunkEditorDraft(defaultModel),
   );
   const [tab, setTab] = useState("content");
+  const [previewModel, setPreviewModel] = useState(chunk?.models[0] ?? defaultModel);
   const [preview, setPreview] = useState<CompiledPromptDto | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const upsertMutation = useUpsertPromptChunkMutation();
@@ -70,9 +78,14 @@ export function ChunkEditorDialog({ chunk, categorySuggestions, onClose }: Chunk
   function compile() {
     setErrorMessage(null);
     void compileMutation
-      .mutateAsync({ prompt: draft.content, max_depth: 8 })
+      .mutateAsync({ prompt: draft.content, max_depth: 8, model: previewModel })
       .then(setPreview)
       .catch((error: unknown) => setErrorMessage(formatError(error)));
+  }
+
+  function updateModels(models: ImageModelDto[]) {
+    setDraft({ ...draft, models });
+    if (!models.includes(previewModel)) setPreviewModel(models[0] ?? defaultModel);
   }
 
   function importPreview(source: "clipboard" | "file") {
@@ -113,6 +126,12 @@ export function ChunkEditorDialog({ chunk, categorySuggestions, onClose }: Chunk
         />
         {tab === "content" ? (
           <>
+            <ModelBindingField models={draft.models} onChange={updateModels} />
+            <PreviewModelField
+              models={draft.models}
+              value={previewModel}
+              onChange={setPreviewModel}
+            />
             <TextInput
               label={t("key")}
               value={draft.key}
@@ -122,6 +141,7 @@ export function ChunkEditorDialog({ chunk, categorySuggestions, onClose }: Chunk
               label={t("content")}
               value={draft.content}
               minHeight={192}
+              model={previewModel}
               onChange={(content) => setDraft({ ...draft, content })}
             />
             <AppButton variant="secondary" onClick={compile} disabled={compileMutation.isPending}>

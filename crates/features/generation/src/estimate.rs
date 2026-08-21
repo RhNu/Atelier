@@ -71,7 +71,7 @@ pub fn estimate_anlas_cost(input: AnlasEstimateInput) -> AnlasEstimate {
 
     let opus_discount_applied =
         input.is_opus && steps <= 28 && adjusted_resolution <= OPUS_DISCOUNT_MAX_RESOLUTION;
-    let payable_samples = n_samples.saturating_sub(u32::from(opus_discount_applied));
+    let payable_samples = if opus_discount_applied { 0 } else { n_samples };
     let mut per_request_cost = per_sample_cost.saturating_mul(u64::from(payable_samples));
     if input.has_director_reference {
         per_request_cost = per_request_cost.saturating_add(DIRECTOR_REFERENCE_EXTRA_COST);

@@ -1,31 +1,37 @@
 use atelier_app_api::generation::{
     CharacterPositionDto, GenerationDraftCharacterDto, GenerationDraftCharacterPositionModeDto,
     GenerationDraftDto, GenerationDraftI2iDto, GenerationDraftPreciseReferenceDto,
-    GenerationDraftSeedModeDto, GenerationDraftVibeDto, GenerationDraftVibeSlotDto,
+    GenerationDraftPromptStateDto, GenerationDraftSeedModeDto, GenerationDraftVibeDto,
+    GenerationDraftVibeSlotDto,
 };
 use atelier_generation::{
     CharacterPosition, CharacterReferenceType, GenerationDraftCharacter,
     GenerationDraftCharacterPositionMode, GenerationDraftI2i, GenerationDraftPreciseReference,
-    GenerationDraftSeedMode, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
+    GenerationDraftPromptState, GenerationDraftSeedMode, GenerationDraftSnapshot,
+    GenerationDraftVibe, GenerationDraftVibeSlot,
 };
 
 use super::{
     image_format_to_domain, image_format_to_dto, image_model_to_domain, image_model_to_dto,
-    noise_schedule_to_domain, noise_schedule_to_dto, resource_ref_from_dto, resource_ref_to_dto,
-    sampler_to_domain, sampler_to_dto, uc_preset_to_domain, uc_preset_to_dto,
+    noise_schedule_to_domain, noise_schedule_to_dto, quality_preset_to_domain,
+    quality_preset_to_dto, resource_ref_from_dto, resource_ref_to_dto, sampler_to_domain,
+    sampler_to_dto, uc_preset_to_domain, uc_preset_to_dto,
 };
 
 pub fn generation_draft_to_domain(value: GenerationDraftDto) -> GenerationDraftSnapshot {
     GenerationDraftSnapshot {
-        main_preset_id: value.main_preset_id,
-        prompt: value.prompt,
-        negative_prompt: value.negative_prompt,
         model: image_model_to_domain(value.model),
+        prompt_states: value
+            .prompt_states
+            .into_iter()
+            .map(prompt_state_to_domain)
+            .collect(),
         size: atelier_generation::ImageSize {
             width: value.size.width,
             height: value.size.height,
         },
-        quality: value.quality,
+        quality: quality_preset_to_domain(value.quality),
+        transparent_background: value.transparent_background,
         uc_preset: uc_preset_to_domain(value.uc_preset),
         steps: value.steps,
         scale: value.scale,
@@ -47,26 +53,23 @@ pub fn generation_draft_to_domain(value: GenerationDraftDto) -> GenerationDraftS
             .into_iter()
             .map(precise_reference_to_domain)
             .collect(),
-        characters: value
-            .characters
-            .into_iter()
-            .map(character_to_domain)
-            .collect(),
-        character_position_mode: position_mode_to_domain(value.character_position_mode),
     }
 }
 
 pub fn generation_draft_to_dto(value: &GenerationDraftSnapshot) -> GenerationDraftDto {
     GenerationDraftDto {
-        main_preset_id: value.main_preset_id.clone(),
-        prompt: value.prompt.clone(),
-        negative_prompt: value.negative_prompt.clone(),
         model: image_model_to_dto(value.model),
+        prompt_states: value
+            .prompt_states
+            .iter()
+            .map(prompt_state_to_dto)
+            .collect(),
         size: atelier_app_api::generation::ImageSizeDto {
             width: value.size.width,
             height: value.size.height,
         },
-        quality: value.quality,
+        quality: quality_preset_to_dto(value.quality),
+        transparent_background: value.transparent_background,
         uc_preset: uc_preset_to_dto(value.uc_preset),
         steps: value.steps,
         scale: value.scale,
@@ -88,8 +91,6 @@ pub fn generation_draft_to_dto(value: &GenerationDraftSnapshot) -> GenerationDra
             .iter()
             .map(precise_reference_to_dto)
             .collect(),
-        characters: value.characters.iter().map(character_to_dto).collect(),
-        character_position_mode: position_mode_to_dto(value.character_position_mode),
     }
 }
 
@@ -127,6 +128,7 @@ fn vibe_to_domain(value: GenerationDraftVibeDto) -> GenerationDraftVibe {
                 display_name: slot.display_name,
                 source_image: slot.source_image.map(resource_ref_from_dto),
                 source_sha256: slot.source_sha256,
+                model: image_model_to_domain(slot.model),
             })
             .collect(),
     }
@@ -148,8 +150,35 @@ fn vibe_to_dto(value: &GenerationDraftVibe) -> GenerationDraftVibeDto {
                 display_name: slot.display_name.clone(),
                 source_image: slot.source_image.as_ref().map(resource_ref_to_dto),
                 source_sha256: slot.source_sha256.clone(),
+                model: image_model_to_dto(slot.model),
             })
             .collect(),
+    }
+}
+
+fn prompt_state_to_domain(value: GenerationDraftPromptStateDto) -> GenerationDraftPromptState {
+    GenerationDraftPromptState {
+        model: image_model_to_domain(value.model),
+        main_preset_id: value.main_preset_id,
+        prompt: value.prompt,
+        negative_prompt: value.negative_prompt,
+        characters: value
+            .characters
+            .into_iter()
+            .map(character_to_domain)
+            .collect(),
+        character_position_mode: position_mode_to_domain(value.character_position_mode),
+    }
+}
+
+fn prompt_state_to_dto(value: &GenerationDraftPromptState) -> GenerationDraftPromptStateDto {
+    GenerationDraftPromptStateDto {
+        model: image_model_to_dto(value.model),
+        main_preset_id: value.main_preset_id.clone(),
+        prompt: value.prompt.clone(),
+        negative_prompt: value.negative_prompt.clone(),
+        characters: value.characters.iter().map(character_to_dto).collect(),
+        character_position_mode: position_mode_to_dto(value.character_position_mode),
     }
 }
 
@@ -260,6 +289,12 @@ const fn character_reference_type_to_dto(
         CharacterReferenceType::CharacterAndStyle => {
             atelier_app_api::generation::CharacterReferenceTypeDto::CharacterAndStyle
         }
+        CharacterReferenceType::Costume => {
+            atelier_app_api::generation::CharacterReferenceTypeDto::Costume
+        }
+        CharacterReferenceType::Delta => {
+            atelier_app_api::generation::CharacterReferenceTypeDto::Delta
+        }
     }
 }
 
@@ -275,6 +310,12 @@ const fn character_reference_type_to_domain(
         }
         atelier_app_api::generation::CharacterReferenceTypeDto::CharacterAndStyle => {
             CharacterReferenceType::CharacterAndStyle
+        }
+        atelier_app_api::generation::CharacterReferenceTypeDto::Costume => {
+            CharacterReferenceType::Costume
+        }
+        atelier_app_api::generation::CharacterReferenceTypeDto::Delta => {
+            CharacterReferenceType::Delta
         }
     }
 }

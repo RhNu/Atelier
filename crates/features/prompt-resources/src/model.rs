@@ -1,3 +1,4 @@
+use atelier_generation::{ImageModel, QualityPreset};
 use atelier_prompt::{FunctionValue, parse_prompt};
 use atelier_resource_catalog::ResourceRef;
 
@@ -66,6 +67,7 @@ pub struct PromptChunk {
     pub category: Option<String>,
     pub description: Option<String>,
     pub preview_thumb: Option<ResourceRef>,
+    pub models: Vec<ImageModel>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
 }
@@ -85,6 +87,7 @@ pub struct UpsertPromptChunkRequest {
     pub category: Option<String>,
     pub description: Option<String>,
     pub preview_thumb: Option<ResourceRef>,
+    pub models: Vec<ImageModel>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -159,9 +162,10 @@ pub struct PromptPreset {
     pub order: i32,
     pub prompt_behavior: PromptPresetBehavior,
     pub uc_behavior: PromptPresetBehavior,
-    pub quality_override: Option<String>,
+    pub quality_override: Option<QualityPreset>,
     pub uc_preset_override: Option<String>,
     pub preview_thumb: Option<ResourceRef>,
+    pub models: Vec<ImageModel>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
 }
@@ -189,9 +193,10 @@ pub struct UpsertPromptPresetRequest {
     pub order: i32,
     pub prompt_behavior: PromptPresetBehavior,
     pub uc_behavior: PromptPresetBehavior,
-    pub quality_override: Option<String>,
+    pub quality_override: Option<QualityPreset>,
     pub uc_preset_override: Option<String>,
     pub preview_thumb: Option<ResourceRef>,
+    pub models: Vec<ImageModel>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

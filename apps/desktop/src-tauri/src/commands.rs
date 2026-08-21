@@ -497,6 +497,17 @@ pub async fn estimate_generation(
 }
 
 #[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri commands extract managed state by value"
+)]
+pub fn list_image_models(
+    state: State<'_, DesktopState>,
+) -> CommandResult<Vec<atelier_app_api::generation::ImageModelDescriptorDto>> {
+    state.host.list_image_models()
+}
+
+#[tauri::command]
 pub async fn run_generation_job(
     state: State<'_, DesktopState>,
     request: RunGenerationJobRequestDto,

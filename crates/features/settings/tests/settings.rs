@@ -1,7 +1,9 @@
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use atelier_generation::{ImageFormat, ImageModel, ImageSize, NoiseSchedule, Sampler, UcPreset};
+use atelier_generation::{
+    ImageFormat, ImageModel, ImageSize, NoiseSchedule, QualityPreset, Sampler, UcPreset,
+};
 use atelier_settings::{
     FrontendLanguage, GenerationDefaults, GlobalFrontendSettings, GlobalGallerySettings,
     GlobalSettings, GlobalSettingsRepository, GlobalSettingsService, ImageVariantSettings,
@@ -60,7 +62,8 @@ fn settings_service_defaults_saves_and_resets_workspace_settings() {
             generation: GenerationDefaults {
                 model: ImageModel::NaiDiffusion4Curated,
                 size: ImageSize::square(),
-                quality: false,
+                quality: QualityPreset::None,
+                transparent_background: false,
                 uc_preset: UcPreset::None,
                 steps: 28,
                 scale: 6.5,

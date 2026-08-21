@@ -1,4 +1,5 @@
 use atelier_adapter_database::{DatabaseConnection, DatabasePromptResourceRepository};
+use atelier_generation::ImageModel;
 use atelier_prompt_resources::{
     PromptChunkKey, PromptChunkService, PromptPresetBehavior, PromptPresetKind,
     PromptPresetService, PromptResourceErrorKind, PromptResourceReader, UpsertPromptChunkRequest,
@@ -42,7 +43,7 @@ fn prompt_repository_crud_rewrites_references_and_blocks_referenced_delete() {
 
         service.delete_chunk(&scene.id).await.unwrap();
         assert!(service.delete_chunk(&renamed.id).await.unwrap().deleted);
-        assert!(repository.list_chunks().await.unwrap().is_empty());
+        assert!(repository.list_chunks(None).await.unwrap().is_empty());
     });
 }
 
@@ -89,7 +90,7 @@ fn prompt_repository_persists_presets_and_rewrites_preset_chunk_references() {
         assert_eq!(delete_error.kind(), PromptResourceErrorKind::Conflict);
         assert_eq!(
             preset_service
-                .list_presets(Some(PromptPresetKind::Main))
+                .list_presets(Some(PromptPresetKind::Main), None)
                 .await
                 .unwrap()
                 .len(),
@@ -146,6 +147,7 @@ fn request(
         category: None,
         description: None,
         preview_thumb: None,
+        models: vec![ImageModel::NaiDiffusion45Full],
     }
 }
 
@@ -167,6 +169,7 @@ fn preset_request(
         quality_override: None,
         uc_preset_override: None,
         preview_thumb: None,
+        models: vec![ImageModel::NaiDiffusion45Full],
     }
 }
 

@@ -1,5 +1,6 @@
 mod support;
 
+use atelier_generation::{ImageModel, QualityPreset};
 use atelier_prompt_resources::{
     CompileCharacterPromptRequest, CompileGenerationPromptRequest, PromptChunkKey,
     PromptChunkService, PromptCompiler, PromptPresetBehavior, PromptPresetKind,
@@ -29,7 +30,7 @@ fn preset_service_manages_main_and_character_presets() {
             .unwrap();
 
         let main = service
-            .list_presets(Some(PromptPresetKind::Main))
+            .list_presets(Some(PromptPresetKind::Main), None)
             .await
             .unwrap();
         assert_eq!(
@@ -40,7 +41,7 @@ fn preset_service_manages_main_and_character_presets() {
         );
         assert_eq!(
             service
-                .list_presets(Some(PromptPresetKind::Character))
+                .list_presets(Some(PromptPresetKind::Character), None)
                 .await
                 .unwrap()
                 .len(),
@@ -55,11 +56,35 @@ fn character_presets_cannot_define_generation_overrides() {
         let repository = MemoryPromptResourceRepository::default();
         let service = PromptPresetService::new(repository);
         let mut request = preset_request(None, PromptPresetKind::Character, "Invalid", 0);
-        request.quality_override = Some("native".to_owned());
+        request.quality_override = Some(QualityPreset::Standard);
 
         let error = service.upsert_preset(request).await.unwrap_err();
 
         assert_eq!(error.kind(), PromptResourceErrorKind::InvalidRequest);
+    });
+}
+
+#[test]
+fn light_quality_override_requires_every_bound_model_to_support_it() {
+    block_on(async {
+        let repository = MemoryPromptResourceRepository::default();
+        let service = PromptPresetService::new(repository);
+        let mut mixed = preset_request(None, PromptPresetKind::Main, "Mixed", 0);
+        mixed.models = vec![
+            ImageModel::NaiDiffusion5Full,
+            ImageModel::NaiDiffusion45Full,
+        ];
+        mixed.quality_override = Some(QualityPreset::Light);
+        let error = service.upsert_preset(mixed).await.unwrap_err();
+        assert_eq!(error.kind(), PromptResourceErrorKind::InvalidRequest);
+
+        let mut v5 = preset_request(None, PromptPresetKind::Main, "V5", 0);
+        v5.models = vec![ImageModel::NaiDiffusion5Full];
+        v5.quality_override = Some(QualityPreset::Light);
+        assert_eq!(
+            service.upsert_preset(v5).await.unwrap().quality_override,
+            Some(QualityPreset::Light)
+        );
     });
 }
 
@@ -76,6 +101,7 @@ fn compiler_applies_presets_and_expands_chunks_inside_preset_fields() {
                 category: None,
                 description: None,
                 preview_thumb: None,
+                models: vec![ImageModel::NaiDiffusion45Full],
             })
             .await
             .unwrap();
@@ -84,7 +110,7 @@ fn compiler_applies_presets_and_expands_chunks_inside_preset_fields() {
         let mut main_request = preset_request(None, PromptPresetKind::Main, "Main", 0);
         main_request.prompt_behavior = surround("$chunk(lighting)", "sharp focus");
         main_request.uc_behavior = surround("bad anatomy", "");
-        main_request.quality_override = Some("qualityTagsV4".to_owned());
+        main_request.quality_override = Some(QualityPreset::Standard);
         main_request.uc_preset_override = Some("heavy".to_owned());
         let main = preset_service.upsert_preset(main_request).await.unwrap();
 
@@ -99,6 +125,7 @@ fn compiler_applies_presets_and_expands_chunks_inside_preset_fields() {
         let compiler = PromptCompiler::new(repository);
         let result = compiler
             .compile_generation_prompt(CompileGenerationPromptRequest {
+                model: ImageModel::NaiDiffusion45Full,
                 main_preset_id: Some(main.id.clone()),
                 prompt: "1girl".to_owned(),
                 negative_prompt: "lowres".to_owned(),
@@ -118,7 +145,7 @@ fn compiler_applies_presets_and_expands_chunks_inside_preset_fields() {
             "cinematic lighting, 1girl, sharp focus".to_owned()
         );
         assert_eq!(result.negative_prompt, "bad anatomy, lowres".to_owned());
-        assert_eq!(result.quality_override, Some("qualityTagsV4".to_owned()));
+        assert_eq!(result.quality_override, Some(QualityPreset::Standard));
         assert_eq!(result.uc_preset_override, Some("heavy".to_owned()));
         assert_eq!(result.characters[0].prompt, "red hair, solo".to_owned());
         assert_eq!(
@@ -142,6 +169,7 @@ fn compiler_uses_explicit_replace_behavior_without_surround_fields() {
 
         let result = PromptCompiler::new(repository)
             .compile_generation_prompt(CompileGenerationPromptRequest {
+                model: ImageModel::NaiDiffusion45Full,
                 main_preset_id: Some(preset.id),
                 prompt: "original prompt".to_owned(),
                 negative_prompt: String::new(),
@@ -168,6 +196,7 @@ fn chunk_rename_rewrites_preset_fields() {
                 category: None,
                 description: None,
                 preview_thumb: None,
+                models: vec![ImageModel::NaiDiffusion45Full],
             })
             .await
             .unwrap();
@@ -184,6 +213,7 @@ fn chunk_rename_rewrites_preset_fields() {
                 category: None,
                 description: None,
                 preview_thumb: None,
+                models: vec![ImageModel::NaiDiffusion45Full],
             })
             .await
             .unwrap();
@@ -211,6 +241,7 @@ fn preset_references_block_chunk_delete() {
                 category: None,
                 description: None,
                 preview_thumb: None,
+                models: vec![ImageModel::NaiDiffusion45Full],
             })
             .await
             .unwrap();
@@ -242,6 +273,7 @@ fn preset_request(
         quality_override: None,
         uc_preset_override: None,
         preview_thumb: None,
+        models: vec![ImageModel::NaiDiffusion45Full],
     }
 }
 

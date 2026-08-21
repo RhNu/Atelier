@@ -186,7 +186,7 @@ pub fn safety_override_from_str(value: &str) -> DatabaseResult<GallerySafetyOver
 }
 
 pub const fn vibe_model_as_str(value: VibeModel) -> &'static str {
-    value.vibe_model_key()
+    value.vibe_model_key().expect("validated vibe model")
 }
 
 pub fn vibe_model_from_str(value: &str) -> DatabaseResult<VibeModel> {

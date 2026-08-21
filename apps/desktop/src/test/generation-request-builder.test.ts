@@ -4,14 +4,39 @@ import {
   createGenerationDraft,
   generationDraftFromDto,
   generationDraftToDto,
+  switchGenerationModel,
 } from "../features/generation/model/generation-draft";
+import type { ModelCapabilitiesDto } from "../types";
 import type { WorkspaceSettingsDto } from "../types";
+
+function modelCapabilities(defaultScale: number): ModelCapabilitiesDto {
+  return {
+    prompt_structure: "v4",
+    params_version: 4,
+    default_steps: 23,
+    default_scale: defaultScale,
+    max_characters: 6,
+    supports_vibe_transfer: false,
+    supports_encoded_vibe: false,
+    supports_character_reference: false,
+    supports_variety_boost: false,
+    supports_inpainting: true,
+    supports_smea: false,
+    supports_dynamic_thresholding: false,
+    uses_v5_extensions: true,
+    supports_light_quality_preset: true,
+    supports_transparent_background: true,
+    variety_sigma_coefficient: null,
+    prompt_token_limit: 1471,
+  };
+}
 
 const settings: WorkspaceSettingsDto = {
   generation: {
     model: "nai-diffusion-4-5-full",
     size: { width: 832, height: 1216 },
-    quality: true,
+    quality: "standard",
+    transparent_background: false,
     uc_preset: "light",
     steps: 23,
     scale: 5,
@@ -31,6 +56,20 @@ const settings: WorkspaceSettingsDto = {
 };
 
 describe("generation request builder", () => {
+  it("restores per-model prompt state and only changes the official scale", () => {
+    const v5Capabilities = modelCapabilities(7);
+    const original = { ...createGenerationDraft(settings), prompt: "v4 prompt", steps: 31 };
+    const v5 = switchGenerationModel(original, "nai-diffusion-5-full", v5Capabilities);
+    expect(v5).toMatchObject({ prompt: "", scale: 7, steps: 31 });
+    const editedV5 = { ...v5, prompt: "自然语言 😀" };
+    const restored = switchGenerationModel(
+      editedV5,
+      "nai-diffusion-4-5-full",
+      modelCapabilities(5),
+    );
+    expect(restored).toMatchObject({ prompt: "v4 prompt", scale: 5, steps: 31 });
+  });
+
   it("creates a draft from workspace generation settings without persisting UI-only state", () => {
     const draft = createGenerationDraft(settings);
 
@@ -40,7 +79,7 @@ describe("generation request builder", () => {
       negativePrompt: "",
       model: "nai-diffusion-4-5-full",
       size: { width: 832, height: 1216 },
-      quality: true,
+      quality: "standard",
       ucPreset: "light",
       steps: 23,
       scale: 5,
@@ -74,6 +113,7 @@ describe("generation request builder", () => {
       displayName: "Style",
       sourceImage: null,
       sourceSha256: null,
+      model: "nai-diffusion-4-5-full",
     });
 
     const dto = generationDraftToDto(draft);
@@ -85,7 +125,9 @@ describe("generation request builder", () => {
       jobIds: ["job-vibe"],
     });
     expect(restoredRequest.jobs[0]?.work).toMatchObject({
-      request: { base: { controlnet: { images: [{ encoding: { id: "vibe-encoding" } }] } } },
+      request: {
+        base: { vibe_transfer: { references: [{ encoding: { id: "vibe-encoding" } }] } },
+      },
     });
 
     draft.preciseReferences.push({
@@ -128,9 +170,10 @@ describe("generation request builder", () => {
             prompt: "1girl, atelier lighting",
             main_preset_id: null,
             negative_prompt: "low quality",
-            model: "nai-diffusion-4-5-full",
+            model: "nai-diffusion-4-5-full" as const,
             size: { width: 832, height: 1216 },
-            quality: true,
+            quality: "standard",
+            transparent_background: false,
             uc_preset: "light",
             steps: 28,
             scale: 5,
@@ -142,8 +185,8 @@ describe("generation request builder", () => {
             variety_boost: false,
             strict_mode: false,
             image_format: "png",
-            i2i: null,
-            controlnet: null,
+            img2img: null,
+            vibe_transfer: null,
             character_references: null,
             characters: null,
             use_coords: null,
@@ -185,6 +228,7 @@ describe("generation request builder", () => {
             displayName: "vibe-a",
             sourceImage: null,
             sourceSha256: null,
+            model: "nai-diffusion-4-5-full" as const,
           },
         ],
       },
@@ -208,18 +252,17 @@ describe("generation request builder", () => {
 
     const base = request.jobs[0]?.work.kind === "stream" ? request.jobs[0].work.request.base : null;
     expect(base).toMatchObject({
-      i2i: {
+      img2img: {
         image: { kind: "resource_ref", resource: { id: "source-image", variant_id: null } },
         mask: { kind: "resource_ref", resource: { id: "mask-image", variant_id: null } },
         strength: 0.64,
         noise: 0.12,
       },
-      controlnet: {
+      vibe_transfer: {
         strength: 0.9,
-        images: [
+        references: [
           {
             encoding: { id: "vibe-encoding", variant_id: null },
-            info_extracted: 0.7,
             strength: 0.4,
           },
         ],
@@ -325,6 +368,7 @@ describe("generation request builder", () => {
             displayName: "vibe-a",
             sourceImage: null,
             sourceSha256: null,
+            model: "nai-diffusion-4-5-full" as const,
           },
         ],
       },
@@ -346,7 +390,7 @@ describe("generation request builder", () => {
     });
 
     const base = request.jobs[0]?.work.kind === "stream" ? request.jobs[0].work.request.base : null;
-    expect(base?.controlnet).toBeNull();
+    expect(base?.vibe_transfer).toBeNull();
     expect(base?.character_references).toEqual([
       {
         image: { kind: "resource_ref", resource: { id: "ref-image", variant_id: null } },

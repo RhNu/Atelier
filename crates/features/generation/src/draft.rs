@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{
     CharacterPosition, CharacterReferenceType, ImageFormat, ImageModel, ImageSize, NoiseSchedule,
-    Sampler, UcPreset,
+    QualityPreset, Sampler, UcPreset,
 };
 
 pub type GenerationDraftResult<T> = Result<T, GenerationDraftError>;
@@ -82,6 +82,7 @@ pub struct GenerationDraftVibeSlot {
     pub display_name: String,
     pub source_image: Option<ResourceRef>,
     pub source_sha256: Option<String>,
+    pub model: ImageModel,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -112,14 +113,23 @@ pub struct GenerationDraftCharacter {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[allow(clippy::struct_excessive_bools)]
-pub struct GenerationDraftSnapshot {
+pub struct GenerationDraftPromptState {
+    pub model: ImageModel,
     pub main_preset_id: Option<String>,
     pub prompt: String,
     pub negative_prompt: String,
+    pub characters: Vec<GenerationDraftCharacter>,
+    pub character_position_mode: GenerationDraftCharacterPositionMode,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct GenerationDraftSnapshot {
     pub model: ImageModel,
+    pub prompt_states: Vec<GenerationDraftPromptState>,
     pub size: ImageSize,
-    pub quality: bool,
+    pub quality: QualityPreset,
+    pub transparent_background: bool,
     pub uc_preset: UcPreset,
     pub steps: u32,
     pub scale: f32,
@@ -137,8 +147,6 @@ pub struct GenerationDraftSnapshot {
     pub i2i: Option<GenerationDraftI2i>,
     pub vibe: GenerationDraftVibe,
     pub precise_references: Vec<GenerationDraftPreciseReference>,
-    pub characters: Vec<GenerationDraftCharacter>,
-    pub character_position_mode: GenerationDraftCharacterPositionMode,
 }
 
 impl GenerationDraftSnapshot {
@@ -148,7 +156,31 @@ impl GenerationDraftSnapshot {
     /// Returns an error when numeric controls, stable ids, coordinates, or resource references are
     /// outside the ranges supported by the generation UI.
     pub fn validate(&self) -> GenerationDraftResult<()> {
-        validate_optional_id("main_preset_id", self.main_preset_id.as_deref())?;
+        if self.prompt_states.is_empty() {
+            return Err(GenerationDraftError::invalid(
+                "prompt_states",
+                "at least one model prompt state is required",
+            ));
+        }
+        let mut prompt_models = std::collections::BTreeSet::new();
+        for (state_index, state) in self.prompt_states.iter().enumerate() {
+            if !prompt_models.insert(state.model.as_str()) {
+                return Err(GenerationDraftError::invalid(
+                    "prompt_states",
+                    "prompt state models must be unique",
+                ));
+            }
+            validate_optional_id(
+                &format!("prompt_states[{state_index}].main_preset_id"),
+                state.main_preset_id.as_deref(),
+            )?;
+            for (index, character) in state.characters.iter().enumerate() {
+                validate_draft_character(
+                    character,
+                    &format!("prompt_states[{state_index}].characters[{index}]"),
+                )?;
+            }
+        }
         validate_dimension("size.width", self.size.width)?;
         validate_dimension("size.height", self.size.height)?;
         validate_u32("steps", self.steps, 1, 50)?;
@@ -211,26 +243,6 @@ impl GenerationDraftSnapshot {
             )?;
         }
 
-        for (index, character) in self.characters.iter().enumerate() {
-            validate_id(&format!("characters[{index}].id"), &character.id)?;
-            validate_optional_id(
-                &format!("characters[{index}].preset_id"),
-                character.preset_id.as_deref(),
-            )?;
-            validate_f32(
-                &format!("characters[{index}].position.x"),
-                character.position.x,
-                0.0,
-                1.0,
-            )?;
-            validate_f32(
-                &format!("characters[{index}].position.y"),
-                character.position.y,
-                0.0,
-                1.0,
-            )?;
-        }
-
         if !self.precise_references.is_empty() && self.vibe.enabled && !self.vibe.slots.is_empty() {
             return Err(GenerationDraftError::invalid(
                 "vibe",
@@ -239,6 +251,29 @@ impl GenerationDraftSnapshot {
         }
         Ok(())
     }
+}
+
+fn validate_draft_character(
+    character: &GenerationDraftCharacter,
+    field: &str,
+) -> GenerationDraftResult<()> {
+    validate_id(&format!("{field}.id"), &character.id)?;
+    validate_optional_id(
+        &format!("{field}.preset_id"),
+        character.preset_id.as_deref(),
+    )?;
+    validate_f32(
+        &format!("{field}.position.x"),
+        character.position.x,
+        0.0,
+        1.0,
+    )?;
+    validate_f32(
+        &format!("{field}.position.y"),
+        character.position.y,
+        0.0,
+        1.0,
+    )
 }
 
 #[async_trait]

@@ -72,4 +72,13 @@ pub struct SubscriptionSummaryDto {
     pub tier_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub v5_usage: Option<V5UsageStatusDto>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct V5UsageStatusDto {
+    pub is_negative: bool,
+    pub percent: u32,
+    pub seconds_until_next_percent: u64,
 }

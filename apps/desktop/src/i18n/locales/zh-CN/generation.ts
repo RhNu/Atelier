@@ -210,4 +210,8 @@ export const generation = {
   character: "角色 {{index}}",
   characterNegative: "角色 {{index}} 不期望内容",
   addCharacter: "添加角色提示词",
+  transparentBackground: "透明背景",
+  dormantGuidanceSummary: "不受支持的引导已保留在草稿中，但不会对当前模型启用。",
+  v5Allowance: "V5 配额",
+  negativeAllowance: "负值",
 } satisfies LocaleShape<typeof enGeneration>;

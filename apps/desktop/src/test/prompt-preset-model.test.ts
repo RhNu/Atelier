@@ -18,6 +18,7 @@ const PRESET: PromptPresetDto = {
   preview: null,
   created_at_ms: 1,
   updated_at_ms: 1,
+  models: ["nai-diffusion-4-5-full"],
 };
 
 describe("prompt preset application", () => {

@@ -135,6 +135,7 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
     );
     assert_eq!(
         serde_json::to_value(ListPromptChunksRequestDto {
+            model: None,
             offset: 5,
             limit: 10,
         })
@@ -173,6 +174,7 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
     assert_eq!(
         serde_json::to_value(ListPromptPresetsRequestDto {
             kind: Some(PromptPresetKindDto::Main),
+            model: None,
             offset: 0,
             limit: 50,
         })
@@ -202,10 +204,12 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
             quality_override: None,
             uc_preset_override: None,
             preview: None,
+            models: vec![ImageModelDto::NaiDiffusion45Full],
         })
         .unwrap(),
         json!({
             "kind": "character",
+            "models": ["nai-diffusion-4-5-full"],
             "name": "Hero",
             "order": 0,
             "prompt_behavior": {
@@ -299,19 +303,18 @@ fn generation_workspace_and_event_command_dtos_are_command_friendly() {
 fn generation_request_exposes_resource_backed_drawing_inputs() {
     let request = GenerateImageRequestDto {
         prompt: "1girl".to_owned(),
-        i2i: Some(Img2ImgRequestDto {
+        img2img: Some(Img2ImgRequestDto {
             image: ImageInputDto::resource("source-image"),
             strength: 0.45,
             noise: 0.2,
             mask: Some(ImageInputDto::resource("mask-image")),
         }),
-        controlnet: Some(ControlNetConfigDto {
-            images: vec![ControlNetInputDto {
+        vibe_transfer: Some(VibeTransferConfigDto {
+            references: vec![VibeReferenceDto {
                 encoding: ResourceRefDto {
                     id: "vibe-encoding".to_owned(),
                     variant_id: None,
                 },
-                info_extracted: 0.7,
                 strength: 0.8,
             }],
             strength: 0.5,
@@ -339,7 +342,8 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
             "prompt": "1girl",
             "model": "nai-diffusion-4-5-full",
             "size": { "width": 832, "height": 1216 },
-            "quality": true,
+            "quality": "standard",
+            "transparent_background": false,
             "uc_preset": "light",
             "steps": 23,
             "scale": 5.0,
@@ -350,7 +354,7 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
             "cfg_rescale": 0.0,
             "variety_boost": false,
             "strict_mode": false,
-            "i2i": {
+            "img2img": {
                 "image": {
                     "kind": "resource_ref",
                     "resource": { "id": "source-image" }
@@ -362,10 +366,9 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
                     "resource": { "id": "mask-image" }
                 }
             },
-            "controlnet": {
-                "images": [{
+            "vibe_transfer": {
+                "references": [{
                     "encoding": { "id": "vibe-encoding" },
-                    "info_extracted": 0.7_f32,
                     "strength": 0.8_f32
                 }],
                 "strength": 0.5_f32
@@ -439,7 +442,8 @@ fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
                             "prompt": "first",
                             "model": "nai-diffusion-4-5-full",
                             "size": { "width": 832, "height": 1216 },
-                            "quality": true,
+                            "quality": "standard",
+                            "transparent_background": false,
                             "uc_preset": "light",
                             "steps": 23,
                             "scale": 5.0,
@@ -462,7 +466,8 @@ fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
                                 "prompt": "second",
                                 "model": "nai-diffusion-4-5-full",
                                 "size": { "width": 832, "height": 1216 },
-                                "quality": true,
+                                "quality": "standard",
+                                "transparent_background": false,
                                 "uc_preset": "light",
                                 "steps": 23,
                                 "scale": 5.0,
@@ -491,6 +496,7 @@ fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
 #[test]
 fn generation_prompt_compile_preview_accepts_all_prompt_scopes() {
     let request = CompileGenerationPromptRequestDto {
+        model: ImageModelDto::NaiDiffusion45Full,
         main_preset_id: Some("preset-main".to_owned()),
         prompt: "$chunk(main)".to_owned(),
         negative_prompt: Some("$chunk(negative)".to_owned()),
@@ -506,6 +512,7 @@ fn generation_prompt_compile_preview_accepts_all_prompt_scopes() {
     assert_eq!(
         serde_json::to_value(request).unwrap(),
         json!({
+            "model": "nai-diffusion-4-5-full",
             "main_preset_id": "preset-main",
             "prompt": "$chunk(main)",
             "negative_prompt": "$chunk(negative)",

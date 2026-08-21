@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
+use atelier_generation::ImageModel;
 use atelier_prompt::{ExtensionCall, FunctionValue};
 
 use crate::references::chunk_call_key;
@@ -46,6 +47,7 @@ pub struct PromptFunctionTraceEntry {
 
 pub struct PromptFunctionContext<'a> {
     pub resources: &'a dyn PromptResourceReader,
+    pub model: ImageModel,
 }
 
 #[async_trait]
@@ -141,6 +143,13 @@ impl PromptFunction for ChunkFunction {
             .ok_or_else(|| {
                 PromptResourceError::not_found(format!("chunk `{}` does not exist", key.as_str()))
             })?;
+        if !chunk.models.contains(&context.model) {
+            return Err(PromptResourceError::not_found(format!(
+                "chunk `{}` is not bound to model `{}`",
+                key.as_str(),
+                context.model.as_str()
+            )));
+        }
         Ok(PromptFunctionOutput::text(
             chunk.content,
             Some(format!("chunk:{}", key.as_str())),

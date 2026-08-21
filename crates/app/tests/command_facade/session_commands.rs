@@ -143,6 +143,7 @@ fn account_and_prompt_chunk_commands_share_runtime() {
         );
         assert_eq!(
             host.list_prompt_chunks(ListPromptChunksRequestDto {
+                model: None,
                 offset: 0,
                 limit: 10,
             })
@@ -184,6 +185,7 @@ fn prompt_preset_commands_share_session() {
         let temp = tempfile::tempdir().unwrap();
         let host = test_host();
         open_workspace(&host, &temp).await;
+        upsert_hero_chunk(&host).await;
 
         let preset = host
             .upsert_prompt_preset(UpsertPromptPresetRequestDto {
@@ -201,8 +203,9 @@ fn prompt_preset_commands_share_session() {
                     before: String::new(),
                     after: String::new(),
                 },
-                quality_override: Some("qualityTagsV4".to_owned()),
+                quality_override: Some(atelier_app_api::generation::QualityPresetDto::Standard),
                 uc_preset_override: Some("heavy".to_owned()),
+                models: vec![ImageModelDto::NaiDiffusion45Full],
                 preview: None,
             })
             .await
@@ -212,6 +215,7 @@ fn prompt_preset_commands_share_session() {
         assert_eq!(
             host.list_prompt_presets(ListPromptPresetsRequestDto {
                 kind: Some(PromptPresetKindDto::Main),
+                model: None,
                 offset: 0,
                 limit: 10,
             })
@@ -233,6 +237,7 @@ fn generation_prompt_compile_respects_requested_depth() {
 
         let error = host
             .compile_generation_prompt_preview(CompileGenerationPromptRequestDto {
+                model: ImageModelDto::NaiDiffusion45Full,
                 prompt: "$chunk(hero)".to_owned(),
                 main_preset_id: None,
                 negative_prompt: None,
@@ -339,12 +344,18 @@ fn generation_draft_promotes_resources_survives_reopen_and_clears_owners() {
             .resource;
         let defaults = host.get_workspace_settings().await.unwrap().generation;
         let draft = GenerationDraftDto {
-            main_preset_id: None,
-            prompt: "1girl".to_owned(),
-            negative_prompt: String::new(),
             model: defaults.model,
+            prompt_states: vec![GenerationDraftPromptStateDto {
+                model: defaults.model,
+                main_preset_id: None,
+                prompt: "1girl".to_owned(),
+                negative_prompt: String::new(),
+                characters: Vec::new(),
+                character_position_mode: GenerationDraftCharacterPositionModeDto::Global,
+            }],
             size: defaults.size,
             quality: defaults.quality,
+            transparent_background: false,
             uc_preset: defaults.uc_preset,
             steps: defaults.steps,
             scale: defaults.scale,
@@ -372,11 +383,10 @@ fn generation_draft_promotes_resources_survives_reopen_and_clears_owners() {
                     display_name: "Imported source".to_owned(),
                     source_image: Some(imported.clone()),
                     source_sha256: None,
+                    model: defaults.model,
                 }],
             },
             precise_references: Vec::new(),
-            characters: Vec::new(),
-            character_position_mode: GenerationDraftCharacterPositionModeDto::Global,
         };
 
         assert_eq!(

@@ -11,7 +11,7 @@ pub use error::{
 };
 pub use model::{
     ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretRecordId, SecretValue, SubscriptionSummary,
-    UpdateApiKeyRequest,
+    UpdateApiKeyRequest, V5UsageStatus,
 };
 pub use ports::{
     ApiKeyRegistryStore, SecretResolver, SecretStore, SubscriptionClient, SubscriptionProbeClient,
@@ -36,6 +36,7 @@ mod tests {
             tier: 3,
             tier_name: "opus".to_owned(),
             expires_at_ms: Some(1_700_000_000_000),
+            v5_usage: None,
         };
 
         assert_eq!(summary.tier_name, "opus");

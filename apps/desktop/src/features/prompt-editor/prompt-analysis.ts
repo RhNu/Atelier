@@ -7,7 +7,7 @@ import { buildPromptDiagnostics } from "./prompt-diagnostics";
 import { buildPromptSemanticSpans } from "./prompt-semantics";
 import { inspectPromptTree } from "./prompt-syntax-tree";
 
-export type NaiPromptProfile = "novelai_v3" | "novelai_v4" | "novelai_v45";
+export type NaiPromptProfile = "novelai_v3" | "novelai_v4" | "novelai_v45" | "novelai_v5";
 export type PromptWeightDirection = "up" | "down" | "neutral";
 export type PromptSemanticSpan =
   | {
@@ -76,9 +76,19 @@ export const naiPromptMessagesFacet = Facet.define<PromptEditorMessages, PromptE
 });
 
 export function promptProfileForModel(model: string): NaiPromptProfile {
-  if (model.includes("4-5")) return "novelai_v45";
-  if (model.includes("diffusion-4")) return "novelai_v4";
-  return "novelai_v3";
+  switch (model) {
+    case "nai-diffusion-5-full":
+    case "nai-diffusion-5-curated":
+      return "novelai_v5";
+    case "nai-diffusion-4-5-full":
+    case "nai-diffusion-4-5-curated":
+      return "novelai_v45";
+    case "nai-diffusion-4-full":
+    case "nai-diffusion-4-curated":
+      return "novelai_v4";
+    default:
+      return "novelai_v3";
+  }
 }
 
 export function analyzePrompt(

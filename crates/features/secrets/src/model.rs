@@ -83,4 +83,12 @@ pub struct SubscriptionSummary {
     pub tier: i32,
     pub tier_name: String,
     pub expires_at_ms: Option<u64>,
+    pub v5_usage: Option<V5UsageStatus>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct V5UsageStatus {
+    pub is_negative: bool,
+    pub percent: u32,
+    pub seconds_until_next_percent: u64,
 }

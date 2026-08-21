@@ -255,12 +255,20 @@ function setup() {
 
 function generationDraft(): GenerationDraftDto {
   return {
-    main_preset_id: null,
-    prompt: "cinematic_lighting, ",
-    negative_prompt: "",
     model: "nai-diffusion-4-5-full",
+    prompt_states: [
+      {
+        model: "nai-diffusion-4-5-full",
+        main_preset_id: null,
+        prompt: "cinematic_lighting, ",
+        negative_prompt: "",
+        characters: [],
+        character_position_mode: "global",
+      },
+    ],
     size: { width: 832, height: 1216 },
-    quality: true,
+    quality: "standard",
+    transparent_background: false,
     uc_preset: "light",
     steps: 23,
     scale: 5,
@@ -278,7 +286,5 @@ function generationDraft(): GenerationDraftDto {
     i2i: null,
     vibe: { enabled: false, strength: 1, slots: [] },
     precise_references: [],
-    characters: [],
-    character_position_mode: "global",
   };
 }

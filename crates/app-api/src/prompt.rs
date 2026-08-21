@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::generation::{ImageModelDto, QualityPresetDto};
 use crate::resource::ResourceRefDto;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -14,6 +15,7 @@ pub struct PromptChunkDto {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preview: Option<ResourceRefDto>,
+    pub models: Vec<ImageModelDto>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
 }
@@ -46,11 +48,12 @@ pub struct PromptPresetDto {
     pub prompt_behavior: PromptPresetBehaviorDto,
     pub uc_behavior: PromptPresetBehaviorDto,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub quality_override: Option<String>,
+    pub quality_override: Option<QualityPresetDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uc_preset_override: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preview: Option<ResourceRefDto>,
+    pub models: Vec<ImageModelDto>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
 }
@@ -69,11 +72,12 @@ pub struct UpsertPromptPresetRequestDto {
     pub prompt_behavior: PromptPresetBehaviorDto,
     pub uc_behavior: PromptPresetBehaviorDto,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub quality_override: Option<String>,
+    pub quality_override: Option<QualityPresetDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uc_preset_override: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preview: Option<ResourceRefDto>,
+    pub models: Vec<ImageModelDto>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -88,6 +92,7 @@ pub struct UpsertPromptChunkRequestDto {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preview: Option<ResourceRefDto>,
+    pub models: Vec<ImageModelDto>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -100,6 +105,8 @@ pub struct GetPromptChunkRequestDto {
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ListPromptChunksRequestDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<ImageModelDto>,
     pub offset: usize,
     pub limit: usize,
 }
@@ -116,6 +123,8 @@ pub struct PromptChunkPageDto {
 pub struct ListPromptPresetsRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<PromptPresetKindDto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<ImageModelDto>,
     pub offset: usize,
     pub limit: usize,
 }
@@ -151,6 +160,7 @@ pub struct DeletePromptPresetResponseDto {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct CompilePromptRequestDto {
     pub prompt: String,
+    pub model: ImageModelDto,
     #[serde(default = "default_max_depth")]
     pub max_depth: usize,
 }
@@ -160,6 +170,7 @@ impl CompilePromptRequestDto {
     pub fn new(prompt: impl Into<String>) -> Self {
         Self {
             prompt: prompt.into(),
+            model: ImageModelDto::default(),
             max_depth: default_max_depth(),
         }
     }
@@ -183,6 +194,7 @@ pub struct CompileGenerationCharacterPromptDto {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct CompileGenerationPromptRequestDto {
+    pub model: ImageModelDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub main_preset_id: Option<String>,
     pub prompt: String,
@@ -209,7 +221,7 @@ pub struct CompiledGenerationPromptDto {
     pub negative_prompt: Option<CompiledPromptDto>,
     pub characters: Vec<CompiledGenerationCharacterPromptDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub quality_override: Option<String>,
+    pub quality_override: Option<QualityPresetDto>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uc_preset_override: Option<String>,
 }

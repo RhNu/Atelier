@@ -22,7 +22,6 @@ import type {
   SetVibeDocumentHiddenRequestDto,
   UpsertPromptChunkRequestDto,
   UpsertPromptPresetRequestDto,
-  VibeModelDto,
 } from "@/types";
 
 type EnsureVibeEncodingFromSourceRequest = {
@@ -222,7 +221,7 @@ export function useEnsureVibeEncodingFromSourceMutation() {
             vibe_id: vibeId,
             source_sha256: sourceSha256,
             image: image.image_base64,
-            model: settings.generation.model as VibeModelDto,
+            model: settings.generation.model,
             information_extracted: 1,
           });
         },

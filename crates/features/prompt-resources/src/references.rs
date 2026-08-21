@@ -53,3 +53,13 @@ pub fn chunk_call_key(call: &ExtensionCall) -> Option<&str> {
         _ => None,
     }
 }
+
+pub fn chunk_reference_keys_in_text(text: &str) -> Vec<PromptChunkKey> {
+    parse_prompt(text)
+        .ast()
+        .extension_calls()
+        .iter()
+        .filter_map(chunk_call_key)
+        .filter_map(|key| PromptChunkKey::parse(key).ok())
+        .collect()
+}

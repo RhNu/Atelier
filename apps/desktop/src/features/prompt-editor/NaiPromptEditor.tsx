@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { forwardRef, useImperativeHandle, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
+import type { ImageModelDto } from "@/types";
+
 import { createNaiPromptCompletion } from "./completion";
 import type { NaiPromptHighlightMode } from "./editor-theme";
 import type { NaiPromptProfile, PromptEditorMessages } from "./prompt-analysis";
@@ -17,6 +19,7 @@ type NaiPromptEditorProps = {
   value: string;
   onChange: (value: string) => void;
   profile?: NaiPromptProfile;
+  model?: ImageModelDto;
   className?: string;
   minHeight?: number;
   placeholder?: string;
@@ -35,6 +38,7 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
       value,
       onChange,
       profile = "novelai_v45",
+      model,
       className,
       minHeight = 96,
       placeholder,
@@ -51,12 +55,16 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
     const messages = usePromptEditorMessages(t);
     const completionSource = useMemo(
       () =>
-        createNaiPromptCompletion(queryClient, {
-          reusableChunk: t("reusableChunk"),
-          compileTimeComment: t("compileTimeComment"),
-          promptChunk: t("promptChunk"),
-        }),
-      [queryClient, t],
+        createNaiPromptCompletion(
+          queryClient,
+          {
+            reusableChunk: t("reusableChunk"),
+            compileTimeComment: t("compileTimeComment"),
+            promptChunk: t("promptChunk"),
+          },
+          model ?? null,
+        ),
+      [model, queryClient, t],
     );
     const { hostRef, viewRef } = usePromptEditor(
       {

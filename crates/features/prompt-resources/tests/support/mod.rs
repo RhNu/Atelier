@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+use atelier_generation::ImageModel;
 use atelier_prompt_resources::{
     ChunkReference, PromptChunk, PromptChunkId, PromptChunkKey, PromptPreset, PromptPresetId,
     PromptPresetKind, PromptResourceReader, PromptResourceRepository, PromptResourceResult,
@@ -71,8 +72,15 @@ impl PromptResourceReader for MemoryPromptResourceRepository {
             .cloned())
     }
 
-    async fn list_chunks(&self) -> PromptResourceResult<Vec<PromptChunk>> {
-        Ok(self.chunks())
+    async fn list_chunks(
+        &self,
+        model: Option<ImageModel>,
+    ) -> PromptResourceResult<Vec<PromptChunk>> {
+        Ok(self
+            .chunks()
+            .into_iter()
+            .filter(|chunk| model.is_none_or(|model| chunk.models.contains(&model)))
+            .collect())
     }
 
     async fn get_preset_by_id(
@@ -91,11 +99,13 @@ impl PromptResourceReader for MemoryPromptResourceRepository {
     async fn list_presets(
         &self,
         kind: Option<PromptPresetKind>,
+        model: Option<ImageModel>,
     ) -> PromptResourceResult<Vec<PromptPreset>> {
         Ok(self
             .presets()
             .into_iter()
             .filter(|preset| kind.is_none_or(|kind| preset.kind == kind))
+            .filter(|preset| model.is_none_or(|model| preset.models.contains(&model)))
             .collect())
     }
 }

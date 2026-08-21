@@ -4,8 +4,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppTabs } from "@/components/ui";
-import { generationUcPresetOptions } from "@/features/generation/model/generation-options";
-import type { CompiledPromptDto } from "@/types";
+import { useImageModelCatalog } from "@/features/generation/data/useImageModelCatalog";
+import {
+  generationUcPresetOptions,
+  toQualityPreset,
+} from "@/features/generation/model/generation-options";
+import type { CompiledPromptDto, ImageModelDto } from "@/types";
 
 import type { PresetEditorDraft, PromptBehaviorDraft } from "../preset-editor-model";
 import { CompiledPreview, PromptTextArea, SelectField } from "./ResourceEditorPrimitives";
@@ -13,6 +17,7 @@ import { ResourcePreviewEditor } from "./ResourcePreviewEditor";
 
 type PresetPromptFieldsProps = {
   draft: PresetEditorDraft;
+  previewModel: ImageModelDto;
   preview: CompiledPromptDto | null;
   compilePending: boolean;
   previewPending: boolean;
@@ -22,8 +27,13 @@ type PresetPromptFieldsProps = {
   onImportPreview: (source: "clipboard" | "file") => void;
 };
 
+function toQualityOverride(value: string): PresetEditorDraft["qualityOverride"] {
+  return value === "" ? "" : toQualityPreset(value);
+}
+
 export function PresetPromptFields({
   draft,
+  previewModel,
   preview,
   compilePending,
   previewPending,
@@ -35,6 +45,12 @@ export function PresetPromptFields({
   const { t } = useTranslation("resources");
   const [tab, setTab] = useState("prompt");
   const mainPreset = draft.kind === "main";
+  const modelCatalog = useImageModelCatalog();
+  const supportsLight = draft.models.every(
+    (model) =>
+      modelCatalog.data?.find((descriptor) => descriptor.model === model)?.capabilities
+        ?.supports_light_quality_preset !== false,
+  );
 
   return (
     <>
@@ -52,6 +68,7 @@ export function PresetPromptFields({
       {tab === "prompt" ? (
         <PromptBehaviorFields
           behavior={draft.prompt}
+          model={previewModel}
           labels={{ before: t("before"), after: t("after"), replace: t("replace") }}
           onChange={(prompt) => onChange({ ...draft, prompt })}
         />
@@ -59,6 +76,7 @@ export function PresetPromptFields({
       {tab === "uc" ? (
         <PromptBehaviorFields
           behavior={draft.uc}
+          model={previewModel}
           labels={{ before: t("ucBefore"), after: t("ucAfter"), replace: t("ucReplace") }}
           onChange={(uc) => onChange({ ...draft, uc })}
         />
@@ -70,10 +88,16 @@ export function PresetPromptFields({
             value={draft.qualityOverride}
             options={[
               { value: "", label: t("inherit") },
-              { value: "true", label: t("enabled") },
-              { value: "false", label: t("disabled") },
+              { value: "standard", label: "Standard" },
+              ...(supportsLight ? [{ value: "light", label: "Light" }] : []),
+              { value: "none", label: "None" },
             ]}
-            onChange={(qualityOverride) => onChange({ ...draft, qualityOverride })}
+            onChange={(qualityOverride) =>
+              onChange({
+                ...draft,
+                qualityOverride: toQualityOverride(qualityOverride),
+              })
+            }
           />
           <SelectField
             label={t("ucPresetOverride")}
@@ -112,10 +136,12 @@ export function PresetPromptFields({
 
 function PromptBehaviorFields({
   behavior,
+  model,
   labels,
   onChange,
 }: {
   behavior: PromptBehaviorDraft;
+  model: ImageModelDto;
   labels: { before: string; after: string; replace: string };
   onChange: (behavior: PromptBehaviorDraft) => void;
 }) {
@@ -142,6 +168,7 @@ function PromptBehaviorFields({
         <PromptTextArea
           label={labels.replace}
           value={behavior.replacement}
+          model={model}
           onChange={(replacement) => onChange({ ...behavior, replacement })}
         />
       ) : (
@@ -149,11 +176,13 @@ function PromptBehaviorFields({
           <PromptTextArea
             label={labels.before}
             value={behavior.before}
+            model={model}
             onChange={(before) => onChange({ ...behavior, before })}
           />
           <PromptTextArea
             label={labels.after}
             value={behavior.after}
+            model={model}
             onChange={(after) => onChange({ ...behavior, after })}
           />
         </div>

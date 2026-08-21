@@ -89,7 +89,11 @@ function diagnoseNumericWeights(
     }
     if (profile === "novelai_v3") {
       diagnostics.push(error(number, "unsupported_capability", messages.unsupportedNumericWeight));
-    } else if (text.slice(number.from, number.to).startsWith("-") && profile !== "novelai_v45") {
+    } else if (
+      text.slice(number.from, number.to).startsWith("-") &&
+      profile !== "novelai_v45" &&
+      profile !== "novelai_v5"
+    ) {
       diagnostics.push(
         error(number, "unsupported_capability", messages.unsupportedNegativeNumericWeight),
       );

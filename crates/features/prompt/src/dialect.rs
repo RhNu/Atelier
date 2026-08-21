@@ -56,6 +56,19 @@ impl PromptSyntaxProfile {
     }
 
     #[must_use]
+    pub fn novelai_v5() -> Self {
+        Self::new(
+            "novelai-v5",
+            vec![
+                PromptCapability::NumericEmphasis,
+                PromptCapability::NegativeNumericEmphasis,
+                PromptCapability::Randomizer,
+                PromptCapability::MultiCharacterPipe,
+            ],
+        )
+    }
+
+    #[must_use]
     pub fn supports(&self, capability: PromptCapability) -> bool {
         self.capabilities.contains(&capability)
     }

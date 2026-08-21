@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 
+import type { QualityPresetDto } from "@/types";
+
 import type { GenerationDraft } from "../model/generation-draft";
 import {
   toImageFormat,
@@ -100,7 +102,7 @@ export function useGenerationParamHandlers({ onPatch, onPatchSize }: GenerationP
     [onPatch],
   );
   const handleQualityChange = useCallback(
-    (quality: boolean) => {
+    (quality: QualityPresetDto) => {
       onPatch({ quality });
     },
     [onPatch],
