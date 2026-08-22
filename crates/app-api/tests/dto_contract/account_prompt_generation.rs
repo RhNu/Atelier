@@ -425,7 +425,9 @@ fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
         context: atelier_app_api::generation::GenerationPlanContextDto {
             request_count: 2,
             pending_vibe_encode_count: 1,
-            is_opus: true,
+            tier: 3,
+            subscription_active: true,
+            v5_usage_is_negative: false,
         },
     };
 
@@ -487,7 +489,9 @@ fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
             "context": {
                 "request_count": 2,
                 "pending_vibe_encode_count": 1,
-                "is_opus": true
+                "tier": 3,
+                "subscription_active": true,
+                "v5_usage_is_negative": false
             }
         })
     );
@@ -538,16 +542,26 @@ fn generation_estimate_dto_returns_anlas_breakdown() {
         context: atelier_app_api::generation::GenerationPlanContextDto {
             request_count: 3,
             pending_vibe_encode_count: 1,
-            is_opus: true,
+            tier: 3,
+            subscription_active: true,
+            v5_usage_is_negative: false,
         },
     };
     let estimate = GenerationAnlasEstimateDto {
-        per_sample_cost: 5,
+        status: atelier_app_api::generation::AnlasEstimateStatusDto::Available,
+        per_image_cost: 5,
         per_request_cost: 5,
-        total_cost: 17,
-        adjusted_resolution: 1_011_712,
-        opus_discount_applied: true,
+        request_count: 3,
+        generation_cost: 15,
+        character_reference_cost: 0,
+        vibe_reference_overage_cost: 0,
         pending_encode_cost: 2,
+        total_cost: 17,
+        requested_samples: 2,
+        sample_limit: 4,
+        priced_samples: 2,
+        billable_samples: 1,
+        free_first_image_applied: true,
     };
 
     assert_eq!(
@@ -557,12 +571,20 @@ fn generation_estimate_dto_returns_anlas_breakdown() {
     assert_eq!(
         serde_json::to_value(estimate).unwrap(),
         json!({
-            "per_sample_cost": 5,
+            "status": "available",
+            "per_image_cost": 5,
             "per_request_cost": 5,
+            "request_count": 3,
+            "generation_cost": 15,
+            "character_reference_cost": 0,
+            "vibe_reference_overage_cost": 0,
+            "pending_encode_cost": 2,
             "total_cost": 17,
-            "adjusted_resolution": 1_011_712,
-            "opus_discount_applied": true,
-            "pending_encode_cost": 2
+            "requested_samples": 2,
+            "sample_limit": 4,
+            "priced_samples": 2,
+            "billable_samples": 1,
+            "free_first_image_applied": true
         })
     );
 }

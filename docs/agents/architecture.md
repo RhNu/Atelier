@@ -91,7 +91,7 @@ Feature crates are the default owner for domain concepts:
 - `resource-catalog`: resource IDs, kinds, owners, lifecycle, blob and variant ports.
 - `prompt`: NovelAI-oriented prompt syntax, formatting, functions, diagnostics.
 - `prompt-resources`: chunks, prompt functions, compile trace, prompt resource ports.
-- `generation`: NovelAI image generation params, normalization, Anlas estimate, request plan, generation client ports.
+- `generation`: NovelAI image generation params, normalization, Anlas estimate result model, request plan, generation client ports. Pricing formulas stay in `novelai-bridge` and are invoked by `adapters/novelai`.
 - `jobs`: job and batch state machine, retry/cancel policy, queue events.
 - `artifacts`: generated artifact semantics, replay manifest, visual asset references.
 - `gallery`: gallery item index model, query, source references, explicit unscanned/scanned/failed/

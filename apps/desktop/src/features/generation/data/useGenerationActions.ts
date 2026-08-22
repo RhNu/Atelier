@@ -24,6 +24,7 @@ import type {
   ListVibeDocumentsRequestDto,
   PromptPresetPageDto,
   ResourceRefDto,
+  SubscriptionSummaryDto,
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryBatchRequestDto,
   SaveResourceImageRequestDto,
@@ -89,12 +90,14 @@ export function useClearGenerationDraftMutation() {
 
 export function useGenerationEstimateQuery(
   draft: GenerationDraft | null,
-  isOpus: boolean,
+  subscription: SubscriptionSummaryDto | null | undefined,
   capabilities?: ModelCapabilitiesDto,
 ) {
-  const request = draft ? buildGenerationEstimateRequest(draft, { isOpus, capabilities }) : null;
+  const request = draft
+    ? buildGenerationEstimateRequest(draft, { subscription, capabilities })
+    : null;
   const estimateKey = draft
-    ? buildGenerationEstimateCacheKey(draft, { isOpus, capabilities })
+    ? buildGenerationEstimateCacheKey(draft, { subscription, capabilities })
     : null;
 
   return useQuery({

@@ -4,6 +4,7 @@ import type { V5UsageStatusDto } from "./V5UsageStatusDto";
 export type SubscriptionSummaryDto = {
   anlas_balance: number;
   is_opus: boolean;
+  subscription_active: boolean;
   tier: number;
   tier_name: string;
   expires_at_ms: number | null;

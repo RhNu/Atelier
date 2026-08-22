@@ -3,5 +3,7 @@
 export type GenerationPlanContextDto = {
   request_count: number;
   pending_vibe_encode_count: number;
-  is_opus: boolean;
+  tier: number;
+  subscription_active: boolean;
+  v5_usage_is_negative: boolean;
 };

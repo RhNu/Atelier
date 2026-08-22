@@ -435,6 +435,7 @@ impl SubscriptionClient for RecordingClient {
             v5_usage: None,
             anlas_balance: 100,
             is_opus: false,
+            subscription_active: true,
             tier: 1,
             tier_name: "tablet".to_owned(),
             expires_at_ms: None,

@@ -10,6 +10,7 @@ export type ModelCapabilitiesDto = {
   supports_vibe_transfer: boolean;
   supports_encoded_vibe: boolean;
   supports_character_reference: boolean;
+  supports_character_reference_inpainting: boolean;
   supports_variety_boost: boolean;
   supports_inpainting: boolean;
   supports_smea: boolean;

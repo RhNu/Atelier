@@ -237,6 +237,7 @@ fn maps_v5_subscription_allowance_without_anlas_inference() {
     let summary = from_bridge_subscription(novelai_bridge::SubscriptionInfo {
         anlas_balance: 17,
         is_opus: true,
+        subscription_active: true,
         tier: 3,
         tier_name: "opus".to_owned(),
         expires_at_ms: None,
@@ -247,6 +248,7 @@ fn maps_v5_subscription_allowance_without_anlas_inference() {
         }),
     });
     assert_eq!(summary.anlas_balance, 17);
+    assert!(summary.subscription_active);
     assert_eq!(summary.v5_usage.unwrap().percent, 12);
     assert!(summary.v5_usage.unwrap().is_negative);
 }
@@ -677,6 +679,7 @@ impl SubscriptionClient for RecordingClient {
         Ok(SubscriptionSummary {
             anlas_balance: 7,
             is_opus: false,
+            subscription_active: false,
             tier: 1,
             tier_name: "tablet".to_owned(),
             expires_at_ms: None,

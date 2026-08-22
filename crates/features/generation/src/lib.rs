@@ -21,7 +21,7 @@ pub use error::{
     ClientMetadataKind, ClientTransportContext, ClientTransportOperation, GenerationClientError,
     GenerationError, GenerationErrorKind,
 };
-pub use estimate::{AnlasEstimate, AnlasEstimateInput, estimate_anlas_cost};
+pub use estimate::{AnlasEstimate, AnlasEstimateStatus};
 pub use model::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, GenerateImageRequest,
     GenerateImageResult, GenerateImageStreamRequest, GeneratedImage, GeneratedImageMetadata,

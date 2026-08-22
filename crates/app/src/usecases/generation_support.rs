@@ -1,10 +1,13 @@
+use atelier_adapter_novelai::estimate_anlas_cost;
+
 use super::{
-    AnlasEstimate, AppError, AppResult, CharacterReference, GenerateImageRequest,
-    GenerateImageRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto, ImageSize,
-    Img2ImgRequest, RunHistoryRepository, UcPresetDto, VibeReference, VibeTransferConfig,
-    character_reference_type_to_domain, characters_to_domain, image_format_to_domain,
-    image_model_to_domain, noise_schedule_to_domain, plan_context_to_domain,
-    plan_generation_request, quality_preset_to_domain, sampler_to_domain, uc_preset_to_domain,
+    AnlasEstimate, AnlasEstimateStatus, AnlasEstimateStatusDto, AppError, AppResult,
+    CharacterReference, GenerateImageRequest, GenerateImageRequestDto, GenerationAnlasEstimateDto,
+    GenerationEstimateRequestDto, ImageSize, Img2ImgRequest, RunHistoryRepository, UcPresetDto,
+    VibeReference, VibeTransferConfig, character_reference_type_to_domain, characters_to_domain,
+    image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
+    plan_context_to_domain, plan_generation_request, quality_preset_to_domain, sampler_to_domain,
+    uc_preset_to_domain,
 };
 
 pub(super) async fn ensure_generation_batch_target_is_new<'a, R, I>(
@@ -60,24 +63,40 @@ where
 
 const fn anlas_estimate_to_dto(value: AnlasEstimate) -> GenerationAnlasEstimateDto {
     GenerationAnlasEstimateDto {
-        per_sample_cost: value.per_sample_cost,
+        status: anlas_estimate_status_to_dto(value.status),
+        per_image_cost: value.per_image_cost,
         per_request_cost: value.per_request_cost,
-        total_cost: value.total_cost,
-        adjusted_resolution: value.adjusted_resolution,
-        opus_discount_applied: value.opus_discount_applied,
+        request_count: value.request_count,
+        generation_cost: value.generation_cost,
+        character_reference_cost: value.character_reference_cost,
+        vibe_reference_overage_cost: value.vibe_reference_overage_cost,
         pending_encode_cost: value.pending_encode_cost,
+        total_cost: value.total_cost,
+        requested_samples: value.requested_samples,
+        sample_limit: value.sample_limit,
+        priced_samples: value.priced_samples,
+        billable_samples: value.billable_samples,
+        free_first_image_applied: value.free_first_image_applied,
+    }
+}
+
+const fn anlas_estimate_status_to_dto(value: AnlasEstimateStatus) -> AnlasEstimateStatusDto {
+    match value {
+        AnlasEstimateStatus::Available => AnlasEstimateStatusDto::Available,
+        AnlasEstimateStatus::TooExpensive => AnlasEstimateStatusDto::TooExpensive,
     }
 }
 
 pub(super) fn estimate_generation_anlas(
     request: &GenerationEstimateRequestDto,
 ) -> AppResult<GenerationAnlasEstimateDto> {
-    let plan = plan_generation_request(
-        estimate_request_to_domain(&request.request),
-        plan_context_to_domain(request.context),
-    )
-    .map_err(|error| AppError::new("invalid_request", error.to_string()))?;
-    Ok(anlas_estimate_to_dto(plan.anlas_estimate))
+    let context = plan_context_to_domain(request.context);
+    let plan = plan_generation_request(estimate_request_to_domain(&request.request), context)
+        .map_err(|error| AppError::new("invalid_request", error.to_string()))?;
+    Ok(anlas_estimate_to_dto(estimate_anlas_cost(
+        &plan.normalized_request,
+        context,
+    )))
 }
 
 fn estimate_request_to_domain(value: &GenerateImageRequestDto) -> GenerateImageRequest {

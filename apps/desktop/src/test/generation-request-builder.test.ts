@@ -19,6 +19,7 @@ function modelCapabilities(defaultScale: number): ModelCapabilitiesDto {
     supports_vibe_transfer: false,
     supports_encoded_vibe: false,
     supports_character_reference: false,
+    supports_character_reference_inpainting: false,
     supports_variety_boost: false,
     supports_inpainting: true,
     supports_smea: false,
@@ -198,7 +199,9 @@ describe("generation request builder", () => {
     expect(request.context).toEqual({
       request_count: 2,
       pending_vibe_encode_count: 0,
-      is_opus: false,
+      tier: 0,
+      subscription_active: false,
+      v5_usage_is_negative: false,
     });
     const secondBase =
       request.jobs[1]?.work.kind === "stream" ? request.jobs[1].work.request.base : null;

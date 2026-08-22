@@ -8,11 +8,11 @@ use atelier_app_api::director::{
 use atelier_app_api::event::AppEventDto;
 use atelier_app_api::gallery::{GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto};
 use atelier_app_api::generation::{
-    CharacterDto, CharacterReferenceDto, CharacterReferenceTypeDto, GenerateImageRequestDto,
-    GenerateImageStreamRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
-    GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto, QueueDirectiveDto,
-    SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
-    UcPresetDto, VibeTransferConfigDto,
+    AnlasEstimateStatusDto, CharacterDto, CharacterReferenceDto, CharacterReferenceTypeDto,
+    GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationAnlasEstimateDto,
+    GenerationEstimateRequestDto, GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto,
+    QueueDirectiveDto, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
+    SubmitGenerationRequestDto, UcPresetDto, VibeTransferConfigDto,
 };
 use atelier_app_api::prompt::{
     CompileGenerationPromptRequestDto, CompilePromptRequestDto,
@@ -38,9 +38,9 @@ use atelier_artifacts::{ArtifactSource, VisualAssetRole};
 use atelier_director::{DirectorTool, RunDirectorToolRequest};
 use atelier_gallery::{GalleryItemId, GalleryQuery, GallerySourceKind};
 use atelier_generation::{
-    AnlasEstimate, Character, CharacterPosition, CharacterReference, CharacterReferenceType,
-    GenerateImageRequest, GenerateImageStreamRequest, ImageSize, Img2ImgRequest, VibeReference,
-    VibeTransferConfig, plan_generation_request,
+    AnlasEstimate, AnlasEstimateStatus, Character, CharacterPosition, CharacterReference,
+    CharacterReferenceType, GenerateImageRequest, GenerateImageStreamRequest, ImageSize,
+    Img2ImgRequest, VibeReference, VibeTransferConfig, plan_generation_request,
 };
 use atelier_jobs::{
     BatchId, JobId, JobStatus, RunHistoryKind, RunHistoryRecord, RunHistoryRepository,

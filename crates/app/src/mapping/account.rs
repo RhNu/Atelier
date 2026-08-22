@@ -25,6 +25,7 @@ pub fn subscription_to_dto(value: &atelier_secrets::SubscriptionSummary) -> Subs
     SubscriptionSummaryDto {
         anlas_balance: value.anlas_balance,
         is_opus: value.is_opus,
+        subscription_active: value.subscription_active,
         tier: value.tier,
         tier_name: value.tier_name.clone(),
         expires_at_ms: value.expires_at_ms,

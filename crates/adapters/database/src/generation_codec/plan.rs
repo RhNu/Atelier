@@ -1,5 +1,5 @@
 use super::{
-    AnlasEstimate, DatabaseResult, Deserialize, GenerateImageRequestDto, GenerationOutputMode,
+    DatabaseResult, Deserialize, GenerateImageRequestDto, GenerationOutputMode,
     GenerationPlanContext, GenerationRequestPlan, SeedMode, Serialize, stream_mode_as_str,
     stream_mode_from_str,
 };
@@ -8,7 +8,9 @@ use super::{
 pub(super) struct GenerationPlanContextDto {
     request_count: u32,
     pending_vibe_encode_count: u32,
-    is_opus: bool,
+    tier: i32,
+    subscription_active: bool,
+    v5_usage_is_negative: bool,
 }
 
 impl From<&GenerationPlanContext> for GenerationPlanContextDto {
@@ -16,7 +18,9 @@ impl From<&GenerationPlanContext> for GenerationPlanContextDto {
         Self {
             request_count: value.request_count,
             pending_vibe_encode_count: value.pending_vibe_encode_count,
-            is_opus: value.is_opus,
+            tier: value.tier,
+            subscription_active: value.subscription_active,
+            v5_usage_is_negative: value.v5_usage_is_negative,
         }
     }
 }
@@ -26,7 +30,9 @@ impl GenerationPlanContextDto {
         GenerationPlanContext {
             request_count: self.request_count,
             pending_vibe_encode_count: self.pending_vibe_encode_count,
-            is_opus: self.is_opus,
+            tier: self.tier,
+            subscription_active: self.subscription_active,
+            v5_usage_is_negative: self.v5_usage_is_negative,
         }
     }
 }
@@ -37,7 +43,6 @@ pub(super) struct GenerationRequestPlanDto {
     seed_mode: SeedModeDto,
     output_mode: GenerationOutputModeDto,
     resolved_use_coords: bool,
-    anlas_estimate: AnlasEstimateDto,
 }
 
 impl From<&GenerationRequestPlan> for GenerationRequestPlanDto {
@@ -47,7 +52,6 @@ impl From<&GenerationRequestPlan> for GenerationRequestPlanDto {
             seed_mode: SeedModeDto::from(value.seed_mode),
             output_mode: GenerationOutputModeDto::from(value.output_mode),
             resolved_use_coords: value.resolved_use_coords,
-            anlas_estimate: AnlasEstimateDto::from(value.anlas_estimate),
         }
     }
 }
@@ -59,7 +63,6 @@ impl GenerationRequestPlanDto {
             seed_mode: self.seed_mode.into_domain(),
             output_mode: self.output_mode.into_domain()?,
             resolved_use_coords: self.resolved_use_coords,
-            anlas_estimate: self.anlas_estimate.into_domain(),
         })
     }
 }
@@ -114,42 +117,6 @@ impl GenerationOutputModeDto {
             Self::Stream(stream) => {
                 Ok(GenerationOutputMode::Stream(stream_mode_from_str(&stream)?))
             }
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
-pub(super) struct AnlasEstimateDto {
-    per_sample_cost: u64,
-    per_request_cost: u64,
-    total_cost: u64,
-    adjusted_resolution: u64,
-    opus_discount_applied: bool,
-    pending_encode_cost: u64,
-}
-
-impl From<AnlasEstimate> for AnlasEstimateDto {
-    fn from(value: AnlasEstimate) -> Self {
-        Self {
-            per_sample_cost: value.per_sample_cost,
-            per_request_cost: value.per_request_cost,
-            total_cost: value.total_cost,
-            adjusted_resolution: value.adjusted_resolution,
-            opus_discount_applied: value.opus_discount_applied,
-            pending_encode_cost: value.pending_encode_cost,
-        }
-    }
-}
-
-impl AnlasEstimateDto {
-    pub(super) const fn into_domain(self) -> AnlasEstimate {
-        AnlasEstimate {
-            per_sample_cost: self.per_sample_cost,
-            per_request_cost: self.per_request_cost,
-            total_cost: self.total_cost,
-            adjusted_resolution: self.adjusted_resolution,
-            opus_discount_applied: self.opus_discount_applied,
-            pending_encode_cost: self.pending_encode_cost,
         }
     }
 }

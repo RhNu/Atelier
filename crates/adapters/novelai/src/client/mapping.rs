@@ -162,6 +162,7 @@ pub(super) fn from_bridge_subscription(
     SubscriptionSummary {
         anlas_balance: subscription.anlas_balance,
         is_opus: subscription.is_opus,
+        subscription_active: subscription.subscription_active,
         tier: subscription.tier,
         tier_name: subscription.tier_name,
         expires_at_ms: subscription.expires_at_ms,

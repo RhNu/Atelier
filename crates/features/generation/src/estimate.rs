@@ -1,106 +1,69 @@
-const COST_COEFF_A: f64 = 2.951_823_174_884_865e-6;
-const COST_COEFF_B: f64 = 5.753_298_233_447_344e-7;
-const MIN_RESOLUTION: u64 = 65_536;
-const BASE_RESOLUTION: u64 = 832 * 1216;
-const OPUS_DISCOUNT_MAX_RESOLUTION: u64 = 1024 * 1024;
-const DIRECTOR_REFERENCE_EXTRA_COST: u64 = 5;
-const VIBE_ENCODE_EXTRA_COST: u64 = 2;
+//! Anlas estimate result model.
+//!
+//! The pricing formula itself lives in `novelai-bridge` and is documented in that crate's
+//! `docs/anlas-pricing.md`. `adapters/novelai` maps a normalized request onto the bridge
+//! calculator and returns the types below, so this crate never carries a second copy of the
+//! formula.
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct AnlasEstimateInput {
-    pub width: u32,
-    pub height: u32,
-    pub steps: u32,
-    pub n_samples: u32,
-    pub request_count: u32,
-    pub has_img2img: bool,
-    pub img2img_strength: f32,
-    pub has_director_reference: bool,
-    pub pending_encode_count: u32,
-    pub is_opus: bool,
+/// Whether the `NovelAI` web client would accept the per-image price of a request.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub enum AnlasEstimateStatus {
+    /// The per-image price is within the accepted limit.
+    #[default]
+    Available,
+    /// The per-image price exceeds the limit the web client accepts.
+    TooExpensive,
 }
 
+/// Estimated Anlas cost of a planned generation run.
+///
+/// A run is `request_count` identical requests. Per-request components are already multiplied by
+/// `request_count`; `pending_encode_cost` is charged once for the whole run because a Vibe
+/// encoding is cached after its first `/ai/encode-vibe` call.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct AnlasEstimate {
-    pub per_sample_cost: u64,
+    /// Whether the per-image price is acceptable.
+    pub status: AnlasEstimateStatus,
+    /// Price of a single image before the Opus first-image allowance.
+    pub per_image_cost: u64,
+    /// Cost of one request: generation plus character-reference and Vibe overage surcharges.
     pub per_request_cost: u64,
-    pub total_cost: u64,
-    pub adjusted_resolution: u64,
-    pub opus_discount_applied: bool,
+    /// Number of requests in the run.
+    pub request_count: u32,
+    /// Generation cost across the run.
+    pub generation_cost: u64,
+    /// Character-reference surcharge across the run.
+    pub character_reference_cost: u64,
+    /// Surcharge for active Vibe references beyond the included count, across the run.
+    pub vibe_reference_overage_cost: u64,
+    /// One-off cost of the Vibe encodings this run still has to perform.
     pub pending_encode_cost: u64,
+    /// Sum of every component.
+    pub total_cost: u64,
+    /// Images requested per request before any cap.
+    pub requested_samples: u32,
+    /// Maximum number of images priced at the requested output resolution.
+    pub sample_limit: u32,
+    /// Images retained per request after the API and resolution caps.
+    pub priced_samples: u32,
+    /// Images charged per request after the Opus first-image allowance.
+    pub billable_samples: u32,
+    /// Whether the Opus first-image allowance applies to each request.
+    pub free_first_image_applied: bool,
 }
 
-/// Estimates `NovelAI` Anlas cost for a normalized generation request.
-#[must_use]
-#[allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_precision_loss,
-    clippy::cast_sign_loss
-)]
-pub fn estimate_anlas_cost(input: AnlasEstimateInput) -> AnlasEstimate {
-    let width = positive_u32(input.width);
-    let height = positive_u32(input.height);
-    let steps = positive_u32(input.steps);
-    let n_samples = positive_u32(input.n_samples);
-    let request_count = positive_u32(input.request_count);
-    let img2img_strength = clamp_f32(input.img2img_strength, 0.01, 0.99, 0.7);
-
-    let resolution = u64::from(width)
-        .saturating_mul(u64::from(height))
-        .max(MIN_RESOLUTION);
-    let adjusted_resolution =
-        if resolution > BASE_RESOLUTION && resolution <= OPUS_DISCOUNT_MAX_RESOLUTION {
-            BASE_RESOLUTION
-        } else {
-            resolution
-        };
-    let strength_multiplier = if input.has_img2img {
-        f64::from(img2img_strength)
-    } else {
-        1.0
-    };
-
-    let raw_sample_cost = (COST_COEFF_A.mul_add(
-        adjusted_resolution as f64,
-        COST_COEFF_B * adjusted_resolution as f64 * f64::from(steps),
-    ))
-    .ceil() as u64;
-    let per_sample_cost = ((raw_sample_cost as f64) * strength_multiplier)
-        .ceil()
-        .max(2.0) as u64;
-
-    let opus_discount_applied =
-        input.is_opus && steps <= 28 && adjusted_resolution <= OPUS_DISCOUNT_MAX_RESOLUTION;
-    let payable_samples = if opus_discount_applied { 0 } else { n_samples };
-    let mut per_request_cost = per_sample_cost.saturating_mul(u64::from(payable_samples));
-    if input.has_director_reference {
-        per_request_cost = per_request_cost.saturating_add(DIRECTOR_REFERENCE_EXTRA_COST);
+impl AnlasEstimate {
+    /// Returns `true` when the run is priceable and costs nothing.
+    #[must_use]
+    pub const fn is_free(&self) -> bool {
+        matches!(self.status, AnlasEstimateStatus::Available)
+            && self.priced_samples > 0
+            && self.total_cost == 0
     }
 
-    let pending_encode_cost =
-        u64::from(input.pending_encode_count).saturating_mul(VIBE_ENCODE_EXTRA_COST);
-    let total_cost = per_request_cost
-        .saturating_mul(u64::from(request_count))
-        .saturating_add(pending_encode_cost);
-
-    AnlasEstimate {
-        per_sample_cost,
-        per_request_cost,
-        total_cost,
-        adjusted_resolution,
-        opus_discount_applied,
-        pending_encode_cost,
-    }
-}
-
-const fn positive_u32(value: u32) -> u32 {
-    if value == 0 { 1 } else { value }
-}
-
-const fn clamp_f32(value: f32, min: f32, max: f32, fallback: f32) -> f32 {
-    if value.is_finite() {
-        value.clamp(min, max)
-    } else {
-        fallback
+    /// Returns `true` when the per-image price is above what the web client accepts.
+    #[must_use]
+    pub const fn is_too_expensive(&self) -> bool {
+        matches!(self.status, AnlasEstimateStatus::TooExpensive)
     }
 }

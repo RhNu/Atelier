@@ -308,6 +308,7 @@ const imageModelCatalog: ImageModelDescriptorDto[] = imageModelRows.map(
       supports_encoded_vibe:
         !isV5 && model !== "nai-diffusion-3" && model !== "nai-diffusion-furry-3",
       supports_character_reference: !isV5 && String(model).includes("4-5"),
+      supports_character_reference_inpainting: !isV5 && String(model).includes("4-5"),
       supports_variety_boost: !isV5 && String(model).includes("diffusion-4"),
       supports_inpainting: true,
       supports_smea: model === "nai-diffusion-3" || model === "nai-diffusion-furry-3",
@@ -376,12 +377,20 @@ function setup(options?: {
   mocks.generationApi.saveDraft.mockImplementation(async (request) => request.draft);
   mocks.generationApi.clearDraft.mockResolvedValue();
   mocks.generationApi.estimate.mockResolvedValue({
-    per_sample_cost: 3,
+    status: "available",
+    per_image_cost: 3,
     per_request_cost: 3,
-    total_cost: 3,
-    adjusted_resolution: 1_011_712,
-    opus_discount_applied: false,
+    request_count: 1,
+    generation_cost: 3,
+    character_reference_cost: 0,
+    vibe_reference_overage_cost: 0,
     pending_encode_cost: 0,
+    total_cost: 3,
+    requested_samples: 1,
+    sample_limit: 4,
+    priced_samples: 1,
+    billable_samples: 1,
+    free_first_image_applied: false,
   });
   mocks.generationApi.pause.mockResolvedValue({ kind: "paused" });
   mocks.generationApi.resume.mockResolvedValue({ kind: "start_job", job_id: "job-submitted" });
@@ -544,6 +553,7 @@ function setup(options?: {
   mocks.accountApi.probeActive.mockResolvedValue({
     anlas_balance: 100,
     is_opus: false,
+    subscription_active: true,
     tier: 1,
     tier_name: "Tablet",
     expires_at_ms: null,
@@ -854,7 +864,13 @@ describe("GeneratePage", () => {
     const request = mocks.generationApi.submitBatch.mock.calls[0]?.[0];
     expect(request).toMatchObject({
       batch_id: "generation-00000000-0000-4000-8000-0000000000aa",
-      context: { request_count: 1, pending_vibe_encode_count: 0, is_opus: false },
+      context: {
+        request_count: 1,
+        pending_vibe_encode_count: 0,
+        tier: 1,
+        subscription_active: true,
+        v5_usage_is_negative: false,
+      },
       jobs: [
         {
           job_id: "job-00000000-0000-4000-8000-0000000000bb",

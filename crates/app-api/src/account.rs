@@ -68,6 +68,7 @@ pub struct ApiKeyRecordDto {
 pub struct SubscriptionSummaryDto {
     pub anlas_balance: i64,
     pub is_opus: bool,
+    pub subscription_active: bool,
     pub tier: i32,
     pub tier_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]

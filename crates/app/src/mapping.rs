@@ -215,6 +215,8 @@ pub const fn model_descriptor_to_dto(
             supports_vibe_transfer: capabilities.supports_vibe_transfer,
             supports_encoded_vibe: capabilities.supports_encoded_vibe,
             supports_character_reference: capabilities.supports_character_reference,
+            supports_character_reference_inpainting: capabilities
+                .supports_character_reference_inpainting,
             supports_variety_boost: capabilities.supports_variety_boost,
             supports_inpainting: capabilities.supports_inpainting,
             supports_smea: capabilities.supports_smea,
@@ -272,6 +274,8 @@ pub const fn plan_context_to_domain(value: GenerationPlanContextDto) -> Generati
     GenerationPlanContext {
         request_count: value.request_count,
         pending_vibe_encode_count: value.pending_vibe_encode_count,
-        is_opus: value.is_opus,
+        tier: value.tier,
+        subscription_active: value.subscription_active,
+        v5_usage_is_negative: value.v5_usage_is_negative,
     }
 }

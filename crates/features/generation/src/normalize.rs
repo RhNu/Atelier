@@ -1,6 +1,6 @@
 use crate::{
     Character, CharacterReference, GenerateImageRequest, GenerationError, Img2ImgRequest,
-    QualityPreset, VibeTransferConfig,
+    ModelCapabilities, QualityPreset, VibeTransferConfig,
 };
 
 const IMAGE_DIMENSION_MIN: u32 = 64;
@@ -72,19 +72,7 @@ fn normalize_base_fields(
 
 fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), GenerationError> {
     let capabilities = request.model.capabilities();
-    if request
-        .character_references
-        .as_ref()
-        .is_some_and(|refs| !refs.is_empty())
-        && !capabilities.supports_character_reference
-    {
-        reject_or_clear(
-            request.strict_mode,
-            "character_references",
-            "models with precise reference support",
-            || request.character_references = None,
-        )?;
-    }
+    normalize_character_reference_features(request, capabilities)?;
 
     if request
         .characters
@@ -167,6 +155,45 @@ fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), Ge
             "quality.light",
             "models with the Light quality preset",
             || request.quality = QualityPreset::Standard,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn normalize_character_reference_features(
+    request: &mut GenerateImageRequest,
+    capabilities: ModelCapabilities,
+) -> Result<(), GenerationError> {
+    if request
+        .character_references
+        .as_ref()
+        .is_some_and(|refs| !refs.is_empty())
+        && !capabilities.supports_character_reference
+    {
+        reject_or_clear(
+            request.strict_mode,
+            "character_references",
+            "models with precise reference support",
+            || request.character_references = None,
+        )?;
+    }
+
+    if request
+        .character_references
+        .as_ref()
+        .is_some_and(|refs| !refs.is_empty())
+        && request
+            .img2img
+            .as_ref()
+            .is_some_and(|i2i| i2i.mask.is_some())
+        && !capabilities.supports_character_reference_inpainting
+    {
+        reject_or_clear(
+            request.strict_mode,
+            "character_references with img2img.mask",
+            "models with precise reference inpainting support",
+            || request.character_references = None,
         )?;
     }
 

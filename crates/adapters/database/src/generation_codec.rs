@@ -1,10 +1,10 @@
 #![allow(clippy::missing_const_for_fn)]
 
 use atelier_generation::{
-    AnlasEstimate, Character, CharacterPosition, CharacterReference, CharacterReferenceType,
-    GenerateImageRequest, GenerateImageStreamRequest, GenerationOutputMode, GenerationPlanContext,
-    GenerationRequestPlan, ImageFormat, ImageModel, ImageSize, Img2ImgRequest, NoiseSchedule,
-    QualityPreset, Sampler, SeedMode, StreamMode, UcPreset, VibeReference, VibeTransferConfig,
+    Character, CharacterPosition, CharacterReference, CharacterReferenceType, GenerateImageRequest,
+    GenerateImageStreamRequest, GenerationOutputMode, GenerationPlanContext, GenerationRequestPlan,
+    ImageFormat, ImageModel, ImageSize, Img2ImgRequest, NoiseSchedule, QualityPreset, Sampler,
+    SeedMode, StreamMode, UcPreset, VibeReference, VibeTransferConfig,
 };
 use atelier_jobs::{BatchId, JobId, JobPayloadRef};
 use atelier_kernel::{
@@ -34,7 +34,7 @@ use scalars::{
 };
 use work::{GenerateImageRequestDto, GenerationWorkRequestDto};
 
-const JSON_SCHEMA_VERSION: u32 = 2;
+const JSON_SCHEMA_VERSION: u32 = 3;
 
 fn ensure_schema(version: u32) -> DatabaseResult<()> {
     if version == JSON_SCHEMA_VERSION {

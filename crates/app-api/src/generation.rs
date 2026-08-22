@@ -42,6 +42,7 @@ pub struct ModelCapabilitiesDto {
     pub supports_vibe_transfer: bool,
     pub supports_encoded_vibe: bool,
     pub supports_character_reference: bool,
+    pub supports_character_reference_inpainting: bool,
     pub supports_variety_boost: bool,
     pub supports_inpainting: bool,
     pub supports_smea: bool,
@@ -390,7 +391,9 @@ pub enum GenerationWorkRequestDto {
 pub struct GenerationPlanContextDto {
     pub request_count: u32,
     pub pending_vibe_encode_count: u32,
-    pub is_opus: bool,
+    pub tier: i32,
+    pub subscription_active: bool,
+    pub v5_usage_is_negative: bool,
 }
 
 impl Default for GenerationPlanContextDto {
@@ -398,7 +401,9 @@ impl Default for GenerationPlanContextDto {
         Self {
             request_count: 1,
             pending_vibe_encode_count: 0,
-            is_opus: false,
+            tier: 0,
+            subscription_active: false,
+            v5_usage_is_negative: false,
         }
     }
 }
@@ -430,14 +435,30 @@ pub struct GenerationEstimateRequestDto {
     pub context: GenerationPlanContextDto,
 }
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AnlasEstimateStatusDto {
+    #[default]
+    Available,
+    TooExpensive,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct GenerationAnlasEstimateDto {
-    pub per_sample_cost: u64,
+    pub status: AnlasEstimateStatusDto,
+    pub per_image_cost: u64,
     pub per_request_cost: u64,
-    pub total_cost: u64,
-    pub adjusted_resolution: u64,
-    pub opus_discount_applied: bool,
+    pub request_count: u32,
+    pub generation_cost: u64,
+    pub character_reference_cost: u64,
+    pub vibe_reference_overage_cost: u64,
     pub pending_encode_cost: u64,
+    pub total_cost: u64,
+    pub requested_samples: u32,
+    pub sample_limit: u32,
+    pub priced_samples: u32,
+    pub billable_samples: u32,
+    pub free_first_image_applied: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

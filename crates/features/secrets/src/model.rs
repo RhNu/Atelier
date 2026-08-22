@@ -80,6 +80,7 @@ pub struct UpdateApiKeyRequest {
 pub struct SubscriptionSummary {
     pub anlas_balance: i64,
     pub is_opus: bool,
+    pub subscription_active: bool,
     pub tier: i32,
     pub tier_name: String,
     pub expires_at_ms: Option<u64>,

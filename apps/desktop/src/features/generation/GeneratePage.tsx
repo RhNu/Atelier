@@ -110,11 +110,11 @@ export function GeneratePage() {
     offset: 0,
     limit: PRESET_LIBRARY_LIMIT,
   });
-  const isOpus = accountQuery.data?.is_opus ?? false;
+  const subscription = accountQuery.data;
   const capabilities = draft
     ? findModelDescriptor(modelCatalogQuery.data, draft.model)?.capabilities
     : undefined;
-  const estimateQuery = useGenerationEstimateQuery(draft, isOpus, capabilities);
+  const estimateQuery = useGenerationEstimateQuery(draft, subscription, capabilities);
   const liveBatchId = useGenerationEventStore((state) => state.liveBatchId);
   const storedViewBatchId = useGenerationEventStore((state) => state.viewBatchId);
   const latestJobId = useGenerationEventStore((state) => state.latestJobId);
@@ -244,7 +244,9 @@ export function GeneratePage() {
     flushDraft();
     frontendLogger.info("Generation batch submission started");
     void submitMutation
-      .mutateAsync(buildSubmitGenerationBatchRequest(draft, undefined, { isOpus, capabilities }))
+      .mutateAsync(
+        buildSubmitGenerationBatchRequest(draft, undefined, { subscription, capabilities }),
+      )
       .then(() => {
         frontendLogger.info("Generation batch submission completed");
       })
@@ -254,7 +256,7 @@ export function GeneratePage() {
         });
         setSubmitError(formatError(error));
       });
-  }, [capabilities, draft, flushDraft, isOpus, submitMutation, t]);
+  }, [capabilities, draft, flushDraft, subscription, submitMutation, t]);
 
   const handleCompile = useCallback(() => {
     if (!draft) {

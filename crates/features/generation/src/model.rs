@@ -18,6 +18,7 @@ pub struct ModelCapabilities {
     pub supports_vibe_transfer: bool,
     pub supports_encoded_vibe: bool,
     pub supports_character_reference: bool,
+    pub supports_character_reference_inpainting: bool,
     pub supports_variety_boost: bool,
     pub supports_inpainting: bool,
     pub supports_smea: bool,
@@ -146,6 +147,7 @@ const V3_CAPABILITIES: ModelCapabilities = ModelCapabilities {
     supports_vibe_transfer: true,
     supports_encoded_vibe: false,
     supports_character_reference: false,
+    supports_character_reference_inpainting: false,
     supports_variety_boost: false,
     supports_inpainting: true,
     supports_smea: true,
@@ -166,6 +168,7 @@ const V4_CAPABILITIES: ModelCapabilities = ModelCapabilities {
     supports_vibe_transfer: true,
     supports_encoded_vibe: true,
     supports_character_reference: false,
+    supports_character_reference_inpainting: false,
     supports_variety_boost: true,
     supports_inpainting: true,
     supports_smea: false,
@@ -180,6 +183,7 @@ const V4_CAPABILITIES: ModelCapabilities = ModelCapabilities {
 const V45_CAPABILITIES: ModelCapabilities = ModelCapabilities {
     default_scale: 5.0,
     supports_character_reference: true,
+    supports_character_reference_inpainting: true,
     variety_sigma_coefficient: Some(58.0),
     ..V4_CAPABILITIES
 };
@@ -191,6 +195,7 @@ const V5_CAPABILITIES: ModelCapabilities = ModelCapabilities {
     supports_vibe_transfer: false,
     supports_encoded_vibe: false,
     supports_character_reference: false,
+    supports_character_reference_inpainting: false,
     supports_variety_boost: false,
     uses_v5_extensions: true,
     supports_light_quality_preset: true,

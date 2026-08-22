@@ -161,6 +161,7 @@ const activeSubscription: SubscriptionSummaryDto = {
   anlas_balance: 1234,
   v5_usage: null,
   is_opus: true,
+  subscription_active: true,
   tier: 3,
   tier_name: "Opus",
   expires_at_ms: 1_800_000_000_000,

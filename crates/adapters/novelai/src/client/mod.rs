@@ -3,9 +3,10 @@ use atelier_director::{
     DirectorResult, DirectorTool, DirectorToolOutput, NovelAiDirectorClient, RunDirectorToolRequest,
 };
 use atelier_generation::{
-    Character, CharacterPosition, CharacterReference, CharacterReferenceType, GenerateImageRequest,
-    GenerateImageResult, GenerateImageStreamRequest, GenerateImageStreamResult, GeneratedImage,
-    GeneratedImageMetadata, GeneratedImageMetadataInspector, GeneratedImageMetadataWarning,
+    AnlasEstimate, AnlasEstimateStatus, Character, CharacterPosition, CharacterReference,
+    CharacterReferenceType, GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
+    GenerateImageStreamResult, GeneratedImage, GeneratedImageMetadata,
+    GeneratedImageMetadataInspector, GeneratedImageMetadataWarning, GenerationPlanContext,
     GenerationResult, ImageFormat, ImageModel, ImageSize, ImageStreamEvent, Img2ImgRequest,
     NoiseSchedule, NovelAiGenerationClient, ParsedGeneratedImageMetadata, QualityPreset, Sampler,
     StreamMode, UcPreset, VibeTransferConfig,
@@ -29,6 +30,7 @@ use crate::error::{
 mod adapter;
 mod bridge_client;
 mod config;
+mod estimate;
 mod factory;
 mod mapping;
 mod resolver;
@@ -39,6 +41,7 @@ mod tests;
 
 pub use adapter::{NovelAiBridgeAdapter, NovelAiEmbeddedVibeExtractor};
 pub use config::NovelAiBridgeConfig;
+pub use estimate::estimate_anlas_cost;
 pub use factory::{NovelAiClientFactory, ReqwestNovelAiClientFactory};
 pub use resolver::ResolverBackedNovelAiAdapter;
 pub use subscription::NovelAiSubscriptionProbeClient;

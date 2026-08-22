@@ -16,6 +16,7 @@ import type {
   QualityPresetDto,
   ResourceRefDto,
   SamplerDto,
+  SubscriptionSummaryDto,
   SubmitGenerationBatchRequestDto,
   UcPresetDto,
   WorkspaceSettingsDto,
@@ -94,7 +95,10 @@ export type GenerationDraft = {
   characterPositionMode: GenerationCharacterPositionMode;
 };
 export type GenerationRunIds = { batchId: string; jobIds: string[] };
-export type GenerationPlanOptions = { isOpus?: boolean; capabilities?: ModelCapabilitiesDto };
+export type GenerationPlanOptions = {
+  subscription?: SubscriptionSummaryDto | null;
+  capabilities?: ModelCapabilitiesDto;
+};
 
 function activePromptState(draft: GenerationDraft): GenerationPromptState {
   return {
@@ -344,7 +348,7 @@ export function buildSubmitGenerationBatchRequest(
     context: buildGenerationPlanContext(
       draft,
       jobs.length,
-      options.isOpus ?? false,
+      options.subscription,
       options.capabilities,
     ),
   };
@@ -359,7 +363,7 @@ export function buildGenerationEstimateRequest(
     context: buildGenerationPlanContext(
       draft,
       draft.requestCount,
-      options.isOpus ?? false,
+      options.subscription,
       options.capabilities,
     ),
   };
@@ -386,7 +390,9 @@ export function buildGenerationEstimateCacheKey(
       ? 0
       : (buildVibeTransfer(draft, options.capabilities)?.references.length ?? 0),
     pendingVibeEncodeCount: buildPendingVibeEncodeCount(draft, options.capabilities),
-    isOpus: options.isOpus ?? false,
+    subscriptionTier: options.subscription?.tier ?? 0,
+    subscriptionActive: options.subscription?.subscription_active ?? false,
+    v5UsageIsNegative: options.subscription?.v5_usage?.is_negative ?? false,
   };
 }
 
@@ -403,13 +409,15 @@ function buildGenerationWorkRequest(
 function buildGenerationPlanContext(
   draft: GenerationDraft,
   requestCount: number,
-  isOpus: boolean,
+  subscription?: SubscriptionSummaryDto | null,
   capabilities?: ModelCapabilitiesDto,
 ): GenerationPlanContextDto {
   return {
     request_count: clampInteger(requestCount, 1, 8),
     pending_vibe_encode_count: buildPendingVibeEncodeCount(draft, capabilities),
-    is_opus: isOpus,
+    tier: subscription?.tier ?? 0,
+    subscription_active: subscription?.subscription_active ?? false,
+    v5_usage_is_negative: subscription?.v5_usage?.is_negative ?? false,
   };
 }
 

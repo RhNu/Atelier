@@ -224,6 +224,7 @@ impl SubscriptionProbeClient for FakeProbe {
         Ok(SubscriptionSummary {
             anlas_balance: 42,
             is_opus: true,
+            subscription_active: true,
             tier: 3,
             tier_name: "opus".to_owned(),
             expires_at_ms: Some(1_700_000_000_000),
