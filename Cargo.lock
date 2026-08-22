@@ -731,6 +731,7 @@ dependencies = [
  "async-trait",
  "atelier-resource-catalog",
  "futures-core",
+ "novelai-bridge",
  "thiserror 2.0.20",
 ]
 

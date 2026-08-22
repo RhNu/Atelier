@@ -19,11 +19,17 @@ fn compiler_expands_chunk_with_boundary_normalization() {
         let compiler = PromptCompiler::new(repository);
 
         let tight = compiler
-            .compile(CompilePromptRequest::new("1girl$chunk(光照)solo"))
+            .compile(CompilePromptRequest::new(
+                "1girl$chunk(光照)solo",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap();
         let comma = compiler
-            .compile(CompilePromptRequest::new("1girl, $chunk(光照), solo"))
+            .compile(CompilePromptRequest::new(
+                "1girl, $chunk(光照), solo",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap();
 
@@ -31,7 +37,10 @@ fn compiler_expands_chunk_with_boundary_normalization() {
         assert_eq!(comma.expanded_prompt, tight.expanded_prompt);
         assert_eq!(
             compiler
-                .compile(CompilePromptRequest::new("{ $chunk(光照) }"))
+                .compile(CompilePromptRequest::new(
+                    "{ $chunk(光照) }",
+                    ImageModel::NaiDiffusion45Full
+                ))
                 .await
                 .unwrap()
                 .expanded_prompt,
@@ -39,7 +48,10 @@ fn compiler_expands_chunk_with_boundary_normalization() {
         );
         assert_eq!(
             compiler
-                .compile(CompilePromptRequest::new("||red|$chunk(光照)||"))
+                .compile(CompilePromptRequest::new(
+                    "||red|$chunk(光照)||",
+                    ImageModel::NaiDiffusion45Full
+                ))
                 .await
                 .unwrap()
                 .expanded_prompt,
@@ -64,7 +76,10 @@ fn compiler_expands_nested_chunks_and_records_depth() {
         let compiler = PromptCompiler::new(repository);
 
         let result = compiler
-            .compile(CompilePromptRequest::new("$chunk(base)"))
+            .compile(CompilePromptRequest::new(
+                "$chunk(base)",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap();
 
@@ -104,7 +119,10 @@ fn compiler_rejects_cycles_depth_missing_chunks_and_unknown_functions() {
             .await
             .unwrap();
         let cycle = PromptCompiler::new(cycle_repo)
-            .compile(CompilePromptRequest::new("$chunk(a)"))
+            .compile(CompilePromptRequest::new(
+                "$chunk(a)",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap_err();
         assert_eq!(cycle.kind(), PromptResourceErrorKind::Conflict);
@@ -117,21 +135,30 @@ fn compiler_rejects_cycles_depth_missing_chunks_and_unknown_functions() {
 
         let missing_repo = repository_with_chunks([]).await;
         let missing = PromptCompiler::new(missing_repo)
-            .compile(CompilePromptRequest::new("$chunk(not-found)"))
+            .compile(CompilePromptRequest::new(
+                "$chunk(not-found)",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap_err();
         assert_eq!(missing.kind(), PromptResourceErrorKind::NotFound);
 
         let unknown_repo = repository_with_chunks([]).await;
         let unknown = PromptCompiler::new(unknown_repo)
-            .compile(CompilePromptRequest::new("$preset(v4)"))
+            .compile(CompilePromptRequest::new(
+                "$preset(v4)",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap_err();
         assert_eq!(unknown.kind(), PromptResourceErrorKind::InvalidRequest);
 
         let depth_repo = nested_depth_repository(17).await;
         let depth = PromptCompiler::new(depth_repo)
-            .compile(CompilePromptRequest::new("$chunk(depth-0)"))
+            .compile(CompilePromptRequest::new(
+                "$chunk(depth-0)",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap_err();
         assert_eq!(depth.kind(), PromptResourceErrorKind::Conflict);
@@ -149,7 +176,10 @@ fn compiler_uses_custom_registry_and_traces_empty_outputs() {
         );
 
         let result = compiler
-            .compile(CompilePromptRequest::new("1girl$empty()solo"))
+            .compile(CompilePromptRequest::new(
+                "1girl$empty()solo",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap();
 
@@ -166,6 +196,7 @@ fn compiler_removes_comments_and_normalizes_boundaries() {
         let result = compiler
             .compile(CompilePromptRequest::new(
                 r#"1girl, $comment("try composition (B), later"), blue eyes"#,
+                ImageModel::NaiDiffusion45Full,
             ))
             .await
             .unwrap();
@@ -179,7 +210,10 @@ fn compiler_removes_comments_and_normalizes_boundaries() {
         assert_eq!(result.trace.function_calls[0].result_text, None);
 
         let only_comment = compiler
-            .compile(CompilePromptRequest::new(r#"$comment("draft")"#))
+            .compile(CompilePromptRequest::new(
+                r#"$comment("draft")"#,
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap();
         assert!(only_comment.expanded_prompt.is_empty());
@@ -191,7 +225,10 @@ fn compiler_rejects_non_string_comment_arguments() {
     block_on(async {
         let compiler = PromptCompiler::new(MemoryPromptResourceRepository::default());
         let error = compiler
-            .compile(CompilePromptRequest::new("$comment(draft)"))
+            .compile(CompilePromptRequest::new(
+                "$comment(draft)",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap_err();
 
@@ -207,7 +244,10 @@ fn compiler_rejects_invalid_chunk_arguments() {
         let compiler = PromptCompiler::new(repository);
 
         let error = compiler
-            .compile(CompilePromptRequest::new("$chunk(\"face\")"))
+            .compile(CompilePromptRequest::new(
+                "$chunk(\"face\")",
+                ImageModel::NaiDiffusion45Full,
+            ))
             .await
             .unwrap_err();
 

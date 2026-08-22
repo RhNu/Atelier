@@ -8,4 +8,5 @@ publish.workspace = true
 async-trait = { workspace = true }
 atelier-resource-catalog = { workspace = true }
 futures-core = { workspace = true }
+novelai-bridge = { workspace = true }
 thiserror = { workspace = true }

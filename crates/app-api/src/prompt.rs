@@ -157,23 +157,16 @@ pub struct DeletePromptPresetResponseDto {
     pub deleted: bool,
 }
 
+/// A prompt preview compilation request.
+///
+/// `model` has no default: chunk and preset bindings are model-scoped, so a
+/// defaulted model silently resolves resources for the wrong model.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct CompilePromptRequestDto {
     pub prompt: String,
     pub model: ImageModelDto,
     #[serde(default = "default_max_depth")]
     pub max_depth: usize,
-}
-
-impl CompilePromptRequestDto {
-    #[must_use]
-    pub fn new(prompt: impl Into<String>) -> Self {
-        Self {
-            prompt: prompt.into(),
-            model: ImageModelDto::default(),
-            max_depth: default_max_depth(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

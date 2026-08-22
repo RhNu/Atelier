@@ -1,4 +1,3 @@
-use super::mapping::to_bridge_model;
 use super::*;
 
 use std::pin::Pin;
@@ -35,83 +34,6 @@ use crate::error::{
 #[test]
 fn crate_metadata_is_available() {
     assert_eq!(env!("CARGO_PKG_NAME"), "atelier-adapter-novelai");
-}
-
-#[test]
-fn atelier_model_catalog_matches_bridge_capabilities() {
-    for model in ImageModel::ALL {
-        let local = model.capabilities();
-        let upstream = to_bridge_model(model).capabilities();
-        assert_eq!(local.params_version, upstream.params_version, "{model:?}");
-        assert_eq!(local.default_steps, upstream.default_steps, "{model:?}");
-        assert_eq!(
-            local.default_scale.to_bits(),
-            upstream.default_scale.to_bits(),
-            "{model:?}"
-        );
-        assert_eq!(local.max_characters, upstream.max_characters, "{model:?}");
-        assert_eq!(
-            local.supports_vibe_transfer, upstream.supports_vibe_transfer,
-            "{model:?}"
-        );
-        assert_eq!(
-            local.supports_encoded_vibe, upstream.supports_encoded_vibe,
-            "{model:?}"
-        );
-        assert_eq!(
-            local.supports_character_reference, upstream.supports_character_reference,
-            "{model:?}"
-        );
-        assert_eq!(
-            local.supports_variety_boost, upstream.supports_variety_boost,
-            "{model:?}"
-        );
-        assert_eq!(
-            local.supports_inpainting, upstream.supports_inpainting,
-            "{model:?}"
-        );
-        assert_eq!(
-            local.supports_streaming, upstream.supports_streaming,
-            "{model:?}"
-        );
-        assert_eq!(local.supports_smea, upstream.supports_smea, "{model:?}");
-        assert_eq!(
-            local.supports_dynamic_thresholding, upstream.supports_dynamic_thresholding,
-            "{model:?}"
-        );
-        assert_eq!(
-            local.uses_v5_extensions, upstream.uses_v5_extensions,
-            "{model:?}"
-        );
-        assert_eq!(
-            local.supports_light_quality_preset, upstream.supports_light_quality_preset,
-            "{model:?}"
-        );
-        assert_eq!(
-            local.supports_transparent_background, upstream.supports_transparent_background,
-            "{model:?}"
-        );
-        assert_eq!(
-            local.variety_sigma_coefficient.map(f32::to_bits),
-            upstream.variety_sigma_coefficient.map(f32::to_bits),
-            "{model:?}"
-        );
-        assert_eq!(
-            local.prompt_token_limit, upstream.prompt_token_limit,
-            "{model:?}"
-        );
-        assert_eq!(
-            matches!(
-                local.prompt_structure,
-                atelier_generation::PromptStructure::V4
-            ),
-            matches!(
-                upstream.prompt_structure,
-                novelai_bridge::PromptStructure::V4
-            ),
-            "{model:?}"
-        );
-    }
 }
 
 #[test]

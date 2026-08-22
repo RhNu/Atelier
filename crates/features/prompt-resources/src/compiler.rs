@@ -13,6 +13,11 @@ use crate::{
 
 const DEFAULT_MAX_EXPANSION_DEPTH: usize = 16;
 
+/// A prompt compilation request.
+///
+/// `model` is not optional by design: chunk and preset bindings are
+/// model-scoped, so compiling against a defaulted model silently resolves
+/// resources for the wrong model.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompilePromptRequest {
     pub prompt: String,
@@ -22,10 +27,10 @@ pub struct CompilePromptRequest {
 
 impl CompilePromptRequest {
     #[must_use]
-    pub fn new(prompt: impl Into<String>) -> Self {
+    pub fn new(prompt: impl Into<String>, model: ImageModel) -> Self {
         Self {
             prompt: prompt.into(),
-            model: ImageModel::default(),
+            model,
             max_depth: DEFAULT_MAX_EXPANSION_DEPTH,
         }
     }

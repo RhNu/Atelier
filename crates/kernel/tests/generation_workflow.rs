@@ -241,7 +241,7 @@ fn generation_workflow_compiles_negative_and_character_prompt_scopes() {
                         position: CharacterPosition::default(),
                         enabled: true,
                     }]),
-                    model: ImageModel::NaiDiffusion45Full,
+                    model: ImageModel::NaiDiffusion5Full,
                     ..Default::default()
                 }),
                 context: GenerationPlanContext::default(),
@@ -251,7 +251,8 @@ fn generation_workflow_compiles_negative_and_character_prompt_scopes() {
 
         runtime.run_scheduled_generation_job(&job_id).await.unwrap();
 
-        assert_eq!(ports.compile_call_count(), 4);
+        // Every scope compiles against the requested model, not the default one.
+        assert_eq!(ports.compiled_models(), [ImageModel::NaiDiffusion5Full; 4]);
         let request = ports.generated_requests().pop().expect("request recorded");
         assert_eq!(request.prompt, "expanded main");
         assert_eq!(request.negative_prompt.as_deref(), Some("expanded uc"));

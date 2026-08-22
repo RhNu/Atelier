@@ -7,9 +7,9 @@ use atelier_generation::{
     CharacterReferenceType, GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
     GenerateImageStreamResult, GeneratedImage, GeneratedImageMetadata,
     GeneratedImageMetadataInspector, GeneratedImageMetadataWarning, GenerationPlanContext,
-    GenerationResult, ImageFormat, ImageModel, ImageSize, ImageStreamEvent, Img2ImgRequest,
-    NoiseSchedule, NovelAiGenerationClient, ParsedGeneratedImageMetadata, QualityPreset, Sampler,
-    StreamMode, UcPreset, VibeTransferConfig,
+    GenerationResult, ImageFormat, ImageSize, ImageStreamEvent, Img2ImgRequest, NoiseSchedule,
+    NovelAiGenerationClient, ParsedGeneratedImageMetadata, QualityPreset, Sampler, StreamMode,
+    UcPreset, VibeTransferConfig,
 };
 use atelier_secrets::{
     SecretResolver, SecretValue, SecretsError, SubscriptionClient, SubscriptionProbeClient,

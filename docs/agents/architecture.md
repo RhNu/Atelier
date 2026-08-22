@@ -37,6 +37,19 @@ Hard boundaries:
 - Adapters implement ports and own concrete I/O.
 - Tauri is a host adapter, not the application layer. It owns native dialogs, user-selected local file reads/writes, open/reveal guards, notifications, and desktop bundled resource path resolution.
 
+### `novelai-bridge` in `features/generation`
+
+`features/generation` is the one feature crate allowed to depend on `novelai-bridge`, and only for
+its model catalog knowledge: `Model`, `ModelCapabilities`, `PromptStructure`, and the pricing entry
+points. `ImageModel::bridge_model` is the single crossing point; everything else in the crate reads
+capabilities through `ImageModel::capabilities`.
+
+The rule this replaces (capabilities restated in Atelier and guarded by a drift test) produced two
+capability tables that could disagree silently. Delegation makes upstream the only source.
+
+`Client`, `Transport`, and every other request/response type stay behind `adapters/novelai`. No other
+feature crate may add the dependency.
+
 ## Current Workspace Layout
 
 ```text
@@ -91,7 +104,7 @@ Feature crates are the default owner for domain concepts:
 - `resource-catalog`: resource IDs, kinds, owners, lifecycle, blob and variant ports.
 - `prompt`: NovelAI-oriented prompt syntax, formatting, functions, diagnostics.
 - `prompt-resources`: chunks, prompt functions, compile trace, prompt resource ports.
-- `generation`: NovelAI image generation params, normalization, Anlas estimate result model, request plan, generation client ports. Pricing formulas stay in `novelai-bridge` and are invoked by `adapters/novelai`.
+- `generation`: NovelAI image generation params, normalization, Anlas estimate result model, request plan, generation client ports. Model capabilities and pricing formulas stay in `novelai-bridge`; capabilities are re-exported through `ImageModel::capabilities`, and pricing is invoked by `adapters/novelai`.
 - `jobs`: job and batch state machine, retry/cancel policy, queue events.
 - `artifacts`: generated artifact semantics, replay manifest, visual asset references.
 - `gallery`: gallery item index model, query, source references, explicit unscanned/scanned/failed/
@@ -207,4 +220,6 @@ When adding an adapter dependency, answer:
 - Is the dependency limited to `adapters/*` or desktop host glue?
 - Is there a fake or in-memory replacement?
 - Are external errors converted at the adapter boundary?
-- Are external library types kept out of feature crates, `kernel`, and `app-api`?
+- Are external library types kept out of feature crates, `kernel`, and `app-api`? The single
+  exception is `novelai-bridge` model capability types in `features/generation`; see
+  [`novelai-bridge` in `features/generation`](#novelai-bridge-in-featuresgeneration).

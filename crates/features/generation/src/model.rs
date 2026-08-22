@@ -1,35 +1,12 @@
-pub const DEFAULT_STEPS: u32 = 23;
-pub const DEFAULT_SCALE: f32 = 5.0;
+//! `NovelAI` image generation domain model.
+//!
+//! Model capability knowledge is owned by `novelai-bridge` and re-exported
+//! here. Atelier keeps its own [`ImageModel`] because the model catalog is a
+//! product concern (ordering, DTO and database encodings), but every
+//! capability answer is delegated to the bridge so there is exactly one
+//! capability table in the workspace.
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum PromptStructure {
-    Legacy,
-    V4,
-}
-
-#[allow(clippy::struct_excessive_bools)]
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct ModelCapabilities {
-    pub prompt_structure: PromptStructure,
-    pub params_version: u32,
-    pub default_steps: u32,
-    pub default_scale: f32,
-    pub max_characters: u32,
-    pub supports_vibe_transfer: bool,
-    pub supports_encoded_vibe: bool,
-    pub supports_character_reference: bool,
-    pub supports_character_reference_inpainting: bool,
-    pub supports_variety_boost: bool,
-    pub supports_inpainting: bool,
-    pub supports_streaming: bool,
-    pub supports_smea: bool,
-    pub supports_dynamic_thresholding: bool,
-    pub uses_v5_extensions: bool,
-    pub supports_light_quality_preset: bool,
-    pub supports_transparent_background: bool,
-    pub variety_sigma_coefficient: Option<f32>,
-    pub prompt_token_limit: u32,
-}
+pub use novelai_bridge::{ModelCapabilities, PromptStructure};
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum ImageModel {
@@ -45,86 +22,44 @@ pub enum ImageModel {
 }
 
 impl ImageModel {
+    /// Returns the `novelai-bridge` model this catalog entry maps to.
+    ///
+    /// This is the single crossing point between the Atelier catalog and
+    /// upstream `NovelAI` model knowledge.
     #[must_use]
-    pub const fn as_str(self) -> &'static str {
+    pub const fn bridge_model(self) -> novelai_bridge::Model {
         match self {
-            Self::NaiDiffusion5Full => "nai-diffusion-5-full",
-            Self::NaiDiffusion5Curated => "nai-diffusion-5-curated",
-            Self::NaiDiffusion45Full => "nai-diffusion-4-5-full",
-            Self::NaiDiffusion45Curated => "nai-diffusion-4-5-curated",
-            Self::NaiDiffusion4Full => "nai-diffusion-4-full",
-            Self::NaiDiffusion4Curated => "nai-diffusion-4-curated",
-            Self::NaiDiffusion3 => "nai-diffusion-3",
-            Self::NaiDiffusion3Furry => "nai-diffusion-furry-3",
+            Self::NaiDiffusion5Full => novelai_bridge::Model::NaiDiffusion5Full,
+            Self::NaiDiffusion5Curated => novelai_bridge::Model::NaiDiffusion5Curated,
+            Self::NaiDiffusion45Full => novelai_bridge::Model::NaiDiffusion45Full,
+            Self::NaiDiffusion45Curated => novelai_bridge::Model::NaiDiffusion45Curated,
+            Self::NaiDiffusion4Full => novelai_bridge::Model::NaiDiffusion4Full,
+            Self::NaiDiffusion4Curated => novelai_bridge::Model::NaiDiffusion4Curated,
+            Self::NaiDiffusion3 => novelai_bridge::Model::NaiDiffusion3,
+            Self::NaiDiffusion3Furry => novelai_bridge::Model::NaiDiffusion3Furry,
         }
     }
 
     #[must_use]
-    pub const fn is_v4(self) -> bool {
-        matches!(
-            self,
-            Self::NaiDiffusion45Full
-                | Self::NaiDiffusion45Curated
-                | Self::NaiDiffusion4Full
-                | Self::NaiDiffusion4Curated
-        )
-    }
-
-    #[must_use]
-    pub const fn is_v5(self) -> bool {
-        matches!(self, Self::NaiDiffusion5Full | Self::NaiDiffusion5Curated)
-    }
-
-    #[must_use]
-    pub const fn is_v45(self) -> bool {
-        matches!(self, Self::NaiDiffusion45Full | Self::NaiDiffusion45Curated)
+    pub const fn as_str(self) -> &'static str {
+        self.bridge_model().as_str()
     }
 
     #[must_use]
     pub const fn vibe_model_key(self) -> Option<&'static str> {
-        match self {
-            Self::NaiDiffusion5Full | Self::NaiDiffusion5Curated => None,
-            Self::NaiDiffusion45Full => Some("v4-5full"),
-            Self::NaiDiffusion45Curated => Some("v4-5curated"),
-            Self::NaiDiffusion4Full => Some("v4full"),
-            Self::NaiDiffusion4Curated => Some("v4curated"),
-            Self::NaiDiffusion3 => Some("v3"),
-            Self::NaiDiffusion3Furry => Some("v3furry"),
-        }
+        self.bridge_model().vibe_model_key()
     }
 
     #[must_use]
     pub fn from_vibe_model_key(value: &str) -> Option<Self> {
-        match value {
-            "v4-5full" => Some(Self::NaiDiffusion45Full),
-            "v4-5curated" => Some(Self::NaiDiffusion45Curated),
-            "v4full" => Some(Self::NaiDiffusion4Full),
-            "v4curated" => Some(Self::NaiDiffusion4Curated),
-            "v3" => Some(Self::NaiDiffusion3),
-            "v3furry" => Some(Self::NaiDiffusion3Furry),
-            _ => None,
-        }
+        Self::ALL
+            .into_iter()
+            .find(|model| model.vibe_model_key() == Some(value))
     }
 
     #[must_use]
     pub const fn capabilities(self) -> ModelCapabilities {
-        match self {
-            Self::NaiDiffusion5Full => ModelCapabilities {
-                prompt_token_limit: 1471,
-                ..V5_CAPABILITIES
-            },
-            Self::NaiDiffusion5Curated => ModelCapabilities {
-                prompt_token_limit: 703,
-                ..V5_CAPABILITIES
-            },
-            Self::NaiDiffusion45Full | Self::NaiDiffusion45Curated => V45_CAPABILITIES,
-            Self::NaiDiffusion4Full | Self::NaiDiffusion4Curated => V4_CAPABILITIES,
-            Self::NaiDiffusion3 => V3_CAPABILITIES,
-            Self::NaiDiffusion3Furry => ModelCapabilities {
-                default_scale: 6.2,
-                ..V3_CAPABILITIES
-            },
-        }
+        self.bridge_model().capabilities()
     }
 
     pub const ALL: [Self; 8] = [
@@ -138,75 +73,6 @@ impl ImageModel {
         Self::NaiDiffusion3Furry,
     ];
 }
-
-const V3_CAPABILITIES: ModelCapabilities = ModelCapabilities {
-    prompt_structure: PromptStructure::Legacy,
-    params_version: 3,
-    default_steps: 23,
-    default_scale: 5.0,
-    max_characters: 0,
-    supports_vibe_transfer: true,
-    supports_encoded_vibe: false,
-    supports_character_reference: false,
-    supports_character_reference_inpainting: false,
-    supports_variety_boost: false,
-    supports_inpainting: true,
-    supports_streaming: false,
-    supports_smea: true,
-    supports_dynamic_thresholding: true,
-    uses_v5_extensions: false,
-    supports_light_quality_preset: false,
-    supports_transparent_background: false,
-    variety_sigma_coefficient: None,
-    prompt_token_limit: 225,
-};
-
-const V4_CAPABILITIES: ModelCapabilities = ModelCapabilities {
-    prompt_structure: PromptStructure::V4,
-    params_version: 3,
-    default_steps: 23,
-    default_scale: 5.5,
-    max_characters: 6,
-    supports_vibe_transfer: true,
-    supports_encoded_vibe: true,
-    supports_character_reference: false,
-    supports_character_reference_inpainting: false,
-    supports_variety_boost: true,
-    supports_inpainting: true,
-    supports_streaming: true,
-    supports_smea: false,
-    supports_dynamic_thresholding: false,
-    uses_v5_extensions: false,
-    supports_light_quality_preset: false,
-    supports_transparent_background: false,
-    variety_sigma_coefficient: Some(19.0),
-    prompt_token_limit: 512,
-};
-
-const V45_CAPABILITIES: ModelCapabilities = ModelCapabilities {
-    default_scale: 5.0,
-    supports_character_reference: true,
-    supports_character_reference_inpainting: true,
-    variety_sigma_coefficient: Some(58.0),
-    ..V4_CAPABILITIES
-};
-
-const V5_CAPABILITIES: ModelCapabilities = ModelCapabilities {
-    params_version: 4,
-    default_steps: 23,
-    default_scale: 7.0,
-    supports_vibe_transfer: false,
-    supports_encoded_vibe: false,
-    supports_character_reference: false,
-    supports_character_reference_inpainting: false,
-    supports_variety_boost: false,
-    uses_v5_extensions: true,
-    supports_light_quality_preset: true,
-    supports_transparent_background: true,
-    variety_sigma_coefficient: None,
-    prompt_token_limit: 1471,
-    ..V45_CAPABILITIES
-};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ImageSize {
@@ -401,16 +267,18 @@ pub struct GenerateImageRequest {
 
 impl Default for GenerateImageRequest {
     fn default() -> Self {
+        let model = ImageModel::default();
+        let capabilities = model.capabilities();
         Self {
             prompt: String::new(),
-            model: ImageModel::default(),
+            model,
             size: ImageSize::default(),
             negative_prompt: None,
             quality: QualityPreset::Standard,
             transparent_background: false,
             uc_preset: UcPreset::default(),
-            steps: DEFAULT_STEPS,
-            scale: DEFAULT_SCALE,
+            steps: capabilities.default_steps,
+            scale: capabilities.default_scale,
             sampler: Sampler::default(),
             noise_schedule: NoiseSchedule::default(),
             seed: 0,

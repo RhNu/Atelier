@@ -89,6 +89,7 @@ impl KernelGenerationPorts for MemoryKernelPorts {
     ) -> PromptResourceResult<CompiledPrompt> {
         let mut state = self.state.lock().unwrap();
         state.operations.push("compile_prompt".to_owned());
+        state.compiled_models.push(request.model);
         if state.failures.contains(&FakeFailure::CompilePrompt) {
             return Err(atelier_prompt_resources::PromptResourceError::repository(
                 "compile failed",

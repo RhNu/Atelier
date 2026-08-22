@@ -16,7 +16,7 @@ use atelier_director::DirectorToolOutput;
 use atelier_gallery::GalleryItem;
 use atelier_generation::{
     GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage, GenerationClientError,
-    GenerationResult, ImageStreamEvent,
+    GenerationResult, ImageModel, ImageStreamEvent,
 };
 use atelier_kernel::{
     KernelClock, KernelEvent, KernelEventSink, PreparedGenerationPayload,
@@ -39,6 +39,7 @@ struct State {
     operations: Vec<String>,
     expanded_prompt: String,
     compiled_prompts: BTreeMap<String, String>,
+    compiled_models: Vec<ImageModel>,
     generated_images: Vec<GeneratedImage>,
     generated_requests: Vec<GenerateImageRequest>,
     stream_requests: Vec<GenerateImageStreamRequest>,
@@ -201,6 +202,11 @@ impl MemoryKernelPorts {
             .into_iter()
             .filter(|operation| operation == "compile_prompt")
             .count()
+    }
+
+    /// Models every `compile_prompt` call was made against, in call order.
+    pub fn compiled_models(&self) -> Vec<ImageModel> {
+        self.state.lock().unwrap().compiled_models.clone()
     }
 
     pub fn generate_call_count(&self) -> usize {

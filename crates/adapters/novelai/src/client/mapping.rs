@@ -1,7 +1,7 @@
 use super::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, DirectorTool,
     EncodeVibeRequest, GenerateImageRequest, GenerateImageStreamRequest, GeneratedImage,
-    GeneratedImageMetadata, GeneratedImageMetadataWarning, ImageFormat, ImageModel, ImageSize,
+    GeneratedImageMetadata, GeneratedImageMetadataWarning, ImageFormat, ImageSize,
     ImageStreamEvent, Img2ImgRequest, NoiseSchedule, NovelAiBridgeError,
     ParsedGeneratedImageMetadata, QualityPreset, RunDirectorToolRequest, Sampler, SecretsError,
     StreamMode, SubscriptionSummary, UcPreset, V5UsageStatus, VibeModel, VibeTransferConfig,
@@ -28,7 +28,7 @@ pub(super) fn to_bridge_generate_request(
         core: bridge::GenerationCore {
             prompt: request.prompt,
             negative_prompt: request.negative_prompt,
-            model: to_bridge_model(request.model),
+            model: request.model.bridge_model(),
             size: to_bridge_size(request.size),
             seed: request.seed,
             n_samples: request.n_samples,
@@ -171,19 +171,6 @@ pub(super) fn from_bridge_subscription(
             percent: usage.percent,
             seconds_until_next_percent: usage.seconds_until_next_percent,
         }),
-    }
-}
-
-pub(super) const fn to_bridge_model(model: ImageModel) -> bridge::Model {
-    match model {
-        ImageModel::NaiDiffusion5Full => bridge::Model::NaiDiffusion5Full,
-        ImageModel::NaiDiffusion5Curated => bridge::Model::NaiDiffusion5Curated,
-        ImageModel::NaiDiffusion45Full => bridge::Model::NaiDiffusion45Full,
-        ImageModel::NaiDiffusion45Curated => bridge::Model::NaiDiffusion45Curated,
-        ImageModel::NaiDiffusion4Full => bridge::Model::NaiDiffusion4Full,
-        ImageModel::NaiDiffusion4Curated => bridge::Model::NaiDiffusion4Curated,
-        ImageModel::NaiDiffusion3 => bridge::Model::NaiDiffusion3,
-        ImageModel::NaiDiffusion3Furry => bridge::Model::NaiDiffusion3Furry,
     }
 }
 

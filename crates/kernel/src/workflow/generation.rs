@@ -6,8 +6,8 @@ use atelier_artifacts::{
 use atelier_gallery::GallerySafetyState;
 use atelier_generation::{
     GenerateImageStreamRequest, GeneratedImageMetadata, GeneratedImageMetadataWarning,
-    GenerationClientError, GenerationOutputMode, GenerationRequestPlan, plan_generation_request,
-    plan_generation_stream_request,
+    GenerationClientError, GenerationOutputMode, GenerationRequestPlan, ImageModel,
+    plan_generation_request, plan_generation_stream_request,
 };
 use atelier_jobs::{JobFailureImpact, JobId, QueueDelay, QueueDirective, RetryPolicy};
 use atelier_prompt_resources::{CompilePromptRequest, PromptResourceResult};
@@ -134,19 +134,22 @@ async fn compile_generation_prompts<P>(
 where
     P: KernelGenerationPorts,
 {
+    let model = request.model();
     let prompt = ports
-        .compile_prompt(CompilePromptRequest::new(request.prompt()))
+        .compile_prompt(CompilePromptRequest::new(request.prompt(), model))
         .await?;
-    let negative_prompt = compile_optional_prompt(ports, request.negative_prompt()).await?;
+    let negative_prompt = compile_optional_prompt(ports, request.negative_prompt(), model).await?;
     let mut characters = Vec::new();
     if let Some(request_characters) = request.characters() {
         characters.reserve(request_characters.len());
         for character in request_characters {
             characters.push(CompiledGenerationCharacterPrompts {
-                prompt: compile_optional_prompt(ports, Some(character.prompt.as_str())).await?,
+                prompt: compile_optional_prompt(ports, Some(character.prompt.as_str()), model)
+                    .await?,
                 negative_prompt: compile_optional_prompt(
                     ports,
                     character.negative_prompt.as_deref(),
+                    model,
                 )
                 .await?,
             });
@@ -162,6 +165,7 @@ where
 async fn compile_optional_prompt<P>(
     ports: &P,
     prompt: Option<&str>,
+    model: ImageModel,
 ) -> PromptResourceResult<Option<atelier_prompt_resources::CompiledPrompt>>
 where
     P: KernelGenerationPorts,
@@ -173,7 +177,7 @@ where
         return Ok(None);
     }
     ports
-        .compile_prompt(CompilePromptRequest::new(prompt))
+        .compile_prompt(CompilePromptRequest::new(prompt, model))
         .await
         .map(Some)
 }

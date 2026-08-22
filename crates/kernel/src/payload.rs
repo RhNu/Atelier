@@ -32,6 +32,19 @@ pub struct CompiledGenerationPrompts {
 }
 
 impl GenerationWorkRequest {
+    /// Returns the model the request targets.
+    ///
+    /// Prompt compilation is model-scoped: chunk and preset bindings are
+    /// resolved against this model, so it must come from the request rather
+    /// than a default.
+    #[must_use]
+    pub const fn model(&self) -> atelier_generation::ImageModel {
+        match self {
+            Self::Image(request) => request.model,
+            Self::Stream(request) => request.base.model,
+        }
+    }
+
     #[must_use]
     pub fn prompt(&self) -> &str {
         match self {
