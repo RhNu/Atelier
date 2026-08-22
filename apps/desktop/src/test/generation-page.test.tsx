@@ -311,6 +311,7 @@ const imageModelCatalog: ImageModelDescriptorDto[] = imageModelRows.map(
       supports_character_reference_inpainting: !isV5 && String(model).includes("4-5"),
       supports_variety_boost: !isV5 && String(model).includes("diffusion-4"),
       supports_inpainting: true,
+      supports_streaming: model !== "nai-diffusion-3" && model !== "nai-diffusion-furry-3",
       supports_smea: model === "nai-diffusion-3" || model === "nai-diffusion-furry-3",
       supports_dynamic_thresholding:
         model === "nai-diffusion-3" || model === "nai-diffusion-furry-3",

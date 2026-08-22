@@ -68,6 +68,7 @@ export const generation = {
   noiseSchedule: "Noise schedule",
   strictMode: "Strict mode",
   streamingPreview: "Streaming preview",
+  streamingPreviewUnsupported: "Streaming preview is unavailable for the selected model.",
   outputFormat: "Output format",
   clearSavedDraft: "Clear saved draft",
   retrySave: "Retry save",

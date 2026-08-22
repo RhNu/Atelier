@@ -45,6 +45,7 @@ pub struct ModelCapabilitiesDto {
     pub supports_character_reference_inpainting: bool,
     pub supports_variety_boost: bool,
     pub supports_inpainting: bool,
+    pub supports_streaming: bool,
     pub supports_smea: bool,
     pub supports_dynamic_thresholding: bool,
     pub uses_v5_extensions: bool,

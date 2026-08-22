@@ -13,6 +13,7 @@ export type ModelCapabilitiesDto = {
   supports_character_reference_inpainting: boolean;
   supports_variety_boost: boolean;
   supports_inpainting: boolean;
+  supports_streaming: boolean;
   supports_smea: boolean;
   supports_dynamic_thresholding: boolean;
   uses_v5_extensions: boolean;

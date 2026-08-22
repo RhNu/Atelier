@@ -401,7 +401,7 @@ function buildGenerationWorkRequest(
   capabilities?: ModelCapabilitiesDto,
 ): GenerationWorkRequestDto {
   const base = buildBaseGenerateRequest(draft, capabilities);
-  return draft.streamEnabled
+  return draft.streamEnabled && capabilities?.supports_streaming !== false
     ? { kind: "stream", request: { base, stream: "sse" } }
     : { kind: "image", request: base };
 }

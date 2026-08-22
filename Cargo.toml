@@ -92,7 +92,7 @@ atelier-secrets = { path = "crates/features/secrets" }
 atelier-settings = { path = "crates/features/settings" }
 atelier-vibe = { path = "crates/features/vibe" }
 atelier-workspace = { path = "crates/features/workspace" }
-novelai-bridge = "0.4.0-rc.2"
+novelai-bridge = "0.4.0-rc.3"
 ort = { version = "2.0.0-rc.12", default-features = false }
 reqwest = { version = "0.13.4", features = ["stream"] }
 rowan = "0.16"

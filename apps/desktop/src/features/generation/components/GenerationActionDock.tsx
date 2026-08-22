@@ -72,6 +72,7 @@ export function GenerationActionDock({
   const totalImages = draft.requestCount * draft.nSamples;
   const insufficientBalance = balance !== null && estimate !== null && estimate > balance;
   const samplerLabel = generationSamplerDisplayNames[draft.sampler];
+  const streamingUnsupported = capabilities?.supports_streaming === false;
   const formatOptions = useMemo(
     () => [
       { value: "default", label: t("workspaceDefault") },
@@ -205,6 +206,8 @@ export function GenerationActionDock({
               <ToggleControl
                 label={t("streamingPreview")}
                 checked={draft.streamEnabled}
+                disabled={streamingUnsupported}
+                title={streamingUnsupported ? t("streamingPreviewUnsupported") : undefined}
                 onChange={(streamEnabled) => onPatch({ streamEnabled }, { persist: "immediate" })}
               />
               <SelectControl
@@ -327,19 +330,30 @@ function SelectControl({
 function ToggleControl({
   label,
   checked,
+  disabled = false,
+  title,
   onChange,
 }: {
   label: string;
   checked: boolean;
+  disabled?: boolean;
+  title?: string;
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between border border-app-border bg-black/20 px-3 py-2 text-sm text-app-text">
+    <label
+      className={[
+        "flex items-center justify-between border border-app-border bg-black/20 px-3 py-2 text-sm text-app-text",
+        disabled ? "cursor-not-allowed opacity-50" : "",
+      ].join(" ")}
+      title={title}
+    >
       {label}
       <input
         aria-label={label}
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
       />
     </label>

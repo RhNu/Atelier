@@ -70,6 +70,7 @@ export const generation = {
   noiseSchedule: "噪声调度",
   strictMode: "严格模式",
   streamingPreview: "流式预览",
+  streamingPreviewUnsupported: "所选模型不支持流式预览。",
   outputFormat: "输出格式",
   clearSavedDraft: "清除已保存草稿",
   retrySave: "重试保存",

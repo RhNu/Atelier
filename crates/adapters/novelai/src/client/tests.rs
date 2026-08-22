@@ -70,6 +70,10 @@ fn atelier_model_catalog_matches_bridge_capabilities() {
             local.supports_inpainting, upstream.supports_inpainting,
             "{model:?}"
         );
+        assert_eq!(
+            local.supports_streaming, upstream.supports_streaming,
+            "{model:?}"
+        );
         assert_eq!(local.supports_smea, upstream.supports_smea, "{model:?}");
         assert_eq!(
             local.supports_dynamic_thresholding, upstream.supports_dynamic_thresholding,

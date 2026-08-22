@@ -65,11 +65,18 @@ pub fn plan_generation_request(
 /// Builds a normalized, host-neutral plan for a streaming generation request.
 ///
 /// # Errors
-/// Returns [`GenerationError`] when base request validation or normalization fails.
+/// Returns [`GenerationError`] when the selected model does not support streaming, or when base
+/// request validation or normalization fails.
 pub fn plan_generation_stream_request(
     request: GenerateImageStreamRequest,
     _context: GenerationPlanContext,
 ) -> Result<GenerationRequestPlan, GenerationError> {
+    if !request.base.model.capabilities().supports_streaming {
+        return Err(GenerationError::unsupported_model_feature(
+            "generate_stream",
+            "V4 and later image models",
+        ));
+    }
     let normalized_request = normalize_generate_request(request.base)?;
     Ok(build_plan(
         normalized_request,
@@ -93,5 +100,44 @@ fn build_plan(
         seed_mode,
         output_mode,
         resolved_use_coords,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{GenerationErrorKind, ImageModel};
+
+    #[test]
+    fn stream_plan_rejects_v3_models() {
+        for model in [ImageModel::NaiDiffusion3, ImageModel::NaiDiffusion3Furry] {
+            let request = GenerateImageStreamRequest {
+                base: GenerateImageRequest {
+                    prompt: "1girl".to_owned(),
+                    model,
+                    ..GenerateImageRequest::default()
+                },
+                ..GenerateImageStreamRequest::default()
+            };
+
+            let error = plan_generation_stream_request(request, GenerationPlanContext::default())
+                .expect_err("V3 models must not plan a stream");
+            assert_eq!(error.kind, GenerationErrorKind::UnsupportedModelFeature);
+            assert_eq!(error.field.as_deref(), Some("generate_stream"));
+        }
+    }
+
+    #[test]
+    fn stream_plan_allows_v4_models() {
+        let request = GenerateImageStreamRequest {
+            base: GenerateImageRequest {
+                prompt: "1girl".to_owned(),
+                model: ImageModel::NaiDiffusion4Full,
+                ..GenerateImageRequest::default()
+            },
+            ..GenerateImageStreamRequest::default()
+        };
+
+        assert!(plan_generation_stream_request(request, GenerationPlanContext::default()).is_ok());
     }
 }

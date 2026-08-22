@@ -9,7 +9,7 @@ import {
 import type { ModelCapabilitiesDto } from "../types";
 import type { WorkspaceSettingsDto } from "../types";
 
-function modelCapabilities(defaultScale: number): ModelCapabilitiesDto {
+function modelCapabilities(defaultScale: number, supportsStreaming = true): ModelCapabilitiesDto {
   return {
     prompt_structure: "v4",
     params_version: 4,
@@ -22,6 +22,7 @@ function modelCapabilities(defaultScale: number): ModelCapabilitiesDto {
     supports_character_reference_inpainting: false,
     supports_variety_boost: false,
     supports_inpainting: true,
+    supports_streaming: supportsStreaming,
     supports_smea: false,
     supports_dynamic_thresholding: false,
     uses_v5_extensions: true,
@@ -207,6 +208,26 @@ describe("generation request builder", () => {
       request.jobs[1]?.work.kind === "stream" ? request.jobs[1].work.request.base : null;
     expect(secondBase?.prompt).toBe("1girl, atelier lighting");
     expect(secondBase?.seed).toBe(1234);
+  });
+
+  it("uses normal generation when the selected model cannot stream", () => {
+    const draft = {
+      ...createGenerationDraft(settings),
+      model: "nai-diffusion-3" as const,
+      prompt: "1girl",
+      streamEnabled: true,
+    };
+
+    const request = buildSubmitGenerationBatchRequest(
+      draft,
+      { batchId: "batch-v3", jobIds: ["job-v3"] },
+      { capabilities: modelCapabilities(5, false) },
+    );
+
+    expect(request.jobs[0]?.work).toMatchObject({
+      kind: "image",
+      request: { model: "nai-diffusion-3" },
+    });
   });
 
   it("builds resource-backed i2i, vibe, and character payloads", () => {
