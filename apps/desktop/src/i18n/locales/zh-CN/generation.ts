@@ -213,6 +213,8 @@ export const generation = {
   addCharacter: "添加角色提示词",
   transparentBackground: "透明背景",
   dormantGuidanceSummary: "不受支持的引导已保留在草稿中，但不会对当前模型启用。",
-  v5Allowance: "V5 配额",
-  negativeAllowance: "负值",
+  opusAllowance: "Opus 生成额度",
+  opusAllowanceNegative: "已透支",
+  opusAllowanceRate: "+1%/{{duration}}",
+  opusAllowanceLowWarning: "额度耗尽后每张扣 {{cost}} Anlas",
 } satisfies LocaleShape<typeof enGeneration>;

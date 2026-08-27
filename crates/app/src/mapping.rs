@@ -223,6 +223,7 @@ pub const fn model_descriptor_to_dto(
             supports_smea: capabilities.supports_smea,
             supports_dynamic_thresholding: capabilities.supports_dynamic_thresholding,
             uses_v5_extensions: capabilities.uses_v5_extensions,
+            has_opus_usage_limit: capabilities.has_opus_usage_limit,
             supports_light_quality_preset: capabilities.supports_light_quality_preset,
             supports_transparent_background: capabilities.supports_transparent_background,
             variety_sigma_coefficient: capabilities.variety_sigma_coefficient,

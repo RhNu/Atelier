@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { describeError, frontendLogger } from "@/app/logger";
+import { resolveOpusAllowance } from "@/features/account/components/opus-allowance";
 import { useActiveAccountSummaryQuery } from "@/features/account/data/useActiveAccountSummaryQuery";
 import { useToastStore } from "@/stores/toast-store";
 import type { CompiledGenerationPromptDto, GenerationBatchHistoryStatusDto } from "@/types";
@@ -401,6 +402,7 @@ export function GeneratePage() {
               balancePending={accountQuery.isPending}
               balanceError={accountQuery.isError ? formatError(accountQuery.error) : null}
               estimate={estimateQuery.data?.total_cost ?? null}
+              perImageCost={estimateQuery.data?.per_image_cost ?? null}
               estimatePending={estimateQuery.isPending}
               estimateError={estimateQuery.isError ? formatError(estimateQuery.error) : null}
               submitPending={submitMutation.isPending}
@@ -419,7 +421,7 @@ export function GeneratePage() {
               onRetryDraftSave={retrySave}
               onClearStoredDraft={handleClearStoredDraft}
               capabilities={capabilities}
-              v5Usage={capabilities?.uses_v5_extensions ? accountQuery.data?.v5_usage : null}
+              opusAllowance={resolveOpusAllowance(accountQuery.data, capabilities)}
             />
           </>
         }

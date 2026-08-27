@@ -316,6 +316,7 @@ const imageModelCatalog: ImageModelDescriptorDto[] = imageModelRows.map(
       supports_dynamic_thresholding:
         model === "nai-diffusion-3" || model === "nai-diffusion-furry-3",
       uses_v5_extensions: Boolean(isV5),
+      has_opus_usage_limit: Boolean(isV5),
       supports_light_quality_preset: Boolean(isV5),
       supports_transparent_background: Boolean(isV5),
       variety_sigma_coefficient: null,
@@ -323,6 +324,20 @@ const imageModelCatalog: ImageModelDescriptorDto[] = imageModelRows.map(
     },
   }),
 );
+
+function opusSubscription(
+  v5Usage: Omit<NonNullable<SubscriptionSummaryDto["v5_usage"]>, "is_negative">,
+) {
+  return {
+    anlas_balance: 10_000,
+    is_opus: true,
+    subscription_active: true,
+    tier: 3,
+    tier_name: "Opus",
+    expires_at_ms: null,
+    v5_usage: { is_negative: false, ...v5Usage },
+  } satisfies SubscriptionSummaryDto;
+}
 
 function appEvent(kind: AppEventDto["kind"], sequence = 1): AppEventDto {
   return { sequence, kind };
@@ -340,14 +355,16 @@ function setup(options?: {
   mainPresets?: PromptPresetPageDto;
   characterPresets?: PromptPresetPageDto;
   developerMode?: boolean;
+  model?: ImageModelDto;
+  subscription?: SubscriptionSummaryDto;
 }) {
   mocks.generationApi.listModels.mockResolvedValue(imageModelCatalog);
   if (options?.settingsError) {
     mocks.settingsApi.get.mockRejectedValue(options.settingsError);
   } else {
-    mocks.settingsApi.get.mockResolvedValue(
-      structuredClone(defaultSettings) as WorkspaceSettingsDto,
-    );
+    const settings = structuredClone(defaultSettings) as WorkspaceSettingsDto;
+    if (options?.model) settings.generation.model = options.model;
+    mocks.settingsApi.get.mockResolvedValue(settings);
   }
   mocks.globalSettingsApi.get.mockResolvedValue({
     ...defaultGlobalSettings,
@@ -551,15 +568,17 @@ function setup(options?: {
     created: true,
   });
   mocks.vibeApi.saveDocument.mockResolvedValue({ path: "C:\\exports\\style.naiv4vibe" });
-  mocks.accountApi.probeActive.mockResolvedValue({
-    anlas_balance: 100,
-    is_opus: false,
-    subscription_active: true,
-    tier: 1,
-    tier_name: "Tablet",
-    expires_at_ms: null,
-    v5_usage: null,
-  });
+  mocks.accountApi.probeActive.mockResolvedValue(
+    options?.subscription ?? {
+      anlas_balance: 100,
+      is_opus: false,
+      subscription_active: true,
+      tier: 1,
+      tier_name: "Tablet",
+      expires_at_ms: null,
+      v5_usage: null,
+    },
+  );
 
   return {
     user: userEvent.setup(),
@@ -741,6 +760,44 @@ describe("GeneratePage", () => {
     expect(screen.getByLabelText("Steps")).toHaveValue("23");
     expect(screen.getByLabelText("Scale")).toHaveValue("5");
     expect(screen.getByLabelText("Sampler")).toHaveValue("k_euler_ancestral");
+  });
+
+  it("shows the Opus generation allowance for an active Opus account on a metered V5 model", async () => {
+    setup({
+      model: "nai-diffusion-5-full",
+      subscription: opusSubscription({ percent: 100, seconds_until_next_percent: 7888 }),
+    });
+
+    expect(await screen.findByText(/Opus generations/u)).toBeInTheDocument();
+    expect(screen.getByText("100%")).toBeInTheDocument();
+  });
+
+  it("hides the Opus generation allowance for a V4.5 model", async () => {
+    setup({
+      model: "nai-diffusion-4-5-full",
+      subscription: opusSubscription({ percent: 100, seconds_until_next_percent: 7888 }),
+    });
+
+    expect(await screen.findByLabelText("Model")).toHaveValue("nai-diffusion-4-5-full");
+    expect(screen.queryByText(/Opus generations/u)).not.toBeInTheDocument();
+  });
+
+  it("hides the Opus generation allowance for a non-Opus account on V5", async () => {
+    setup({ model: "nai-diffusion-5-full" });
+
+    expect(await screen.findByLabelText("Model")).toHaveValue("nai-diffusion-5-full");
+    expect(screen.queryByText(/Opus generations/u)).not.toBeInTheDocument();
+  });
+
+  it("warns about per-image Anlas cost when the V5 allowance is nearly exhausted", async () => {
+    setup({
+      model: "nai-diffusion-5-full",
+      subscription: opusSubscription({ percent: 2, seconds_until_next_percent: 7888 }),
+    });
+
+    expect(
+      await screen.findByText("3 Anlas per image once the allowance runs out"),
+    ).toBeInTheDocument();
   });
 
   it("keeps empty guidance sections compact and reveals character positions only when useful", async () => {

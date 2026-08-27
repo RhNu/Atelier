@@ -212,6 +212,8 @@ export const generation = {
   transparentBackground: "Transparent background",
   dormantGuidanceSummary:
     "Unsupported guidance is preserved in this draft but is not enabled for the current model.",
-  v5Allowance: "V5 allowance",
-  negativeAllowance: "negative",
+  opusAllowance: "Opus generations",
+  opusAllowanceNegative: "overdrawn",
+  opusAllowanceRate: "+1%/{{duration}}",
+  opusAllowanceLowWarning: "{{cost}} Anlas per image once the allowance runs out",
 } as const;

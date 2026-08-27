@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppRangeField, AppSelect } from "@/components/ui";
+import { OpusAllowanceMetric } from "@/features/account/components/OpusAllowanceMetric";
 import type { ModelCapabilitiesDto, V5UsageStatusDto } from "@/types";
 
 import type { GenerationDraft } from "../model/generation-draft";
@@ -26,6 +27,7 @@ type GenerationActionDockProps = {
   balancePending: boolean;
   balanceError: string | null;
   estimate: number | null;
+  perImageCost: number | null;
   estimatePending: boolean;
   estimateError: string | null;
   submitPending: boolean;
@@ -40,7 +42,7 @@ type GenerationActionDockProps = {
   onRetryDraftSave: () => void;
   onClearStoredDraft: () => void;
   capabilities?: ModelCapabilitiesDto;
-  v5Usage?: V5UsageStatusDto | null;
+  opusAllowance?: V5UsageStatusDto | null;
 };
 
 const NOISE_OPTIONS = toSelectOptions(generationNoiseScheduleOptions);
@@ -51,6 +53,7 @@ export function GenerationActionDock({
   balancePending,
   balanceError,
   estimate,
+  perImageCost,
   estimatePending,
   estimateError,
   submitPending,
@@ -65,7 +68,7 @@ export function GenerationActionDock({
   onRetryDraftSave,
   onClearStoredDraft,
   capabilities,
-  v5Usage,
+  opusAllowance,
 }: GenerationActionDockProps) {
   const { t } = useTranslation("generation");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -73,6 +76,11 @@ export function GenerationActionDock({
   const insufficientBalance = balance !== null && estimate !== null && estimate > balance;
   const samplerLabel = generationSamplerDisplayNames[draft.sampler];
   const streamingUnsupported = capabilities?.supports_streaming === false;
+  const showAllowanceWarning =
+    opusAllowance !== null &&
+    opusAllowance !== undefined &&
+    (opusAllowance.is_negative || opusAllowance.percent <= 2) &&
+    perImageCost !== null;
   const formatOptions = useMemo(
     () => [
       { value: "default", label: t("workspaceDefault") },
@@ -234,14 +242,12 @@ export function GenerationActionDock({
               <strong className="text-app-text">
                 {balancePending ? t("loading") : balance === null ? "—" : `${balance} Anlas`}
               </strong>
+              {opusAllowance ? <OpusAllowanceMetric usage={opusAllowance} /> : null}
             </div>
           </div>
           {balanceError ? <p className="text-amber-200">{balanceError}</p> : null}
-          {v5Usage ? (
-            <p className={v5Usage.is_negative ? "text-amber-200" : "text-app-muted"}>
-              {t("v5Allowance")}: {v5Usage.is_negative ? `${t("negativeAllowance")} · ` : ""}
-              {v5Usage.percent}%
-            </p>
+          {showAllowanceWarning ? (
+            <p className="text-amber-200">{t("opusAllowanceLowWarning", { cost: perImageCost })}</p>
           ) : null}
           {estimateError ? <p className="text-amber-200">{estimateError}</p> : null}
           {insufficientBalance ? (

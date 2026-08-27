@@ -209,7 +209,11 @@ function lastGlobalSettingsUpdate(): UpdateGlobalSettingsRequestDto {
   return request;
 }
 
-function setup(keys: ApiKeyRecordDto[] = [], danbooruConfigured = false) {
+function setup(
+  keys: ApiKeyRecordDto[] = [],
+  danbooruConfigured = false,
+  subscription = activeSubscription,
+) {
   mocks.settingsApi.get.mockResolvedValue(cloneSettings());
   mocks.settingsApi.update.mockImplementation(async ({ settings }) => settings);
   mocks.settingsApi.reset.mockResolvedValue({ settings: cloneSettings() });
@@ -235,7 +239,7 @@ function setup(keys: ApiKeyRecordDto[] = [], danbooruConfigured = false) {
   }));
   mocks.accountApi.delete.mockResolvedValue({ deleted: true });
   mocks.accountApi.setActive.mockResolvedValue(undefined);
-  mocks.accountApi.probeActive.mockResolvedValue(activeSubscription);
+  mocks.accountApi.probeActive.mockResolvedValue(subscription);
   mocks.danbooruApi.account.mockResolvedValue({
     configured: danbooruConfigured,
     state: danbooruConfigured ? "configured" : "anonymous",
@@ -333,6 +337,22 @@ describe("Safety settings", () => {
     await user.click(screen.getByRole("button", { name: "Retry model status" }));
     expect(await screen.findByText("anime_dbrating")).toBeInTheDocument();
     expect(mocks.imageAnalysisApi.statuses.mock.calls.length).toBeGreaterThan(attemptsBeforeRetry);
+  });
+});
+
+describe("Opus allowance", () => {
+  it("shows the generation allowance and refill rate when usage is available", async () => {
+    setup([{ id: "main", display_name: "Main", is_active: true }], false, {
+      ...activeSubscription,
+      v5_usage: {
+        is_negative: false,
+        percent: 62,
+        seconds_until_next_percent: 7888,
+      },
+    });
+
+    expect(await screen.findByText("Opus generations")).toBeInTheDocument();
+    expect(screen.getByText("62% · +1%/2h11m")).toBeInTheDocument();
   });
 });
 

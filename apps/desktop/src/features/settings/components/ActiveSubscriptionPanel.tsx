@@ -2,6 +2,10 @@ import { Loader2, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { AppIconButton } from "@/components/ui";
+import {
+  formatOpusAllowance,
+  resolveOpusAllowance,
+} from "@/features/account/components/opus-allowance";
 import type { SubscriptionSummaryDto } from "@/types";
 
 import { formatError } from "../settings-utils";
@@ -67,18 +71,21 @@ function SubscriptionSummary({
 }) {
   const { t, i18n } = useTranslation("settings");
   const { t: translateCommon } = useTranslation("common");
+  const opusAllowance = resolveOpusAllowance(summary);
+  const formattedOpusAllowance = opusAllowance
+    ? formatOpusAllowance(opusAllowance, (key, options) => t(key, options))
+    : null;
   return (
     <dl className="flex flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 text-sm">
       <CompactMetric label={t("tier")} value={formatTier(summary?.tier_name) ?? "—"} />
       <CompactMetric label="Anlas" value={summary ? `${summary.anlas_balance} Anlas` : "—"} />
-      <CompactMetric
-        label={t("v5Allowance")}
-        value={
-          summary?.v5_usage
-            ? `${summary.v5_usage.is_negative ? `${t("negativeAllowance")} · ` : ""}${summary.v5_usage.percent}%`
-            : "—"
-        }
-      />
+      {formattedOpusAllowance ? (
+        <CompactMetric
+          label={t("opusAllowance")}
+          value={formattedOpusAllowance.text}
+          tone={formattedOpusAllowance.tone}
+        />
+      ) : null}
       <CompactMetric
         label={t("expires")}
         value={
@@ -96,11 +103,26 @@ function SubscriptionSummary({
   );
 }
 
-function CompactMetric({ label, value }: { label: string; value: string }) {
+function CompactMetric({
+  label,
+  value,
+  tone = "normal",
+}: {
+  label: string;
+  value: string;
+  tone?: "normal" | "warning";
+}) {
   return (
     <div className="flex min-w-0 items-baseline gap-2">
       <dt className="text-[10px] text-app-muted uppercase">{label}</dt>
-      <dd className="truncate text-sm font-semibold text-app-text">{value}</dd>
+      <dd
+        className={[
+          "truncate text-sm font-semibold",
+          tone === "warning" ? "text-amber-200" : "text-app-text",
+        ].join(" ")}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

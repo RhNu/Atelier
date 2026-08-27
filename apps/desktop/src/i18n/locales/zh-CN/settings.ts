@@ -149,6 +149,7 @@ export const settings = {
   closeWorkspace: "关闭工作区",
   root: "根目录",
   transparentBackground: "透明背景",
-  v5Allowance: "V5 配额",
-  negativeAllowance: "负值",
+  opusAllowance: "Opus 生成额度",
+  opusAllowanceNegative: "已透支",
+  opusAllowanceRate: "+1%/{{duration}}",
 } satisfies LocaleShape<typeof enSettings>;

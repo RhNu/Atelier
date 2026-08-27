@@ -17,6 +17,11 @@ export type ModelCapabilitiesDto = {
   supports_smea: boolean;
   supports_dynamic_thresholding: boolean;
   uses_v5_extensions: boolean;
+  /**
+   * Whether the model's Opus free-first-image allowance is metered by the account's
+   * `v5_usage` pool. Gate Opus generation-allowance UI on this, not on `uses_v5_extensions`.
+   */
+  has_opus_usage_limit: boolean;
   supports_light_quality_preset: boolean;
   supports_transparent_background: boolean;
   variety_sigma_coefficient: number | null;

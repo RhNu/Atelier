@@ -26,6 +26,7 @@ function modelCapabilities(defaultScale: number, supportsStreaming = true): Mode
     supports_smea: false,
     supports_dynamic_thresholding: false,
     uses_v5_extensions: true,
+    has_opus_usage_limit: true,
     supports_light_quality_preset: true,
     supports_transparent_background: true,
     variety_sigma_coefficient: null,

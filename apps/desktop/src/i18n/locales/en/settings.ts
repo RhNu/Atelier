@@ -151,6 +151,7 @@ export const settings = {
   closeWorkspace: "Close workspace",
   root: "Root",
   transparentBackground: "Transparent background",
-  v5Allowance: "V5 allowance",
-  negativeAllowance: "negative",
+  opusAllowance: "Opus generations",
+  opusAllowanceNegative: "overdrawn",
+  opusAllowanceRate: "+1%/{{duration}}",
 } as const;

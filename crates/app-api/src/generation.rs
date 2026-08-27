@@ -49,6 +49,9 @@ pub struct ModelCapabilitiesDto {
     pub supports_smea: bool,
     pub supports_dynamic_thresholding: bool,
     pub uses_v5_extensions: bool,
+    /// Whether the model's Opus free-first-image allowance is metered by the account's
+    /// `v5_usage` pool. Gate Opus generation-allowance UI on this, not on `uses_v5_extensions`.
+    pub has_opus_usage_limit: bool,
     pub supports_light_quality_preset: bool,
     pub supports_transparent_background: bool,
     pub variety_sigma_coefficient: Option<f32>,
