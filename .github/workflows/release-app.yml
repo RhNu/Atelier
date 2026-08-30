@@ -14,6 +14,8 @@ concurrency:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v5
         with:
@@ -23,7 +25,15 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
           components: rustfmt, clippy
+      # Reuse the same dependency and target cache populated by main CI.
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: atelier-windows-stable
+          add-job-id-key: "false"
+          cache-targets: "true"
+          cache-all-crates: "true"
+          cache-workspace-crates: "true"
+          save-if: "true"
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

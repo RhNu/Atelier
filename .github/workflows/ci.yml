@@ -11,6 +11,9 @@ permissions:
 jobs:
   verify:
     runs-on: windows-latest
+    env:
+      # Match the release target so CI and the signed build share compiled artifacts.
+      CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v5
         with:
@@ -18,7 +21,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      # Keep the CI and release jobs on one reusable Windows Cargo cache. The
+      # lockfile/toolchain hash still invalidates it when dependencies change.
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: atelier-windows-stable
+          add-job-id-key: "false"
+          cache-targets: "true"
+          cache-all-crates: "true"
+          cache-workspace-crates: "true"
+          save-if: ${{ github.event_name == 'push' }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
