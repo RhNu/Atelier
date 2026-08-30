@@ -1,3 +1,5 @@
+* text=auto eol=lf
+
 *.onnx filter=lfs diff=lfs merge=lfs -text
 *.f16 filter=lfs diff=lfs merge=lfs -text
 resources/payloads/** -text
