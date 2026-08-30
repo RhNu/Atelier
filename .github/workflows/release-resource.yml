@@ -50,13 +50,21 @@ jobs:
           if (Test-Path $payload) {
             Get-ChildItem $payload -Recurse -File | ForEach-Object { gh release upload $tag $_.FullName --clobber }
           }
-      - name: Verify every stable catalog URL
+      - name: Render and probe stable catalog
+        id: catalog
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force published | Out-Null
           node scripts/render-resource-catalog.mjs published/catalog-v1.json
           node scripts/verify-resource-catalog.mjs published/catalog-v1.json
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Stable catalog publication is deferred until every referenced resource is available."
+            "ready=false" >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          "ready=true" >> $env:GITHUB_OUTPUT
       - name: Atomically replace stable catalog asset
+        if: steps.catalog.outputs.ready == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
