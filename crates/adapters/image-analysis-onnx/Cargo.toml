@@ -7,19 +7,16 @@ publish.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 atelier-adapter-onnx-runtime = { workspace = true }
+atelier-downloadable-resources = { workspace = true }
 atelier-image-analysis = { workspace = true }
 atelier-resource-catalog = { workspace = true }
 csv = { workspace = true }
-futures-util = { workspace = true }
 image = { workspace = true, features = ["jpeg", "png", "webp"] }
 ort = { workspace = true, features = ["std", "load-dynamic", "api-22"] }
-reqwest = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-sha2 = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+atelier-adapter-downloadable-resources-fs = { workspace = true }
 atelier-safety = { workspace = true }
 futures-executor = { workspace = true }
 tempfile = { workspace = true }

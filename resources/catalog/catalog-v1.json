@@ -1,0 +1,135 @@
+{
+  "format": "atelier.downloadable-resource-catalog",
+  "schema_version": 1,
+  "catalog_version": "1.0.0",
+  "resources": [
+    {
+      "id": "lexicon-core",
+      "version": "1.0.0",
+      "contract_version": 1,
+      "dependencies": [],
+      "files": [
+        {
+          "path": "lexicon.sqlite",
+          "size_bytes": 84754432,
+          "sha256": "5f42e992d621411d3dd07679a94ce61a5c24419f6e52e87c1df0cf24c7a30cf1",
+          "urls": [
+            "https://github.com/__GITHUB_REPOSITORY__/releases/download/resource-lexicon-core-v1.0.0/lexicon.sqlite"
+          ]
+        },
+        {
+          "path": "manifest.json",
+          "size_bytes": 4164,
+          "sha256": "5e706a99a29472c57c73787c5d501929580882414a1dcf54e40fa907ab5855cb",
+          "urls": [
+            "https://github.com/__GITHUB_REPOSITORY__/releases/download/resource-lexicon-core-v1.0.0/manifest.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lexicon-semantic",
+      "version": "1.0.0",
+      "contract_version": 1,
+      "dependencies": ["lexicon-core"],
+      "files": [
+        {
+          "path": "model.onnx",
+          "size_bytes": 118346824,
+          "sha256": "dd476dd0c2514e9b9be83aeb3853fac0763e0bdf4a71645407587d77c48a2d88",
+          "urls": [
+            "https://github.com/__GITHUB_REPOSITORY__/releases/download/resource-lexicon-semantic-v1.0.0/model.onnx"
+          ]
+        },
+        {
+          "path": "tokenizer.json.zst",
+          "size_bytes": 2583150,
+          "sha256": "f2a1c25c2300081f6ac050e724535c2b537cc683ba8496023fa2c03fae099b1f",
+          "urls": [
+            "https://github.com/__GITHUB_REPOSITORY__/releases/download/resource-lexicon-semantic-v1.0.0/tokenizer.json.zst"
+          ]
+        },
+        {
+          "path": "identity.f16",
+          "size_bytes": 39308544,
+          "sha256": "b8a0afb3f363464cba9c525d8676f99aad0017edead4393093943af4d4a69fff",
+          "urls": [
+            "https://github.com/__GITHUB_REPOSITORY__/releases/download/resource-lexicon-semantic-v1.0.0/identity.f16"
+          ]
+        },
+        {
+          "path": "knowledge.f16",
+          "size_bytes": 39308544,
+          "sha256": "b91a6985e6cd73f8739d0b4c72eb0383c18ceacc93f394f13a1bc45c927c6e03",
+          "urls": [
+            "https://github.com/__GITHUB_REPOSITORY__/releases/download/resource-lexicon-semantic-v1.0.0/knowledge.f16"
+          ]
+        },
+        {
+          "path": "LICENSE-model.txt",
+          "size_bytes": 854,
+          "sha256": "9fae4674b4260319d68d71c0977dc449e159018e5974b9fd5dad6109febb1f35",
+          "urls": [
+            "https://github.com/__GITHUB_REPOSITORY__/releases/download/resource-lexicon-semantic-v1.0.0/LICENSE-model.txt"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "anime-dbrating",
+      "version": "1.0.0",
+      "contract_version": 1,
+      "dependencies": [],
+      "files": [
+        {
+          "path": "model.onnx",
+          "size_bytes": 16832684,
+          "sha256": "c7d6fd0cd71c48616fa87fe2bca87f8e1775e9a3b96d12797e2144fca3543362",
+          "urls": [
+            "https://huggingface.co/deepghs/anime_dbrating/resolve/7af21db648acdeb74f5c334abda9dd7403407b3c/mobilenetv3_large_100_v0_ls0.2/model.onnx?download=true"
+          ]
+        },
+        {
+          "path": "meta.json",
+          "size_bytes": 169,
+          "sha256": "65d5d69ef309eba3d04e5058f9bafcd7b33a707a05adaa93f09d8c1655faf163",
+          "urls": [
+            "https://huggingface.co/deepghs/anime_dbrating/resolve/7af21db648acdeb74f5c334abda9dd7403407b3c/mobilenetv3_large_100_v0_ls0.2/meta.json?download=true"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wd-swinv2-tagger-v3",
+      "version": "1.0.0",
+      "contract_version": 1,
+      "dependencies": [],
+      "files": [
+        {
+          "path": "model.onnx",
+          "size_bytes": 467460978,
+          "sha256": "e6774bff34d43bd49f75a47db4ef217dce701c9847b546523eb85ff6dbba1db1",
+          "urls": [
+            "https://huggingface.co/SmilingWolf/wd-swinv2-tagger-v3/resolve/627aef95638667ddcaa3ac8ae625e88ea5b02f51/model.onnx?download=true"
+          ]
+        },
+        {
+          "path": "selected_tags.csv",
+          "size_bytes": 308468,
+          "sha256": "298633d94d0031d2081c0893f29c82eab7f0df00b08483ba8f29d1e979441217",
+          "urls": [
+            "https://huggingface.co/SmilingWolf/wd-swinv2-tagger-v3/resolve/627aef95638667ddcaa3ac8ae625e88ea5b02f51/selected_tags.csv?download=true"
+          ]
+        }
+      ]
+    }
+  ],
+  "groups": [
+    { "id": "starter", "resources": ["lexicon-core", "anime-dbrating"] },
+    { "id": "semantic-search", "resources": ["lexicon-core", "lexicon-semantic"] },
+    {
+      "id": "enhanced-safety",
+      "resources": ["anime-dbrating", "wd-swinv2-tagger-v3"]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 //! Read-only `SQLite` and `ONNX` adapter for Atelier's built-in Danbooru lexicon.
 
+mod managed;
 mod manifest;
 mod semantic;
 mod sqlite;
@@ -14,6 +15,7 @@ use atelier_prompt_lexicon::{
     ResolvedLexiconEntity,
 };
 
+pub use managed::ManagedLexiconBundle;
 pub use manifest::{
     BUNDLE_FORMAT, BUNDLE_SCHEMA_VERSION, BundleFile, DATABASE_SCHEMA_VERSION, EnrichmentManifest,
     LexiconBundleManifest, RankingManifest, SemanticManifest, SemanticModelContract,
@@ -21,7 +23,7 @@ pub use manifest::{
 };
 
 pub struct LexiconBundle {
-    root: PathBuf,
+    semantic_root: PathBuf,
     database_path: PathBuf,
     manifest: LexiconBundleManifest,
     semantic: OnceLock<Result<Mutex<semantic::SemanticEngine>, LexiconError>>,
@@ -36,15 +38,41 @@ impl LexiconBundle {
     /// # Errors
     /// Returns an error when the manifest or lexical database is invalid.
     pub fn open(root: impl AsRef<Path>) -> LexiconResult<Arc<Self>> {
-        let root = root.as_ref().to_path_buf();
-        let manifest = LexiconBundleManifest::read(&root)?;
-        manifest.verify_checksum(&root, &manifest.database)?;
-        let database_path = root.join(&manifest.database.file);
+        Self::open_with_roots(root.as_ref(), root.as_ref())
+    }
+
+    /// Opens lexical and semantic data from separate downloadable-resource roots.
+    ///
+    /// # Errors
+    /// Returns an error when manifests, hashes, `SQLite` data, or semantic files are invalid.
+    pub fn open_with_roots(core_root: &Path, semantic_root: &Path) -> LexiconResult<Arc<Self>> {
+        let manifest = LexiconBundleManifest::read_with_roots(core_root, semantic_root)?;
+        manifest.verify_checksum(core_root, &manifest.database)?;
+        let database_path = core_root.join(&manifest.database.file);
         let connection = sqlite::open_read_only(&database_path)?;
         sqlite::validate_database(&connection)?;
         drop(connection);
         Ok(Arc::new(Self {
-            root,
+            semantic_root: semantic_root.to_path_buf(),
+            database_path,
+            manifest,
+            semantic: OnceLock::new(),
+        }))
+    }
+
+    /// Opens only the lexical core resource.
+    ///
+    /// # Errors
+    /// Returns an error when the manifest, hashes, or `SQLite` data are invalid.
+    pub fn open_core(core_root: &Path) -> LexiconResult<Arc<Self>> {
+        let manifest = LexiconBundleManifest::read_core(core_root)?;
+        manifest.verify_checksum(core_root, &manifest.database)?;
+        let database_path = core_root.join(&manifest.database.file);
+        let connection = sqlite::open_read_only(&database_path)?;
+        sqlite::validate_database(&connection)?;
+        drop(connection);
+        Ok(Arc::new(Self {
+            semantic_root: core_root.to_path_buf(),
             database_path,
             manifest,
             semantic: OnceLock::new(),
@@ -63,11 +91,11 @@ impl LexiconBundle {
                         "bundle does not contain semantic assets".to_owned(),
                     )
                 })?;
-                manifest.verify_checksums(&self.root, &self.manifest)?;
+                manifest.verify_checksums(&self.semantic_root, &self.manifest)?;
                 let connection = self.connection()?;
                 let rows = sqlite::all_semantic_rows(&connection)?;
                 semantic::SemanticEngine::load(
-                    &self.root,
+                    &self.semantic_root,
                     manifest,
                     self.manifest.ranking.clone(),
                     rows,

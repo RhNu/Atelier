@@ -1,0 +1,21 @@
+[package]
+name = "atelier-adapter-downloadable-resources-fs"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+atelier-downloadable-resources = { workspace = true }
+futures-util = { workspace = true }
+log = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+futures-executor = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

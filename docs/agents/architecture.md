@@ -62,6 +62,7 @@ crates/
   features/
     artifacts/
     director/
+    downloadable-resources/
     gallery/
     generation/
     image-analysis/
@@ -78,6 +79,7 @@ crates/
 
   adapters/
     database/
+    downloadable-resources-fs/
     image-codec/
     image-analysis-onnx/
     keyring/
@@ -102,6 +104,8 @@ Feature crates are the default owner for domain concepts:
 
 - `workspace`: workspace root, layout, controlled paths, lock, manifest.
 - `resource-catalog`: resource IDs, kinds, owners, lifecycle, blob and variant ports.
+- `downloadable-resources`: application-global reconstructable runtime resource descriptors,
+  groups, install state, resolution, and leases.
 - `prompt`: NovelAI-oriented prompt syntax, formatting, functions, diagnostics.
 - `prompt-resources`: chunks, prompt functions, compile trace, prompt resource ports.
 - `generation`: NovelAI image generation params, normalization, Anlas estimate result model, request plan, generation client ports. Model capabilities and pricing formulas stay in `novelai-bridge`; capabilities are re-exported through `ImageModel::capabilities`, and pricing is invoked by `adapters/novelai`.
@@ -109,8 +113,9 @@ Feature crates are the default owner for domain concepts:
 - `artifacts`: generated artifact semantics, replay manifest, visual asset references.
 - `gallery`: gallery item index model, query, source references, explicit unscanned/scanned/failed/
   unavailable safety state, and manual safety override.
-- `image-analysis`: model-neutral rating and tag evidence, model package state, and analyzer/model
-  manager ports. Rating-only requests avoid allocating WD general and character tag names.
+- `image-analysis`: model-neutral rating and tag evidence plus analyzer/session-control ports.
+  Downloading and package lifecycle belong to `downloadable-resources`. Rating-only requests avoid
+  allocating WD general and character tag names.
 - `vibe`: Vibe document import/export, encoding records, cache keys, Vibe client ports.
 - `director`: Director tool request and client port.
 - `safety`: versioned rating-cascade policy assets, primary/review evidence,
@@ -134,8 +139,10 @@ Adapters are the boundary for real I/O:
 - `image-codec`: PNG/JPEG/WebP probing plus deterministic gallery/export variant encoding.
 - `keyring`: system credential storage for secret values.
 - `novelai`: `novelai-bridge` integration and resolver-backed NovelAI clients.
-- `image-analysis-onnx`: pinned dbrating and optional WD Tagger package download, verification,
-  preprocessing, lazy ONNX sessions, rating extraction, and future general/character tag output.
+- `downloadable-resources-fs`: HTTPS catalog caching, ranged downloads, mirror fallback,
+  SHA-256 verification, atomic activation, and lease-aware deletion below the app data directory.
+- `image-analysis-onnx`: resolves verified dbrating and WD resources, then owns preprocessing,
+  lazy ONNX sessions, rating extraction, and future general/character tag output.
 - `settings-fs`: user-level global settings stored below the desktop host-provided application configuration directory.
 - `secrets-fs`: application-level NovelAI API key metadata stored below the desktop host-provided
   application configuration directory. Secret values remain in the system keyring.
@@ -174,14 +181,20 @@ publishing it.
 
 ## Resource Rule
 
-Any durable binary or semi-structured resource must go through `resource-catalog`.
+Workspace-owned durable binary or semi-structured creative resources must go through
+`resource-catalog`.
 
 Feature crates may store `ResourceRef` plus feature-owned metadata. They should not create long-lived resource directories, encode physical path rules, or maintain private binary indexes.
 
-Downloaded image-analysis model packages are a deliberate exception: they are global,
-revision-pinned, SHA-256-verified, reconstructable runtime assets below
-`app_data_dir/models/image-analysis`, not workspace-owned creative resources. They do not enter
-`resource-catalog`.
+Large application-level data and models are global, SHA-256-verified, reconstructable runtime
+assets managed by `downloadable-resources` below
+`app_data_dir/downloadable-resources/<id>/<version>`. Consumers resolve verified directories and
+retain leases while files may be mmap-backed or held by ONNX sessions. They do not enter the
+workspace `resource-catalog`.
+
+The stable catalog uses HTTPS for authenticity and per-file SHA-256 for integrity. It is not
+separately signed. This intentionally accepts compromise of the HTTPS publication path as a trust
+risk; application updater artifacts remain independently signed by Tauri.
 
 ## Generation Output Ownership
 

@@ -2,10 +2,11 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { EmptyState } from "@/components/ui";
+import { AppButton, EmptyState } from "@/components/ui";
 import { useToastStore } from "@/stores/toast-store";
 import type { LexiconSearchItemDto } from "@/types";
 
+import { useInstallDownloadableResourceGroupMutation } from "../settings/data/useDownloadableResources";
 import { LexiconBasket } from "./components/LexiconBasket";
 import { LexiconFilters } from "./components/LexiconFilters";
 import { LexiconInspector } from "./components/LexiconInspector";
@@ -28,6 +29,7 @@ export function LexiconPage() {
   const bootstrap = useLexiconBootstrapQuery();
   const detail = useLexiconEntityQuery(selectedId);
   const append = useAppendLexiconEntitiesMutation();
+  const installResources = useInstallDownloadableResourceGroupMutation();
   const basketIds = useMemo(() => new Set(basket.keys()), [basket]);
   const basketItems = useMemo(() => [...basket.values()], [basket]);
 
@@ -63,6 +65,20 @@ export function LexiconPage() {
     },
     [append, basket, navigate, pushToast, t],
   );
+  const installLexicon = useCallback(() => {
+    installResources.mutate(
+      { request: { group_id: "semantic-search" }, onProgress: () => undefined },
+      { onSuccess: () => void bootstrap.refetch() },
+    );
+  }, [bootstrap, installResources]);
+  const installAction = useMemo(
+    () => (
+      <AppButton disabled={installResources.isPending} onClick={installLexicon}>
+        {installResources.isPending ? t("installingLexicon") : t("installLexicon")}
+      </AppButton>
+    ),
+    [installLexicon, installResources.isPending, t],
+  );
 
   if (bootstrap.isPending) {
     return <p className="p-4 text-sm text-app-muted">{t("loadingCatalog")}</p>;
@@ -75,6 +91,7 @@ export function LexiconPage() {
           bootstrap.data?.status.message ??
           (bootstrap.error ? formatError(bootstrap.error) : undefined)
         }
+        action={installAction}
       />
     );
   }

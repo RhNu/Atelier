@@ -59,4 +59,6 @@ export const lexicon = {
   addedToDraft: "标签已加入生成草稿。",
   loadingCatalog: "正在加载词库 Bundle",
   unavailable: "词库不可用",
+  installLexicon: "安装词库资源",
+  installingLexicon: "正在安装词库资源",
 } satisfies LocaleShape<typeof enLexicon>;

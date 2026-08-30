@@ -1,11 +1,11 @@
 mod account;
 mod danbooru;
 mod director;
+mod downloadable_resource;
 mod events;
 mod gallery;
 mod generation;
 mod history;
-mod image_analysis;
 mod prompt;
 mod resource;
 mod settings;
@@ -21,7 +21,8 @@ use atelier_adapter_novelai::{
 };
 use atelier_app_api::{error::ErrorEnvelopeDto, event::AppEventDto};
 use atelier_danbooru::{DanbooruClient, UnavailableDanbooruClient};
-use atelier_image_analysis::ImageAnalysisModelManager;
+use atelier_downloadable_resources::DownloadableResourceManager;
+use atelier_image_analysis::ImageAnalysisSessionControl;
 use atelier_prompt_lexicon::{LexiconEngine, UnavailableLexicon};
 use atelier_safety::{SafetyPolicyControl, SafetyScanner};
 use atelier_secrets::{ApiKeyRegistryService, ApiKeyRegistryStore, SecretStore};
@@ -47,7 +48,8 @@ pub struct AtelierRuntime<
     factory: F,
     extractor: E,
     safety_scanner: Option<Arc<dyn SafetyScanner>>,
-    image_analysis_models: Option<Arc<dyn ImageAnalysisModelManager>>,
+    downloadable_resources: Option<Arc<dyn DownloadableResourceManager>>,
+    image_analysis_sessions: Option<Arc<dyn ImageAnalysisSessionControl>>,
     safety_policy_control: Option<Arc<dyn SafetyPolicyControl>>,
     lexicon: Arc<dyn LexiconEngine>,
     danbooru: Arc<dyn DanbooruClient>,
@@ -95,7 +97,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner: None,
-            image_analysis_models: None,
+            downloadable_resources: None,
+            image_analysis_sessions: None,
             safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
             danbooru: Arc::new(UnavailableDanbooruClient),
@@ -124,7 +127,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner,
-            image_analysis_models: None,
+            downloadable_resources: None,
+            image_analysis_sessions: None,
             safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
             danbooru: Arc::new(UnavailableDanbooruClient),
@@ -154,7 +158,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner,
-            image_analysis_models: None,
+            downloadable_resources: None,
+            image_analysis_sessions: None,
             safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
             danbooru: Arc::new(UnavailableDanbooruClient),
@@ -185,7 +190,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             factory,
             extractor,
             safety_scanner,
-            image_analysis_models: None,
+            downloadable_resources: None,
+            image_analysis_sessions: None,
             safety_policy_control: None,
             lexicon,
             danbooru: Arc::new(UnavailableDanbooruClient),
@@ -211,12 +217,21 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
     }
 
     #[must_use]
+    pub fn with_downloadable_resources(
+        mut self,
+        resources: Arc<dyn DownloadableResourceManager>,
+    ) -> Self {
+        self.downloadable_resources = Some(resources);
+        self
+    }
+
+    #[must_use]
     pub fn with_image_analysis(
         mut self,
-        models: Arc<dyn ImageAnalysisModelManager>,
+        sessions: Arc<dyn ImageAnalysisSessionControl>,
         safety_policy_control: Arc<dyn SafetyPolicyControl>,
     ) -> Self {
-        self.image_analysis_models = Some(models);
+        self.image_analysis_sessions = Some(sessions);
         self.safety_policy_control = Some(safety_policy_control);
         self
     }

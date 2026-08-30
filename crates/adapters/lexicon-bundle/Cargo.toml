@@ -6,6 +6,7 @@ publish.workspace = true
 
 [dependencies]
 atelier-adapter-onnx-runtime = { workspace = true }
+atelier-downloadable-resources = { workspace = true }
 atelier-prompt-lexicon = { workspace = true }
 half = { workspace = true }
 memmap2 = { workspace = true }

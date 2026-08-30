@@ -7,16 +7,14 @@ use crate::desktop_system::{
 };
 use atelier_adapter_danbooru::ReqwestDanbooruClient;
 use atelier_adapter_keyring::KeyringSecretStore;
-use atelier_adapter_lexicon_bundle::LexiconBundle;
+use atelier_adapter_lexicon_bundle::ManagedLexiconBundle;
 use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
 use atelier_adapter_secrets_fs::FileSystemApiKeyRegistryStore;
 use atelier_adapter_settings_fs::FileSystemGlobalSettingsRepository;
 use atelier_app::{AtelierRuntime, GenerationWorkerCancel};
 use atelier_app_api::event::{AppEventDto, AppEventKindDto};
-use atelier_app_api::gallery::RescanGallerySafetyRequestDto;
 use atelier_app_api::generation::QueueDirectiveDto;
-use atelier_image_analysis::{ImageAnalysisModelId, ImageAnalysisModelManager};
-use atelier_prompt_lexicon::{LexiconEngine, UnavailableLexicon};
+use atelier_prompt_lexicon::LexiconEngine;
 use atelier_safety::SafetyPipeline;
 use atelier_settings::{GlobalSettingsRepository, GlobalSettingsService};
 use tauri::{AppHandle, Emitter, Manager};
@@ -92,6 +90,10 @@ struct WorkerStart {
 }
 
 impl WorkerState {
+    const fn is_busy(&self) -> bool {
+        self.current.is_some() || self.pending.is_some()
+    }
+
     fn start_or_defer(&mut self, directive: QueueDirectiveDto) -> Option<WorkerStart> {
         if let Some(run) = &self.current {
             if run.cancel.is_cancelled() {
@@ -151,6 +153,10 @@ impl WorkerState {
 }
 
 impl DesktopGenerationWorker {
+    pub fn is_busy(&self) -> bool {
+        self.inner.lock().map_or(true, |state| state.is_busy())
+    }
+
     fn kick(
         &self,
         app_handle: AppHandle,
@@ -262,6 +268,18 @@ pub fn build_desktop_state(
             .unwrap_or_default();
     let global_settings = GlobalSettingsService::new(settings_repository);
 
+    let catalog_url = std::env::var("ATELIER_RESOURCE_CATALOG_URL")
+        .ok()
+        .or_else(|| option_env!("ATELIER_RESOURCE_CATALOG_URL").map(str::to_owned))
+        .unwrap_or_default();
+    let downloadable_resources =
+        atelier_adapter_downloadable_resources_fs::FileSystemDownloadableResourceManager::new(
+            system.paths().app_data_dir.join("downloadable-resources"),
+            catalog_url,
+            "",
+        )?;
+    downloadable_resources.cleanup_legacy_image_analysis(&system.paths().app_data_dir)?;
+
     let image_analysis = system
         .resolve_onnx_runtime_library()
         .ok()
@@ -273,13 +291,9 @@ pub fn build_desktop_state(
             runtime
                 .and_then(|runtime| {
                     atelier_adapter_image_analysis_onnx::OnnxImageAnalysisRuntime::new(
-                        system
-                            .paths()
-                            .app_data_dir
-                            .join("models")
-                            .join("image-analysis"),
                         runtime,
                         &runtime_path,
+                        downloadable_resources.clone(),
                     )
                     .map_err(|error| error.to_string())
                 })
@@ -289,20 +303,7 @@ pub fn build_desktop_state(
                 })
                 .ok()
         });
-    let lexicon: Arc<dyn LexiconEngine> = match system.resolve_lexicon_bundle() {
-        Ok(Some(root)) => match LexiconBundle::open(root) {
-            Ok(engine) => engine,
-            Err(error) => {
-                log::warn!("built-in lexicon is unavailable: {error}");
-                Arc::new(UnavailableLexicon::new(error.to_string()))
-            }
-        },
-        Ok(None) => Arc::new(UnavailableLexicon::default()),
-        Err(error) => {
-            log::warn!("built-in lexicon assets are unavailable: {error}");
-            Arc::new(UnavailableLexicon::new(error.to_string()))
-        }
-    };
+    let lexicon: Arc<dyn LexiconEngine> = ManagedLexiconBundle::new(downloadable_resources.clone());
     let safety_pipeline = image_analysis.as_ref().map(|analysis| {
         Arc::new(SafetyPipeline::new(
             analysis.clone(),
@@ -320,9 +321,9 @@ pub fn build_desktop_state(
                 .map(|pipeline| pipeline as Arc<dyn atelier_safety::SafetyScanner>),
             lexicon,
         )
+        .with_downloadable_resources(downloadable_resources)
         .with_api_key_registry(Arc::new(application_api_key_registry(&system)))
         .with_danbooru_client(Arc::new(ReqwestDanbooruClient::new()?));
-    let primary_installer = image_analysis.clone();
     if let Some(analysis) = image_analysis {
         runtime = runtime.with_image_analysis(
             analysis,
@@ -331,23 +332,6 @@ pub fn build_desktop_state(
     }
     let host = Arc::new(runtime);
     subscribe_window_events(&host, app_handle.clone(), system.clone())?;
-    if let Some(analysis) = primary_installer {
-        let rescan_host = host.clone();
-        tauri::async_runtime::spawn(async move {
-            match analysis
-                .install(ImageAnalysisModelId::AnimeDbRating, None)
-                .await
-            {
-                Ok(_) => {
-                    let _ = rescan_host
-                        .rescan_gallery_safety(RescanGallerySafetyRequestDto::default())
-                        .await;
-                }
-                Err(error) => log::warn!("automatic dbrating installation failed: {error}"),
-            }
-        });
-    }
-
     Ok(DesktopState {
         app_handle,
         host,
@@ -646,5 +630,26 @@ mod tests {
         assert!(state.current.is_none());
         assert!(state.pending.is_none());
         assert!(first.cancel.is_cancelled());
+    }
+
+    #[test]
+    fn worker_state_reports_active_and_queued_work_as_busy_for_updater_guard() {
+        let mut state = WorkerState::default();
+        assert!(!state.is_busy());
+        let current = state
+            .start_or_defer(QueueDirectiveDto::StartJob {
+                job_id: "job-1".to_owned(),
+            })
+            .unwrap();
+        assert!(state.is_busy());
+        state.cancel_current();
+        assert!(state
+            .start_or_defer(QueueDirectiveDto::StartJob {
+                job_id: "job-2".to_owned(),
+            })
+            .is_none());
+        assert!(state.is_busy());
+        assert!(state.finish(current.id).is_some());
+        assert!(!state.is_busy());
     }
 }

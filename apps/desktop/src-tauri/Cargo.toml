@@ -24,6 +24,7 @@ log = "0.4"
 atelier-adapter-keyring = { workspace = true }
 atelier-adapter-danbooru = { workspace = true }
 atelier-adapter-image-codec = { workspace = true }
+atelier-adapter-downloadable-resources-fs = { workspace = true }
 atelier-adapter-novelai = { workspace = true }
 atelier-adapter-lexicon-bundle = { workspace = true }
 atelier-adapter-onnx-runtime = { workspace = true }
@@ -33,6 +34,7 @@ atelier-adapter-secrets-fs = { workspace = true }
 atelier-app = { workspace = true }
 atelier-app-api = { workspace = true }
 atelier-image-analysis = { workspace = true }
+atelier-downloadable-resources = { workspace = true }
 atelier-prompt-lexicon = { workspace = true }
 atelier-safety = { workspace = true }
 atelier-settings = { workspace = true }
@@ -43,6 +45,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-updater = "2"
 thiserror = { workspace = true }
 zip = { version = "2.4.2", default-features = false, features = ["deflate"] }
 

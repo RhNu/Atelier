@@ -210,15 +210,38 @@ impl LexiconBundleManifest {
     ///
     /// Returns an error when the manifest cannot be read, decoded, or validated.
     pub fn read(root: &Path) -> LexiconResult<Self> {
+        Self::read_with_roots(root, root)
+    }
+
+    /// Reads and validates a lexical-only manifest.
+    ///
+    /// # Errors
+    /// Returns an error when the manifest cannot be read, parsed, or validated.
+    pub fn read_core(root: &Path) -> LexiconResult<Self> {
+        let mut manifest = Self::parse(root)?;
+        manifest.semantic = None;
+        manifest.validate(root)?;
+        Ok(manifest)
+    }
+
+    /// Reads a core manifest and validates its files across split resource roots.
+    ///
+    /// # Errors
+    /// Returns an error when the manifest or any declared file is invalid.
+    pub fn read_with_roots(core_root: &Path, semantic_root: &Path) -> LexiconResult<Self> {
+        let manifest = Self::parse(core_root)?;
+        manifest.validate_with_roots(core_root, semantic_root)?;
+        Ok(manifest)
+    }
+
+    fn parse(root: &Path) -> LexiconResult<Self> {
         let path = root.join("manifest.json");
         let bytes = fs::read(&path).map_err(|error| {
             LexiconError::invalid_bundle(format!("failed to read {}: {error}", path.display()))
         })?;
-        let manifest: Self = serde_json::from_slice(&bytes).map_err(|error| {
+        serde_json::from_slice(&bytes).map_err(|error| {
             LexiconError::invalid_bundle(format!("failed to parse {}: {error}", path.display()))
-        })?;
-        manifest.validate(root)?;
-        Ok(manifest)
+        })
     }
 
     /// Validates the schema, paths, sizes, and semantic model contract.
@@ -227,6 +250,14 @@ impl LexiconBundleManifest {
     ///
     /// Returns an error when any bundle invariant is violated.
     pub fn validate(&self, root: &Path) -> LexiconResult<()> {
+        self.validate_with_roots(root, root)
+    }
+
+    /// Validates declared core and semantic files in their respective resource roots.
+    ///
+    /// # Errors
+    /// Returns an error for missing files, unsafe paths, size mismatches, or hash mismatches.
+    pub fn validate_with_roots(&self, core_root: &Path, semantic_root: &Path) -> LexiconResult<()> {
         if self.format != BUNDLE_FORMAT || self.schema_version != BUNDLE_SCHEMA_VERSION {
             return Err(LexiconError::invalid_bundle(format!(
                 "unsupported format {} schema {}",
@@ -251,18 +282,18 @@ impl LexiconBundleManifest {
                 "invalid LLM enrichment provenance",
             ));
         }
-        validate_file(root, &self.database)?;
+        validate_file(core_root, &self.database)?;
         if let Some(semantic) = &self.semantic {
             if semantic.dimensions == 0 || semantic.entity_count == 0 {
                 return Err(LexiconError::invalid_bundle(
                     "semantic dimensions and entity_count must be positive",
                 ));
             }
-            validate_file(root, &semantic.model)?;
-            validate_tokenizer_file(root, &semantic.tokenizer)?;
-            validate_file(root, &semantic.license)?;
-            validate_vector_file(root, &semantic.identity_vectors, semantic)?;
-            validate_vector_file(root, &semantic.knowledge_vectors, semantic)?;
+            validate_file(semantic_root, &semantic.model)?;
+            validate_tokenizer_file(semantic_root, &semantic.tokenizer)?;
+            validate_file(semantic_root, &semantic.license)?;
+            validate_vector_file(semantic_root, &semantic.identity_vectors, semantic)?;
+            validate_vector_file(semantic_root, &semantic.knowledge_vectors, semantic)?;
             if semantic.model_contract.pooling != "mean" || !semantic.model_contract.normalize {
                 return Err(LexiconError::invalid_bundle(
                     "schema v2 semantic contract requires mean pooling and normalization",

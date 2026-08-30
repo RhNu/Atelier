@@ -1,6 +1,8 @@
+mod app_update;
 mod desktop_io;
 mod resource_image;
 
+pub use app_update::*;
 pub use desktop_io::*;
 
 use std::sync::Arc;
@@ -18,6 +20,10 @@ use atelier_app_api::{
         SaveDanbooruAccountRequestDto,
     },
     director::{DirectorToolResultDto, RunDirectorToolRequestDto},
+    downloadable_resource::{
+        DownloadableResourceGroupRequestDto, DownloadableResourceInstallProgressDto,
+        DownloadableResourceRequestDto, DownloadableResourceStatusDto, DownloadableResourcesDto,
+    },
     error::ErrorEnvelopeDto,
     event::{AppEventPageDto, EventsSinceRequestDto},
     gallery::{
@@ -39,10 +45,6 @@ use atelier_app_api::{
         GenerationHistoryPageDto, GenerationHistoryQueryDto, RerunGenerationHistoryBatchRequestDto,
         RerunGenerationHistoryBatchResponseDto, RerunGenerationHistoryItemRequestDto,
         RerunGenerationHistoryItemResponseDto, RunHistoryPageDto, RunHistoryQueryDto,
-    },
-    image_analysis::{
-        ImageAnalysisModelIdDto, ImageAnalysisModelInstallProgressDto,
-        ImageAnalysisModelRequestDto, ImageAnalysisModelStatusDto,
     },
     prompt::{
         AppendLexiconEntitiesRequestDto, CompileGenerationPromptRequestDto,
@@ -69,7 +71,7 @@ use atelier_app_api::{
         VibeDocumentEntryDto, VibeDocumentPageDto,
     },
 };
-use atelier_image_analysis::{ModelInstallProgress, ModelInstallProgressSink};
+use atelier_downloadable_resources::{ResourceInstallProgress, ResourceInstallProgressSink};
 use tauri::{ipc::Channel, State};
 
 use crate::desktop::DesktopState;
@@ -81,24 +83,16 @@ fn join_error(error: impl std::fmt::Display) -> ErrorEnvelopeDto {
     )
 }
 
-struct ModelProgressChannel(Channel<ImageAnalysisModelInstallProgressDto>);
+struct ResourceProgressChannel(Channel<DownloadableResourceInstallProgressDto>);
 
-impl ModelInstallProgressSink for ModelProgressChannel {
-    fn report(&self, progress: ModelInstallProgress) {
-        let model_id = match progress.id {
-            atelier_image_analysis::ImageAnalysisModelId::AnimeDbRating => {
-                ImageAnalysisModelIdDto::AnimeDbRating
-            }
-            atelier_image_analysis::ImageAnalysisModelId::WdSwinv2TaggerV3 => {
-                ImageAnalysisModelIdDto::WdSwinv2TaggerV3
-            }
-        };
-        if let Err(error) = self.0.send(ImageAnalysisModelInstallProgressDto {
-            model_id,
+impl ResourceInstallProgressSink for ResourceProgressChannel {
+    fn report(&self, progress: ResourceInstallProgress) {
+        if let Err(error) = self.0.send(DownloadableResourceInstallProgressDto {
+            resource_id: progress.resource_id,
             downloaded_bytes: progress.downloaded_bytes,
             total_bytes: progress.total_bytes,
         }) {
-            log::debug!("model install progress channel closed: {error}");
+            log::debug!("resource install progress channel closed: {error}");
         }
     }
 }
@@ -172,24 +166,42 @@ pub async fn get_danbooru_media(
 }
 
 #[tauri::command]
-pub async fn get_image_analysis_model_status(
+pub async fn list_downloadable_resources(
     state: State<'_, DesktopState>,
-) -> CommandResult<Vec<ImageAnalysisModelStatusDto>> {
-    state.host.get_image_analysis_model_status().await
+) -> CommandResult<DownloadableResourcesDto> {
+    state.host.list_downloadable_resources().await
 }
 
 #[tauri::command]
-pub async fn install_image_analysis_model(
+pub async fn refresh_downloadable_resource_catalog(
     state: State<'_, DesktopState>,
-    request: ImageAnalysisModelRequestDto,
-    on_progress: Channel<ImageAnalysisModelInstallProgressDto>,
-) -> CommandResult<ImageAnalysisModelStatusDto> {
-    let model_id = request.model_id;
+) -> CommandResult<DownloadableResourcesDto> {
+    state.host.refresh_downloadable_resource_catalog().await
+}
+
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri State command boundary"
+)]
+pub fn complete_downloadable_resource_onboarding(
+    state: State<'_, DesktopState>,
+) -> CommandResult<()> {
+    state.host.complete_downloadable_resource_onboarding()
+}
+
+#[tauri::command]
+pub async fn install_downloadable_resource(
+    state: State<'_, DesktopState>,
+    request: DownloadableResourceRequestDto,
+    on_progress: Channel<DownloadableResourceInstallProgressDto>,
+) -> CommandResult<DownloadableResourceStatusDto> {
+    let should_rescan = request.resource_id == "anime-dbrating";
     let status = state
         .host
-        .install_image_analysis_model(request, Some(&ModelProgressChannel(on_progress)))
+        .install_downloadable_resource(request, Some(&ResourceProgressChannel(on_progress)))
         .await?;
-    if model_id == ImageAnalysisModelIdDto::AnimeDbRating {
+    if should_rescan {
         let host = state.host.clone();
         tauri::async_runtime::spawn(async move {
             let _ = host
@@ -201,23 +213,35 @@ pub async fn install_image_analysis_model(
 }
 
 #[tauri::command]
-#[allow(
-    clippy::needless_pass_by_value,
-    reason = "Tauri commands extract managed state by value"
-)]
-pub fn cancel_image_analysis_model_install(
+pub async fn install_downloadable_resource_group(
     state: State<'_, DesktopState>,
-    request: ImageAnalysisModelRequestDto,
-) -> CommandResult<()> {
-    state.host.cancel_image_analysis_model_install(request)
+    request: DownloadableResourceGroupRequestDto,
+    on_progress: Channel<DownloadableResourceInstallProgressDto>,
+) -> CommandResult<Vec<DownloadableResourceStatusDto>> {
+    state
+        .host
+        .install_downloadable_resource_group(request, Some(&ResourceProgressChannel(on_progress)))
+        .await
 }
 
 #[tauri::command]
-pub async fn delete_image_analysis_model(
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri State command boundary"
+)]
+pub fn cancel_downloadable_resource_install(
     state: State<'_, DesktopState>,
-    request: ImageAnalysisModelRequestDto,
+    request: DownloadableResourceRequestDto,
 ) -> CommandResult<()> {
-    state.host.delete_image_analysis_model(request).await
+    state.host.cancel_downloadable_resource_install(request)
+}
+
+#[tauri::command]
+pub async fn delete_downloadable_resource(
+    state: State<'_, DesktopState>,
+    request: DownloadableResourceRequestDto,
+) -> CommandResult<()> {
+    state.host.delete_downloadable_resource(request).await
 }
 
 #[tauri::command]

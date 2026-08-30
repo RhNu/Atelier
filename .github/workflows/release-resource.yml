@@ -1,0 +1,66 @@
+name: Release resource
+
+on:
+  push:
+    tags: ["resource-*-v*.*.*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: resource-catalog-publication
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          lfs: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Parse resource tag
+        id: tag
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_NAME -notmatch '^resource-(?<id>[a-z0-9][a-z0-9-]*)-v(?<version>[0-9]+\.[0-9]+\.[0-9]+)$') { throw "invalid resource tag" }
+          "id=$($Matches.id)" >> $env:GITHUB_OUTPUT
+          "version=$($Matches.version)" >> $env:GITHUB_OUTPUT
+      - name: Pull only the tagged LFS payload
+        shell: pwsh
+        run: git lfs pull --include="resources/payloads/${{ steps.tag.outputs.id }}/${{ steps.tag.outputs.version }}/**" --exclude="*"
+      - name: Validate descriptor, payload, size, licenses, and hashes
+        run: cargo xtask resource check-tag ${{ github.ref_name }}
+      - name: Create frozen descriptor
+        run: node scripts/write-resource-descriptor.mjs ${{ steps.tag.outputs.id }} resource.json
+      - name: Publish non-latest resource release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if (-not (gh release view $tag 2>$null)) {
+            gh release create $tag resource.json --verify-tag --title $tag --notes "Frozen downloadable resource descriptor." --latest=false
+          } else {
+            gh release upload $tag resource.json --clobber
+          }
+          $payload = "resources/payloads/${{ steps.tag.outputs.id }}/${{ steps.tag.outputs.version }}"
+          if (Test-Path $payload) {
+            Get-ChildItem $payload -Recurse -File | ForEach-Object { gh release upload $tag $_.FullName --clobber }
+          }
+      - name: Verify every stable catalog URL
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force published | Out-Null
+          node scripts/render-resource-catalog.mjs published/catalog-v1.json
+          node scripts/verify-resource-catalog.mjs published/catalog-v1.json
+      - name: Atomically replace stable catalog asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if (-not (gh release view resource-catalog 2>$null)) {
+            gh release create resource-catalog --title "Downloadable resource catalog" --notes "Stable Atelier resource catalog." --latest=false
+          }
+          gh release upload resource-catalog published/catalog-v1.json --clobber

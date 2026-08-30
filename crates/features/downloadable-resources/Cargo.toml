@@ -1,0 +1,12 @@
+[package]
+name = "atelier-downloadable-resources"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+semver = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+url = { workspace = true }
+thiserror = { workspace = true }

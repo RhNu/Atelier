@@ -2,6 +2,7 @@ mod app_api_types;
 mod command;
 mod lexicon;
 mod line_budget;
+mod release;
 
 pub use app_api_types::{AppApiTypeExportConfig, export_app_api_types};
 pub use command::{run, run_from_env, run_in_workspace};
@@ -11,4 +12,8 @@ pub use lexicon::{
 };
 pub use line_budget::{
     LineBudgetConfig, LineBudgetFinding, LineBudgetLevel, LineBudgetReport, check_line_budget,
+};
+pub use release::{
+    prepare_app_release, tag_app_release, tag_resource_release, validate_resource,
+    validate_resource_catalog, validate_resource_tag,
 };

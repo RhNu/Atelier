@@ -173,30 +173,3 @@ pub struct ImageAnalysis {
     pub general_tags: Vec<ImageTagScore>,
     pub character_tags: Vec<ImageTagScore>,
 }
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum ImageAnalysisModelState {
-    Missing,
-    Installing,
-    Ready,
-    Corrupt,
-    Failed,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ImageAnalysisModelStatus {
-    pub id: ImageAnalysisModelId,
-    pub required: bool,
-    pub state: ImageAnalysisModelState,
-    pub revision: String,
-    pub size_bytes: u64,
-    pub downloaded_bytes: u64,
-    pub message: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ModelInstallProgress {
-    pub id: ImageAnalysisModelId,
-    pub downloaded_bytes: u64,
-    pub total_bytes: u64,
-}

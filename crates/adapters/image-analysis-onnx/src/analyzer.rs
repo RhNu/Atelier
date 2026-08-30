@@ -159,18 +159,6 @@ impl OnnxImageAnalyzer {
             }
         }
     }
-
-    pub(crate) fn wait_until_idle(&self) -> ImageAnalysisResult<()> {
-        let session = match self {
-            Self::AnimeDbRating { session } | Self::WdSwinv2TaggerV3 { session, .. } => session,
-        };
-        drop(
-            session
-                .lock()
-                .map_err(|_| ImageAnalysisError::inference("model session lock is unavailable"))?,
-        );
-        Ok(())
-    }
 }
 
 fn read_wd_metadata(tags_path: &Path) -> ImageAnalysisResult<([usize; 4], usize)> {

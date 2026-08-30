@@ -14,9 +14,11 @@ import type {
   DanbooruAccountDto,
   SaveDanbooruAccountRequestDto,
   GlobalSettingsDto,
-  ImageAnalysisModelInstallProgressDto,
-  ImageAnalysisModelRequestDto,
-  ImageAnalysisModelStatusDto,
+  DownloadableResourceGroupRequestDto,
+  DownloadableResourceInstallProgressDto,
+  DownloadableResourceRequestDto,
+  DownloadableResourceStatusDto,
+  DownloadableResourcesDto,
   ResetWorkspaceSettingsResponseDto,
   SetActiveApiKeyRequestDto,
   SubscriptionSummaryDto,
@@ -51,17 +53,26 @@ const mocks = vi.hoisted(() => ({
     get: vi.fn<() => Promise<GlobalSettingsDto>>(),
     update: vi.fn<(request: UpdateGlobalSettingsRequestDto) => Promise<GlobalSettingsDto>>(),
   },
-  imageAnalysisApi: {
-    statuses: vi.fn<() => Promise<ImageAnalysisModelStatusDto[]>>(),
+  downloadableResourcesApi: {
+    list: vi.fn<() => Promise<DownloadableResourcesDto>>(),
+    refresh: vi.fn<() => Promise<DownloadableResourcesDto>>(),
+    completeOnboarding: vi.fn<() => Promise<void>>(),
     install:
       vi.fn<
         (
-          request: ImageAnalysisModelRequestDto,
-          onProgress: (progress: ImageAnalysisModelInstallProgressDto) => void,
-        ) => Promise<ImageAnalysisModelStatusDto>
+          request: DownloadableResourceRequestDto,
+          onProgress: (progress: DownloadableResourceInstallProgressDto) => void,
+        ) => Promise<DownloadableResourceStatusDto>
       >(),
-    cancelInstall: vi.fn<(request: ImageAnalysisModelRequestDto) => Promise<void>>(),
-    delete: vi.fn<(request: ImageAnalysisModelRequestDto) => Promise<void>>(),
+    installGroup:
+      vi.fn<
+        (
+          request: DownloadableResourceGroupRequestDto,
+          onProgress: (progress: DownloadableResourceInstallProgressDto) => void,
+        ) => Promise<DownloadableResourceStatusDto[]>
+      >(),
+    cancelInstall: vi.fn<(request: DownloadableResourceRequestDto) => Promise<void>>(),
+    delete: vi.fn<(request: DownloadableResourceRequestDto) => Promise<void>>(),
   },
 }));
 
@@ -98,12 +109,17 @@ vi.mock("../platform/atelier", () => ({
   danbooruApi: mocks.danbooruApi,
   settingsApi: mocks.settingsApi,
   globalSettingsApi: mocks.globalSettingsApi,
-  imageAnalysisApi: mocks.imageAnalysisApi,
+  downloadableResourcesApi: mocks.downloadableResourcesApi,
+  appUpdateApi: {
+    check: vi.fn<() => Promise<null>>(),
+    install: vi.fn<() => Promise<void>>(),
+  },
   queryKeys: {
     app: {
       bootstrap: () => ["app", "bootstrap"],
       globalSettings: () => ["app", "settings"],
-      imageAnalysisModels: () => ["app", "image-analysis-models"],
+      downloadableResources: () => ["app", "downloadable-resources"],
+      appUpdate: () => ["app", "update"],
     },
     account: {
       root: () => ["account"],
@@ -167,26 +183,31 @@ const activeSubscription: SubscriptionSummaryDto = {
   expires_at_ms: 1_800_000_000_000,
 };
 
-const readyImageAnalysisModels: ImageAnalysisModelStatusDto[] = [
-  {
-    model_id: "anime_db_rating",
-    required: true,
-    state: "ready",
-    revision: "7af21db648acdeb74f5c334abda9dd7403407b3c",
-    size_bytes: 16_832_853,
-    downloaded_bytes: 16_832_853,
-    message: null,
-  },
-  {
-    model_id: "wd_swinv2_tagger_v3",
-    required: false,
-    state: "ready",
-    revision: "627aef95638667ddcaa3ac8ae625e88ea5b02f51",
-    size_bytes: 467_769_446,
-    downloaded_bytes: 467_769_446,
-    message: null,
-  },
-];
+const readyResources: DownloadableResourcesDto = {
+  catalog_version: "1.0.0",
+  onboarding_complete: true,
+  groups: [],
+  resources: [
+    {
+      id: "anime-dbrating",
+      state: "ready",
+      available_version: "1.0.0",
+      installed_version: "1.0.0",
+      size_bytes: 16_832_853,
+      downloaded_bytes: 16_832_853,
+      message: null,
+    },
+    {
+      id: "wd-swinv2-tagger-v3",
+      state: "ready",
+      available_version: "1.0.0",
+      installed_version: "1.0.0",
+      size_bytes: 467_769_446,
+      downloaded_bytes: 467_769_446,
+      message: null,
+    },
+  ],
+};
 
 function cloneSettings(): WorkspaceSettingsDto {
   return structuredClone(defaultSettings) as WorkspaceSettingsDto;
@@ -223,9 +244,11 @@ function setup(
     frontend,
     safety,
   }));
-  mocks.imageAnalysisApi.statuses.mockResolvedValue(readyImageAnalysisModels);
-  mocks.imageAnalysisApi.cancelInstall.mockResolvedValue(undefined);
-  mocks.imageAnalysisApi.delete.mockResolvedValue(undefined);
+  mocks.downloadableResourcesApi.list.mockResolvedValue(readyResources);
+  mocks.downloadableResourcesApi.refresh.mockResolvedValue(readyResources);
+  mocks.downloadableResourcesApi.completeOnboarding.mockResolvedValue(undefined);
+  mocks.downloadableResourcesApi.cancelInstall.mockResolvedValue(undefined);
+  mocks.downloadableResourcesApi.delete.mockResolvedValue(undefined);
   mocks.accountApi.list.mockResolvedValue(keys);
   mocks.accountApi.create.mockImplementation(async (request) => ({
     id: request.id,
@@ -311,7 +334,6 @@ describe("Safety settings", () => {
     const { user } = setup();
 
     await user.click(await screen.findByRole("button", { name: "Safety" }));
-    expect(await screen.findByText("anime_dbrating")).toBeInTheDocument();
     expect(screen.getByText("WD SwinV2 Tagger v3")).toBeInTheDocument();
     const toggle = screen.getByLabelText("WD automatic review");
     expect(toggle).toBeEnabled();
@@ -322,21 +344,20 @@ describe("Safety settings", () => {
     );
   });
 
-  it("shows model status failures and can retry them", async () => {
+  it("keeps automatic review disabled while the WD resource is unavailable", async () => {
     const { user } = setup();
-    mocks.imageAnalysisApi.statuses.mockRejectedValue(new Error("runtime unavailable"));
+    mocks.downloadableResourcesApi.list.mockResolvedValue({
+      ...readyResources,
+      resources: readyResources.resources.map((resource) =>
+        resource.id === "wd-swinv2-tagger-v3"
+          ? { ...resource, state: "missing", installed_version: null }
+          : resource,
+      ),
+    });
 
     await user.click(await screen.findByRole("button", { name: "Safety" }));
-
-    expect(await screen.findByText("Image-analysis models unavailable")).toBeInTheDocument();
-    expect(screen.getByText("runtime unavailable")).toBeInTheDocument();
-    expect(screen.queryByLabelText("WD automatic review")).not.toBeInTheDocument();
-
-    const attemptsBeforeRetry = mocks.imageAnalysisApi.statuses.mock.calls.length;
-    mocks.imageAnalysisApi.statuses.mockResolvedValue(readyImageAnalysisModels);
-    await user.click(screen.getByRole("button", { name: "Retry model status" }));
-    expect(await screen.findByText("anime_dbrating")).toBeInTheDocument();
-    expect(mocks.imageAnalysisApi.statuses.mock.calls.length).toBeGreaterThan(attemptsBeforeRetry);
+    expect(await screen.findByLabelText("WD automatic review")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
   });
 });
 

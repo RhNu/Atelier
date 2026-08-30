@@ -33,6 +33,9 @@ Before completing Rust work, confirm `cargo fmt --all -- --check`, `cargo clippy
 
 Before completing pnpm frontend work, confirm `pnpm fmt:check`, `pnpm lint`, and `pnpm test` pass. Frontend formatting and linting use the Oxc toolchain: `oxfmt` and `oxlint`.
 
+Application and downloadable-resource releases are documented in
+[`docs/releasing.md`](docs/releasing.md).
+
 ## Repository Layout
 
 - `apps/desktop/`: Tauri v2 shell and Vite React frontend.

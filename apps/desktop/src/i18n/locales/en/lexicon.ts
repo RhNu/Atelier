@@ -56,4 +56,6 @@ export const lexicon = {
   addedToDraft: "Tags added to the generation draft.",
   loadingCatalog: "Loading lexicon bundle",
   unavailable: "Lexicon unavailable",
+  installLexicon: "Install lexicon resources",
+  installingLexicon: "Installing lexicon resources",
 } as const;

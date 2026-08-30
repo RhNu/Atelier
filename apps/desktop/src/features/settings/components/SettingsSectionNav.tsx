@@ -1,8 +1,10 @@
 import {
   FolderCog,
+  CircleArrowUp,
   Image,
   MonitorCog,
   Plug,
+  PackageOpen,
   ShieldCheck,
   WandSparkles,
   type LucideIcon,
@@ -18,22 +20,46 @@ export type SettingsSection =
   | "generation"
   | "images"
   | "frontend"
-  | "safety";
+  | "safety"
+  | "resources"
+  | "updates";
 
 type SettingSection = {
   id: SettingsSection;
-  labelKey: "interface" | "safety" | "connections" | "workspace" | "generation" | "images";
+  labelKey:
+    | "interface"
+    | "safety"
+    | "connections"
+    | "workspace"
+    | "generation"
+    | "images"
+    | "resources"
+    | "updates";
   descriptionKey:
     | "interfaceDescription"
     | "safetyDescription"
     | "connectionsDescription"
     | "workspaceDescription"
     | "generationDescription"
-    | "imagesDescription";
+    | "imagesDescription"
+    | "resourcesDescription"
+    | "updatesDescription";
   icon: LucideIcon;
 };
 
 const applicationSections: ReadonlyArray<SettingSection> = [
+  {
+    id: "resources",
+    labelKey: "resources",
+    descriptionKey: "resourcesDescription",
+    icon: PackageOpen,
+  },
+  {
+    id: "updates",
+    labelKey: "updates",
+    descriptionKey: "updatesDescription",
+    icon: CircleArrowUp,
+  },
   {
     id: "connections",
     labelKey: "connections",

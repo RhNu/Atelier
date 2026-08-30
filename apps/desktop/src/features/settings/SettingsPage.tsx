@@ -12,9 +12,11 @@ import { ConnectionsSettingsSection } from "./components/ConnectionsSettingsSect
 import { FrontendSettingsSection } from "./components/FrontendSettingsSection";
 import { GenerationSettingsSection } from "./components/GenerationSettingsSection";
 import { ImageSettingsSection } from "./components/ImageSettingsSection";
+import { ResourcesSettingsSection } from "./components/ResourcesSettingsSection";
 import { SafetySettingsSection } from "./components/SafetySettingsSection";
 import { LoadingPanel } from "./components/SettingsControls";
 import { SettingsSectionNav, type SettingsSection } from "./components/SettingsSectionNav";
+import { UpdatesSettingsSection } from "./components/UpdatesSettingsSection";
 import { WorkspaceLifecycleSection } from "./components/WorkspaceLifecycleSection";
 import {
   useGlobalSettingsQuery,
@@ -187,6 +189,12 @@ function SettingsContent({
   const { t } = useTranslation("settings");
   if (activeSection === "connections") {
     return <ConnectionsSettingsSection />;
+  }
+  if (activeSection === "resources") {
+    return <ResourcesSettingsSection />;
+  }
+  if (activeSection === "updates") {
+    return <UpdatesSettingsSection />;
   }
 
   if (activeSection === "workspace") {

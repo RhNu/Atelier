@@ -7,7 +7,8 @@ use clap::{Args, Parser, Subcommand, error::ErrorKind};
 use crate::{
     AppApiTypeExportConfig, LexiconBenchmarkConfig, LexiconBundleConfig, LineBudgetConfig,
     LineBudgetLevel, benchmark_lexicon, build_lexicon_bundle, check_line_budget,
-    export_app_api_types, validate_lexicon_bundle,
+    export_app_api_types, prepare_app_release, tag_app_release, tag_resource_release,
+    validate_lexicon_bundle, validate_resource, validate_resource_catalog, validate_resource_tag,
 };
 
 const DEFAULT_WARN_LINES: usize = 600;
@@ -28,6 +29,42 @@ enum XtaskCommand {
     LineBudget(LineBudgetArgs),
     #[command(about = "Build or check prompt lexicon assets")]
     Lexicon(LexiconArgs),
+    #[command(about = "Prepare and tag Atelier application releases")]
+    Release(ReleaseArgs),
+    #[command(about = "Validate and tag downloadable resource releases")]
+    Resource(ResourceArgs),
+}
+
+#[derive(Debug, Args)]
+struct ReleaseArgs {
+    #[command(subcommand)]
+    command: ReleaseCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum ReleaseCommand {
+    #[command(about = "Validate and update the desktop package version")]
+    Prepare { version: String },
+    #[command(about = "Create the local v<version> tag from a clean version commit")]
+    Tag,
+}
+
+#[derive(Debug, Args)]
+struct ResourceArgs {
+    #[command(subcommand)]
+    command: ResourceCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum ResourceCommand {
+    #[command(about = "Validate the stable downloadable resource catalog")]
+    Catalog,
+    #[command(about = "Validate a pushed resource tag against its catalog descriptor")]
+    CheckTag { tag: String },
+    #[command(about = "Validate a catalog descriptor and its local payload")]
+    Validate { id: String },
+    #[command(about = "Validate and create a local resource-<id>-v<version> tag")]
+    Tag { id: String },
 }
 
 #[derive(Debug, Args)]
@@ -70,7 +107,7 @@ enum LexiconCommand {
 struct LexiconBundleArgs {
     #[arg(long, default_value = "tools/lexicon-pipeline/build")]
     input: PathBuf,
-    #[arg(long, default_value = "apps/desktop/src-tauri/resources/lexicon")]
+    #[arg(long)]
     output: PathBuf,
     #[arg(long, default_value = "dev")]
     bundle_version: String,
@@ -78,7 +115,7 @@ struct LexiconBundleArgs {
 
 #[derive(Debug, Args)]
 struct LexiconValidateArgs {
-    #[arg(long, default_value = "apps/desktop/src-tauri/resources/lexicon")]
+    #[arg(long)]
     bundle: PathBuf,
 }
 
@@ -90,7 +127,7 @@ struct LexiconBenchmarkArgs {
     candidate_run: PathBuf,
     #[arg(long)]
     baseline_run: PathBuf,
-    #[arg(long, default_value = "apps/desktop/src-tauri/resources/lexicon")]
+    #[arg(long)]
     bundle: PathBuf,
     #[arg(
         long,
@@ -143,6 +180,22 @@ pub fn run_in_workspace(
         XtaskCommand::AppApi(args) => run_app_api(workspace_root, &args),
         XtaskCommand::LineBudget(args) => run_line_budget(workspace_root, &args),
         XtaskCommand::Lexicon(args) => run_lexicon(workspace_root, &args),
+        XtaskCommand::Release(args) => match args.command {
+            ReleaseCommand::Prepare { version } => {
+                prepare_app_release(workspace_root.as_ref(), &version)
+            }
+            ReleaseCommand::Tag => tag_app_release(workspace_root.as_ref()),
+        },
+        XtaskCommand::Resource(args) => match args.command {
+            ResourceCommand::Catalog => validate_resource_catalog(workspace_root.as_ref()),
+            ResourceCommand::CheckTag { tag } => {
+                validate_resource_tag(workspace_root.as_ref(), &tag).map(|_| ())
+            }
+            ResourceCommand::Validate { id } => {
+                validate_resource(workspace_root.as_ref(), &id).map(|_| ())
+            }
+            ResourceCommand::Tag { id } => tag_resource_release(workspace_root.as_ref(), &id),
+        },
     }
 }
 

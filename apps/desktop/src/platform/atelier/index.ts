@@ -2,6 +2,7 @@ export { atelierCommands } from "./commands";
 export type { AtelierCommandName } from "./commands";
 export {
   accountApi,
+  appUpdateApi,
   danbooruApi,
   desktopApi,
   directorApi,
@@ -10,7 +11,7 @@ export {
   generationApi,
   globalSettingsApi,
   historyApi,
-  imageAnalysisApi,
+  downloadableResourcesApi,
   lexiconApi,
   promptApi,
   resourceApi,
@@ -18,7 +19,12 @@ export {
   vibeApi,
   workspaceApi,
 } from "./client";
-export type { DesktopPathsDto, PickFilesOptionsDto } from "./client";
+export type {
+  AppUpdateDto,
+  AppUpdateProgressDto,
+  DesktopPathsDto,
+  PickFilesOptionsDto,
+} from "./client";
 export {
   listenToAtelierEvents,
   recoverAtelierEvents,

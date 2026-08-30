@@ -38,14 +38,10 @@ where
     ) -> CommandResult<GlobalSettingsDto> {
         let wd_enabled = request.safety.wd_auto_review_enabled;
         if wd_enabled {
-            let ready = match &self.image_analysis_models {
-                Some(models) => {
-                    models
-                        .is_ready(ImageAnalysisModelId::WdSwinv2TaggerV3)
-                        .await
-                }
-                None => false,
-            };
+            let ready = self
+                .downloadable_resources
+                .as_ref()
+                .is_some_and(|resources| resources.resolve("wd-swinv2-tagger-v3").is_ok());
             if !ready {
                 return Err(crate::AppError::new(
                     "image_analysis_model_unavailable",
@@ -67,8 +63,8 @@ where
         if let Some(control) = &self.safety_policy_control {
             control.set_wd_auto_review_enabled(wd_enabled);
         }
-        if !wd_enabled && let Some(models) = &self.image_analysis_models {
-            models
+        if !wd_enabled && let Some(sessions) = &self.image_analysis_sessions {
+            sessions
                 .unload(ImageAnalysisModelId::WdSwinv2TaggerV3)
                 .map_err(crate::AppError::from)
                 .map_err(|error| error.envelope())?;

@@ -39,7 +39,8 @@ be expressed there.
 - `kernel` owns runtime state and cross-feature orchestration, but not real I/O.
 - Adapters own filesystem, database, keyring, `novelai-bridge`, and other external integrations.
 - The Tauri shell is a desktop host adapter, not the application layer; it owns platform desktop host glue and keeps file picker reads/writes out of the frontend.
-- Long-lived binary or semi-structured resources go through `resource-catalog`.
+- Workspace-owned creative resources go through `resource-catalog`; global, reconstructable
+  runtime assets go through `downloadable-resources`.
 - Reference projects are read-only inputs. Do not copy implementation without license and source records.
 
 ## Current Implementation Shape
@@ -62,6 +63,7 @@ Implemented or partially implemented:
 - `crates/features/image-analysis`
 - `crates/features/vibe`
 - `crates/features/director`
+- `crates/features/downloadable-resources`
 - `crates/features/safety`
 - `crates/features/secrets`
 - `crates/features/precise-reference`
@@ -73,6 +75,7 @@ Implemented or partially implemented:
 - `crates/adapters/secrets-fs`
 - `crates/adapters/novelai`
 - `crates/adapters/image-analysis-onnx`
+- `crates/adapters/downloadable-resources-fs`
 - `crates/adapters/settings-fs`
 
 ## Non-Goals

@@ -17,9 +17,6 @@ use atelier_app_api::history::{
     GenerationHistoryQueryDto, RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto,
     RunHistoryOutputStateDto, RunHistoryPageDto, RunHistoryQueryDto, RunHistoryStatusDto,
 };
-use atelier_app_api::image_analysis::{
-    ImageAnalysisModelIdDto, ImageAnalysisModelStateDto, ImageAnalysisModelStatusDto,
-};
 use atelier_app_api::prompt::{
     CompiledPromptDto, LexiconBootstrapDto, LexiconCapabilityStatusDto, LexiconCategoryDto,
     LexiconContentRatingDto, LexiconEntityDetailDto, LexiconEntityKindDto, LexiconFacetDto,
@@ -48,9 +45,6 @@ use atelier_gallery::{
 use atelier_generation::{
     GenerationPlanContext, ImageFormat, ImageModel, ImageSize, NoiseSchedule, PromptStructure,
     QualityPreset, Sampler, StreamMode, UcPreset,
-};
-use atelier_image_analysis::{
-    ImageAnalysisModelId, ImageAnalysisModelState, ImageAnalysisModelStatus,
 };
 use atelier_jobs::{
     ActiveJobBatchSnapshot, BatchStatus, GenerationBatchHistoryQuery, GenerationBatchHistoryRecord,
@@ -86,7 +80,6 @@ mod gallery;
 mod generation;
 mod generation_draft;
 mod history;
-mod image_analysis;
 mod prompt;
 mod resource;
 mod settings;
@@ -97,7 +90,6 @@ pub use gallery::*;
 pub use generation::*;
 pub use generation_draft::*;
 pub use history::*;
-pub use image_analysis::*;
 pub use prompt::*;
 pub use resource::*;
 pub use settings::*;

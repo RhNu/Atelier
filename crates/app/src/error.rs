@@ -116,6 +116,26 @@ impl From<atelier_image_analysis::ImageAnalysisError> for AppError {
     }
 }
 
+impl From<atelier_downloadable_resources::DownloadableResourceError> for AppError {
+    fn from(error: atelier_downloadable_resources::DownloadableResourceError) -> Self {
+        let code = match &error {
+            atelier_downloadable_resources::DownloadableResourceError::InvalidCatalog(_) => {
+                "downloadable_resource_invalid_catalog"
+            }
+            atelier_downloadable_resources::DownloadableResourceError::Unavailable(_) => {
+                "downloadable_resource_unavailable"
+            }
+            atelier_downloadable_resources::DownloadableResourceError::Operation(_) => {
+                "downloadable_resource_operation"
+            }
+            atelier_downloadable_resources::DownloadableResourceError::Cancelled => {
+                "downloadable_resource_cancelled"
+            }
+        };
+        Self::new(code, error.to_string())
+    }
+}
+
 impl From<atelier_generation::GenerationDraftError> for AppError {
     fn from(error: atelier_generation::GenerationDraftError) -> Self {
         Self::new(error.kind.to_string(), error.to_string())

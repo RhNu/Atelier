@@ -28,3 +28,6 @@ worktrees/
 
 # Development Cache
 /.dev/
+
+# Local release signing material
+/.secrets/

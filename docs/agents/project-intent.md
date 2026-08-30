@@ -17,7 +17,9 @@ The core experience should grow around:
 - Product language should acknowledge that the app is NovelAI-specific.
 - NovelAI network details should stay behind the `novelai-bridge` adapter.
 - Internal domain language should use application concepts such as workspace, job, artifact, resource ref, prompt resource, gallery item, Vibe document, and Director result.
-- Durable resources should go through `resource-catalog` instead of feature-owned directories or binary indexes.
+- Workspace-owned durable resources should go through `resource-catalog`; global reconstructable
+  application models and lexicons should go through `downloadable-resources` instead of
+  feature-owned directories or binary indexes.
 - The UI should not simply copy old `nait` pages. It should be organized around high-frequency creative workflows.
 
 ## Non-Commitments

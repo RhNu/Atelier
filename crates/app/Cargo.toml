@@ -17,6 +17,7 @@ atelier-adapter-storage-fs = { workspace = true }
 atelier-app-api = { workspace = true }
 atelier-artifacts = { workspace = true }
 atelier-director = { workspace = true }
+atelier-downloadable-resources = { workspace = true }
 atelier-danbooru = { workspace = true }
 atelier-gallery = { workspace = true }
 atelier-generation = { workspace = true }

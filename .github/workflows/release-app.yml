@@ -1,0 +1,76 @@
+name: Release application
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-application-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          lfs: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Validate tag and signing secrets
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $version = (Get-Content apps/desktop/package.json | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_NAME -ne "v$version") { throw "tag/version mismatch" }
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw "TAURI_SIGNING_PRIVATE_KEY is missing" }
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) { throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD is missing" }
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy-strict
+      - run: cargo test --workspace
+      - run: cargo xtask line-budget
+      - run: cargo xtask resource catalog
+      - run: pnpm fmt:check
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - name: Generate release endpoint overlay
+        run: node scripts/write-tauri-release-config.mjs apps/desktop/src-tauri/tauri.release.conf.json
+      - name: Build signed Windows x64 NSIS updater
+        env:
+          ATELIER_RESOURCE_CATALOG_URL: https://github.com/${{ github.repository }}/releases/download/resource-catalog/catalog-v1.json
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm --dir apps/desktop exec tauri build --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.release.conf.json
+      - name: Generate and publish latest release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $bundle = "target/x86_64-pc-windows-msvc/release/bundle"
+          $updater = Get-ChildItem $bundle -Recurse -File -Filter *_x64-setup.exe | Select-Object -First 1
+          if (-not $updater) { throw "signed NSIS updater installer was not produced" }
+          $signature = Get-Item "$($updater.FullName).sig"
+          if (-not (gh release view $env:GITHUB_REF_NAME 2>$null)) {
+            gh release create $env:GITHUB_REF_NAME --verify-tag --generate-notes --latest
+          } else {
+            gh release edit $env:GITHUB_REF_NAME --latest
+          }
+          $env:RELEASE_NOTES = gh release view $env:GITHUB_REF_NAME --json body --jq .body
+          node scripts/build-latest-manifest.mjs $updater.FullName $signature.FullName latest.json
+          gh release upload $env:GITHUB_REF_NAME $updater.FullName $signature.FullName latest.json --clobber

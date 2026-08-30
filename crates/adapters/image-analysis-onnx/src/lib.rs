@@ -1,7 +1,6 @@
 //! Downloaded model-pack management and ONNX image analysis.
 
 mod analyzer;
-mod manifest;
 mod model_store;
 mod preprocess;
 mod spec;
@@ -9,7 +8,8 @@ mod spec;
 pub use atelier_adapter_onnx_runtime::OrtRuntime;
 pub use model_store::OnnxImageAnalysisRuntime;
 pub use spec::{
-    ANIME_DBRATING_REVISION, WD_TAGGER_REVISION, model_spec, runtime_library_file_name,
+    ANIME_DBRATING_RESOURCE_ID, ANIME_DBRATING_REVISION, WD_TAGGER_RESOURCE_ID, WD_TAGGER_REVISION,
+    runtime_library_file_name,
 };
 
 use std::path::Path;

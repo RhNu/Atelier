@@ -57,9 +57,11 @@ import type {
   GetVibeDocumentRequestDto,
   ImageResourceKindDto,
   ImageModelDescriptorDto,
-  ImageAnalysisModelInstallProgressDto,
-  ImageAnalysisModelRequestDto,
-  ImageAnalysisModelStatusDto,
+  DownloadableResourceGroupRequestDto,
+  DownloadableResourceInstallProgressDto,
+  DownloadableResourceRequestDto,
+  DownloadableResourceStatusDto,
+  DownloadableResourcesDto,
   ImportImageResourceResponseDto,
   ImportedVibeDocumentsDto,
   ListVibeDocumentsRequestDto,
@@ -134,6 +136,18 @@ export type PickFilesOptionsDto = {
 export type ClipboardImageDto = {
   imageBase64: string;
   mimeType: string;
+};
+
+export type AppUpdateDto = {
+  current_version: string;
+  version: string;
+  release_notes: string | null;
+  published_at: string | null;
+};
+
+export type AppUpdateProgressDto = {
+  downloaded_bytes: number;
+  total_bytes: number | null;
 };
 
 export const desktopApi = {
@@ -212,25 +226,47 @@ export const danbooruApi = {
     invokeAtelierCommand<ResourceImageDto>(atelierCommands.getDanbooruMedia, { request }),
 };
 
-export const imageAnalysisApi = {
-  statuses: () =>
-    invokeAtelierCommand<ImageAnalysisModelStatusDto[]>(
-      atelierCommands.getImageAnalysisModelStatus,
+export const downloadableResourcesApi = {
+  list: () =>
+    invokeAtelierCommand<DownloadableResourcesDto>(atelierCommands.listDownloadableResources),
+  refresh: () =>
+    invokeAtelierCommand<DownloadableResourcesDto>(
+      atelierCommands.refreshDownloadableResourceCatalog,
     ),
+  completeOnboarding: () =>
+    invokeAtelierCommand<void>(atelierCommands.completeDownloadableResourceOnboarding),
   install: (
-    request: ImageAnalysisModelRequestDto,
-    onProgress: (progress: ImageAnalysisModelInstallProgressDto) => void,
+    request: DownloadableResourceRequestDto,
+    onProgress: (progress: DownloadableResourceInstallProgressDto) => void,
   ) => {
-    const channel = new Channel<ImageAnalysisModelInstallProgressDto>(onProgress);
-    return invokeAtelierCommand<ImageAnalysisModelStatusDto>(
-      atelierCommands.installImageAnalysisModel,
+    const channel = new Channel<DownloadableResourceInstallProgressDto>(onProgress);
+    return invokeAtelierCommand<DownloadableResourceStatusDto>(
+      atelierCommands.installDownloadableResource,
       { request, onProgress: channel },
     );
   },
-  cancelInstall: (request: ImageAnalysisModelRequestDto) =>
-    invokeAtelierCommand<void>(atelierCommands.cancelImageAnalysisModelInstall, { request }),
-  delete: (request: ImageAnalysisModelRequestDto) =>
-    invokeAtelierCommand<void>(atelierCommands.deleteImageAnalysisModel, { request }),
+  installGroup: (
+    request: DownloadableResourceGroupRequestDto,
+    onProgress: (progress: DownloadableResourceInstallProgressDto) => void,
+  ) => {
+    const channel = new Channel<DownloadableResourceInstallProgressDto>(onProgress);
+    return invokeAtelierCommand<DownloadableResourceStatusDto[]>(
+      atelierCommands.installDownloadableResourceGroup,
+      { request, onProgress: channel },
+    );
+  },
+  cancelInstall: (request: DownloadableResourceRequestDto) =>
+    invokeAtelierCommand<void>(atelierCommands.cancelDownloadableResourceInstall, { request }),
+  delete: (request: DownloadableResourceRequestDto) =>
+    invokeAtelierCommand<void>(atelierCommands.deleteDownloadableResource, { request }),
+};
+
+export const appUpdateApi = {
+  check: () => invokeAtelierCommand<AppUpdateDto | null>(atelierCommands.checkAppUpdate),
+  install: (onProgress: (progress: AppUpdateProgressDto) => void) => {
+    const channel = new Channel<AppUpdateProgressDto>(onProgress);
+    return invokeAtelierCommand<void>(atelierCommands.installAppUpdate, { onProgress: channel });
+  },
 };
 
 export const accountApi = {

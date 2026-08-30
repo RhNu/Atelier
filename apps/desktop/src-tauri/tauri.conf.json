@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Atelier",
-  "version": "0.4.2",
+  "version": "../package.json",
   "identifier": "dev.rhynia.atelier",
   "build": {
     "frontendDist": "../dist",
@@ -47,6 +47,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": [
       "nsis"
     ],
@@ -60,5 +61,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZFMjNFRDRFRTIxRkRDNDMKUldSRDNCL2lUdTBqYmx6dGFrVkcwRHczaGxQdk9HOFdoT0dVd1FIMGhpZ1VrZ2RBZzllU040aWEK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

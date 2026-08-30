@@ -3,6 +3,8 @@ import { useCallback } from "react";
 
 import { reportBackgroundPromise } from "../app/logger";
 import { ActiveAccountRuntime } from "../features/account/runtime/ActiveAccountRuntime";
+import { AppUpdateRuntime } from "../features/settings/components/AppUpdateRuntime";
+import { ResourceOnboarding } from "../features/settings/components/ResourceOnboarding";
 import { useWorkspaceStatus } from "../features/workspace/useWorkspaceStatus";
 import { AppShell } from "../shell/AppShell";
 import type { RouteNavItem } from "./nav";
@@ -21,6 +23,8 @@ export function RootWorkbenchLayout() {
   return (
     <>
       <ActiveAccountRuntime enabled={workspace.workspaceStatus !== null} />
+      <AppUpdateRuntime />
+      <ResourceOnboarding />
       <AppShell
         workspaceStatus={workspace.workspaceStatus}
         workspacePending={workspace.workspacePending}

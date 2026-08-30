@@ -72,23 +72,6 @@ impl DesktopSystem {
         &self.paths
     }
 
-    pub fn resolve_lexicon_bundle(&self) -> DesktopSystemResult<Option<PathBuf>> {
-        if let Some(path) = env_path("ATELIER_LEXICON_BUNDLE") {
-            require_file(&path.join("manifest.json"), "lexicon manifest")?;
-            require_file(&path.join("lexicon.sqlite"), "lexicon database")?;
-            return Ok(Some(path));
-        }
-        let Some(resource_dir) = &self.paths.resource_dir else {
-            return Ok(None);
-        };
-        let root = resource_dir.join("lexicon");
-        if root.join("manifest.json").is_file() && root.join("lexicon.sqlite").is_file() {
-            Ok(Some(root))
-        } else {
-            Ok(None)
-        }
-    }
-
     pub fn resolve_onnx_runtime_library(&self) -> DesktopSystemResult<Option<PathBuf>> {
         if let Some(path) = env_path("ATELIER_ONNX_RUNTIME") {
             require_file(&path, "ONNX Runtime library")?;

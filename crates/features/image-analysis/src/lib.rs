@@ -7,7 +7,6 @@ mod ports;
 pub use error::{ImageAnalysisError, ImageAnalysisErrorKind, ImageAnalysisResult};
 pub use model::{
     AnalysisOutputSelection, ImageAnalysis, ImageAnalysisInput, ImageAnalysisModelId,
-    ImageAnalysisModelInfo, ImageAnalysisModelState, ImageAnalysisModelStatus, ImageConfidence,
-    ImageRatingScores, ImageTagCategory, ImageTagScore, ModelInstallProgress,
+    ImageAnalysisModelInfo, ImageConfidence, ImageRatingScores, ImageTagCategory, ImageTagScore,
 };
-pub use ports::{ImageAnalysisModelManager, ImageAnalyzer, ModelInstallProgressSink};
+pub use ports::{ImageAnalysisSessionControl, ImageAnalyzer};

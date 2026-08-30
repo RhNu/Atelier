@@ -25,6 +25,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             commands::desktop_paths,
             commands::read_clipboard_image,
@@ -77,10 +78,15 @@ pub fn run() {
             commands::search_danbooru_posts,
             commands::get_danbooru_post_detail,
             commands::get_danbooru_media,
-            commands::get_image_analysis_model_status,
-            commands::install_image_analysis_model,
-            commands::cancel_image_analysis_model_install,
-            commands::delete_image_analysis_model,
+            commands::list_downloadable_resources,
+            commands::refresh_downloadable_resource_catalog,
+            commands::complete_downloadable_resource_onboarding,
+            commands::install_downloadable_resource,
+            commands::install_downloadable_resource_group,
+            commands::cancel_downloadable_resource_install,
+            commands::delete_downloadable_resource,
+            commands::check_app_update,
+            commands::install_app_update,
             commands::get_workspace_settings,
             commands::update_workspace_settings,
             commands::reset_workspace_settings,

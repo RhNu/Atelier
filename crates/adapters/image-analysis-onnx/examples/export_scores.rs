@@ -1,9 +1,11 @@
 use std::path::{Path, PathBuf};
 
+use atelier_adapter_downloadable_resources_fs::FileSystemDownloadableResourceManager;
 use atelier_adapter_image_analysis_onnx::{OnnxImageAnalysisRuntime, initialize_ort_runtime};
+use atelier_downloadable_resources::DownloadableResourceManager;
 use atelier_image_analysis::{
-    AnalysisOutputSelection, ImageAnalysisInput, ImageAnalysisModelId, ImageAnalysisModelManager,
-    ImageAnalyzer, ImageRatingScores,
+    AnalysisOutputSelection, ImageAnalysisInput, ImageAnalysisModelId, ImageAnalyzer,
+    ImageRatingScores,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef};
 use atelier_safety::anime_rating_policy;
@@ -49,13 +51,11 @@ async fn export(
     limit: Option<usize>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let runtime = initialize_ort_runtime(runtime_path)?;
-    let analyzer = OnnxImageAnalysisRuntime::new(model_root, runtime, runtime_path)?;
-    analyzer
-        .install(ImageAnalysisModelId::AnimeDbRating, None)
-        .await?;
-    analyzer
-        .install(ImageAnalysisModelId::WdSwinv2TaggerV3, None)
-        .await?;
+    let catalog_url = std::env::var("ATELIER_RESOURCE_CATALOG_URL")?;
+    let resources = FileSystemDownloadableResourceManager::new(model_root, catalog_url, "")?;
+    resources.install("anime-dbrating", None).await?;
+    resources.install("wd-swinv2-tagger-v3", None).await?;
+    let analyzer = OnnxImageAnalysisRuntime::new(runtime, runtime_path, resources)?;
 
     let mut images = image_paths(dataset)?;
     images.sort();
