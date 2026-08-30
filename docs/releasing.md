@@ -124,8 +124,10 @@ git push origin main resource-lexicon-core-v1.0.1
 
 The resource workflow selectively fetches the tagged resource's LFS payload, validates the tag,
 descriptor, sizes, hashes, and licenses, publishes a frozen `resource.json`, and creates a non-latest
-resource release. It updates the fixed `resource-catalog` release only after every URL in the
-rendered catalog is accessible.
+resource release. It then renders and replaces the fixed `resource-catalog` asset. Publication does
+not probe every remote URL: transient GitHub or Hugging Face outages must not block an otherwise
+valid release. The application still enforces HTTPS, declared sizes, and SHA-256 hashes when it
+downloads a file.
 
 Multiple independently committed resource tags may be pushed together by naming every tag:
 

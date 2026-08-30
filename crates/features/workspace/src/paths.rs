@@ -90,7 +90,7 @@ fn validate_normalized_path(normalized: &str) -> WorkspaceResult<()> {
     Ok(())
 }
 
-fn has_windows_drive_prefix(raw: &str) -> bool {
+const fn has_windows_drive_prefix(raw: &str) -> bool {
     let bytes = raw.as_bytes();
     bytes.len() >= 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic()
 }

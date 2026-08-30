@@ -19,8 +19,6 @@ jobs:
         with:
           fetch-depth: 0
           lfs: false
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
       - name: Parse resource tag
         id: tag
         shell: pwsh
@@ -32,7 +30,7 @@ jobs:
         shell: pwsh
         run: git lfs pull --include="resources/payloads/${{ steps.tag.outputs.id }}/${{ steps.tag.outputs.version }}/**"
       - name: Validate descriptor, payload, size, licenses, and hashes
-        run: cargo xtask resource check-tag ${{ github.ref_name }}
+        run: node scripts/validate-resource-release.mjs ${{ github.ref_name }}
       - name: Create frozen descriptor
         run: node scripts/write-resource-descriptor.mjs ${{ steps.tag.outputs.id }} resource.json
       - name: Publish non-latest resource release
@@ -50,21 +48,12 @@ jobs:
           if (Test-Path $payload) {
             Get-ChildItem $payload -Recurse -File | ForEach-Object { gh release upload $tag $_.FullName --clobber }
           }
-      - name: Render and probe stable catalog
-        id: catalog
+      - name: Render stable catalog
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force published | Out-Null
           node scripts/render-resource-catalog.mjs published/catalog-v1.json
-          node scripts/verify-resource-catalog.mjs published/catalog-v1.json
-          if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Stable catalog publication is deferred until every referenced resource is available."
-            "ready=false" >> $env:GITHUB_OUTPUT
-            exit 0
-          }
-          "ready=true" >> $env:GITHUB_OUTPUT
-      - name: Atomically replace stable catalog asset
-        if: steps.catalog.outputs.ready == 'true'
+      - name: Replace stable catalog asset
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
