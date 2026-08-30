@@ -144,11 +144,9 @@ fn operation(error: impl std::fmt::Display) -> DownloadableResourceError {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Read as _, Write as _};
     use std::net::TcpListener;
     use std::sync::Arc;
 
-    use sha2::{Digest as _, Sha256};
     use tempfile::tempdir;
 
     use super::*;

@@ -374,7 +374,7 @@ fn encode_jpeg(image: &image::DynamicImage) -> ImageCodecResult<EncodedImage> {
     let width = image.width();
     let height = image.height();
     let mut rgb = Vec::with_capacity(rgba.len() / 4 * 3);
-    for pixel in rgba.as_raw().chunks_exact(4) {
+    for pixel in rgba.as_raw().as_chunks::<4>().0 {
         let alpha = u16::from(pixel[3]);
         let inverse_alpha = 255 - alpha;
         for channel in &pixel[..3] {
