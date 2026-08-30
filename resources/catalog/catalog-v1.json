@@ -67,8 +67,8 @@
         },
         {
           "path": "LICENSE-model.txt",
-          "size_bytes": 854,
-          "sha256": "9fae4674b4260319d68d71c0977dc449e159018e5974b9fd5dad6109febb1f35",
+          "size_bytes": 837,
+          "sha256": "d79ef5721f4e0cd1a293805c8c172d9f1bc54c64ac4fc0a45a57162e3494f74a",
           "urls": [
             "https://github.com/__GITHUB_REPOSITORY__/releases/download/resource-lexicon-semantic-v1.0.0/LICENSE-model.txt"
           ]
