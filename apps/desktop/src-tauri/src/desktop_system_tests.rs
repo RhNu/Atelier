@@ -77,8 +77,8 @@ fn open_and_reveal_allow_app_owned_and_user_selected_paths() {
     assert_eq!(
         opener.calls(),
         vec![
-            format!("open:{}", app_owned.display()),
-            format!("reveal:{}", selected.display())
+            expected_operation("open", &app_owned),
+            expected_operation("reveal", &selected)
         ]
     );
 }
@@ -184,8 +184,13 @@ fn opened_workspace_root_can_be_recorded_without_picker() {
 
     assert_eq!(
         opener.calls(),
-        vec![format!("reveal:{}", workspace_file.display())]
+        vec![expected_operation("reveal", &workspace_file)]
     );
+}
+
+fn expected_operation(operation: &str, path: &Path) -> String {
+    let canonical = super::canonicalize_existing(path).unwrap();
+    format!("{operation}:{}", canonical.display())
 }
 
 #[test]
