@@ -20,6 +20,7 @@ jobs:
           fetch-depth: 0
           lfs: false
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - name: Parse resource tag
         id: tag
         shell: pwsh
@@ -29,7 +30,7 @@ jobs:
           "version=$($Matches.version)" >> $env:GITHUB_OUTPUT
       - name: Pull only the tagged LFS payload
         shell: pwsh
-        run: git lfs pull --include="resources/payloads/${{ steps.tag.outputs.id }}/${{ steps.tag.outputs.version }}/**" --exclude="*"
+        run: git lfs pull --include="resources/payloads/${{ steps.tag.outputs.id }}/${{ steps.tag.outputs.version }}/**"
       - name: Validate descriptor, payload, size, licenses, and hashes
         run: cargo xtask resource check-tag ${{ github.ref_name }}
       - name: Create frozen descriptor
