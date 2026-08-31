@@ -64,6 +64,8 @@ pub fn validate_catalog(catalog: &DownloadableResourceCatalog) -> DownloadableRe
                 return invalid(format!("{id} references missing dependency {dependency}"));
             }
         }
+    }
+    for id in resources.keys().copied() {
         detect_cycle(id, &resources, &mut HashSet::new(), &mut HashSet::new())?;
     }
     let mut group_ids = HashSet::new();
@@ -141,7 +143,10 @@ fn detect_cycle<'a>(
     if !visiting.insert(id) {
         return invalid(format!("resource dependency cycle at {id}"));
     }
-    for dependency in resources[id] {
+    let Some(dependencies) = resources.get(id) else {
+        return invalid(format!("resource dependency {id} is missing"));
+    };
+    for dependency in *dependencies {
         detect_cycle(dependency, resources, visiting, visited)?;
     }
     visiting.remove(id);
