@@ -144,10 +144,10 @@ impl WorkerState {
     }
 
     fn attach_handle(&mut self, run_id: u64, handle: tauri::async_runtime::JoinHandle<()>) {
-        if let Some(run) = &mut self.current {
-            if run.id == run_id {
-                run.handle = Some(handle);
-            }
+        if let Some(run) = &mut self.current
+            && run.id == run_id
+        {
+            run.handle = Some(handle);
         }
     }
 }
