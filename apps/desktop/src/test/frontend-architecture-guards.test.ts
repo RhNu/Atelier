@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import ts from "typescript";
+import { parse } from "@babel/parser";
 import { describe, expect, it } from "vitest";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -271,38 +271,71 @@ describe("frontend architecture guards", () => {
 });
 
 function findVisibleJsxLiterals(filePath: string): string[] {
-  const source = ts.createSourceFile(
-    filePath,
-    readProjectFile(filePath),
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX,
-  );
+  const ast = parse(readProjectFile(filePath), {
+    sourceFilename: filePath,
+    sourceType: "module",
+    plugins: ["typescript", "jsx"],
+  });
   const offenders: string[] = [];
-  const visit = (node: ts.Node) => {
-    if (ts.isJsxText(node)) {
-      const value = node.text.replace(/\s+/gu, " ").trim();
+  visitAstNodes(ast, (node) => {
+    if (node.type === "JSXText" && typeof node.value === "string") {
+      const value = node.value.replace(/\s+/gu, " ").trim();
       if (/[A-Za-z]/u.test(value) && !ALLOWED_LITERAL_LABELS.has(value)) {
-        offenders.push(
-          `${toProjectPath(filePath)}:${source.getLineAndCharacterOfPosition(node.pos).line + 1}:${value}`,
-        );
+        offenders.push(`${toProjectPath(filePath)}:${nodeLine(node)}:${value}`);
       }
     }
+
+    if (node.type !== "JSXAttribute" || !isAstNode(node.name)) {
+      return;
+    }
+    const name = typeof node.name.name === "string" ? node.name.name : undefined;
     if (
-      ts.isJsxAttribute(node) &&
-      USER_VISIBLE_JSX_ATTRIBUTES.has(node.name.getText(source)) &&
-      node.initializer &&
-      ts.isStringLiteral(node.initializer)
+      !name ||
+      !USER_VISIBLE_JSX_ATTRIBUTES.has(name) ||
+      !isAstNode(node.value) ||
+      node.value.type !== "StringLiteral" ||
+      typeof node.value.value !== "string"
     ) {
-      const value = node.initializer.text.trim();
-      if (/[A-Za-z]/u.test(value) && !ALLOWED_LITERAL_LABELS.has(value)) {
-        offenders.push(
-          `${toProjectPath(filePath)}:${source.getLineAndCharacterOfPosition(node.pos).line + 1}:${value}`,
-        );
-      }
+      return;
     }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
+    const value = node.value.value.trim();
+    if (/[A-Za-z]/u.test(value) && !ALLOWED_LITERAL_LABELS.has(value)) {
+      offenders.push(`${toProjectPath(filePath)}:${nodeLine(node)}:${value}`);
+    }
+  });
   return offenders;
+}
+
+type AstNode = Record<string, unknown> & { type: string };
+
+function isAstNode(value: unknown): value is AstNode {
+  return (
+    typeof value === "object" && value !== null && "type" in value && typeof value.type === "string"
+  );
+}
+
+function nodeLine(node: AstNode): number {
+  if (
+    typeof node.loc === "object" &&
+    node.loc !== null &&
+    "start" in node.loc &&
+    typeof node.loc.start === "object" &&
+    node.loc.start !== null &&
+    "line" in node.loc.start &&
+    typeof node.loc.start.line === "number"
+  ) {
+    return node.loc.start.line;
+  }
+  return 0;
+}
+
+function visitAstNodes(value: unknown, visit: (node: AstNode) => void): void {
+  if (isAstNode(value)) {
+    visit(value);
+    Object.values(value).forEach((child) => visitAstNodes(child, visit));
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((child) => visitAstNodes(child, visit));
+  }
 }
