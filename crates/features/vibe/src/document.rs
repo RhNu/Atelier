@@ -2,6 +2,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
+use std::fmt::Write as _;
 
 use crate::{
     VibeDocumentSummary, VibeDomainResult, VibeEncodeSettings, VibeEncodingConfig, VibeError,
@@ -322,7 +323,11 @@ fn is_sha256_hex(value: &str) -> bool {
 
 fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
-    format!("{digest:x}")
+    let mut output = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        write!(&mut output, "{byte:02x}").expect("writing a SHA-256 digest to String cannot fail");
+    }
+    output
 }
 
 fn fallback_display_name(file_name: &str) -> String {
