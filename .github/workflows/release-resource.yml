@@ -19,6 +19,9 @@ jobs:
         with:
           fetch-depth: 0
           lfs: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
       - name: Parse resource tag
         id: tag
         shell: pwsh
