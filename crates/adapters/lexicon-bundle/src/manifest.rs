@@ -117,13 +117,7 @@ impl SemanticManifest {
         root: &Path,
         bundle: &LexiconBundleManifest,
     ) -> LexiconResult<()> {
-        for file in [
-            &self.model,
-            &self.tokenizer.bundle,
-            &self.license,
-            &self.identity_vectors,
-            &self.knowledge_vectors,
-        ] {
+        for file in [&self.model, &self.identity_vectors, &self.knowledge_vectors] {
             bundle.verify_checksum(root, file)?;
         }
         Ok(())
@@ -137,6 +131,7 @@ impl TokenizerFile {
     /// Returns an error when the zstd stream is invalid or its decoded size or checksum differs
     /// from the manifest.
     pub fn decode(&self, root: &Path) -> LexiconResult<Vec<u8>> {
+        validate_tokenizer_file(root, self)?;
         let path = root.join(&self.bundle.file);
         let file = File::open(&path).map_err(|error| {
             LexiconError::invalid_bundle(format!("failed to open {}: {error}", path.display()))
@@ -219,8 +214,15 @@ impl LexiconBundleManifest {
     /// # Errors
     /// Returns an error when the manifest cannot be read, parsed, or validated.
     pub fn read_core(root: &Path) -> LexiconResult<Self> {
-        let mut manifest = Self::parse(root)?;
-        manifest.semantic = None;
+        // Parse optional metadata separately so an unsupported tokenizer encoding or a
+        // malformed semantic contract cannot take down the independent lexical core.
+        let mut value = Self::read_json(root)?;
+        if let Some(object) = value.as_object_mut() {
+            object.remove("semantic");
+            object.remove("ranking");
+        }
+        let manifest: Self = serde_json::from_value(value)
+            .map_err(|error| LexiconError::invalid_bundle(error.to_string()))?;
         manifest.validate(root)?;
         Ok(manifest)
     }
@@ -236,6 +238,11 @@ impl LexiconBundleManifest {
     }
 
     fn parse(root: &Path) -> LexiconResult<Self> {
+        serde_json::from_value(Self::read_json(root)?)
+            .map_err(|error| LexiconError::invalid_bundle(error.to_string()))
+    }
+
+    fn read_json(root: &Path) -> LexiconResult<serde_json::Value> {
         let path = root.join("manifest.json");
         let bytes = fs::read(&path).map_err(|error| {
             LexiconError::invalid_bundle(format!("failed to read {}: {error}", path.display()))
@@ -292,7 +299,7 @@ impl LexiconBundleManifest {
             }
             validate_file(semantic_root, &semantic.model)?;
             validate_tokenizer_file(semantic_root, &semantic.tokenizer)?;
-            validate_file(semantic_root, &semantic.license)?;
+            crate::text_assets::verify_license(semantic_root, &semantic.license)?;
             validate_vector_file(semantic_root, &semantic.identity_vectors, semantic)?;
             validate_vector_file(semantic_root, &semantic.knowledge_vectors, semantic)?;
             if semantic.model_contract.pooling != "mean" || !semantic.model_contract.normalize {
@@ -348,7 +355,7 @@ impl LexiconBundleManifest {
     }
 }
 
-fn digest_hex(digest: impl IntoIterator<Item = u8>) -> String {
+pub fn digest_hex(digest: impl IntoIterator<Item = u8>) -> String {
     let mut output = String::with_capacity(64);
     for byte in digest {
         write!(&mut output, "{byte:02x}").expect("writing a SHA-256 digest to String cannot fail");
@@ -357,7 +364,9 @@ fn digest_hex(digest: impl IntoIterator<Item = u8>) -> String {
 }
 
 fn validate_tokenizer_file(root: &Path, tokenizer: &TokenizerFile) -> LexiconResult<()> {
-    validate_file(root, &tokenizer.bundle)?;
+    // The download catalog verifies transport bytes. Runtime identity is the bounded,
+    // decoded payload digest, so a different zstd encoding of the same JSON is valid.
+    validate_file_metadata(root, &tokenizer.bundle)?;
     if !tokenizer.bundle.file.ends_with(".json.zst")
         || tokenizer.content_size_bytes == 0
         || tokenizer.content_size_bytes > MAX_TOKENIZER_CONTENT_BYTES
@@ -371,6 +380,19 @@ fn validate_tokenizer_file(root: &Path, tokenizer: &TokenizerFile) -> LexiconRes
 }
 
 fn validate_file(root: &Path, file: &BundleFile) -> LexiconResult<()> {
+    let metadata = validate_file_metadata(root, file)?;
+    if metadata.len() != file.size_bytes {
+        return Err(LexiconError::invalid_bundle(format!(
+            "bundle file size mismatch for {}: expected {}, got {}",
+            root.join(&file.file).display(),
+            file.size_bytes,
+            metadata.len()
+        )));
+    }
+    Ok(())
+}
+
+pub fn validate_file_metadata(root: &Path, file: &BundleFile) -> LexiconResult<fs::Metadata> {
     if file.file.contains("..") || Path::new(&file.file).is_absolute() {
         return Err(LexiconError::invalid_bundle(format!(
             "bundle path is not relative: {}",
@@ -381,9 +403,9 @@ fn validate_file(root: &Path, file: &BundleFile) -> LexiconResult<()> {
     let metadata = fs::metadata(&path).map_err(|error| {
         LexiconError::invalid_bundle(format!("missing bundle file {}: {error}", path.display()))
     })?;
-    if metadata.len() != file.size_bytes {
+    if !metadata.is_file() || metadata.len() == 0 {
         return Err(LexiconError::invalid_bundle(format!(
-            "bundle file size mismatch for {}",
+            "bundle asset is not a nonempty regular file: {}",
             path.display()
         )));
     }
@@ -393,7 +415,7 @@ fn validate_file(root: &Path, file: &BundleFile) -> LexiconResult<()> {
             file.file
         )));
     }
-    Ok(())
+    Ok(metadata)
 }
 
 fn is_sha256(value: &str) -> bool {

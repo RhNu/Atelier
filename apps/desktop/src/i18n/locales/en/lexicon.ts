@@ -2,6 +2,8 @@ export const lexicon = {
   fastSearch: "Fast search",
   semanticExplore: "Semantic explore",
   semanticUnavailable: "Semantic unavailable",
+  semanticFallback:
+    "Semantic search is unavailable. Switched to fast search; your query and filters are preserved.",
   searchMode: "Lexicon search mode",
   searchTags: "Search the lexicon",
   searchPlaceholder: "Canonical tag, translation, alias, or wiki",

@@ -4,6 +4,7 @@ mod managed;
 mod manifest;
 mod semantic;
 mod sqlite;
+mod text_assets;
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -27,13 +28,14 @@ pub struct LexiconBundle {
     database_path: PathBuf,
     manifest: LexiconBundleManifest,
     semantic: OnceLock<Result<Mutex<semantic::SemanticEngine>, LexiconError>>,
+    semantic_failure: OnceLock<LexiconError>,
 }
 
 impl LexiconBundle {
     /// Opens and structurally validates a built-in lexicon bundle.
     ///
-    /// Semantic assets are only checked for presence and size here. The tokenizer,
-    /// model, memory maps, and ONNX session are initialized by the first semantic query.
+    /// Invalid optional semantic assets are reported through capability status and never
+    /// prevent lexical use. The ONNX session is initialized by the first semantic query.
     ///
     /// # Errors
     /// Returns an error when the manifest or lexical database is invalid.
@@ -44,20 +46,17 @@ impl LexiconBundle {
     /// Opens lexical and semantic data from separate downloadable-resource roots.
     ///
     /// # Errors
-    /// Returns an error when manifests, hashes, `SQLite` data, or semantic files are invalid.
+    /// Returns an error when the core manifest, database hash, or `SQLite` data is invalid.
     pub fn open_with_roots(core_root: &Path, semantic_root: &Path) -> LexiconResult<Arc<Self>> {
-        let manifest = LexiconBundleManifest::read_with_roots(core_root, semantic_root)?;
-        manifest.verify_checksum(core_root, &manifest.database)?;
-        let database_path = core_root.join(&manifest.database.file);
-        let connection = sqlite::open_read_only(&database_path)?;
-        sqlite::validate_database(&connection)?;
-        drop(connection);
-        Ok(Arc::new(Self {
-            semantic_root: semantic_root.to_path_buf(),
-            database_path,
-            manifest,
-            semantic: OnceLock::new(),
-        }))
+        let mut bundle = Self::load_core(core_root)?;
+        bundle.semantic_root = semantic_root.to_path_buf();
+        match LexiconBundleManifest::read_with_roots(core_root, semantic_root) {
+            Ok(manifest) => bundle.manifest = manifest,
+            Err(error) => {
+                let _ = bundle.semantic.set(Err(error));
+            }
+        }
+        Ok(Arc::new(bundle))
     }
 
     /// Opens only the lexical core resource.
@@ -65,18 +64,23 @@ impl LexiconBundle {
     /// # Errors
     /// Returns an error when the manifest, hashes, or `SQLite` data are invalid.
     pub fn open_core(core_root: &Path) -> LexiconResult<Arc<Self>> {
+        Self::load_core(core_root).map(Arc::new)
+    }
+
+    fn load_core(core_root: &Path) -> LexiconResult<Self> {
         let manifest = LexiconBundleManifest::read_core(core_root)?;
         manifest.verify_checksum(core_root, &manifest.database)?;
         let database_path = core_root.join(&manifest.database.file);
         let connection = sqlite::open_read_only(&database_path)?;
         sqlite::validate_database(&connection)?;
         drop(connection);
-        Ok(Arc::new(Self {
+        Ok(Self {
             semantic_root: core_root.to_path_buf(),
             database_path,
             manifest,
             semantic: OnceLock::new(),
-        }))
+            semantic_failure: OnceLock::new(),
+        })
     }
 
     fn connection(&self) -> LexiconResult<rusqlite::Connection> {
@@ -84,6 +88,9 @@ impl LexiconBundle {
     }
 
     fn semantic_engine(&self) -> LexiconResult<&Mutex<semantic::SemanticEngine>> {
+        if let Some(error) = self.semantic_failure.get() {
+            return Err(error.clone());
+        }
         self.semantic
             .get_or_init(|| {
                 let manifest = self.manifest.semantic.as_ref().ok_or_else(|| {
@@ -107,7 +114,13 @@ impl LexiconBundle {
     }
 
     fn semantic_available(&self) -> bool {
-        self.manifest.semantic.is_some() && !matches!(self.semantic.get(), Some(Err(_)))
+        self.manifest.semantic.is_some() && self.semantic_error().is_none()
+    }
+
+    fn semantic_error(&self) -> Option<&LexiconError> {
+        self.semantic_failure
+            .get()
+            .or_else(|| self.semantic.get().and_then(|result| result.as_ref().err()))
     }
 }
 
@@ -119,11 +132,7 @@ impl LexiconEngine for LexiconBundle {
             status: atelier_prompt_lexicon::LexiconCapabilityStatus {
                 lexical_available: true,
                 semantic_available: self.semantic_available(),
-                message: self
-                    .semantic
-                    .get()
-                    .and_then(|result| result.as_ref().err())
-                    .map(ToString::to_string),
+                message: self.semantic_error().map(ToString::to_string),
             },
             stats: sqlite::stats(&connection)?,
             categories: sqlite::category_facets(&connection)?,
@@ -163,8 +172,13 @@ impl LexiconEngine for LexiconBundle {
                         LexiconError::SemanticUnavailable(
                             "semantic engine lock is unavailable".to_owned(),
                         )
-                    })?
-                    .search(&query.text, &query.filters, &context, candidate_limit)?;
+                    })
+                    .and_then(|engine| {
+                        engine.search(&query.text, &query.filters, &context, candidate_limit)
+                    })
+                    .inspect_err(|error| {
+                        let _ = self.semantic_failure.set(error.clone());
+                    })?;
                 let semantic = sqlite::filter_items(&connection, semantic, &query.filters)?;
                 let items = anchor_exact_matches(&connection, query, semantic)?;
                 let total = items.len();

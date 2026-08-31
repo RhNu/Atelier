@@ -18,6 +18,7 @@ import {
   useLexiconEntityQuery,
 } from "./data/useLexiconQueries";
 import { useLexiconSearchState } from "./state/useLexiconSearchState";
+import { useSemanticFallback } from "./state/useSemanticFallback";
 
 export function LexiconPage() {
   const { t } = useTranslation("lexicon");
@@ -32,6 +33,7 @@ export function LexiconPage() {
   const installResources = useInstallDownloadableResourceGroupMutation();
   const basketIds = useMemo(() => new Set(basket.keys()), [basket]);
   const basketItems = useMemo(() => [...basket.values()], [basket]);
+  useSemanticFallback(search, bootstrap);
 
   const toggleBasket = useCallback((item: LexiconSearchItemDto) => {
     setBasket((current) => {

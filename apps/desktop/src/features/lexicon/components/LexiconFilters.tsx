@@ -56,7 +56,7 @@ export function LexiconFilters({
   const { t } = useTranslation("lexicon");
   const tabs = useMemo(
     () => [
-      { value: "lexical" as const, label: t("fastSearch"), disabled: pending },
+      { value: "lexical" as const, label: t("fastSearch") },
       {
         value: "semantic" as const,
         label: bootstrap?.status.semantic_available

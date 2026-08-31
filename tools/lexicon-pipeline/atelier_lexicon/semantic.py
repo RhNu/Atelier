@@ -62,7 +62,7 @@ def build_semantic_assets(
     tokenizer_path = output_dir / "tokenizer.json"
     _download(MODEL_FILE, model_path)
     _download(TOKENIZER_FILE, tokenizer_path)
-    (output_dir / "LICENSE-model.txt").write_text(MIT_LICENSE, encoding="utf-8")
+    (output_dir / "LICENSE-model.txt").write_text(MIT_LICENSE, encoding="utf-8", newline="\n")
 
     tokenizer = Tokenizer.from_file(str(tokenizer_path))
     tokenizer.enable_truncation(max_length=MAX_LENGTH)

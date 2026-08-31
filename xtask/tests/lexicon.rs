@@ -11,6 +11,9 @@ use sha2::{Digest, Sha256};
 use tempfile::{TempDir, tempdir};
 use xtask::{LexiconBundleConfig, build_lexicon_bundle, validate_lexicon_bundle};
 
+#[path = "lexicon/resilience.rs"]
+mod resilience;
+
 #[test]
 fn builds_and_opens_deterministic_lexical_bundle() {
     let (temp, input, output) = fixture();

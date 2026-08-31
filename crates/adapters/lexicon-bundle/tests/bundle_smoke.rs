@@ -14,7 +14,17 @@ fn bundled_semantic_search_smoke() {
     let runtime_path = env::var_os("ATELIER_ONNX_RUNTIME_LIBRARY")
         .expect("ATELIER_ONNX_RUNTIME_LIBRARY must be set");
     atelier_adapter_onnx_runtime::initialize(runtime_path).expect("runtime should initialize");
-    let lexicon = LexiconBundle::open(bundle_path).expect("bundle should open");
+    let lexicon = if let Some(semantic_root) = env::var_os("ATELIER_LEXICON_SEMANTIC_ROOT") {
+        LexiconBundle::open_with_roots(
+            std::path::Path::new(&bundle_path),
+            std::path::Path::new(&semantic_root),
+        )
+    } else {
+        LexiconBundle::open(bundle_path)
+    }
+    .expect("bundle should open");
+    assert!(lexicon.bootstrap().unwrap().status.semantic_available);
+    assert!(!lexicon.complete("blue", 10).unwrap().is_empty());
 
     let started = Instant::now();
     let page = lexicon

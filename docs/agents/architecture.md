@@ -192,6 +192,13 @@ assets managed by `downloadable-resources` below
 retain leases while files may be mmap-backed or held by ONNX sessions. They do not enter the
 workspace `resource-catalog`.
 
+Lexicon core and optional semantic capabilities have separate failure boundaries. Invalid semantic
+metadata, files, or model initialization must leave lexical search, completion, and entity lookup
+available, with semantic failures exposed through capability status. Download catalogs verify exact
+transport bytes; runtime checks preserve strict binary integrity and vector dimensions, identify
+tokenizers by their bounded decoded payload, and accept only SHA-256-proven LF/CRLF equivalence for
+license text. Readable text alone is not evidence of integrity.
+
 The stable catalog uses HTTPS for authenticity and per-file SHA-256 for integrity. It is not
 separately signed. This intentionally accepts compromise of the HTTPS publication path as a trust
 risk; application updater artifacts remain independently signed by Tauri.

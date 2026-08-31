@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { createAtelierQueryClient } from "../app/query-client";
 import { LexiconPage } from "../features/lexicon";
+import { useToastStore } from "../stores/toast-store";
 import type {
   AppendLexiconEntitiesRequestDto,
   GenerationDraftDto,
@@ -84,6 +85,7 @@ const bootstrap: LexiconBootstrapDto = {
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+  useToastStore.setState({ toasts: [] });
   mocks.bootstrap.mockResolvedValue(bootstrap);
   mocks.search.mockResolvedValue({ items: [item], total: 1, offset: 0, limit: 100 });
   mocks.entity.mockResolvedValue({
@@ -96,6 +98,126 @@ beforeEach(() => {
   });
   mocks.append.mockResolvedValue(generationDraft());
   mocks.navigate.mockResolvedValue(undefined);
+});
+
+describe("LexiconPage semantic resilience", () => {
+  it("keeps lexical search and entity details usable when semantic assets are invalid", async () => {
+    mocks.bootstrap.mockResolvedValue({
+      ...bootstrap,
+      status: {
+        lexical_available: true,
+        semantic_available: false,
+        message: "invalid semantic assets",
+      },
+    });
+    const user = setup();
+    await screen.findByText("cinematic_lighting");
+    expect(screen.getByRole("tab", { name: "Semantic unavailable" })).toBeDisabled();
+    await user.type(screen.getByLabelText("Search the lexicon"), "cinematic");
+    await waitFor(() => expect(mocks.search.mock.lastCall?.[0].query).toBe("cinematic"));
+    await user.click(screen.getByText("cinematic_lighting"));
+    await waitFor(() => expect(mocks.entity).toHaveBeenCalledWith({ entity_id: 123 }));
+  });
+
+  it("falls back after semantic failure, preserves filters, and refreshes capabilities", async () => {
+    mocks.search.mockImplementation(async (request) => {
+      if (request.mode === "semantic") {
+        mocks.bootstrap.mockResolvedValue({
+          ...bootstrap,
+          status: { lexical_available: true, semantic_available: false, message: "model failed" },
+        });
+        throw new Error("model failed");
+      }
+      return { items: [item], total: 1, offset: 0, limit: 100 };
+    });
+    const user = setup();
+    await screen.findByText("cinematic_lighting");
+    await user.type(screen.getByLabelText("Search the lexicon"), "cinematic");
+    await user.selectOptions(screen.getByLabelText("Content"), "safe");
+    await user.click(screen.getByRole("tab", { name: "Semantic explore" }));
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: "Fast search" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+    expect(screen.getByLabelText("Search the lexicon")).toHaveValue("cinematic");
+    expect(screen.getByLabelText("Content")).toHaveValue("safe");
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: "Semantic unavailable" })).toBeDisabled(),
+    );
+    expect(mocks.bootstrap).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("cinematic_lighting")).toBeInTheDocument();
+    expect(useToastStore.getState().toasts.at(-1)?.message).toContain("Switched to fast search");
+    expect(useToastStore.getState().toasts.at(-1)?.message).toContain("model failed");
+    // A different query must still reach the lexical backend after the failure.
+    await user.type(screen.getByLabelText("Search the lexicon"), " light");
+    await waitFor(() =>
+      expect(mocks.search.mock.lastCall?.[0]).toMatchObject({
+        mode: "lexical",
+        query: "cinematic light",
+        filters: { ratings: ["safe"] },
+      }),
+    );
+  });
+
+  it("allows returning to fast search while a semantic request is still running", async () => {
+    mocks.search.mockImplementation((request) =>
+      request.mode === "semantic"
+        ? new Promise(() => {})
+        : Promise.resolve({ items: [item], total: 1, offset: 0, limit: 100 }),
+    );
+    const user = setup();
+    await screen.findByText("cinematic_lighting");
+    await user.type(screen.getByLabelText("Search the lexicon"), "cinematic");
+    await user.click(screen.getByRole("tab", { name: "Semantic explore" }));
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(screen.getByLabelText("Search the lexicon")).toBeDisabled());
+    await user.click(screen.getByRole("tab", { name: "Fast search" }));
+    await waitFor(() => expect(screen.getByLabelText("Search the lexicon")).toBeEnabled());
+    expect(screen.getByText("cinematic_lighting")).toBeInTheDocument();
+  });
+
+  it("allows retrying the same semantic query after a transient failure", async () => {
+    let attempts = 0;
+    let resolveRetry: ((page: LexiconSearchPageDto) => void) | undefined;
+    mocks.search.mockImplementation((request) => {
+      if (request.mode === "semantic") {
+        attempts += 1;
+        if (attempts === 1) return Promise.reject(new Error("temporary failure"));
+        return new Promise((resolve) => {
+          resolveRetry = resolve;
+        });
+      }
+      return Promise.resolve({ items: [item], total: 1, offset: 0, limit: 100 });
+    });
+    const user = setup();
+    await screen.findByText("cinematic_lighting");
+    await user.type(screen.getByLabelText("Search the lexicon"), "cinematic");
+    await user.click(screen.getByRole("tab", { name: "Semantic explore" }));
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: "Fast search" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+    await user.click(screen.getByRole("tab", { name: "Semantic explore" }));
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    await waitFor(() => expect(attempts).toBe(2));
+    expect(screen.getByRole("tab", { name: "Semantic explore" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    resolveRetry?.({ items: [item], total: 1, offset: 0, limit: 100 });
+    await waitFor(() => expect(screen.getByLabelText("Search the lexicon")).toBeEnabled());
+    expect(screen.getByRole("tab", { name: "Semantic explore" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(useToastStore.getState().toasts).toHaveLength(1);
+  });
 });
 
 describe("LexiconPage", () => {

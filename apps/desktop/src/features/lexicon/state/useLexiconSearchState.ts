@@ -50,12 +50,10 @@ export function useLexiconSearchState(basket: Map<number, LexiconSearchItemDto>)
     groupId !== "" ||
     rating !== "all";
   const changeMode = useCallback((value: LexiconSearchModeDto) => {
-    startTransition(() => {
-      setMode(value);
-      setOffset(0);
-      setSemanticQuery("");
-      setSemanticContextIds([]);
-    });
+    setMode(value);
+    setOffset(0);
+    setSemanticQuery("");
+    setSemanticContextIds([]);
   }, []);
   const changeQuery = useCallback((value: string) => {
     setQuery(value);

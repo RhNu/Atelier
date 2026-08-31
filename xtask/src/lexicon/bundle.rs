@@ -324,7 +324,6 @@ fn install_semantic_assets(
     }
     let files = [
         ("model.onnx", "model.onnx"),
-        ("LICENSE-model.txt", "LICENSE-model.txt"),
         ("identity.f16", "identity.f16"),
         ("knowledge.f16", "knowledge.f16"),
     ];
@@ -335,6 +334,13 @@ fn install_semantic_assets(
         )
         .map_err(|error| format!("failed to install semantic asset {source_name}: {error}"))?;
     }
+    let license = fs::read_to_string(source.join("LICENSE-model.txt"))
+        .map_err(|error| format!("failed to read semantic license: {error}"))?;
+    fs::write(
+        config.output_dir.join("LICENSE-model.txt"),
+        license.replace("\r\n", "\n"),
+    )
+    .map_err(|error| format!("failed to install semantic license: {error}"))?;
     let tokenizer = install_tokenizer(
         &source.join("tokenizer.json"),
         &config.output_dir.join("tokenizer.json.zst"),

@@ -5,6 +5,7 @@ export const lexicon = {
   fastSearch: "快速搜索",
   semanticExplore: "语义探索",
   semanticUnavailable: "语义不可用",
+  semanticFallback: "语义搜索不可用，已切回普通检索，并保留搜索词和筛选条件。",
   searchMode: "词库搜索模式",
   searchTags: "搜索词库",
   searchPlaceholder: "规范标签、翻译、别名或 Wiki",

@@ -129,6 +129,13 @@ not probe every remote URL: transient GitHub or Hugging Face outages must not bl
 valid release. The application still enforces HTTPS, declared sizes, and SHA-256 hashes when it
 downloads a file.
 
+Generate lexicon license text with LF line endings before hashing, and compute catalog metadata from
+the final publication bytes. Existing 1.0.0 lexicon manifests record a CRLF license digest while the
+published file uses LF; the runtime accepts this proven text equivalence without rewriting installed
+files or changing immutable release descriptors. Model/database/vector hashes and download catalog
+verification remain exact. Tokenizer runtime identity is its bounded, decoded JSON digest, independent
+of zstd compression bytes; release validation still checks the published compressed file digest.
+
 Multiple independently committed resource tags may be pushed together by naming every tag:
 
 ```powershell
