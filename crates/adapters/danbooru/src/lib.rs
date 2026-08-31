@@ -1,5 +1,8 @@
 //! `reqwest` adapter for Danbooru discovery.
 
+mod explore;
+pub use explore::DanbooruExploreSource;
+
 use async_trait::async_trait;
 use atelier_danbooru::{
     DANBOORU_PAGE_SIZE, DanbooruClient, DanbooruCredentials, DanbooruError, DanbooruErrorKind,
@@ -11,6 +14,7 @@ use futures_util::StreamExt;
 use reqwest::{StatusCode, Url, header};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use sha2::{Digest, Sha256};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -76,7 +80,7 @@ impl ReqwestDanbooruClient {
     ) -> String {
         format!(
             "{}|{}|{}",
-            credentials.map_or("anonymous", |value| value.username.as_str()),
+            credential_scope(credentials),
             before_id.map_or_else(|| "first".to_owned(), |value| value.to_string()),
             provider_tags
         )
@@ -88,27 +92,39 @@ impl ReqwestDanbooruClient {
         cache.search.get(key).map(|entry| entry.value.clone())
     }
 
-    fn cached_post(&self, post_id: u64) -> Option<DanbooruPost> {
+    fn cached_post(
+        &self,
+        post_id: u64,
+        credentials: Option<&DanbooruCredentials>,
+    ) -> Option<DanbooruPost> {
         let mut cache = self.cache.lock().ok()?;
         cache.expire();
-        cache.posts.get(&post_id).map(|entry| entry.value.clone())
+        cache
+            .posts
+            .get(&(credential_scope(credentials), post_id))
+            .map(|entry| entry.value.clone())
     }
 
-    fn store_page(&self, key: String, page: DanbooruPostPage) {
+    fn store_page(
+        &self,
+        key: String,
+        page: DanbooruPostPage,
+        credentials: Option<&DanbooruCredentials>,
+    ) {
         let Ok(mut cache) = self.cache.lock() else {
             log::warn!("Danbooru cache is unavailable");
             return;
         };
         let now = Instant::now();
         for post in &page.posts {
-            cache.insert_post(post.clone(), now);
+            cache.insert_post(post.clone(), credential_scope(credentials), now);
         }
         cache.insert_search(key, page, now);
     }
 
-    fn store_post(&self, post: DanbooruPost) {
+    fn store_post(&self, post: DanbooruPost, credentials: Option<&DanbooruCredentials>) {
         if let Ok(mut cache) = self.cache.lock() {
-            cache.insert_post(post, Instant::now());
+            cache.insert_post(post, credential_scope(credentials), Instant::now());
         }
     }
 
@@ -286,7 +302,7 @@ impl DanbooruClient for ReqwestDanbooruClient {
             next_before_id,
             authenticated: credentials.is_some(),
         };
-        self.store_page(key, page.clone());
+        self.store_page(key, page.clone(), credentials);
         Ok(page)
     }
 
@@ -295,11 +311,11 @@ impl DanbooruClient for ReqwestDanbooruClient {
         post_id: u64,
         credentials: Option<&DanbooruCredentials>,
     ) -> DanbooruResult<DanbooruPost> {
-        if let Some(post) = self.cached_post(post_id) {
+        if let Some(post) = self.cached_post(post_id, credentials) {
             return Ok(post);
         }
         let _gate = self.api_gate.lock().await;
-        if let Some(post) = self.cached_post(post_id) {
+        if let Some(post) = self.cached_post(post_id, credentials) {
             return Ok(post);
         }
         let url = self
@@ -310,7 +326,7 @@ impl DanbooruClient for ReqwestDanbooruClient {
             .send_json::<RawPost>(url, credentials)
             .await?
             .try_into()?;
-        self.store_post(post.clone());
+        self.store_post(post.clone(), credentials);
         Ok(post)
     }
 
@@ -347,6 +363,23 @@ impl DanbooruClient for ReqwestDanbooruClient {
     }
 }
 
+// Private cache namespace: rotated keys and anonymous access cannot share post data.
+fn credential_scope(credentials: Option<&DanbooruCredentials>) -> String {
+    credentials.map_or_else(
+        || "anonymous".to_owned(),
+        |credentials| {
+            let mut hash = Sha256::new();
+            hash.update(credentials.username.as_bytes());
+            hash.update([0]);
+            hash.update(credentials.api_key.expose_secret().as_bytes());
+            base64::Engine::encode(
+                &base64::engine::general_purpose::URL_SAFE_NO_PAD,
+                hash.finalize(),
+            )
+        },
+    )
+}
+
 #[derive(Debug)]
 struct RateState {
     tokens: f64,
@@ -376,8 +409,8 @@ impl RateState {
 struct CacheState {
     search: HashMap<String, CacheEntry<DanbooruPostPage>>,
     search_order: VecDeque<String>,
-    posts: HashMap<u64, CacheEntry<DanbooruPost>>,
-    post_order: VecDeque<u64>,
+    posts: HashMap<(String, u64), CacheEntry<DanbooruPost>>,
+    post_order: VecDeque<(String, u64)>,
 }
 
 struct CacheEntry<T> {
@@ -413,10 +446,10 @@ impl CacheState {
         }
     }
 
-    fn insert_post(&mut self, value: DanbooruPost, now: Instant) {
-        let id = value.id;
+    fn insert_post(&mut self, value: DanbooruPost, scope: String, now: Instant) {
+        let id = (scope, value.id);
         self.post_order.retain(|current| *current != id);
-        self.post_order.push_back(id);
+        self.post_order.push_back(id.clone());
         self.posts.insert(
             id,
             CacheEntry {

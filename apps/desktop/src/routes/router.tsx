@@ -1,9 +1,9 @@
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 
 import { DirectorPage } from "../features/director";
+import { ExplorePage } from "../features/explore";
 import { GalleryPage } from "../features/gallery";
 import { GeneratePage } from "../features/generation";
-import { InspirationPage } from "../features/inspiration";
 import { LexiconPage } from "../features/lexicon";
 import { ResourcesPage } from "../features/resources";
 import { SettingsPage } from "../features/settings";
@@ -54,10 +54,18 @@ const galleryRoute = createRoute({
   component: GalleryPage,
 });
 
-const inspirationRoute = createRoute({
+const exploreRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/explore",
+  component: ExplorePage,
+});
+
+const legacyInspirationRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/inspiration",
-  component: InspirationPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/explore" });
+  },
 });
 
 const settingsRoute = createRoute({
@@ -72,7 +80,8 @@ export const appRouteTree = rootRoute.addChildren([
   directorRoute,
   resourcesRoute,
   lexiconRoute,
-  inspirationRoute,
+  exploreRoute,
+  legacyInspirationRoute,
   galleryRoute,
   settingsRoute,
 ]);

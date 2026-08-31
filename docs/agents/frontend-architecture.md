@@ -30,6 +30,12 @@ tokenizer, highlighting, or completion implementations.
 Regenerate its checked-in parser with `pnpm prompt-parser:generate`; `pnpm test` verifies that the
 generated parser has not drifted from `nai-prompt.grammar`.
 
+`features/explore` owns the `/explore` entry and source registry. Source-tagged query/detail/media
+contracts, image loading, local completion and copy actions are shared; each source owns its search
+controls and inspector. Inactive sources retain UI state but do not initiate searches or image loads.
+Cache keys include source identity and the Danbooru account revision. Invalidating frontend queries
+does not claim to cancel an already-running Tauri HTTP request. `/inspiration` is only a redirect.
+
 Feature folders should stay shallow and explicit:
 
 - `data/`: TanStack Query hooks, mutations, and cache invalidation helpers for command-backed data.

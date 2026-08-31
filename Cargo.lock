@@ -408,12 +408,16 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "atelier-danbooru",
+ "atelier-explore",
  "atelier-secrets",
+ "base64 0.22.1",
  "futures-timer",
  "futures-util",
  "log",
  "reqwest",
  "serde",
+ "serde_json",
+ "sha2 0.11.0",
  "tokio",
 ]
 
@@ -544,6 +548,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "atelier-adapter-novelai-explore"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-explore",
+ "futures-timer",
+ "futures-util",
+ "image",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "atelier-adapter-onnx-runtime"
 version = "0.1.0"
 dependencies = [
@@ -597,6 +616,7 @@ name = "atelier-app"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "atelier-adapter-danbooru",
  "atelier-adapter-database",
  "atelier-adapter-image-codec",
  "atelier-adapter-keyring",
@@ -607,6 +627,7 @@ dependencies = [
  "atelier-danbooru",
  "atelier-director",
  "atelier-downloadable-resources",
+ "atelier-explore",
  "atelier-gallery",
  "atelier-generation",
  "atelier-image-analysis",
@@ -630,6 +651,7 @@ dependencies = [
  "image",
  "rusqlite",
  "serde_json",
+ "sha2 0.11.0",
  "tempfile",
  "thiserror 2.0.20",
 ]
@@ -674,6 +696,7 @@ dependencies = [
  "atelier-adapter-keyring",
  "atelier-adapter-lexicon-bundle",
  "atelier-adapter-novelai",
+ "atelier-adapter-novelai-explore",
  "atelier-adapter-onnx-runtime",
  "atelier-adapter-secrets-fs",
  "atelier-adapter-settings-fs",
@@ -718,6 +741,15 @@ dependencies = [
  "serde",
  "thiserror 2.0.20",
  "url",
+]
+
+[[package]]
+name = "atelier-explore"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-danbooru",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

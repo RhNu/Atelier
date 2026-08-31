@@ -1,0 +1,10 @@
+[package]
+name = "atelier-explore"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+atelier-danbooru = { workspace = true }
+thiserror = { workspace = true }

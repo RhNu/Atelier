@@ -6,7 +6,7 @@ import { AppButton, AppIconButton, AppModal, AppPanel } from "@/components/ui";
 import {
   useDanbooruAccountMutations,
   useDanbooruAccountQuery,
-} from "@/features/inspiration/data/useDanbooruQueries";
+} from "@/features/explore/data/useDanbooruQueries";
 import { desktopApi } from "@/platform/atelier";
 import { useToastStore } from "@/stores/toast-store";
 

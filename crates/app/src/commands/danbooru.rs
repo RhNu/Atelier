@@ -1,20 +1,14 @@
 use std::collections::HashMap;
 
 use atelier_app_api::danbooru::{
-    DanbooruAccountDto, DanbooruAccountStateDto, DanbooruAuthModeDto, DanbooruMediaRequestDto,
-    DanbooruMediaVariantDto, DanbooruPostDetailDto, DanbooruPostDetailRequestDto,
-    DanbooruPostPageDto, DanbooruPostSummaryDto, DanbooruRatingDto, DanbooruSearchRequestDto,
-    DanbooruTagCategoryDto, DanbooruTagDto, SaveDanbooruAccountRequestDto,
+    DanbooruAccountDto, DanbooruAccountStateDto, DanbooruPostDetailDto, DanbooruPostSummaryDto,
+    DanbooruRatingDto, DanbooruTagCategoryDto, DanbooruTagDto, SaveDanbooruAccountRequestDto,
 };
 use atelier_app_api::error::ErrorEnvelopeDto;
-use atelier_app_api::resource::ResourceImageDto;
 use atelier_danbooru::{
-    DanbooruCredentials, DanbooruErrorKind, DanbooruMediaVariant, DanbooruPost, DanbooruRating,
-    DanbooruSearchRequest, DanbooruTagCategory,
+    DanbooruCredentials, DanbooruErrorKind, DanbooruPost, DanbooruRating, DanbooruTagCategory,
 };
 use atelier_secrets::{SecretRecordId, SecretStore, SecretValue, SecretsErrorKind};
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
 
 use super::{AtelierRuntime, CommandResult};
 use crate::AppError;
@@ -164,6 +158,8 @@ where
                     DanbooruErrorKind::Unauthorized | DanbooruErrorKind::Forbidden
                 ) =>
             {
+                self.explore_identity_revision
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 Ok(DanbooruAccountDto {
                     configured: true,
                     state: DanbooruAccountStateDto::Invalid,
@@ -197,55 +193,12 @@ where
             }
             return Err(AppError::from(error).envelope());
         }
+        self.explore_identity_revision
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Ok(anonymous_account())
     }
 
-    /// Searches Danbooru posts using anonymous or configured authentication.
-    ///
-    /// # Errors
-    /// Returns an error envelope for invalid queries, account failures, or HTTP failures.
-    pub async fn search_danbooru_posts(
-        &self,
-        request: DanbooruSearchRequestDto,
-    ) -> CommandResult<DanbooruPostPageDto> {
-        let credentials = self.danbooru_credentials().await?;
-        let page = self
-            .danbooru
-            .search(
-                DanbooruSearchRequest {
-                    query: request.query,
-                    ratings: request.ratings.into_iter().map(rating_to_domain).collect(),
-                    before_id: request.before_id,
-                },
-                credentials.as_ref(),
-            )
-            .await
-            .map_err(danbooru_error_envelope)?;
-        Ok(DanbooruPostPageDto {
-            items: page.posts.iter().map(post_summary_to_dto).collect(),
-            next_before_id: page.next_before_id,
-            auth_mode: if page.authenticated {
-                DanbooruAuthModeDto::Authenticated
-            } else {
-                DanbooruAuthModeDto::Anonymous
-            },
-        })
-    }
-
-    /// Loads one Danbooru post and enriches its tags with the local lexicon.
-    ///
-    /// # Errors
-    /// Returns an error envelope when account or post loading fails.
-    pub async fn get_danbooru_post_detail(
-        &self,
-        request: DanbooruPostDetailRequestDto,
-    ) -> CommandResult<DanbooruPostDetailDto> {
-        let credentials = self.danbooru_credentials().await?;
-        let post = self
-            .danbooru
-            .post(request.post_id, credentials.as_ref())
-            .await
-            .map_err(danbooru_error_envelope)?;
+    pub(super) fn enrich_danbooru_post(&self, post: &DanbooruPost) -> DanbooruPostDetailDto {
         let names = post
             .ordered_tags()
             .into_iter()
@@ -280,45 +233,17 @@ where
                 }
             })
             .collect();
-        Ok(DanbooruPostDetailDto {
-            post: post_summary_to_dto(&post),
+        DanbooruPostDetailDto {
+            post: post_summary_to_dto(post),
             created_at: post.created_at.clone(),
             file_size: post.file_size,
             source_url: post.source_url.clone(),
             danbooru_url: format!("https://danbooru.donmai.us/posts/{}", post.id),
             tags,
-        })
+        }
     }
 
-    /// Loads an allowlisted preview or sample for a Danbooru post.
-    ///
-    /// # Errors
-    /// Returns an error envelope when account, post, or media validation fails.
-    pub async fn get_danbooru_media(
-        &self,
-        request: DanbooruMediaRequestDto,
-    ) -> CommandResult<ResourceImageDto> {
-        let credentials = self.danbooru_credentials().await?;
-        let media = self
-            .danbooru
-            .media(
-                request.post_id,
-                match request.variant {
-                    DanbooruMediaVariantDto::Preview => DanbooruMediaVariant::Preview,
-                    DanbooruMediaVariantDto::Sample => DanbooruMediaVariant::Sample,
-                },
-                credentials.as_ref(),
-            )
-            .await
-            .map_err(AppError::from)
-            .map_err(|error| error.envelope())?;
-        Ok(ResourceImageDto {
-            image_base64: STANDARD.encode(media.bytes),
-            mime_type: Some(media.mime_type),
-        })
-    }
-
-    async fn danbooru_credentials(&self) -> CommandResult<Option<DanbooruCredentials>> {
+    pub(super) async fn danbooru_credentials(&self) -> CommandResult<Option<DanbooruCredentials>> {
         let settings = self
             .global_settings
             .get_global_settings()
@@ -377,7 +302,7 @@ async fn rollback_secret<S: SecretStore>(
     }
 }
 
-const fn rating_to_domain(value: DanbooruRatingDto) -> DanbooruRating {
+pub(super) const fn rating_to_domain(value: DanbooruRatingDto) -> DanbooruRating {
     match value {
         DanbooruRatingDto::General => DanbooruRating::General,
         DanbooruRatingDto::Sensitive => DanbooruRating::Sensitive,
@@ -405,7 +330,7 @@ const fn tag_category_to_dto(value: DanbooruTagCategory) -> DanbooruTagCategoryD
     }
 }
 
-fn post_summary_to_dto(post: &DanbooruPost) -> DanbooruPostSummaryDto {
+pub(super) fn post_summary_to_dto(post: &DanbooruPost) -> DanbooruPostSummaryDto {
     DanbooruPostSummaryDto {
         id: post.id,
         rating: rating_to_dto(post.rating),

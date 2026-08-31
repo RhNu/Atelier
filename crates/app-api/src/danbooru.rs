@@ -42,14 +42,6 @@ pub enum DanbooruRatingDto {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(rename_all = "snake_case")]
-pub enum DanbooruAuthModeDto {
-    Anonymous,
-    Authenticated,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename_all = "snake_case")]
 pub enum DanbooruTagCategoryDto {
     Artist,
     Copyright,
@@ -67,14 +59,6 @@ pub enum DanbooruMediaVariantDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct DanbooruSearchRequestDto {
-    pub query: String,
-    pub ratings: Vec<DanbooruRatingDto>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub before_id: Option<u64>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DanbooruPostSummaryDto {
     pub id: u64,
     pub rating: DanbooruRatingDto,
@@ -86,19 +70,6 @@ pub struct DanbooruPostSummaryDto {
     pub tag_count: usize,
     pub has_preview: bool,
     pub has_sample: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct DanbooruPostPageDto {
-    pub items: Vec<DanbooruPostSummaryDto>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub next_before_id: Option<u64>,
-    pub auth_mode: DanbooruAuthModeDto,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct DanbooruPostDetailRequestDto {
-    pub post_id: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -120,10 +91,4 @@ pub struct DanbooruPostDetailDto {
     pub source_url: Option<String>,
     pub danbooru_url: String,
     pub tags: Vec<DanbooruTagDto>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct DanbooruMediaRequestDto {
-    pub post_id: u64,
-    pub variant: DanbooruMediaVariantDto,
 }

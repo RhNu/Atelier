@@ -66,6 +66,8 @@ use futures_executor::block_on;
 
 #[path = "command_facade/danbooru_commands.rs"]
 mod danbooru_commands;
+#[path = "command_facade/explore_commands.rs"]
+mod explore_commands;
 #[path = "command_facade/resource_preview_commands.rs"]
 mod resource_preview_commands;
 #[path = "command_facade/session_commands.rs"]

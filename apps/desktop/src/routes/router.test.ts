@@ -23,7 +23,7 @@ describe("router", () => {
       "/director",
       "/resources",
       "/lexicon",
-      "/inspiration",
+      "/explore",
       "/gallery",
       "/settings",
     ]);

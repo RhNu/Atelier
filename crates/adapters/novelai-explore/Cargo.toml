@@ -1,0 +1,16 @@
+[package]
+name = "atelier-adapter-novelai-explore"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+atelier-explore = { workspace = true }
+futures-timer = { workspace = true }
+futures-util = { workspace = true }
+image = { workspace = true, features = ["webp", "png", "jpeg"] }
+reqwest = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true }

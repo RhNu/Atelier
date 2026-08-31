@@ -15,7 +15,7 @@ const REQUIRED_FRONTEND_AREAS = [
   "src/features/director",
   "src/features/resources",
   "src/features/lexicon",
-  "src/features/inspiration",
+  "src/features/explore",
   "src/features/gallery",
   "src/features/settings",
   "src/routes",

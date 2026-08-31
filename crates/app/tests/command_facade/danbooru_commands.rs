@@ -1,6 +1,8 @@
 use atelier_app_api::danbooru::{
-    DanbooruAccountStateDto, DanbooruAuthModeDto, DanbooruRatingDto, DanbooruSearchRequestDto,
-    SaveDanbooruAccountRequestDto,
+    DanbooruAccountStateDto, DanbooruRatingDto, SaveDanbooruAccountRequestDto,
+};
+use atelier_app_api::explore::{
+    DanbooruExploreQueryDto, ExplorePostSummaryDto, ExploreQueryDto, ExploreSearchRequestDto,
 };
 use atelier_danbooru::{
     DanbooruClient, DanbooruCredentials, DanbooruError, DanbooruErrorKind, DanbooruMedia,
@@ -28,15 +30,19 @@ fn verified_account_is_shared_with_search_and_can_be_deleted() {
         assert_eq!(saved.level.as_deref(), Some("Member"));
 
         let page = host
-            .search_danbooru_posts(DanbooruSearchRequestDto {
-                query: "blue_eyes".to_owned(),
-                ratings: vec![DanbooruRatingDto::General, DanbooruRatingDto::Sensitive],
-                before_id: Some(100),
+            .search_explore_posts(ExploreSearchRequestDto {
+                query: ExploreQueryDto::DanbooruDatabase(DanbooruExploreQueryDto {
+                    query: "blue_eyes".to_owned(),
+                    ratings: vec![DanbooruRatingDto::General, DanbooruRatingDto::Sensitive],
+                }),
+                cursor: None,
             })
             .await
             .unwrap();
-        assert_eq!(page.auth_mode, DanbooruAuthModeDto::Authenticated);
-        assert_eq!(page.items[0].id, 42);
+        assert!(page.authenticated);
+        assert!(
+            matches!(&page.items[0], ExplorePostSummaryDto::DanbooruDatabase(post) if post.id == 42)
+        );
 
         assert_eq!(
             host.probe_danbooru_account().await.unwrap().state,

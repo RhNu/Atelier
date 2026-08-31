@@ -1,6 +1,9 @@
 import type {
   GalleryQueryDto,
-  DanbooruSearchRequestDto,
+  ExploreQueryDto,
+  ExploreItemRefDto,
+  ExploreSourceIdDto,
+  ExploreMediaVariantDto,
   GenerationHistoryQueryDto,
   ListPromptPresetsRequestDto,
   ListVibeDocumentsRequestDto,
@@ -36,14 +39,26 @@ export const queryKeys = {
     apiKeys: () => ["app", "account", "api-keys"] as const,
     activeSummary: () => ["app", "account", "active-summary"] as const,
   },
+  explore: {
+    sources: () => ["app", "explore", "sources"] as const,
+    source: (source: ExploreSourceIdDto) => ["app", "explore", source] as const,
+    search: (query: ExploreQueryDto | null, revision: number) =>
+      ["app", "explore", query?.source_id ?? null, revision, "search", query] as const,
+    detail: (item: ExploreItemRefDto | null, revision: number) =>
+      [
+        "app",
+        "explore",
+        item?.source_id ?? null,
+        revision,
+        "detail",
+        item?.item_id ?? null,
+      ] as const,
+    media: (item: ExploreItemRefDto, variant: ExploreMediaVariantDto, revision: number) =>
+      ["app", "explore", item.source_id, revision, "media", item.item_id, variant] as const,
+  },
   danbooru: {
     root: () => ["app", "danbooru"] as const,
     account: () => ["app", "danbooru", "account"] as const,
-    search: (request: Omit<DanbooruSearchRequestDto, "before_id">) =>
-      ["app", "danbooru", "search", request] as const,
-    detail: (postId: number | null) => ["app", "danbooru", "detail", postId] as const,
-    media: (postId: number, variant: "preview" | "sample") =>
-      ["app", "danbooru", "media", postId, variant] as const,
   },
   settings: {
     root: () => ["workspace", "settings"] as const,

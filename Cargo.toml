@@ -11,6 +11,7 @@ members = [
     "crates/adapters/downloadable-resources-fs",
     "crates/adapters/database",
     "crates/adapters/danbooru",
+    "crates/adapters/novelai-explore",
     "crates/adapters/storage-fs",
     "crates/adapters/onnx-runtime",
     "crates/adapters/lexicon-bundle",
@@ -20,6 +21,7 @@ members = [
     "crates/features/director",
     "crates/features/downloadable-resources",
     "crates/features/danbooru",
+    "crates/features/explore",
     "crates/features/artifacts",
     "crates/features/generation",
     "crates/features/gallery",
@@ -65,6 +67,7 @@ semver = "1"
 tokenizers = { version = "0.23", default-features = false, features = ["onig"] }
 atelier-adapter-database = { path = "crates/adapters/database" }
 atelier-adapter-danbooru = { path = "crates/adapters/danbooru" }
+atelier-adapter-novelai-explore = { path = "crates/adapters/novelai-explore" }
 atelier-adapter-downloadable-resources-fs = { path = "crates/adapters/downloadable-resources-fs" }
 atelier-adapter-image-analysis-onnx = { path = "crates/adapters/image-analysis-onnx" }
 atelier-adapter-image-codec = { path = "crates/adapters/image-codec" }
@@ -80,6 +83,7 @@ atelier-app-api = { path = "crates/app-api" }
 atelier-artifacts = { path = "crates/features/artifacts" }
 atelier-director = { path = "crates/features/director" }
 atelier-danbooru = { path = "crates/features/danbooru" }
+atelier-explore = { path = "crates/features/explore" }
 atelier-downloadable-resources = { path = "crates/features/downloadable-resources" }
 atelier-foundation = { path = "crates/foundation" }
 atelier-gallery = { path = "crates/features/gallery" }

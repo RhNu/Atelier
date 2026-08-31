@@ -60,6 +60,8 @@ Implemented or partially implemented:
 - `crates/features/jobs`
 - `crates/features/artifacts`
 - `crates/features/gallery`
+- `crates/features/explore`
+- `crates/features/danbooru`
 - `crates/features/image-analysis`
 - `crates/features/vibe`
 - `crates/features/director`
@@ -74,6 +76,8 @@ Implemented or partially implemented:
 - `crates/adapters/keyring`
 - `crates/adapters/secrets-fs`
 - `crates/adapters/novelai`
+- `crates/adapters/novelai-explore`
+- `crates/adapters/danbooru`
 - `crates/adapters/image-analysis-onnx`
 - `crates/adapters/downloadable-resources-fs`
 - `crates/adapters/settings-fs`

@@ -50,6 +50,19 @@ capability tables that could disagree silently. Delegation makes upstream the on
 `Client`, `Transport`, and every other request/response type stay behind `adapters/novelai`. No other
 feature crate may add the dependency.
 
+### Public Explore gallery
+
+`features/explore` owns read-only discovery contracts and source query rules. The app exposes one
+search/detail/media entry point with source-tagged DTOs for Danbooru Database and NovelAI Explore
+Gallery. Source-specific content and transports remain separate; remote posts are not local artifacts.
+
+The undocumented Explore protocol is an explicit Atelier-only exception to the bridge integration
+rule: `adapters/novelai-explore` uses a fixed-host anonymous HTTP client, never reads generation
+credentials, and handles nested metadata JSON itself. It must not expand the public `novelai-bridge`
+API. Stable generation integration continues through the bridge adapter. Explore caches are ephemeral,
+source/account scoped, and independent of workspace persistence. Source approval is not a local safety
+assessment. See `docs/novelai-explore-read-only-research.md` for the observed public protocol.
+
 ## Current Workspace Layout
 
 ```text
@@ -60,6 +73,8 @@ crates/
   app-api/
 
   features/
+    danbooru/
+    explore/
     artifacts/
     director/
     downloadable-resources/
@@ -78,6 +93,8 @@ crates/
     workspace/
 
   adapters/
+    danbooru/
+    novelai-explore/
     database/
     downloadable-resources-fs/
     image-codec/

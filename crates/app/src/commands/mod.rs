@@ -3,6 +3,7 @@ mod danbooru;
 mod director;
 mod downloadable_resource;
 mod events;
+mod explore;
 mod gallery;
 mod generation;
 mod history;
@@ -53,6 +54,8 @@ pub struct AtelierRuntime<
     safety_policy_control: Option<Arc<dyn SafetyPolicyControl>>,
     lexicon: Arc<dyn LexiconEngine>,
     danbooru: Arc<dyn DanbooruClient>,
+    novelai_explore: Option<Arc<explore::NovelAiExploreSource>>,
+    explore_identity_revision: std::sync::atomic::AtomicU64,
     danbooru_account_gate: futures::lock::Mutex<()>,
     event_listeners: Mutex<Vec<AppEventListener>>,
     global_settings: GlobalSettingsService,
@@ -102,6 +105,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
             danbooru: Arc::new(UnavailableDanbooruClient),
+            novelai_explore: None,
+            explore_identity_revision: std::sync::atomic::AtomicU64::new(0),
             danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
@@ -132,6 +137,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
             danbooru: Arc::new(UnavailableDanbooruClient),
+            novelai_explore: None,
+            explore_identity_revision: std::sync::atomic::AtomicU64::new(0),
             danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings: transient_global_settings_service(),
@@ -163,6 +170,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             safety_policy_control: None,
             lexicon: Arc::new(UnavailableLexicon::default()),
             danbooru: Arc::new(UnavailableDanbooruClient),
+            novelai_explore: None,
+            explore_identity_revision: std::sync::atomic::AtomicU64::new(0),
             danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings,
@@ -195,6 +204,8 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             safety_policy_control: None,
             lexicon,
             danbooru: Arc::new(UnavailableDanbooruClient),
+            novelai_explore: None,
+            explore_identity_revision: std::sync::atomic::AtomicU64::new(0),
             danbooru_account_gate: futures::lock::Mutex::new(()),
             event_listeners: Mutex::new(Vec::new()),
             global_settings,
@@ -239,6 +250,15 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
     #[must_use]
     pub fn with_danbooru_client(mut self, client: Arc<dyn DanbooruClient>) -> Self {
         self.danbooru = client;
+        self
+    }
+
+    #[must_use]
+    pub fn with_novelai_explore_source(
+        mut self,
+        source: Arc<explore::NovelAiExploreSource>,
+    ) -> Self {
+        self.novelai_explore = Some(source);
         self
     }
 

@@ -14,11 +14,7 @@ use atelier_app_api::{
         ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto, SubscriptionSummaryDto,
         UpdateApiKeyRequestDto,
     },
-    danbooru::{
-        DanbooruAccountDto, DanbooruMediaRequestDto, DanbooruPostDetailDto,
-        DanbooruPostDetailRequestDto, DanbooruPostPageDto, DanbooruSearchRequestDto,
-        SaveDanbooruAccountRequestDto,
-    },
+    danbooru::{DanbooruAccountDto, SaveDanbooruAccountRequestDto},
     director::{DirectorToolResultDto, RunDirectorToolRequestDto},
     downloadable_resource::{
         DownloadableResourceGroupRequestDto, DownloadableResourceInstallProgressDto,
@@ -26,6 +22,10 @@ use atelier_app_api::{
     },
     error::ErrorEnvelopeDto,
     event::{AppEventPageDto, EventsSinceRequestDto},
+    explore::{
+        ExploreItemRefDto, ExploreMediaRequestDto, ExplorePageDto, ExplorePostDetailDto,
+        ExploreSearchRequestDto, ExploreSourceDescriptorDto,
+    },
     gallery::{
         DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryImageReferenceDto,
         GalleryImageReferenceRequestDto, GalleryItemDetailDto, GalleryItemDetailRequestDto,
@@ -151,27 +151,33 @@ pub async fn delete_danbooru_account(
 }
 
 #[tauri::command]
-pub async fn search_danbooru_posts(
-    state: State<'_, DesktopState>,
-    request: DanbooruSearchRequestDto,
-) -> CommandResult<DanbooruPostPageDto> {
-    state.host.search_danbooru_posts(request).await
+#[allow(clippy::needless_pass_by_value)] // Tauri extracts State by value.
+pub fn list_explore_sources(state: State<'_, DesktopState>) -> Vec<ExploreSourceDescriptorDto> {
+    state.host.list_explore_sources()
 }
 
 #[tauri::command]
-pub async fn get_danbooru_post_detail(
+pub async fn search_explore_posts(
     state: State<'_, DesktopState>,
-    request: DanbooruPostDetailRequestDto,
-) -> CommandResult<DanbooruPostDetailDto> {
-    state.host.get_danbooru_post_detail(request).await
+    request: ExploreSearchRequestDto,
+) -> CommandResult<ExplorePageDto> {
+    state.host.search_explore_posts(request).await
 }
 
 #[tauri::command]
-pub async fn get_danbooru_media(
+pub async fn get_explore_post_detail(
     state: State<'_, DesktopState>,
-    request: DanbooruMediaRequestDto,
+    item: ExploreItemRefDto,
+) -> CommandResult<ExplorePostDetailDto> {
+    state.host.get_explore_post_detail(item).await
+}
+
+#[tauri::command]
+pub async fn get_explore_media(
+    state: State<'_, DesktopState>,
+    request: ExploreMediaRequestDto,
 ) -> CommandResult<ResourceImageDto> {
-    state.host.get_danbooru_media(request).await
+    state.host.get_explore_media(request).await
 }
 
 #[tauri::command]

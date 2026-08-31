@@ -1,1 +1,0 @@
-export { InspirationPage } from "./InspirationPage";

@@ -130,6 +130,7 @@ vi.mock("../platform/atelier", () => ({
       root: () => ["settings"],
       workspace: () => ["settings", "workspace"],
     },
+    explore: { source: (id: string) => ["app", "explore", id] },
     danbooru: {
       root: () => ["app", "danbooru"],
       account: () => ["app", "danbooru", "account"],

@@ -40,3 +40,5 @@ export {
 } from "./resource-image";
 export { isImportedImageResource, uniqueImportedImageResources } from "./imported-images";
 export { AtelierCommandError, invokeAtelierCommand, normalizeCommandError } from "./tauri-client";
+
+export { exploreApi } from "./explore-client";

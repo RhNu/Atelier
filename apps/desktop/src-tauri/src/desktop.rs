@@ -9,6 +9,7 @@ use atelier_adapter_danbooru::ReqwestDanbooruClient;
 use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_lexicon_bundle::ManagedLexiconBundle;
 use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
+use atelier_adapter_novelai_explore::NovelAiExploreClient;
 use atelier_adapter_secrets_fs::FileSystemApiKeyRegistryStore;
 use atelier_adapter_settings_fs::FileSystemGlobalSettingsRepository;
 use atelier_app::{AtelierRuntime, GenerationWorkerCancel};
@@ -418,7 +419,8 @@ pub fn build_desktop_state(
         )
         .with_downloadable_resources(downloadable_resources)
         .with_api_key_registry(Arc::new(application_api_key_registry(&system)))
-        .with_danbooru_client(Arc::new(ReqwestDanbooruClient::new()?));
+        .with_danbooru_client(Arc::new(ReqwestDanbooruClient::new()?))
+        .with_novelai_explore_source(Arc::new(NovelAiExploreClient::new()?));
     if let Some(analysis) = image_analysis {
         runtime = runtime.with_image_analysis(
             analysis,

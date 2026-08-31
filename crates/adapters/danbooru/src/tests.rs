@@ -171,3 +171,30 @@ fn json_response(status: u16, body: &str, headers: &[(&str, &str)]) -> String {
         body.len()
     )
 }
+
+#[test]
+fn cached_pages_and_posts_do_not_cross_credentials() {
+    let client = ReqwestDanbooruClient::new().unwrap();
+    let alice = DanbooruCredentials {
+        username: "alice".into(),
+        api_key: atelier_secrets::SecretValue::new("first"),
+    };
+    let rotated = DanbooruCredentials {
+        username: "alice".into(),
+        api_key: atelier_secrets::SecretValue::new("second"),
+    };
+    let raw: RawPost = serde_json::from_str(r#"{"id":7,"created_at":"2026","rating":"s","image_width":1,"image_height":1,"score":1,"fav_count":1,"file_ext":"png","file_size":1,"source":"","preview_file_url":null,"large_file_url":null,"tag_string_artist":"","tag_string_copyright":"","tag_string_character":"","tag_string_general":"","tag_string_meta":""}"#).unwrap();
+    let page = DanbooruPostPage {
+        posts: vec![raw.try_into().unwrap()],
+        next_before_id: None,
+        authenticated: true,
+    };
+    let key = ReqwestDanbooruClient::search_cache_key("blue", None, Some(&alice));
+    client.store_page(key.clone(), page, Some(&alice));
+    assert!(client.cached_search(&key).is_some());
+    assert!(client.cached_post(7, Some(&alice)).is_some());
+    assert!(client.cached_post(7, None).is_none());
+    assert!(client.cached_post(7, Some(&rotated)).is_none());
+    let rotated_key = ReqwestDanbooruClient::search_cache_key("blue", None, Some(&rotated));
+    assert!(client.cached_search(&rotated_key).is_none());
+}

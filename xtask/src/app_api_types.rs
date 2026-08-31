@@ -1,3 +1,14 @@
+use atelier_app_api::explore::{
+    DanbooruExploreQueryDto, ExploreItemRefDto, ExploreMediaRequestDto, ExploreMediaVariantDto,
+    ExplorePageDto, ExplorePostDetailDto, ExplorePostSummaryDto, ExploreQueryDto,
+    ExploreSearchRequestDto, ExploreSourceDescriptorDto, ExploreSourceIdDto,
+};
+use atelier_app_api::novelai_explore::{
+    ExploreCharacterCaptionDto, ExploreCharacterCenterDto, ExploreGenerationParameterDto,
+    ExploreMetadataStatusDto, NovelAiExploreMetadataDto, NovelAiExplorePeriodDto,
+    NovelAiExplorePostDetailDto, NovelAiExplorePostSummaryDto, NovelAiExploreQueryDto,
+    NovelAiExploreSortDto,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -8,10 +19,9 @@ use atelier_app_api::{
         UpdateApiKeyRequestDto, V5UsageStatusDto,
     },
     danbooru::{
-        DanbooruAccountDto, DanbooruAccountStateDto, DanbooruAuthModeDto, DanbooruMediaRequestDto,
-        DanbooruMediaVariantDto, DanbooruPostDetailDto, DanbooruPostDetailRequestDto,
-        DanbooruPostPageDto, DanbooruPostSummaryDto, DanbooruRatingDto, DanbooruSearchRequestDto,
-        DanbooruTagCategoryDto, DanbooruTagDto, SaveDanbooruAccountRequestDto,
+        DanbooruAccountDto, DanbooruAccountStateDto, DanbooruMediaVariantDto,
+        DanbooruPostDetailDto, DanbooruPostSummaryDto, DanbooruRatingDto, DanbooruTagCategoryDto,
+        DanbooruTagDto, SaveDanbooruAccountRequestDto,
     },
     director::{DirectorToolDto, DirectorToolResultDto, RunDirectorToolRequestDto},
     downloadable_resource::{
@@ -145,6 +155,7 @@ pub fn export_app_api_types(config: &AppApiTypeExportConfig) -> Result<(), Strin
     export_director_types(&ts_config)?;
     export_danbooru_types(&ts_config)?;
     export_event_types(&ts_config)?;
+    export_explore_types(&ts_config)?;
     export_gallery_types(&ts_config)?;
     export_generation_types(&ts_config)?;
     export_history_types(&ts_config)?;
@@ -167,16 +178,11 @@ fn export_danbooru_types(config: &Config) -> Result<(), String> {
         DanbooruAccountDto,
         SaveDanbooruAccountRequestDto,
         DanbooruRatingDto,
-        DanbooruAuthModeDto,
         DanbooruTagCategoryDto,
         DanbooruMediaVariantDto,
-        DanbooruSearchRequestDto,
         DanbooruPostSummaryDto,
-        DanbooruPostPageDto,
-        DanbooruPostDetailRequestDto,
         DanbooruTagDto,
         DanbooruPostDetailDto,
-        DanbooruMediaRequestDto,
     )
 }
 
@@ -511,4 +517,31 @@ fn write_index_file(out_dir: &Path) -> Result<(), String> {
     exports.sort();
     fs::write(out_dir.join("index.ts"), exports.join("\n") + "\n")
         .map_err(|error| error.to_string())
+}
+
+fn export_explore_types(config: &Config) -> Result<(), String> {
+    export_types!(
+        config,
+        ExploreSourceIdDto,
+        ExploreSourceDescriptorDto,
+        ExploreItemRefDto,
+        DanbooruExploreQueryDto,
+        ExploreQueryDto,
+        ExploreSearchRequestDto,
+        ExplorePostSummaryDto,
+        ExplorePageDto,
+        ExplorePostDetailDto,
+        ExploreMediaVariantDto,
+        ExploreMediaRequestDto,
+        NovelAiExploreSortDto,
+        NovelAiExplorePeriodDto,
+        NovelAiExploreQueryDto,
+        NovelAiExplorePostSummaryDto,
+        NovelAiExplorePostDetailDto,
+        ExploreMetadataStatusDto,
+        ExploreCharacterCaptionDto,
+        ExploreCharacterCenterDto,
+        ExploreGenerationParameterDto,
+        NovelAiExploreMetadataDto
+    )
 }

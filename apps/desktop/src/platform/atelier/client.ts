@@ -13,11 +13,6 @@ import type {
   CopyResourceImageRequestDto,
   CreateApiKeyRequestDto,
   DanbooruAccountDto,
-  DanbooruMediaRequestDto,
-  DanbooruPostDetailDto,
-  DanbooruPostDetailRequestDto,
-  DanbooruPostPageDto,
-  DanbooruSearchRequestDto,
   DeleteApiKeyRequestDto,
   DeleteApiKeyResponseDto,
   DeleteGalleryItemsRequestDto,
@@ -220,14 +215,6 @@ export const danbooruApi = {
     invokeAtelierCommand<DanbooruAccountDto>(atelierCommands.probeDanbooruAccount),
   deleteAccount: () =>
     invokeAtelierCommand<DanbooruAccountDto>(atelierCommands.deleteDanbooruAccount),
-  search: (request: DanbooruSearchRequestDto) =>
-    invokeAtelierCommand<DanbooruPostPageDto>(atelierCommands.searchDanbooruPosts, { request }),
-  detail: (request: DanbooruPostDetailRequestDto) =>
-    invokeAtelierCommand<DanbooruPostDetailDto>(atelierCommands.getDanbooruPostDetail, {
-      request,
-    }),
-  media: (request: DanbooruMediaRequestDto) =>
-    invokeAtelierCommand<ResourceImageDto>(atelierCommands.getDanbooruMedia, { request }),
 };
 
 export const downloadableResourcesApi = {

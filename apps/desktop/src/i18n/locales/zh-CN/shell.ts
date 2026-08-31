@@ -33,7 +33,7 @@ export const shell = {
     director: "导演工具",
     resources: "资源",
     lexicon: "词典",
-    inspiration: "灵感",
+    explore: "探索",
     gallery: "图库",
     settings: "设置",
   },

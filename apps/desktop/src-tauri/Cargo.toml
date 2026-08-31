@@ -22,6 +22,7 @@ arboard = "3.6"
 log = "0.4"
 atelier-adapter-keyring = { workspace = true }
 atelier-adapter-danbooru = { workspace = true }
+atelier-adapter-novelai-explore = { workspace = true }
 atelier-adapter-image-codec = { workspace = true }
 atelier-adapter-downloadable-resources-fs = { workspace = true }
 atelier-adapter-novelai = { workspace = true }

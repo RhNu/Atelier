@@ -10,15 +10,8 @@ import {
 } from "lucide-react";
 
 export type RouteNavItem = {
-  to:
-    | "/generate"
-    | "/director"
-    | "/resources"
-    | "/lexicon"
-    | "/inspiration"
-    | "/gallery"
-    | "/settings";
-  labelKey: `nav.${"generate" | "director" | "resources" | "lexicon" | "inspiration" | "gallery" | "settings"}`;
+  to: "/generate" | "/director" | "/resources" | "/lexicon" | "/explore" | "/gallery" | "/settings";
+  labelKey: `nav.${"generate" | "director" | "resources" | "lexicon" | "explore" | "gallery" | "settings"}`;
   icon: LucideIcon;
 };
 
@@ -27,7 +20,7 @@ export const primaryRouteNavItems: ReadonlyArray<RouteNavItem> = [
   { to: "/director", labelKey: "nav.director", icon: Clapperboard },
   { to: "/resources", labelKey: "nav.resources", icon: Boxes },
   { to: "/lexicon", labelKey: "nav.lexicon", icon: BookOpen },
-  { to: "/inspiration", labelKey: "nav.inspiration", icon: Telescope },
+  { to: "/explore", labelKey: "nav.explore", icon: Telescope },
   { to: "/gallery", labelKey: "nav.gallery", icon: Images },
 ];
 
