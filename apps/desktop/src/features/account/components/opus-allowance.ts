@@ -1,6 +1,6 @@
 import type { ModelCapabilitiesDto, SubscriptionSummaryDto, V5UsageStatusDto } from "@/types";
 
-type OpusAllowanceTranslationKey = "opusAllowanceNegative" | "opusAllowanceRate";
+type OpusAllowanceTranslationKey = "opusAllowanceNegative" | "opusAllowanceRefillTime";
 export type TranslateOpusAllowance = (
   key: OpusAllowanceTranslationKey,
   options?: { duration: string },
@@ -39,16 +39,17 @@ export function formatOpusAllowance(
   if (usage.percent >= 100 || usage.seconds_until_next_percent <= 0) {
     return { text: `${usage.percent}%`, tone: "normal" };
   }
-  const duration = formatOpusAllowanceDuration(usage.seconds_until_next_percent);
+  const duration = formatOpusAllowanceDuration(
+    (100 - usage.percent) * usage.seconds_until_next_percent,
+  );
   return {
-    text: `${usage.percent}% · ${translate("opusAllowanceRate", { duration })}`,
+    text: `${usage.percent}% · ${translate("opusAllowanceRefillTime", { duration })}`,
     tone: "normal",
   };
 }
 
 export function formatOpusAllowanceDuration(seconds: number): string {
-  const totalMinutes = Math.max(0, Math.floor(seconds / 60));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours}h${minutes}m` : `${minutes}m`;
+  // Half-hour boundaries round down, with a minimum display of one hour.
+  const hours = Math.max(1, Math.ceil(seconds / 3600 - 0.5));
+  return `${hours}h`;
 }

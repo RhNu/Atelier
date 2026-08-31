@@ -214,6 +214,6 @@ export const generation = {
     "Unsupported guidance is preserved in this draft but is not enabled for the current model.",
   opusAllowance: "Opus generations",
   opusAllowanceNegative: "overdrawn",
-  opusAllowanceRate: "+1%/{{duration}}",
+  opusAllowanceRefillTime: "~{{duration}}",
   opusAllowanceLowWarning: "{{cost}} Anlas per image once the allowance runs out",
 } as const;

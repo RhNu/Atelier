@@ -209,5 +209,5 @@ export const settings = {
   transparentBackground: "Transparent background",
   opusAllowance: "Opus generations",
   opusAllowanceNegative: "overdrawn",
-  opusAllowanceRate: "+1%/{{duration}}",
+  opusAllowanceRefillTime: "~{{duration}}",
 } as const;

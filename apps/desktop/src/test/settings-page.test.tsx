@@ -362,7 +362,7 @@ describe("Safety settings", () => {
 });
 
 describe("Opus allowance", () => {
-  it("shows the generation allowance and refill rate when usage is available", async () => {
+  it("shows the generation allowance and time to refill when usage is available", async () => {
     setup([{ id: "main", display_name: "Main", is_active: true }], false, {
       ...activeSubscription,
       v5_usage: {
@@ -373,7 +373,7 @@ describe("Opus allowance", () => {
     });
 
     expect(await screen.findByText("Opus generations")).toBeInTheDocument();
-    expect(screen.getByText("62% · +1%/2h11m")).toBeInTheDocument();
+    expect(screen.getByText("62% · ~83h")).toBeInTheDocument();
   });
 });
 

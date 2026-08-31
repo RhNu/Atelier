@@ -215,6 +215,6 @@ export const generation = {
   dormantGuidanceSummary: "不受支持的引导已保留在草稿中，但不会对当前模型启用。",
   opusAllowance: "Opus 生成额度",
   opusAllowanceNegative: "已透支",
-  opusAllowanceRate: "+1%/{{duration}}",
+  opusAllowanceRefillTime: "~{{duration}}",
   opusAllowanceLowWarning: "额度耗尽后每张扣 {{cost}} Anlas",
 } satisfies LocaleShape<typeof enGeneration>;

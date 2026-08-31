@@ -798,6 +798,7 @@ describe("GeneratePage", () => {
     expect(
       await screen.findByText("3 Anlas per image once the allowance runs out"),
     ).toBeInTheDocument();
+    expect(screen.getByText("2% · ~215h")).toBeInTheDocument();
   });
 
   it("keeps empty guidance sections compact and reveals character positions only when useful", async () => {

@@ -207,5 +207,5 @@ export const settings = {
   transparentBackground: "透明背景",
   opusAllowance: "Opus 生成额度",
   opusAllowanceNegative: "已透支",
-  opusAllowanceRate: "+1%/{{duration}}",
+  opusAllowanceRefillTime: "~{{duration}}",
 } satisfies LocaleShape<typeof enSettings>;

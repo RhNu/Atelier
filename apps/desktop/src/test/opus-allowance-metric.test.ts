@@ -6,11 +6,11 @@ import {
 import type { SubscriptionSummaryDto } from "../types";
 
 const translate = (
-  key: "opusAllowanceNegative" | "opusAllowanceRate",
+  key: "opusAllowanceNegative" | "opusAllowanceRefillTime",
   options?: { duration: string },
 ) => {
   if (key === "opusAllowanceNegative") return "overdrawn";
-  return `+1%/${options?.duration ?? ""}`;
+  return `~${options?.duration ?? ""}`;
 };
 
 const usage = {
@@ -30,19 +30,35 @@ const summary = {
 } satisfies SubscriptionSummaryDto;
 
 describe("OpusAllowanceMetric", () => {
-  it("formats a full allowance without a refill-rate suffix", () => {
+  it("formats a full allowance without a refill-time suffix", () => {
     expect(formatOpusAllowance({ ...usage, percent: 100 }, translate)).toEqual({
       text: "100%",
       tone: "normal",
     });
   });
 
-  it("formats the remaining allowance and refill rate", () => {
+  it("formats the remaining allowance and estimated time to refill completely", () => {
     expect(formatOpusAllowance(usage, translate)).toEqual({
-      text: "62% · +1%/2h11m",
+      text: "62% · ~83h",
       tone: "normal",
     });
-    expect(formatOpusAllowanceDuration(7888)).toBe("2h11m");
+    expect(formatOpusAllowance({ ...usage, percent: 99 }, translate)).toEqual({
+      text: "99% · ~2h",
+      tone: "normal",
+    });
+  });
+
+  it.each([
+    [1, "1h"],
+    [1800, "1h"],
+    [5400, "1h"],
+    [5401, "2h"],
+    [9000, "2h"],
+    [9001, "3h"],
+    [12600, "3h"],
+    [12601, "4h"],
+  ])("formats %i seconds as %s with half-hour ties rounded down", (seconds, expected) => {
+    expect(formatOpusAllowanceDuration(seconds)).toBe(expected);
   });
 
   it("formats an overdrawn allowance with warning tone", () => {
