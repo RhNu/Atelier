@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose::STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 use atelier_adapter_image_codec::{DecodedRgbaImage, ImageCodec, ImageExportFormat};
 use atelier_app::CommandResult;

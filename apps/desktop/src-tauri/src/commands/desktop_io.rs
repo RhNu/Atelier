@@ -8,8 +8,8 @@ use std::{
 };
 
 use arboard::ImageData;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
-use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use image::{ExtendedColorType, ImageEncoder, codecs::png::PngEncoder};
 use serde::Serialize;
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;

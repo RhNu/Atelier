@@ -72,7 +72,7 @@ use atelier_app_api::{
     },
 };
 use atelier_downloadable_resources::{ResourceInstallProgress, ResourceInstallProgressSink};
-use tauri::{ipc::Channel, State};
+use tauri::{State, ipc::Channel};
 
 use crate::desktop::DesktopState;
 

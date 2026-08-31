@@ -1,7 +1,7 @@
 use atelier_app::CommandResult;
 use atelier_app_api::error::ErrorEnvelopeDto;
 use serde::Serialize;
-use tauri::{ipc::Channel, State};
+use tauri::{State, ipc::Channel};
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::desktop::DesktopState;

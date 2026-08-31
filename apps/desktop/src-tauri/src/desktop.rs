@@ -557,11 +557,13 @@ mod tests {
             })
             .unwrap();
 
-        assert!(state
-            .start_or_defer(QueueDirectiveDto::StartJob {
-                job_id: "job-2".to_owned(),
-            })
-            .is_none());
+        assert!(
+            state
+                .start_or_defer(QueueDirectiveDto::StartJob {
+                    job_id: "job-2".to_owned(),
+                })
+                .is_none()
+        );
         assert_eq!(state.finish(first.id), None);
     }
 
@@ -597,11 +599,13 @@ mod tests {
             })
             .unwrap();
         state.cancel_current();
-        assert!(state
-            .start_or_defer(QueueDirectiveDto::StartJob {
-                job_id: "job-2".to_owned(),
-            })
-            .is_none());
+        assert!(
+            state
+                .start_or_defer(QueueDirectiveDto::StartJob {
+                    job_id: "job-2".to_owned(),
+                })
+                .is_none()
+        );
 
         state.cancel_current_and_clear_pending();
 
@@ -620,11 +624,13 @@ mod tests {
             })
             .unwrap();
         state.cancel_current();
-        assert!(state
-            .start_or_defer(QueueDirectiveDto::StartJob {
-                job_id: "job-2".to_owned(),
-            })
-            .is_none());
+        assert!(
+            state
+                .start_or_defer(QueueDirectiveDto::StartJob {
+                    job_id: "job-2".to_owned(),
+                })
+                .is_none()
+        );
 
         assert!(state.take_current_for_abort().is_none());
         assert!(state.current.is_none());
@@ -643,11 +649,13 @@ mod tests {
             .unwrap();
         assert!(state.is_busy());
         state.cancel_current();
-        assert!(state
-            .start_or_defer(QueueDirectiveDto::StartJob {
-                job_id: "job-2".to_owned(),
-            })
-            .is_none());
+        assert!(
+            state
+                .start_or_defer(QueueDirectiveDto::StartJob {
+                    job_id: "job-2".to_owned(),
+                })
+                .is_none()
+        );
         assert!(state.is_busy());
         assert!(state.finish(current.id).is_some());
         assert!(!state.is_busy());
