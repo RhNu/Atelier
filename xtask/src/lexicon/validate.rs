@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
@@ -79,7 +80,7 @@ fn verify_file(root: &Path, relative: &str, expected: &str) -> Result<(), String
             path.display()
         ));
     }
-    let actual = format!("{:x}", Sha256::digest(&bytes));
+    let actual = digest_hex(Sha256::digest(&bytes));
     if actual == expected {
         Ok(())
     } else {
@@ -88,4 +89,12 @@ fn verify_file(root: &Path, relative: &str, expected: &str) -> Result<(), String
             path.display()
         ))
     }
+}
+
+fn digest_hex(digest: impl IntoIterator<Item = u8>) -> String {
+    let mut output = String::with_capacity(64);
+    for byte in digest {
+        write!(&mut output, "{byte:02x}").expect("writing a SHA-256 digest to String cannot fail");
+    }
+    output
 }

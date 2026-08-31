@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::fs;
 
 use atelier_adapter_lexicon_bundle::{
@@ -183,7 +184,15 @@ fn install_enriched_fixture(input: &std::path::Path) {
 }
 
 fn sha256(path: &std::path::Path) -> String {
-    format!("{:x}", Sha256::digest(fs::read(path).unwrap()))
+    digest_hex(Sha256::digest(fs::read(path).unwrap()))
+}
+
+fn digest_hex(digest: impl IntoIterator<Item = u8>) -> String {
+    let mut output = String::with_capacity(64);
+    for byte in digest {
+        write!(&mut output, "{byte:02x}").expect("writing a SHA-256 digest to String cannot fail");
+    }
+    output
 }
 
 fn fixture() -> (TempDir, std::path::PathBuf, std::path::PathBuf) {

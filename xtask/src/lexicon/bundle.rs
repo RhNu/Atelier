@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::fmt::Write as _;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -381,7 +382,7 @@ fn install_tokenizer(source: &Path, output: &Path) -> Result<TokenizerFile, Stri
     Ok(TokenizerFile {
         bundle: describe_file(output, "tokenizer.json.zst")?,
         encoding: TokenizerEncoding::ZstdJson,
-        content_sha256: format!("{:x}", Sha256::digest(&content)),
+        content_sha256: digest_hex(Sha256::digest(&content)),
         content_size_bytes: content.len() as u64,
     })
 }
@@ -422,14 +423,22 @@ fn describe_file(path: &Path, relative: &str) -> Result<BundleFile, String> {
     let bytes = fs::read(path).map_err(|error| error.to_string())?;
     Ok(BundleFile {
         file: relative.to_owned(),
-        sha256: format!("{:x}", Sha256::digest(&bytes)),
+        sha256: digest_hex(Sha256::digest(&bytes)),
         size_bytes: bytes.len() as u64,
     })
 }
 
 fn sha256_file(path: &Path) -> Result<String, String> {
     let bytes = fs::read(path).map_err(|error| error.to_string())?;
-    Ok(format!("{:x}", Sha256::digest(bytes)))
+    Ok(digest_hex(Sha256::digest(bytes)))
+}
+
+fn digest_hex(digest: impl IntoIterator<Item = u8>) -> String {
+    let mut output = String::with_capacity(64);
+    for byte in digest {
+        write!(&mut output, "{byte:02x}").expect("writing a SHA-256 digest to String cannot fail");
+    }
+    output
 }
 
 fn validate_entities(entities: &[PipelineEntity]) -> Result<(), String> {

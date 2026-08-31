@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -103,7 +104,7 @@ pub fn validate_resource(root: &Path, id: &str) -> Result<String, String> {
             if bytes.len() as u64 != file.size_bytes {
                 return Err(format!("payload size mismatch: {}", path.display()));
             }
-            let hash = format!("{:x}", Sha256::digest(&bytes));
+            let hash = digest_hex(Sha256::digest(&bytes));
             if hash != file.sha256 {
                 return Err(format!("payload hash mismatch: {}", path.display()));
             }
@@ -120,6 +121,14 @@ pub fn validate_resource(root: &Path, id: &str) -> Result<String, String> {
     }
     println!("Resource {id}@{} is valid.", descriptor.version);
     Ok(descriptor.version)
+}
+
+fn digest_hex(digest: impl IntoIterator<Item = u8>) -> String {
+    let mut output = String::with_capacity(64);
+    for byte in digest {
+        write!(&mut output, "{byte:02x}").expect("writing a SHA-256 digest to String cannot fail");
+    }
+    output
 }
 
 /// Validates the checked-in stable resource catalog.
