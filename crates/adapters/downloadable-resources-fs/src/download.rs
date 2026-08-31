@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -119,13 +120,21 @@ pub fn verify(path: &Path, spec: &DownloadableResourceFile) -> DownloadableResou
         }
         digest.update(&buffer[..read]);
     }
-    if format!("{:x}", digest.finalize()) != spec.sha256.to_ascii_lowercase() {
+    if digest_hex(digest.finalize()) != spec.sha256.to_ascii_lowercase() {
         return Err(DownloadableResourceError::Operation(format!(
             "SHA-256 mismatch for {}",
             spec.path
         )));
     }
     Ok(())
+}
+
+fn digest_hex(digest: impl IntoIterator<Item = u8>) -> String {
+    let mut output = String::with_capacity(64);
+    for byte in digest {
+        write!(&mut output, "{byte:02x}").expect("writing a SHA-256 digest to String cannot fail");
+    }
+    output
 }
 
 fn resumable_bytes(path: &Path, expected: u64) -> DownloadableResourceResult<u64> {
@@ -234,7 +243,7 @@ mod tests {
         DownloadableResourceFile {
             path: "payload.bin".to_owned(),
             size_bytes: expected.len() as u64,
-            sha256: format!("{:x}", Sha256::digest(expected)),
+            sha256: digest_hex(Sha256::digest(expected)),
             urls: vec![url],
         }
     }

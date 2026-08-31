@@ -1,3 +1,4 @@
+use std::fmt::Write as _;
 use std::fs::{self, File};
 use std::io::{Read, Take};
 use std::path::{Path, PathBuf};
@@ -164,7 +165,7 @@ impl TokenizerFile {
                 path.display()
             )));
         }
-        if format!("{:x}", Sha256::digest(&bytes)) != self.content_sha256.to_ascii_lowercase() {
+        if digest_hex(Sha256::digest(&bytes)) != self.content_sha256.to_ascii_lowercase() {
             return Err(LexiconError::invalid_bundle(format!(
                 "tokenizer content SHA-256 mismatch for {}",
                 path.display()
@@ -337,7 +338,7 @@ impl LexiconBundleManifest {
             }
             digest.update(&buffer[..read]);
         }
-        if format!("{:x}", digest.finalize()) != file.sha256.to_ascii_lowercase() {
+        if digest_hex(digest.finalize()) != file.sha256.to_ascii_lowercase() {
             return Err(LexiconError::invalid_bundle(format!(
                 "SHA-256 mismatch for {}",
                 path.display()
@@ -345,6 +346,14 @@ impl LexiconBundleManifest {
         }
         Ok(())
     }
+}
+
+fn digest_hex(digest: impl IntoIterator<Item = u8>) -> String {
+    let mut output = String::with_capacity(64);
+    for byte in digest {
+        write!(&mut output, "{byte:02x}").expect("writing a SHA-256 digest to String cannot fail");
+    }
+    output
 }
 
 fn validate_tokenizer_file(root: &Path, tokenizer: &TokenizerFile) -> LexiconResult<()> {
