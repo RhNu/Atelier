@@ -4,6 +4,7 @@ use super::{
     WORKSPACE_SCHEMA_VERSION, WorkspaceError, WorkspaceRelativePath, WorkspaceResult,
     WorkspaceSlot, Write, fs, io,
 };
+use std::fmt::Write as _;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static STAGING_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -142,7 +143,11 @@ pub fn resource_fs_error(path: &Path, source: io::Error) -> ResourceCatalogError
 
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
-    format!("{digest:x}")
+    let mut output = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        write!(&mut output, "{byte:02x}").expect("writing a SHA-256 digest to String cannot fail");
+    }
+    output
 }
 
 pub fn storage_path_for(slot: WorkspaceSlot) -> WorkspaceRelativePath {
