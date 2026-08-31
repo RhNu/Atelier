@@ -9,7 +9,7 @@ The project is intentionally NovelAI-specific. It should preserve clear feature 
 Prerequisites:
 
 - Rust toolchain from `rust-toolchain.toml`
-- Node.js 24.20.0+
+- Node.js from `.node-version`
 - pnpm 11.24.0+
 
 Common commands:
@@ -33,8 +33,9 @@ Before completing Rust work, confirm `cargo fmt --all -- --check`, `cargo clippy
 
 Before completing pnpm frontend work, confirm `pnpm fmt:check`, `pnpm lint`, and `pnpm test` pass. Frontend formatting and linting use the Oxc toolchain: `oxfmt` and `oxlint`.
 
-Application and downloadable-resource releases are documented in
-[`docs/releasing.md`](docs/releasing.md).
+Application and downloadable-resource releases are manually started from GitHub Actions on
+`main`, after CI passes for the exact source commit. Builds are saved separately from publication
+so failed uploads can be retried without rebuilding. See [`docs/releasing.md`](docs/releasing.md).
 
 ## Repository Layout
 

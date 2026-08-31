@@ -8,39 +8,38 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  queue: ${{ github.event_name == 'pull_request' && 'single' || 'max' }}
+
 jobs:
   verify:
     runs-on: windows-latest
+    timeout-minutes: 45
     env:
-      # Match the release target so CI and the signed build share compiled artifacts.
       CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@v5
         with:
           lfs: false
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.98.0
-          components: rustfmt, clippy
-      # Keep the CI and release jobs on one reusable Windows Cargo cache. The
-      # lockfile/toolchain hash still invalidates it when dependencies change.
+          persist-credentials: false
+      - run: rustup show
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: atelier-windows-stable
+          shared-key: ci-dev
           add-job-id-key: "false"
-          cache-targets: "true"
-          cache-all-crates: "true"
-          cache-workspace-crates: "true"
           save-if: ${{ github.event_name == 'push' }}
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
-          node-version: 24.20.0
+          node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: cargo fmt --all -- --check
       - run: cargo clippy-strict
-      - run: cargo test --workspace
+      - run: cargo test --workspace --locked
       - run: cargo xtask line-budget
       - run: cargo xtask resource catalog
       - run: pnpm fmt:check

@@ -1,94 +1,155 @@
 name: Release application
 
 on:
-  push:
-    tags: ["v*.*.*"]
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Application release tag to build and publish (for example, v0.5.1)."
-        required: true
+      commit:
+        description: "Full commit SHA on main (blank uses the workflow's main revision). Version comes from package.json."
         type: string
+        default: ""
 
 permissions:
-  contents: write
+  contents: read
+  actions: read
 
+# Serialize versions as well as retries so an older run cannot move latest backwards.
 concurrency:
-  group: release-application-${{ github.ref }}
+  group: release-application
   cancel-in-progress: false
+  queue: max
 
 jobs:
-  release:
-    runs-on: windows-latest
-    env:
-      CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
-      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      source_sha: ${{ steps.prepare.outputs.source_sha }}
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
-          fetch-depth: 0
-          lfs: false
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.98.0
-          targets: x86_64-pc-windows-msvc
-          components: rustfmt, clippy
-      # Reuse the same dependency and target cache populated by main CI.
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: atelier-windows-stable
-          add-job-id-key: "false"
-          cache-targets: "true"
-          cache-all-crates: "true"
-          cache-workspace-crates: "true"
-          save-if: "true"
-      - uses: pnpm/action-setup@v6
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 24.20.0
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Validate tag and signing secrets
-        shell: pwsh
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: |
-          $version = (Get-Content apps/desktop/package.json | ConvertFrom-Json).version
-          if ($env:RELEASE_TAG -ne "v$version") { throw "tag/version mismatch" }
-          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw "TAURI_SIGNING_PRIVATE_KEY is missing" }
-          if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) { throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD is missing" }
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy-strict
-      - run: cargo test --workspace
-      - run: cargo xtask line-budget
-      - run: cargo xtask resource catalog
-      - run: pnpm fmt:check
-      - run: pnpm lint
-      - run: pnpm test
-      - run: pnpm build
-      - name: Generate release endpoint overlay
-        run: node scripts/write-tauri-release-config.mjs apps/desktop/src-tauri/tauri.release.conf.json
-      - name: Build signed Windows x64 NSIS updater
-        env:
-          ATELIER_RESOURCE_CATALOG_URL: https://github.com/${{ github.repository }}/releases/download/resource-catalog/catalog-v1.json
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: pnpm --dir apps/desktop exec tauri build --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.release.conf.json
-      - name: Generate and publish latest release
-        shell: pwsh
+          node-version-file: .node-version
+      - id: prepare
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          $bundle = "target/x86_64-pc-windows-msvc/release/bundle"
-          $updater = Get-ChildItem $bundle -Recurse -File -Filter *_x64-setup.exe | Select-Object -First 1
-          if (-not $updater) { throw "signed NSIS updater installer was not produced" }
-          $signature = Get-Item "$($updater.FullName).sig"
-          if (-not (gh release view $env:RELEASE_TAG 2>$null)) {
-            gh release create $env:RELEASE_TAG --verify-tag --generate-notes --draft
-          }
-          $env:RELEASE_NOTES = gh release view $env:RELEASE_TAG --json body --jq .body
-          node scripts/build-latest-manifest.mjs $updater.FullName $signature.FullName latest.json
-          gh release upload $env:RELEASE_TAG $updater.FullName $signature.FullName latest.json --clobber
-          gh release edit $env:RELEASE_TAG --draft=false --latest
+          SOURCE_REF: ${{ inputs.commit }}
+        run: node scripts/release/app.mjs prepare release-plan.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: application-plan
+          path: release-plan.json
+          retention-days: 14
+          if-no-files-found: error
+          overwrite: true
+
+  build:
+    needs: prepare
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: automation
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          path: source
+          lfs: false
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: application-plan
+          path: plan
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: source/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: source/.node-version
+          cache: pnpm
+          cache-dependency-path: source/pnpm-lock.yaml
+      - name: Validate build input and configure updater
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: node automation/scripts/release/app.mjs configure source plan/release-plan.json
+      - working-directory: source
+        run: pnpm install --frozen-lockfile
+      - working-directory: source
+        run: rustup show
+      - uses: actions/cache/restore@v4
+        id: rust-cache
+        with:
+          # Dependencies and fingerprints only: installers, signatures and secrets are not cached.
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            source/target/release/build
+            source/target/release/deps
+            source/target/release/.fingerprint
+            source/target/x86_64-pc-windows-msvc/release/build
+            source/target/x86_64-pc-windows-msvc/release/deps
+            source/target/x86_64-pc-windows-msvc/release/.fingerprint
+          key: app-release-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('source/rust-toolchain.toml', 'source/Cargo.lock', 'source/**/Cargo.toml', 'source/.cargo/config.toml') }}-${{ needs.prepare.outputs.source_sha }}
+          restore-keys: |
+            app-release-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('source/rust-toolchain.toml', 'source/Cargo.lock', 'source/**/Cargo.toml', 'source/.cargo/config.toml') }}-
+      - name: Build signed Windows x64 NSIS installer
+        working-directory: source/apps/desktop
+        env:
+          ATELIER_RESOURCE_CATALOG_URL: https://raw.githubusercontent.com/${{ github.repository }}/refs/heads/resource-catalog/catalog-v1.json
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: node node_modules/@tauri-apps/cli/tauri.js build --ci --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.release.conf.json -- --locked
+      - run: node automation/scripts/release/app.mjs pack source plan/release-plan.json artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: application-release
+          path: artifact/
+          retention-days: 14
+          compression-level: 0
+          if-no-files-found: error
+          overwrite: true
+      - uses: actions/cache/save@v4
+        if: steps.rust-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            source/target/release/build
+            source/target/release/deps
+            source/target/release/.fingerprint
+            source/target/x86_64-pc-windows-msvc/release/build
+            source/target/x86_64-pc-windows-msvc/release/deps
+            source/target/x86_64-pc-windows-msvc/release/.fingerprint
+          key: ${{ steps.rust-cache.outputs.cache-primary-key }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@v4
+        with:
+          name: application-release
+          path: artifact
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/app.mjs publish artifact
