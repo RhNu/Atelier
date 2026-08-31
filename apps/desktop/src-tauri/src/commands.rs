@@ -114,13 +114,11 @@ pub async fn update_global_settings(
     Ok(settings)
 }
 
+// Tauri injects managed `State` command arguments by value.
+#[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
-pub fn set_notification_language(
-    state: State<'_, DesktopState>,
-    language: FrontendLanguageDto,
-) -> CommandResult<()> {
+pub fn set_notification_language(state: State<'_, DesktopState>, language: FrontendLanguageDto) {
     state.set_notification_language(language);
-    Ok(())
 }
 
 #[tauri::command]
