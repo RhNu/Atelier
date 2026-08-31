@@ -22,13 +22,10 @@ export const settings = {
   generationDescription: "Workspace defaults for image requests",
   images: "Images",
   imagesDescription: "Stored thumbnail and preview variants",
-  languageGroup: "Language",
   displayGroup: "Display",
   developerGroup: "Developer",
   developerMode: "Developer mode",
   blurNsfw: "Blur NSFW images",
-  resourcesDescriptionLong:
-    "Install, update, or remove verified application resources. Downloads are never started without your confirmation.",
   loadingResources: "Loading downloadable resources",
   resourcesUnavailable: "Resource catalog unavailable",
   retryResources: "Retry resource catalog",
@@ -79,8 +76,6 @@ export const settings = {
   installUpdate: "Download and install",
   installingUpdate: "Downloading, verifying, and preparing to restart…",
   releaseNotes: "Release notes",
-  safetyDescriptionLong:
-    "Atelier always scans new images with anime_dbrating. WD Tagger can review only borderline results and remains available for future tagging features.",
   loadingSafetyModels: "Loading image-analysis models",
   safetyModelsUnavailable: "Image-analysis models unavailable",
   retrySafetyModels: "Retry model status",
@@ -88,7 +83,6 @@ export const settings = {
   dbratingDescription:
     "Required primary anime rating model. Downloaded and verified automatically.",
   wdModel: "WD SwinV2 Tagger v3",
-  wdDescription: "Optional 467 MB model package for borderline review and future image tags.",
   requiredModel: "Required",
   optionalModel: "Optional",
   wdAutoReview: "WD automatic review",

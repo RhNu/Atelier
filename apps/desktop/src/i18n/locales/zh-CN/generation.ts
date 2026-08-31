@@ -47,6 +47,7 @@ export const generation = {
   batch: "批次",
   generationCanvas: "生成画布",
   generationActionFailed: "生成操作失败",
+  generationActionFailedDescription: "请打开“生成”查看详情。",
   selectCharacter: "选择角色 {{index}}",
   enableCharacter: "启用角色 {{index}}",
   disableCharacter: "停用角色 {{index}}",

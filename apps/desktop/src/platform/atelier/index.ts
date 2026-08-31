@@ -23,6 +23,7 @@ export type {
   AppUpdateDto,
   AppUpdateProgressDto,
   DesktopPathsDto,
+  NotificationLanguageDto,
   PickFilesOptionsDto,
 } from "./client";
 export {

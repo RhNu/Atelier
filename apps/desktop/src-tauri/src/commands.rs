@@ -62,8 +62,8 @@ use atelier_app_api::{
         ReleaseImportedImageResourcesResponseDto, ResourceImageDto,
     },
     settings::{
-        GlobalSettingsDto, ResetWorkspaceSettingsResponseDto, UpdateGlobalSettingsRequestDto,
-        UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+        FrontendLanguageDto, GlobalSettingsDto, ResetWorkspaceSettingsResponseDto,
+        UpdateGlobalSettingsRequestDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
     },
     vibe::{
         EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, GetVibeDocumentRequestDto,
@@ -109,7 +109,18 @@ pub async fn update_global_settings(
     state: State<'_, DesktopState>,
     request: UpdateGlobalSettingsRequestDto,
 ) -> CommandResult<GlobalSettingsDto> {
-    state.host.update_global_settings(request).await
+    let settings = state.host.update_global_settings(request).await?;
+    state.set_notification_language(settings.frontend.language);
+    Ok(settings)
+}
+
+#[tauri::command]
+pub fn set_notification_language(
+    state: State<'_, DesktopState>,
+    language: FrontendLanguageDto,
+) -> CommandResult<()> {
+    state.set_notification_language(language);
+    Ok(())
 }
 
 #[tauri::command]

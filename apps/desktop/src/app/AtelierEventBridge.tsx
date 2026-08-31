@@ -1,9 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 import { recordGenerationEvent } from "../features/generation/state/generation-event-store";
 import {
   applyAtelierEventInvalidations,
+  desktopApi,
   listenToAtelierEvents,
   recoverAtelierEvents,
 } from "../platform/atelier";
@@ -12,6 +14,15 @@ import { describeError, frontendLogger, reportBackgroundPromise } from "./logger
 
 export function AtelierEventBridge() {
   const queryClient = useQueryClient();
+  const { i18n } = useTranslation("common");
+  const notificationLanguage = i18n.language === "zh-CN" ? "zh-CN" : "en";
+
+  useEffect(() => {
+    reportBackgroundPromise(
+      desktopApi.setNotificationLanguage(notificationLanguage),
+      "Sync notification language",
+    );
+  }, [notificationLanguage]);
 
   useEffect(() => {
     let disposed = false;

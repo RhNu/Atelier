@@ -133,6 +133,8 @@ export type PickFilesOptionsDto = {
   extensions: string[];
 };
 
+export type NotificationLanguageDto = "en" | "zh-CN";
+
 export type ClipboardImageDto = {
   imageBase64: string;
   mimeType: string;
@@ -188,6 +190,8 @@ export const desktopApi = {
     ),
   openPath: (path: string) => invokeAtelierCommand<void>(atelierCommands.openPath, { path }),
   revealPath: (path: string) => invokeAtelierCommand<void>(atelierCommands.revealPath, { path }),
+  setNotificationLanguage: (language: NotificationLanguageDto) =>
+    invokeAtelierCommand<void>(atelierCommands.setNotificationLanguage, { language }),
   copyText: (text: string) =>
     invokeAtelierCommand<void>(atelierCommands.copyTextToClipboard, { text }),
   openExternalUrl: (url: string) =>

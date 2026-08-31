@@ -51,12 +51,10 @@ export function SafetySettingsSection({ draft, updateDraft }: Props) {
     <AppPanel variant="section" className="h-full min-h-0 overflow-y-auto">
       <SectionHeader title={t("safety")} />
       <div className="grid gap-4 p-3">
-        <p className="text-sm leading-5 text-app-muted">{t("safetyDescriptionLong")}</p>
         <section className="grid gap-3 border border-app-border bg-black/15 p-3">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h3 className="text-sm font-semibold text-app-text">{t("wdModel")}</h3>
-              <p className="mt-1 text-xs leading-4 text-app-muted">{t("wdDescription")}</p>
             </div>
             {wd?.state !== "ready" ? (
               <AppButton

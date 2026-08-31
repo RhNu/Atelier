@@ -71,6 +71,7 @@ pub fn run() {
             commands::release_imported_image_resources,
             commands::get_global_settings,
             commands::update_global_settings,
+            commands::set_notification_language,
             commands::get_danbooru_account,
             commands::save_danbooru_account,
             commands::probe_danbooru_account,

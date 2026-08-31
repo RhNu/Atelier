@@ -52,7 +52,6 @@ export function FrontendSettingsSection({ draft, updateDraft }: FrontendSettings
       <SectionHeader title={t("interface")} />
       <div className="grid gap-4 p-3">
         <section className="grid gap-2">
-          <h3 className="text-xs font-semibold text-app-muted uppercase">{t("languageGroup")}</h3>
           <LanguageSelect value={draft.frontend.language} onChange={updateLanguage} />
         </section>
         <section className="grid gap-2">

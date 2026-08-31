@@ -14,9 +14,10 @@ use atelier_adapter_settings_fs::FileSystemGlobalSettingsRepository;
 use atelier_app::{AtelierRuntime, GenerationWorkerCancel};
 use atelier_app_api::event::{AppEventDto, AppEventKindDto};
 use atelier_app_api::generation::QueueDirectiveDto;
+use atelier_app_api::settings::FrontendLanguageDto;
 use atelier_prompt_lexicon::LexiconEngine;
 use atelier_safety::SafetyPipeline;
-use atelier_settings::{GlobalSettingsRepository, GlobalSettingsService};
+use atelier_settings::{FrontendLanguage, GlobalSettingsRepository, GlobalSettingsService};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, FilePath};
 use tauri_plugin_notification::NotificationExt;
@@ -25,11 +26,83 @@ use tauri_plugin_opener::OpenerExt;
 pub type NativeAtelierRuntime =
     AtelierRuntime<KeyringSecretStore, ReqwestNovelAiClientFactory, NovelAiEmbeddedVibeExtractor>;
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+enum NotificationLanguage {
+    #[default]
+    English,
+    SimplifiedChinese,
+}
+
+impl NotificationLanguage {
+    const fn from_domain(language: FrontendLanguage) -> Self {
+        match language {
+            FrontendLanguage::SimplifiedChinese => Self::SimplifiedChinese,
+            FrontendLanguage::System | FrontendLanguage::English => Self::English,
+        }
+    }
+
+    const fn from_dto(language: FrontendLanguageDto) -> Self {
+        match language {
+            FrontendLanguageDto::SimplifiedChinese => Self::SimplifiedChinese,
+            FrontendLanguageDto::System | FrontendLanguageDto::English => Self::English,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum GenerationNotificationKind {
+    Completed,
+    Failed,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+struct GenerationNotification {
+    title: &'static str,
+    body: &'static str,
+}
+
+const fn generation_notification(
+    language: NotificationLanguage,
+    kind: GenerationNotificationKind,
+) -> GenerationNotification {
+    match (language, kind) {
+        (NotificationLanguage::English, GenerationNotificationKind::Completed) => {
+            GenerationNotification {
+                title: "Atelier generation complete",
+                body: "Your generated image is ready.",
+            }
+        }
+        (NotificationLanguage::English, GenerationNotificationKind::Failed) => {
+            GenerationNotification {
+                title: "Atelier generation failed",
+                body: "Open Generation to view details.",
+            }
+        }
+        (NotificationLanguage::SimplifiedChinese, GenerationNotificationKind::Completed) => {
+            GenerationNotification {
+                title: "Atelier 生成完成",
+                body: "生成的图像已准备就绪。",
+            }
+        }
+        (NotificationLanguage::SimplifiedChinese, GenerationNotificationKind::Failed) => {
+            GenerationNotification {
+                title: "Atelier 生成失败",
+                body: "请打开“生成”查看详情。",
+            }
+        }
+    }
+}
+
+fn current_notification_language(language: &Mutex<NotificationLanguage>) -> NotificationLanguage {
+    language.lock().map_or_default(|current| *current)
+}
+
 pub struct DesktopState {
     pub app_handle: AppHandle,
     pub host: Arc<NativeAtelierRuntime>,
     pub system: Arc<DesktopSystem>,
     pub worker: DesktopGenerationWorker,
+    notification_language: Arc<Mutex<NotificationLanguage>>,
 }
 
 impl DesktopState {
@@ -38,8 +111,15 @@ impl DesktopState {
             self.app_handle.clone(),
             self.host.clone(),
             self.system.clone(),
+            self.notification_language.clone(),
             directive,
         );
+    }
+
+    pub(crate) fn set_notification_language(&self, language: FrontendLanguageDto) {
+        if let Ok(mut current) = self.notification_language.lock() {
+            *current = NotificationLanguage::from_dto(language);
+        }
     }
 
     pub fn cancel_generation_worker(&self) {
@@ -162,6 +242,7 @@ impl DesktopGenerationWorker {
         app_handle: AppHandle,
         host: Arc<NativeAtelierRuntime>,
         system: Arc<DesktopSystem>,
+        notification_language: Arc<Mutex<NotificationLanguage>>,
         directive: QueueDirectiveDto,
     ) {
         if !matches!(
@@ -181,7 +262,7 @@ impl DesktopGenerationWorker {
             return;
         };
 
-        self.spawn_run(app_handle, host, system, start);
+        self.spawn_run(app_handle, host, system, notification_language, start);
     }
 
     fn spawn_run(
@@ -189,6 +270,7 @@ impl DesktopGenerationWorker {
         app_handle: AppHandle,
         host: Arc<NativeAtelierRuntime>,
         system: Arc<DesktopSystem>,
+        notification_language: Arc<Mutex<NotificationLanguage>>,
         start: WorkerStart,
     ) {
         let run_id = start.id;
@@ -198,12 +280,22 @@ impl DesktopGenerationWorker {
                 .drive_generation_queue(start.directive, start.cancel)
                 .await;
             if let Err(error) = result {
+                let notification = generation_notification(
+                    current_notification_language(&notification_language),
+                    GenerationNotificationKind::Failed,
+                );
                 let notifier = TauriNotifier::new(app_handle.clone());
-                let _ = system.notify("Atelier generation failed", &error.message, &notifier);
+                let _ = system.notify(notification.title, notification.body, &notifier);
                 log::warn!("generation worker stopped with error: {}", error.message);
             }
             if let Some(next_directive) = worker.finish(run_id) {
-                worker.kick(app_handle, host, system, next_directive);
+                worker.kick(
+                    app_handle,
+                    host,
+                    system,
+                    notification_language,
+                    next_directive,
+                );
             }
         });
         self.attach_handle(run_id, handle);
@@ -266,6 +358,9 @@ pub fn build_desktop_state(
     let initial_settings =
         tauri::async_runtime::block_on(settings_repository.get_global_settings())
             .unwrap_or_default();
+    let notification_language = Arc::new(Mutex::new(NotificationLanguage::from_domain(
+        initial_settings.frontend.language,
+    )));
     let global_settings = GlobalSettingsService::new(settings_repository);
 
     let catalog_url = std::env::var("ATELIER_RESOURCE_CATALOG_URL")
@@ -331,12 +426,18 @@ pub fn build_desktop_state(
         );
     }
     let host = Arc::new(runtime);
-    subscribe_window_events(&host, app_handle.clone(), system.clone())?;
+    subscribe_window_events(
+        &host,
+        app_handle.clone(),
+        system.clone(),
+        notification_language.clone(),
+    )?;
     Ok(DesktopState {
         app_handle,
         host,
         system,
         worker: DesktopGenerationWorker::default(),
+        notification_language,
     })
 }
 
@@ -367,12 +468,13 @@ fn subscribe_window_events(
     host: &NativeAtelierRuntime,
     app_handle: AppHandle,
     system: Arc<DesktopSystem>,
+    notification_language: Arc<Mutex<NotificationLanguage>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     host.subscribe_events(Arc::new(move |event| {
         if let Err(error) = app_handle.emit("atelier-event", event.clone()) {
             log::warn!("failed to emit app event to window: {error}");
         }
-        notify_for_generation_event(&system, &app_handle, &event);
+        notify_for_generation_event(&system, &app_handle, &notification_language, &event);
     }))
     .map_err(|error| std::io::Error::other(error.message))?;
     Ok(())
@@ -381,28 +483,18 @@ fn subscribe_window_events(
 fn notify_for_generation_event(
     system: &DesktopSystem,
     app_handle: &AppHandle,
+    notification_language: &Mutex<NotificationLanguage>,
     event: &AppEventDto,
 ) {
+    let kind = match &event.kind {
+        AppEventKindDto::JobSucceeded { .. } => GenerationNotificationKind::Completed,
+        AppEventKindDto::JobFailed { .. } => GenerationNotificationKind::Failed,
+        _ => return,
+    };
+    let notification =
+        generation_notification(current_notification_language(notification_language), kind);
     let notifier = TauriNotifier::new(app_handle.clone());
-    match &event.kind {
-        AppEventKindDto::JobSucceeded { job_id, .. } => {
-            let _ = system.notify(
-                "Atelier generation complete",
-                &format!("Job {job_id} finished."),
-                &notifier,
-            );
-        }
-        AppEventKindDto::JobFailed {
-            job_id, message, ..
-        } => {
-            let _ = system.notify(
-                "Atelier generation failed",
-                &format!("Job {job_id} failed: {message}"),
-                &notifier,
-            );
-        }
-        _ => {}
-    }
+    let _ = system.notify(notification.title, notification.body, &notifier);
 }
 
 pub struct TauriDialog {
@@ -522,7 +614,28 @@ impl DesktopNotifier for TauriNotifier {
 mod tests {
     use atelier_app_api::generation::{QueueDelayDto, QueueDirectiveDto};
 
-    use super::WorkerState;
+    use super::{
+        GenerationNotificationKind, NotificationLanguage, WorkerState, generation_notification,
+    };
+
+    #[test]
+    fn generation_notifications_are_localized_and_do_not_include_job_ids() {
+        let english = generation_notification(
+            NotificationLanguage::English,
+            GenerationNotificationKind::Completed,
+        );
+        assert_eq!(english.title, "Atelier generation complete");
+        assert_eq!(english.body, "Your generated image is ready.");
+        assert!(!english.body.contains("job"));
+
+        let chinese = generation_notification(
+            NotificationLanguage::SimplifiedChinese,
+            GenerationNotificationKind::Failed,
+        );
+        assert_eq!(chinese.title, "Atelier 生成失败");
+        assert_eq!(chinese.body, "请打开“生成”查看详情。");
+        assert!(!chinese.body.contains("job"));
+    }
 
     #[test]
     fn worker_state_defers_cancelled_run_replacement_until_finish() {

@@ -227,7 +227,11 @@ export function GeneratePage() {
   const interactionError = queueError ?? generationActions.error;
   useEffect(() => {
     if (interactionError) {
-      pushToast({ level: "error", title: t("generationActionFailed"), message: interactionError });
+      pushToast({
+        level: "error",
+        title: t("generationActionFailed"),
+        message: t("generationActionFailedDescription"),
+      });
     }
   }, [interactionError, pushToast, t]);
 

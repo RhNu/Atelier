@@ -93,10 +93,7 @@ export function ResourcesSettingsSection() {
     <AppPanel variant="section" className="h-full min-h-0 overflow-y-auto">
       <SectionHeader title={t("resources")} />
       <div className="grid gap-4 p-3">
-        <div className="flex items-start justify-between gap-4">
-          <p className="max-w-2xl text-sm leading-5 text-app-muted">
-            {t("resourcesDescriptionLong")}
-          </p>
+        <div className="flex justify-end">
           <AppButton variant="secondary" disabled={refreshMutation.isPending} onClick={refresh}>
             <RefreshCw aria-hidden="true" className="size-4" />
             {t("refreshCatalog")}

@@ -1537,7 +1537,7 @@ describe("GeneratePage queue and preview behavior", () => {
     mocks.resourceApi.image.mockRejectedValue(new Error("resource missing"));
 
     await user.click(await screen.findByRole("button", { name: "Pause queue" }));
-    expect(await screen.findByText("Pause command failed")).toBeInTheDocument();
+    expect(await screen.findByText("Open Generation to view details.")).toBeInTheDocument();
 
     act(() => {
       recordGenerationEvent(

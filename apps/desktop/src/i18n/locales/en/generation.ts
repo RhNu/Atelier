@@ -45,6 +45,7 @@ export const generation = {
   batch: "Batch",
   generationCanvas: "Generation canvas",
   generationActionFailed: "Generation action failed",
+  generationActionFailedDescription: "Open Generation to view details.",
   selectCharacter: "Select character {{index}}",
   enableCharacter: "Enable character {{index}}",
   disableCharacter: "Disable character {{index}}",

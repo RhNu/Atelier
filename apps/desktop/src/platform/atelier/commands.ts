@@ -43,6 +43,7 @@ export const atelierCommands = {
   releaseImportedImageResources: "release_imported_image_resources",
   getGlobalSettings: "get_global_settings",
   updateGlobalSettings: "update_global_settings",
+  setNotificationLanguage: "set_notification_language",
   getDanbooruAccount: "get_danbooru_account",
   saveDanbooruAccount: "save_danbooru_account",
   probeDanbooruAccount: "probe_danbooru_account",

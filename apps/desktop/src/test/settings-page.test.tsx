@@ -324,6 +324,8 @@ describe("SettingsPage", () => {
     await user.click(within(sectionNav).getByRole("button", { name: "Interface" }));
 
     expect(screen.getByRole("heading", { name: "Interface" })).toBeInTheDocument();
+    expect(screen.getAllByText("Language")).toHaveLength(1);
+
     expect(screen.getByLabelText("Developer mode")).toBeInTheDocument();
     expect(screen.getByLabelText("Blur NSFW images")).toBeInTheDocument();
   });
