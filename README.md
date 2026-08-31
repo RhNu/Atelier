@@ -9,8 +9,8 @@ The project is intentionally NovelAI-specific. It should preserve clear feature 
 Prerequisites:
 
 - Rust toolchain from `rust-toolchain.toml`
-- Node.js 20.19+ or 22.12+
-- pnpm 10.33+
+- Node.js 24.20.0+
+- pnpm 11.24.0+
 
 Common commands:
 

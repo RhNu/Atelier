@@ -54,7 +54,7 @@ futures-executor = "0.3"
 futures-timer = "3"
 futures-util = "0.3"
 image = { version = "0.25.10", default-features = false }
-keyring = "4.0.1"
+keyring = "4.2.0"
 keyring-core = "1.0.0"
 log = "0.4"
 logos = "0.16"
@@ -62,7 +62,7 @@ half = "2"
 memmap2 = "0.9"
 rayon = "1"
 semver = "1"
-tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+tokenizers = { version = "0.23", default-features = false, features = ["onig"] }
 atelier-adapter-database = { path = "crates/adapters/database" }
 atelier-adapter-danbooru = { path = "crates/adapters/danbooru" }
 atelier-adapter-downloadable-resources-fs = { path = "crates/adapters/downloadable-resources-fs" }
@@ -98,13 +98,13 @@ atelier-settings = { path = "crates/features/settings" }
 atelier-vibe = { path = "crates/features/vibe" }
 atelier-workspace = { path = "crates/features/workspace" }
 novelai-bridge = "0.4.0"
-ort = { version = "2.0.0-rc.12", default-features = false }
+ort = { version = "2.0.0-rc.13", default-features = false }
 reqwest = { version = "0.13.4", features = ["stream"] }
-rowan = "0.16"
-rusqlite = "0.39.0"
+rowan = "0.17"
+rusqlite = "0.40.2"
 serde = "1"
 serde_json = "1"
-sha2 = "0.10"
+sha2 = "0.11"
 tempfile = "3"
 thiserror = "2"
 tokio = { version = "1", features = ["rt", "sync"] }
