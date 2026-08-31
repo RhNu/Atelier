@@ -3,6 +3,12 @@ name: Release application
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Application release tag to build and publish (for example, v0.5.1)."
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -16,9 +22,11 @@ jobs:
     runs-on: windows-latest
     env:
       CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
           fetch-depth: 0
           lfs: false
       - uses: dtolnay/rust-toolchain@stable
@@ -48,7 +56,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           $version = (Get-Content apps/desktop/package.json | ConvertFrom-Json).version
-          if ($env:GITHUB_REF_NAME -ne "v$version") { throw "tag/version mismatch" }
+          if ($env:RELEASE_TAG -ne "v$version") { throw "tag/version mismatch" }
           if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw "TAURI_SIGNING_PRIVATE_KEY is missing" }
           if (-not $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) { throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD is missing" }
       - run: cargo fmt --all -- --check
@@ -77,10 +85,10 @@ jobs:
           $updater = Get-ChildItem $bundle -Recurse -File -Filter *_x64-setup.exe | Select-Object -First 1
           if (-not $updater) { throw "signed NSIS updater installer was not produced" }
           $signature = Get-Item "$($updater.FullName).sig"
-          if (-not (gh release view $env:GITHUB_REF_NAME 2>$null)) {
-            gh release create $env:GITHUB_REF_NAME --verify-tag --generate-notes --draft
+          if (-not (gh release view $env:RELEASE_TAG 2>$null)) {
+            gh release create $env:RELEASE_TAG --verify-tag --generate-notes --draft
           }
-          $env:RELEASE_NOTES = gh release view $env:GITHUB_REF_NAME --json body --jq .body
+          $env:RELEASE_NOTES = gh release view $env:RELEASE_TAG --json body --jq .body
           node scripts/build-latest-manifest.mjs $updater.FullName $signature.FullName latest.json
-          gh release upload $env:GITHUB_REF_NAME $updater.FullName $signature.FullName latest.json --clobber
-          gh release edit $env:GITHUB_REF_NAME --draft=false --latest
+          gh release upload $env:RELEASE_TAG $updater.FullName $signature.FullName latest.json --clobber
+          gh release edit $env:RELEASE_TAG --draft=false --latest
