@@ -41,6 +41,7 @@ export function cloneGlobalSettings(settings: GlobalSettingsDto): GlobalSettings
     frontend: {
       language: settings.frontend.language,
       developer_mode: settings.frontend.developer_mode,
+      convert_full_width_punctuation: settings.frontend.convert_full_width_punctuation,
       gallery: { ...settings.frontend.gallery },
     },
     safety: { ...settings.safety },

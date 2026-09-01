@@ -522,6 +522,7 @@ fn global_settings_preserve_last_workspace_and_update_frontend_independently() {
                 frontend: GlobalFrontendSettingsDto {
                     language: atelier_app_api::settings::FrontendLanguageDto::SimplifiedChinese,
                     developer_mode: true,
+                    convert_full_width_punctuation: true,
                     gallery: GlobalGallerySettingsDto {
                         blur_sensitive_images: true,
                     },
@@ -534,6 +535,7 @@ fn global_settings_preserve_last_workspace_and_update_frontend_independently() {
             .unwrap();
         assert_eq!(updated.last_workspace.as_deref(), Some(temp.path()));
         assert!(updated.frontend.developer_mode);
+        assert!(updated.frontend.convert_full_width_punctuation);
         assert!(updated.frontend.gallery.blur_sensitive_images);
 
         let error = host

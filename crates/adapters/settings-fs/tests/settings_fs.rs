@@ -22,6 +22,7 @@ fn missing_file_returns_defaults_and_round_trips_settings() {
             frontend: GlobalFrontendSettings {
                 language: FrontendLanguage::SimplifiedChinese,
                 developer_mode: true,
+                convert_full_width_punctuation: true,
                 gallery: GlobalGallerySettings {
                     blur_sensitive_images: true,
                 },
@@ -41,7 +42,8 @@ fn missing_file_returns_defaults_and_round_trips_settings() {
         let stored: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(stored["format"], "atelier-global-settings");
-        assert_eq!(stored["schema_version"], 3);
+        assert_eq!(stored["schema_version"], 4);
+        assert_eq!(stored["frontend"]["convert_full_width_punctuation"], true);
         assert_eq!(stored["safety"]["wd_auto_review_enabled"], true);
         assert_eq!(stored["integrations"]["danbooru_username"], "atelier-user");
         assert_eq!(repository.get_global_settings().await.unwrap(), settings);
@@ -92,8 +94,8 @@ fn non_current_global_settings_schemas_are_quarantined() {
     block_on(async {
         for (format, version) in [
             ("atelier-global-settings", 0),
-            ("atelier-global-settings", 4),
-            ("another-settings-format", 3),
+            ("atelier-global-settings", 5),
+            ("another-settings-format", 4),
         ] {
             let temp = tempfile::tempdir().unwrap();
             let path = temp.path().join("global-settings.json");
@@ -157,7 +159,11 @@ fn version_one_settings_are_migrated_in_place_and_preserve_user_choices() {
 
         let migrated: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(migrated["schema_version"], 3);
+        assert_eq!(migrated["schema_version"], 4);
+        assert_eq!(
+            migrated["frontend"]["convert_full_width_punctuation"],
+            false
+        );
         assert_eq!(migrated["safety"]["wd_auto_review_enabled"], false);
         assert!(migrated["integrations"]["danbooru_username"].is_null());
         assert!(!std::fs::read_dir(temp.path()).unwrap().any(|entry| {
@@ -201,8 +207,52 @@ fn version_two_settings_gain_empty_integrations_without_losing_preferences() {
 
         let migrated: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-        assert_eq!(migrated["schema_version"], 3);
+        assert_eq!(migrated["schema_version"], 4);
         assert!(migrated["integrations"]["danbooru_username"].is_null());
+    });
+}
+
+#[test]
+fn version_three_settings_gain_full_width_punctuation_preference_without_losing_preferences() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("global-settings.json");
+        std::fs::write(
+            &path,
+            r#"{
+  "format": "atelier-global-settings",
+  "schema_version": 3,
+  "last_workspace": "D:/existing",
+  "frontend": {
+    "language": "en",
+    "developer_mode": true,
+    "gallery": { "blur_sensitive_images": true }
+  },
+  "safety": { "wd_auto_review_enabled": true },
+  "integrations": { "danbooru_username": "atelier-user" }
+}"#,
+        )
+        .unwrap();
+        let repository = FileSystemGlobalSettingsRepository::new(&path);
+
+        let settings = repository.get_global_settings().await.unwrap();
+        assert_eq!(settings.last_workspace, Some("D:/existing".into()));
+        assert!(settings.frontend.developer_mode);
+        assert!(!settings.frontend.convert_full_width_punctuation);
+        assert!(settings.frontend.gallery.blur_sensitive_images);
+        assert!(settings.safety.wd_auto_review_enabled);
+        assert_eq!(
+            settings.integrations.danbooru_username.as_deref(),
+            Some("atelier-user")
+        );
+
+        let migrated: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        assert_eq!(migrated["schema_version"], 4);
+        assert_eq!(
+            migrated["frontend"]["convert_full_width_punctuation"],
+            false
+        );
     });
 }
 

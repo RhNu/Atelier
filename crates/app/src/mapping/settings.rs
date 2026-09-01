@@ -49,6 +49,7 @@ pub const fn global_frontend_settings_to_domain(
     GlobalFrontendSettings {
         language: frontend_language_to_domain(value.language),
         developer_mode: value.developer_mode,
+        convert_full_width_punctuation: value.convert_full_width_punctuation,
         gallery: GlobalGallerySettings {
             blur_sensitive_images: value.gallery.blur_sensitive_images,
         },
@@ -61,6 +62,7 @@ const fn global_frontend_settings_to_dto(
     GlobalFrontendSettingsDto {
         language: frontend_language_to_dto(value.language),
         developer_mode: value.developer_mode,
+        convert_full_width_punctuation: value.convert_full_width_punctuation,
         gallery: GlobalGallerySettingsDto {
             blur_sensitive_images: value.gallery.blur_sensitive_images,
         },

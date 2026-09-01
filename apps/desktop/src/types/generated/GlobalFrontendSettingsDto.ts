@@ -5,5 +5,6 @@ import type { GlobalGallerySettingsDto } from "./GlobalGallerySettingsDto";
 export type GlobalFrontendSettingsDto = {
   language: FrontendLanguageDto;
   developer_mode: boolean;
+  convert_full_width_punctuation: boolean;
   gallery: GlobalGallerySettingsDto;
 };

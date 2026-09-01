@@ -117,6 +117,7 @@ fn global_settings_service_preserves_lifecycle_state_when_updating_frontend() {
             .update_frontend_settings(GlobalFrontendSettings {
                 language: FrontendLanguage::SimplifiedChinese,
                 developer_mode: true,
+                convert_full_width_punctuation: true,
                 gallery: GlobalGallerySettings {
                     blur_sensitive_images: true,
                 },
@@ -130,6 +131,7 @@ fn global_settings_service_preserves_lifecycle_state_when_updating_frontend() {
             FrontendLanguage::SimplifiedChinese
         );
         assert!(settings.frontend.developer_mode);
+        assert!(settings.frontend.convert_full_width_punctuation);
         assert!(settings.frontend.gallery.blur_sensitive_images);
     });
 }

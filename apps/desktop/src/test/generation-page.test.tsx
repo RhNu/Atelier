@@ -282,6 +282,7 @@ const defaultGlobalSettings: GlobalSettingsDto = {
   frontend: {
     language: "system",
     developer_mode: false,
+    convert_full_width_punctuation: false,
     gallery: { blur_sensitive_images: false },
   },
   safety: { wd_auto_review_enabled: false },
@@ -359,6 +360,7 @@ function setup(options?: {
   mainPresets?: PromptPresetPageDto;
   characterPresets?: PromptPresetPageDto;
   developerMode?: boolean;
+  convertFullWidthPunctuation?: boolean;
   model?: ImageModelDto;
   subscription?: SubscriptionSummaryDto;
 }) {
@@ -376,6 +378,7 @@ function setup(options?: {
     frontend: {
       ...defaultGlobalSettings.frontend,
       developer_mode: options?.developerMode ?? false,
+      convert_full_width_punctuation: options?.convertFullWidthPunctuation ?? false,
     },
   });
   if (options?.statusError) {
@@ -883,6 +886,15 @@ describe("GeneratePage", () => {
     });
     const savedRequest = mocks.generationApi.saveDraft.mock.lastCall?.[0];
     expect(savedRequest?.draft.prompt_states[0]?.prompt).toBe("restored prompt, detailed eyes");
+  });
+
+  it("converts full-width punctuation in generation prompts when enabled", async () => {
+    setup({ convertFullWidthPunctuation: true });
+    const prompt = await screen.findByLabelText("Positive prompt");
+
+    typeInPromptEditor(prompt, "1girl，blue；sky。night");
+
+    expect(promptEditorText(prompt)).toBe("1girl, blue, sky, night");
   });
 
   it("isolates undo history between positive and undesired prompts", async () => {

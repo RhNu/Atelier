@@ -135,6 +135,7 @@ pub enum FrontendLanguage {
 pub struct GlobalFrontendSettings {
     pub language: FrontendLanguage,
     pub developer_mode: bool,
+    pub convert_full_width_punctuation: bool,
     pub gallery: GlobalGallerySettings,
 }
 

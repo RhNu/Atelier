@@ -186,6 +186,25 @@ describe("NaiPromptEditor", () => {
       text: "1girl, blue hair",
     });
   });
+
+  it("converts full-width prompt punctuation to comma-space when enabled", async () => {
+    const onChange = vi.fn<(value: string) => void>();
+    render(
+      editor({
+        value: "1girl，blue；sky。night．",
+        ariaLabel: "Normalized prompt",
+        onChange,
+        convertFullWidthPunctuation: true,
+      }),
+    );
+
+    const content = screen.getByLabelText("Normalized prompt");
+    await waitFor(() => expect(promptEditorText(content)).toBe("1girl, blue, sky, night, "));
+    expect(onChange).toHaveBeenCalledWith("1girl, blue, sky, night, ");
+
+    typeInPromptEditor(content, "morning，sun");
+    expect(promptEditorText(content)).toBe("1girl, blue, sky, night, morning, sun");
+  });
 });
 
 type EditorOptions = {
@@ -198,6 +217,7 @@ type EditorOptions = {
   highlightMode?: NaiPromptHighlightMode;
   model?: ImageModelDto;
   onChange?: (value: string) => void;
+  convertFullWidthPunctuation?: boolean;
 };
 
 function editor(options: EditorOptions) {
@@ -213,6 +233,7 @@ function editor(options: EditorOptions) {
         readOnly={options.readOnly}
         highlightMode={options.highlightMode}
         model={options.model}
+        convertFullWidthPunctuation={options.convertFullWidthPunctuation}
       />
     </QueryClientProvider>
   );

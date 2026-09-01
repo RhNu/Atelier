@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { describeError, frontendLogger } from "@/app/logger";
 import { resolveOpusAllowance } from "@/features/account/components/opus-allowance";
 import { useActiveAccountSummaryQuery } from "@/features/account/data/useActiveAccountSummaryQuery";
+import { PromptEditorSettingsProvider } from "@/features/prompt-editor";
 import { useToastStore } from "@/stores/toast-store";
 import type { CompiledGenerationPromptDto, GenerationBatchHistoryStatusDto } from "@/types";
 
@@ -364,35 +365,41 @@ export function GeneratePage() {
               data-testid="generation-settings-scroll"
               className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
             >
-              <GenerationPromptPanel
-                ref={promptPanelRef}
-                draft={draft}
-                mainPresets={mainPresetsQuery.data?.items ?? EMPTY_ITEMS}
-                mainPresetsPending={mainPresetsQuery.isPending}
-                onPatch={patchDraft}
-                onFlush={flushDraft}
-                onModelChange={handleModelChange}
-                modelCatalog={modelCatalogQuery.data}
-                capabilities={capabilities}
-              />
-              <AdvancedGenerationInputs
-                draft={draft}
-                onPatch={patchDraft}
-                onFlush={flushDraft}
-                characterPresets={characterPresetsQuery.data?.items ?? EMPTY_ITEMS}
-                characterPresetsPending={characterPresetsQuery.isPending}
-                vibeImportPending={generationActions.vibeImportPending}
-                vibeExportPending={generationActions.vibeExportPending}
-                imageImportPending={generationActions.imageImportPending}
-                vibeEnsurePending={generationActions.vibeEnsurePending}
-                onPickImageResources={generationActions.handlePickImageResources}
-                onPickVibeEncoding={generationActions.handlePickVibeEncoding}
-                onReleaseImageResources={generationActions.handleReleaseImageResources}
-                onImportVibeDocuments={generationActions.handleImportVibeDocuments}
-                onExportVibeDocument={generationActions.handleExportVibeDocument}
-                developerMode={globalSettingsQuery.data?.frontend.developer_mode === true}
-                capabilities={capabilities}
-              />
+              <PromptEditorSettingsProvider
+                convertFullWidthPunctuation={
+                  globalSettingsQuery.data?.frontend.convert_full_width_punctuation === true
+                }
+              >
+                <GenerationPromptPanel
+                  ref={promptPanelRef}
+                  draft={draft}
+                  mainPresets={mainPresetsQuery.data?.items ?? EMPTY_ITEMS}
+                  mainPresetsPending={mainPresetsQuery.isPending}
+                  onPatch={patchDraft}
+                  onFlush={flushDraft}
+                  onModelChange={handleModelChange}
+                  modelCatalog={modelCatalogQuery.data}
+                  capabilities={capabilities}
+                />
+                <AdvancedGenerationInputs
+                  draft={draft}
+                  onPatch={patchDraft}
+                  onFlush={flushDraft}
+                  characterPresets={characterPresetsQuery.data?.items ?? EMPTY_ITEMS}
+                  characterPresetsPending={characterPresetsQuery.isPending}
+                  vibeImportPending={generationActions.vibeImportPending}
+                  vibeExportPending={generationActions.vibeExportPending}
+                  imageImportPending={generationActions.imageImportPending}
+                  vibeEnsurePending={generationActions.vibeEnsurePending}
+                  onPickImageResources={generationActions.handlePickImageResources}
+                  onPickVibeEncoding={generationActions.handlePickVibeEncoding}
+                  onReleaseImageResources={generationActions.handleReleaseImageResources}
+                  onImportVibeDocuments={generationActions.handleImportVibeDocuments}
+                  onExportVibeDocument={generationActions.handleExportVibeDocument}
+                  developerMode={globalSettingsQuery.data?.frontend.developer_mode === true}
+                  capabilities={capabilities}
+                />
+              </PromptEditorSettingsProvider>
               <GenerationParamsPanel
                 draft={draft}
                 onPatch={patchDraft}

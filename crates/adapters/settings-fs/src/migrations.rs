@@ -2,9 +2,10 @@ use serde_json::Value;
 
 mod v1_to_v2;
 mod v2_to_v3;
+mod v3_to_v4;
 
 const FORMAT: &str = "atelier-global-settings";
-const CURRENT_VERSION: u32 = 3;
+const CURRENT_VERSION: u32 = 4;
 
 pub struct MigrationResult {
     pub text: String,
@@ -37,6 +38,7 @@ pub fn migrate(text: &str) -> Result<MigrationResult, String> {
         (value, version) = match version {
             1 => v1_to_v2::migrate(value)?,
             2 => v2_to_v3::migrate(value)?,
+            3 => v3_to_v4::migrate(value)?,
             unsupported => {
                 return Err(format!(
                     "no global settings migration starts at schema version {unsupported}"

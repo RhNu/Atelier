@@ -31,6 +31,18 @@ export function FrontendSettingsSection({ draft, updateDraft }: FrontendSettings
     },
     [draft, updateDraft],
   );
+  const updateConvertFullWidthPunctuation = useCallback(
+    (convertFullWidthPunctuation: boolean) => {
+      updateDraft({
+        ...draft,
+        frontend: {
+          ...draft.frontend,
+          convert_full_width_punctuation: convertFullWidthPunctuation,
+        },
+      });
+    },
+    [draft, updateDraft],
+  );
   const updateBlurSensitiveImages = useCallback(
     (blurSensitiveImages: boolean) => {
       updateDraft({
@@ -60,6 +72,16 @@ export function FrontendSettingsSection({ draft, updateDraft }: FrontendSettings
             label={t("blurNsfw")}
             checked={draft.frontend.gallery.blur_sensitive_images}
             onChange={updateBlurSensitiveImages}
+          />
+        </section>
+        <section className="grid gap-2">
+          <h3 className="text-xs font-semibold text-app-muted uppercase">
+            {t("promptEditingGroup")}
+          </h3>
+          <CheckboxField
+            label={t("convertFullWidthPunctuation")}
+            checked={draft.frontend.convert_full_width_punctuation}
+            onChange={updateConvertFullWidthPunctuation}
           />
         </section>
         <section className="grid gap-2">

@@ -3,6 +3,7 @@ import { useCallback } from "react";
 
 import { reportBackgroundPromise } from "../app/logger";
 import { ActiveAccountRuntime } from "../features/account/runtime/ActiveAccountRuntime";
+import { PromptEditorSettingsProvider } from "../features/prompt-editor";
 import { AppUpdateRuntime } from "../features/settings/components/AppUpdateRuntime";
 import { ResourceOnboarding } from "../features/settings/components/ResourceOnboarding";
 import { useWorkspaceStatus } from "../features/workspace/useWorkspaceStatus";
@@ -21,7 +22,9 @@ export function RootWorkbenchLayout() {
   );
 
   return (
-    <>
+    <PromptEditorSettingsProvider
+      convertFullWidthPunctuation={workspace.convertFullWidthPunctuation ?? false}
+    >
       <ActiveAccountRuntime enabled={workspace.workspaceStatus !== null} />
       <AppUpdateRuntime />
       <ResourceOnboarding />
@@ -42,6 +45,6 @@ export function RootWorkbenchLayout() {
       >
         <Outlet />
       </AppShell>
-    </>
+    </PromptEditorSettingsProvider>
   );
 }

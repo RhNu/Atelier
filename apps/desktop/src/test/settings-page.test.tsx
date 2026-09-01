@@ -167,6 +167,7 @@ const defaultGlobalSettings: GlobalSettingsDto = {
   frontend: {
     language: "system",
     developer_mode: false,
+    convert_full_width_punctuation: false,
     gallery: {
       blur_sensitive_images: false,
     },
@@ -329,6 +330,10 @@ describe("SettingsPage", () => {
 
     expect(screen.getByLabelText("Developer mode")).toBeInTheDocument();
     expect(screen.getByLabelText("Blur NSFW images")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Convert full-width punctuation"));
+    await waitFor(() =>
+      expect(lastGlobalSettingsUpdate().frontend.convert_full_width_punctuation).toBe(true),
+    );
   });
 });
 

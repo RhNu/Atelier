@@ -9,6 +9,8 @@ import type { ImageModelDto } from "@/types";
 import { createNaiPromptCompletion } from "./completion";
 import type { NaiPromptHighlightMode } from "./editor-theme";
 import type { NaiPromptProfile, PromptEditorMessages } from "./prompt-analysis";
+import { usePromptEditorSettings } from "./prompt-editor-settings-context";
+import { normalizeFullWidthPunctuation } from "./prompt-normalization";
 import { usePromptEditor } from "./use-prompt-editor";
 
 export type NaiPromptEditorHandle = { focus: () => void };
@@ -29,6 +31,7 @@ type NaiPromptEditorProps = {
   highlightMode?: NaiPromptHighlightMode;
   onBlur?: () => void;
   onKeyDown?: (event: KeyboardEvent) => void;
+  convertFullWidthPunctuation?: boolean;
 };
 
 export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditorProps>(
@@ -48,9 +51,13 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
       highlightMode = "foreground",
       onBlur,
       onKeyDown,
+      convertFullWidthPunctuation,
     },
     forwardedRef,
   ) {
+    const inheritedConvertFullWidthPunctuation = usePromptEditorSettings();
+    const shouldConvertFullWidthPunctuation =
+      convertFullWidthPunctuation ?? inheritedConvertFullWidthPunctuation;
     const { t } = useTranslation("promptEditor");
     const queryClient = useQueryClient();
     const messages = usePromptEditorMessages(t);
@@ -77,6 +84,7 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
         readOnly,
         enableCompletions,
         highlightMode,
+        convertFullWidthPunctuation: shouldConvertFullWidthPunctuation,
         messages,
         completionsPhrase: t("completions"),
         completionSource,
@@ -95,7 +103,12 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
           ].join(" ")}
           style={{ minHeight }}
         />
-        {model ? <PromptTokenMeter model={model} text={value} /> : null}
+        {model ? (
+          <PromptTokenMeter
+            model={model}
+            text={shouldConvertFullWidthPunctuation ? normalizeFullWidthPunctuation(value) : value}
+          />
+        ) : null}
       </div>
     );
   },

@@ -85,6 +85,8 @@ pub struct GlobalFrontendSettingsDto {
     pub language: FrontendLanguageDto,
     #[serde(default)]
     pub developer_mode: bool,
+    #[serde(default)]
+    pub convert_full_width_punctuation: bool,
     pub gallery: GlobalGallerySettingsDto,
 }
 

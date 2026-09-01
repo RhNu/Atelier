@@ -19,7 +19,7 @@ use tempfile::NamedTempFile;
 mod migrations;
 
 const JSON_FORMAT: &str = "atelier-global-settings";
-const JSON_SCHEMA_VERSION: u32 = 3;
+const JSON_SCHEMA_VERSION: u32 = 4;
 
 #[derive(Debug)]
 pub struct FileSystemGlobalSettingsRepository {
@@ -187,6 +187,7 @@ impl StoredGlobalSafetySettings {
 struct StoredGlobalFrontendSettings {
     language: StoredFrontendLanguage,
     developer_mode: bool,
+    convert_full_width_punctuation: bool,
     gallery: StoredGlobalGallerySettings,
 }
 
@@ -195,6 +196,7 @@ impl StoredGlobalFrontendSettings {
         Self {
             language: StoredFrontendLanguage::from_domain(settings.language),
             developer_mode: settings.developer_mode,
+            convert_full_width_punctuation: settings.convert_full_width_punctuation,
             gallery: StoredGlobalGallerySettings::from_domain(settings.gallery),
         }
     }
@@ -203,6 +205,7 @@ impl StoredGlobalFrontendSettings {
         GlobalFrontendSettings {
             language: self.language.into_domain(),
             developer_mode: self.developer_mode,
+            convert_full_width_punctuation: self.convert_full_width_punctuation,
             gallery: self.gallery.into_domain(),
         }
     }

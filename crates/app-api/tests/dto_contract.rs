@@ -326,6 +326,7 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
         frontend: GlobalFrontendSettingsDto {
             language: FrontendLanguageDto::SimplifiedChinese,
             developer_mode: true,
+            convert_full_width_punctuation: true,
             gallery: GlobalGallerySettingsDto {
                 blur_sensitive_images: true,
             },
@@ -342,6 +343,7 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
             "frontend": {
                 "language": "zh-CN",
                 "developer_mode": true,
+                "convert_full_width_punctuation": true,
                 "gallery": { "blur_sensitive_images": true }
             },
             "safety": { "wd_auto_review_enabled": true }
@@ -357,6 +359,7 @@ fn global_settings_dtos_separate_lifecycle_state_from_editable_preferences() {
             "frontend": {
                 "language": "zh-CN",
                 "developer_mode": true,
+                "convert_full_width_punctuation": true,
                 "gallery": { "blur_sensitive_images": true }
             },
             "safety": { "wd_auto_review_enabled": true }

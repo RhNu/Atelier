@@ -74,6 +74,7 @@ beforeEach(() => {
       frontend: {
         language: "system",
         developer_mode: false,
+        convert_full_width_punctuation: false,
         gallery: { blur_sensitive_images: false },
       },
       safety: { wd_auto_review_enabled: false },
@@ -92,6 +93,7 @@ beforeEach(() => {
     frontend: {
       language: "system",
       developer_mode: false,
+      convert_full_width_punctuation: false,
       gallery: { blur_sensitive_images: false },
     },
     safety: { wd_auto_review_enabled: false },

@@ -32,6 +32,7 @@ export type WorkspaceStatusView = {
   openingWorkspace: boolean;
   closingWorkspace: boolean;
   language: FrontendLanguageDto;
+  convertFullWidthPunctuation: boolean;
   languagePending: boolean;
   languageErrorMessage: string | undefined;
   changeLanguage: (language: FrontendLanguageDto) => void;
@@ -117,6 +118,8 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
   });
 
   const language = bootstrapQuery.data?.global_settings.frontend.language ?? "system";
+  const convertFullWidthPunctuation =
+    bootstrapQuery.data?.global_settings.frontend.convert_full_width_punctuation ?? false;
   useEffect(() => {
     reportBackgroundPromise(applyLanguagePreference(language), "Apply workspace language");
   }, [language]);
@@ -138,6 +141,7 @@ export function useWorkspaceStatus(): WorkspaceStatusView {
     openingWorkspace: openMutation.isPending,
     closingWorkspace: closeMutation.isPending,
     language,
+    convertFullWidthPunctuation,
     languagePending: languageMutation.isPending,
     languageErrorMessage:
       languageError?.message ??

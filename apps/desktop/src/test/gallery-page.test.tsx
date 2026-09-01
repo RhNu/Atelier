@@ -82,6 +82,7 @@ const defaultSettings: GlobalSettingsDto = {
   frontend: {
     language: "system",
     developer_mode: false,
+    convert_full_width_punctuation: false,
     gallery: {
       blur_sensitive_images: false,
     },

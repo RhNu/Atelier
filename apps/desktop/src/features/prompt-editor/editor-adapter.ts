@@ -7,7 +7,13 @@ import {
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { bracketMatching } from "@codemirror/language";
 import { forceLinting, linter } from "@codemirror/lint";
-import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/state";
+import {
+  Annotation,
+  Compartment,
+  EditorState,
+  Transaction,
+  type TransactionSpec,
+} from "@codemirror/state";
 import { EditorView, keymap, placeholder as placeholderExtension } from "@codemirror/view";
 import type { RefObject } from "react";
 
@@ -25,12 +31,14 @@ import {
   type NaiPromptProfile,
   type PromptEditorMessages,
 } from "./prompt-analysis";
+import { fullWidthPunctuationChanges } from "./prompt-normalization";
 import { naiSemanticHighlighting } from "./semantic-highlighting";
 
 export type PromptEditorCompartments = ReturnType<typeof createPromptEditorCompartments>;
 export type PromptEditorRuntimeRefs = {
   view: RefObject<EditorView | null>;
   isComposing: RefObject<boolean>;
+  convertFullWidthPunctuation: RefObject<boolean>;
   pendingExternalValue: RefObject<string | null>;
   onChange: RefObject<(value: string) => void>;
   onBlur: RefObject<(() => void) | undefined>;
@@ -45,6 +53,7 @@ export type PromptEditorConfiguration = {
   readOnly: boolean;
   enableCompletions: boolean;
   highlightMode: NaiPromptHighlightMode;
+  convertFullWidthPunctuation: boolean;
   messages: PromptEditorMessages;
   completionsPhrase: string;
   completionSource: CompletionSource;
@@ -56,6 +65,7 @@ export function createPromptEditorCompartments() {
   return {
     attributes: new Compartment(),
     completion: new Compartment(),
+    fullWidthPunctuation: new Compartment(),
     messages: new Compartment(),
     placeholder: new Compartment(),
     profile: new Compartment(),
@@ -98,6 +108,9 @@ function editorExtensions(
     compartments.completion.of(
       completionExtension(configuration.enableCompletions, configuration.completionSource),
     ),
+    compartments.fullWidthPunctuation.of(
+      fullWidthPunctuationExtension(configuration.convertFullWidthPunctuation, runtime.isComposing),
+    ),
     keymap.of([
       { key: "Tab", run: acceptCompletion },
       ...completionKeymap,
@@ -117,7 +130,10 @@ function editorExtensions(
     EditorView.updateListener.of((update) => {
       if (
         update.docChanged &&
-        !update.transactions.some((transaction) => transaction.annotation(externalUpdate))
+        (!update.transactions.some((transaction) => transaction.annotation(externalUpdate)) ||
+          update.transactions.some((transaction) =>
+            transaction.annotation(fullWidthPunctuationConversion),
+          ))
       ) {
         runtime.onChange.current(update.state.doc.toString());
       }
@@ -188,6 +204,69 @@ export function completionExtension(enabled: boolean, source: CompletionSource) 
     : [];
 }
 
+const fullWidthPunctuationConversion = Annotation.define<boolean>();
+
+export function fullWidthPunctuationExtension(enabled: boolean, isComposing?: RefObject<boolean>) {
+  return enabled
+    ? EditorState.transactionFilter.of((transaction) =>
+        convertFullWidthPunctuationTransaction(transaction, isComposing),
+      )
+    : [];
+}
+
+function convertFullWidthPunctuationTransaction(
+  transaction: Transaction,
+  isComposing?: RefObject<boolean>,
+): TransactionSpec | readonly TransactionSpec[] {
+  if (
+    !transaction.docChanged ||
+    isComposing?.current === true ||
+    transaction.annotation(fullWidthPunctuationConversion) !== undefined
+  ) {
+    return transaction;
+  }
+
+  const changes = fullWidthPunctuationChanges(transaction.newDoc.toString());
+  if (changes.length === 0) {
+    return transaction;
+  }
+
+  const annotations = [];
+  if (transaction.annotation(externalUpdate) === true) {
+    annotations.push(externalUpdate.of(true));
+  }
+  if (transaction.annotation(Transaction.addToHistory) === false) {
+    annotations.push(Transaction.addToHistory.of(false));
+  }
+
+  return [
+    {
+      changes: transaction.changes,
+      selection: transaction.selection,
+      effects: transaction.effects,
+      annotations: annotations.length > 0 ? annotations : undefined,
+      userEvent: transaction.annotation(Transaction.userEvent),
+      scrollIntoView: transaction.scrollIntoView,
+    },
+    {
+      changes,
+      sequential: true,
+      annotations: fullWidthPunctuationConversion.of(true),
+    },
+  ];
+}
+
+export function normalizeFullWidthPunctuationInView(view: EditorView): void {
+  const changes = fullWidthPunctuationChanges(view.state.doc.toString());
+  if (changes.length === 0) {
+    return;
+  }
+  view.dispatch({
+    changes,
+    annotations: Transaction.addToHistory.of(false),
+  });
+}
+
 export function contentAttributes(id: string | undefined, ariaLabel: string) {
   return EditorView.contentAttributes.of({
     "aria-label": ariaLabel,
@@ -218,6 +297,9 @@ function handleCompositionEnd(runtime: PromptEditorRuntimeRefs): false {
     if (view && pending !== null && !view.composing) {
       applyControlledValue(view, pending);
       runtime.pendingExternalValue.current = null;
+    }
+    if (view && !view.composing && runtime.convertFullWidthPunctuation.current) {
+      normalizeFullWidthPunctuationInView(view);
     }
   });
   return false;

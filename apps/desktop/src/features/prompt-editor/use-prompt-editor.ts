@@ -7,6 +7,8 @@ import {
   contentAttributes,
   createPromptEditorCompartments,
   createPromptEditorView,
+  fullWidthPunctuationExtension,
+  normalizeFullWidthPunctuationInView,
   promptPlaceholder,
   readOnlyExtensions,
   reconfigurePromptMessages,
@@ -29,6 +31,7 @@ export function usePromptEditor(
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const isComposingRef = useRef(false);
+  const convertFullWidthPunctuationRef = useRef(configuration.convertFullWidthPunctuation);
   const pendingExternalValueRef = useRef<string | null>(null);
   const onChangeRef = useRef(callbacks.onChange);
   const onBlurRef = useRef(callbacks.onBlur);
@@ -40,10 +43,12 @@ export function usePromptEditor(
   onChangeRef.current = callbacks.onChange;
   onBlurRef.current = callbacks.onBlur;
   onKeyDownRef.current = callbacks.onKeyDown;
+  convertFullWidthPunctuationRef.current = configuration.convertFullWidthPunctuation;
   const runtimeRef = useRef<PromptEditorRuntimeRefs | null>(null);
   runtimeRef.current ??= {
     view: viewRef,
     isComposing: isComposingRef,
+    convertFullWidthPunctuation: convertFullWidthPunctuationRef,
     pendingExternalValue: pendingExternalValueRef,
     onChange: onChangeRef,
     onBlur: onBlurRef,
@@ -68,7 +73,7 @@ export function usePromptEditor(
   }, [compartments, runtime]);
 
   useControlledValue(viewRef, isComposingRef, pendingExternalValueRef, configuration.value);
-  usePromptEditorConfiguration(viewRef, compartments, configuration);
+  usePromptEditorConfiguration(viewRef, isComposingRef, compartments, configuration);
   return { hostRef, viewRef };
 }
 
@@ -92,12 +97,15 @@ function useControlledValue(
 
 function usePromptEditorConfiguration(
   viewRef: React.RefObject<EditorView | null>,
+  isComposingRef: React.RefObject<boolean>,
   compartments: ReturnType<typeof createPromptEditorCompartments>,
   configuration: PromptEditorConfiguration,
 ) {
   useEffect(() => {
     const view = viewRef.current;
-    if (view) reconfigurePromptProfile(view, compartments.profile, configuration.profile);
+    if (view) {
+      reconfigurePromptProfile(view, compartments.profile, configuration.profile);
+    }
   }, [compartments.profile, configuration.profile, viewRef]);
   useEffect(() => {
     const view = viewRef.current;
@@ -132,6 +140,23 @@ function usePromptEditorConfiguration(
       effects: compartments.placeholder.reconfigure(promptPlaceholder(configuration.placeholder)),
     });
   }, [compartments.placeholder, configuration.placeholder, viewRef]);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: compartments.fullWidthPunctuation.reconfigure(
+        fullWidthPunctuationExtension(configuration.convertFullWidthPunctuation, isComposingRef),
+      ),
+    });
+    if (configuration.convertFullWidthPunctuation) {
+      normalizeFullWidthPunctuationInView(view);
+    }
+  }, [
+    compartments.fullWidthPunctuation,
+    configuration.convertFullWidthPunctuation,
+    isComposingRef,
+    viewRef,
+  ]);
   useEffect(() => {
     viewRef.current?.dispatch({
       effects: compartments.attributes.reconfigure(
