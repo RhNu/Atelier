@@ -93,10 +93,9 @@ pub(super) fn estimate_generation_anlas(
     let context = plan_context_to_domain(request.context);
     let plan = plan_generation_request(estimate_request_to_domain(&request.request), context)
         .map_err(|error| AppError::new("invalid_request", error.to_string()))?;
-    Ok(anlas_estimate_to_dto(estimate_anlas_cost(
-        &plan.normalized_request,
-        context,
-    )))
+    let estimate = estimate_anlas_cost(&plan.normalized_request, context)
+        .map_err(|error| AppError::new("invalid_request", error.to_string()))?;
+    Ok(anlas_estimate_to_dto(estimate))
 }
 
 fn estimate_request_to_domain(value: &GenerateImageRequestDto) -> GenerateImageRequest {

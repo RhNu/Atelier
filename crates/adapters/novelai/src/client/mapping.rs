@@ -14,17 +14,20 @@ pub(super) fn map_secrets_error(error: &SecretsError) -> NovelAiBridgeError {
 
 pub(super) fn to_bridge_generate_request(
     request: GenerateImageRequest,
-) -> bridge::GenerateImageRequest {
+) -> Result<bridge::GenerateImageRequest, bridge::BridgeError> {
     let references = bridge::ReferenceSet {
-        vibe_transfer: request.vibe_transfer.map(to_bridge_vibe_transfer),
+        vibe_transfer: request
+            .vibe_transfer
+            .map(to_bridge_vibe_transfer)
+            .transpose()?,
         character_references: request
             .character_references
             .unwrap_or_default()
             .into_iter()
-            .map(to_bridge_character_reference)
-            .collect(),
+            .map(|reference| to_bridge_character_reference(&reference))
+            .collect::<Result<_, _>>()?,
     };
-    bridge::GenerateImageRequest {
+    Ok(bridge::GenerateImageRequest {
         core: bridge::GenerationCore {
             prompt: request.prompt,
             negative_prompt: request.negative_prompt,
@@ -51,45 +54,57 @@ pub(super) fn to_bridge_generate_request(
             variety_boost: request.variety_boost,
             ..bridge::GuidanceParams::default()
         },
-        img2img: request.img2img.map(to_bridge_i2i),
+        img2img: request.img2img.map(to_bridge_i2i).transpose()?,
         references: (!references.is_empty()).then_some(references),
         output: bridge::OutputParams {
             image_format: request.image_format.map(to_bridge_image_format),
         },
         strict_mode: request.strict_mode,
-    }
+    })
 }
 
 pub(super) fn to_bridge_stream_request(
     request: GenerateImageStreamRequest,
-) -> bridge::GenerateImageStreamRequest {
-    bridge::GenerateImageStreamRequest {
-        base: to_bridge_generate_request(request.base),
+) -> Result<bridge::GenerateImageStreamRequest, bridge::BridgeError> {
+    Ok(bridge::GenerateImageStreamRequest {
+        base: to_bridge_generate_request(request.base)?,
         stream: to_bridge_stream_mode(request.stream),
-    }
+    })
 }
 
 pub(super) fn to_bridge_encode_vibe_request(
-    request: EncodeVibeRequest,
-) -> bridge::EncodeVibeRequest {
-    bridge::EncodeVibeRequest {
-        image: request.image,
+    request: &EncodeVibeRequest,
+) -> Result<bridge::EncodeVibeRequest, bridge::BridgeError> {
+    Ok(bridge::EncodeVibeRequest {
+        image: bridge::EncodedImage::from_base64(&request.image)?,
         information_extracted: request.information_extracted,
         model: to_bridge_vibe_model(request.model),
         strict_mode: request.strict_mode,
-    }
+    })
 }
 
 pub(super) fn to_bridge_director_request(
     request: RunDirectorToolRequest,
-) -> bridge::RunDirectorToolRequest {
-    bridge::RunDirectorToolRequest {
-        tool: to_bridge_director_tool(request.tool),
-        image: request.image,
-        prompt: request.prompt,
-        defry: request.defry,
+) -> Result<bridge::RunDirectorToolRequest, bridge::BridgeError> {
+    let command = match request.tool {
+        DirectorTool::Lineart => bridge::DirectorCommand::Lineart,
+        DirectorTool::Sketch => bridge::DirectorCommand::Sketch,
+        DirectorTool::BgRemoval => bridge::DirectorCommand::BgRemoval,
+        DirectorTool::Emotion => bridge::DirectorCommand::Emotion {
+            prompt: request.prompt.expect("normalized emotion prompt"),
+            defry: request.defry.expect("normalized emotion defry"),
+        },
+        DirectorTool::Declutter => bridge::DirectorCommand::Declutter,
+        DirectorTool::Colorize => bridge::DirectorCommand::Colorize {
+            prompt: request.prompt,
+            defry: request.defry.expect("normalized colorize defry"),
+        },
+    };
+    Ok(bridge::RunDirectorToolRequest {
+        image: bridge::EncodedImage::from_base64(&request.image)?,
+        command,
         strict_mode: request.strict_mode,
-    }
+    })
 }
 
 pub(super) fn from_bridge_generated_image(image: bridge::GeneratedImage) -> GeneratedImage {
@@ -241,24 +256,34 @@ pub(super) const fn to_bridge_stream_mode(mode: StreamMode) -> bridge::StreamMod
     }
 }
 
-pub(super) fn to_bridge_i2i(request: Img2ImgRequest) -> bridge::Img2ImgRequest {
-    let mut result = bridge::Img2ImgRequest::new(request.image, request.strength, request.noise);
-    result.mask = request.mask;
-    result
+pub(super) fn to_bridge_i2i(
+    request: Img2ImgRequest,
+) -> Result<bridge::Img2ImgRequest, bridge::BridgeError> {
+    let image = bridge::EncodedImage::from_base64(&request.image)?;
+    let mut result = bridge::Img2ImgRequest::new(image, request.strength, request.noise);
+    result.mask = request
+        .mask
+        .map(|mask| bridge::EncodedImage::from_base64(&mask))
+        .transpose()?;
+    Ok(result)
 }
 
-pub(super) fn to_bridge_vibe_transfer(config: VibeTransferConfig) -> bridge::VibeTransferConfig {
-    bridge::VibeTransferConfig {
+pub(super) fn to_bridge_vibe_transfer(
+    config: VibeTransferConfig,
+) -> Result<bridge::VibeTransferConfig, bridge::BridgeError> {
+    Ok(bridge::VibeTransferConfig {
         references: config
             .references
             .into_iter()
-            .map(|reference| bridge::VibeReference {
-                vibe_data_cache: reference.vibe_data_cache,
-                strength: reference.strength,
+            .map(|reference| {
+                Ok(bridge::VibeReference {
+                    vibe_data_cache: bridge::VibeEncoding::from_base64(&reference.vibe_data_cache)?,
+                    strength: reference.strength,
+                })
             })
-            .collect(),
+            .collect::<Result<_, bridge::BridgeError>>()?,
         strength: config.strength,
-    }
+    })
 }
 
 pub(super) const fn to_bridge_character_position(
@@ -302,23 +327,12 @@ pub(super) const fn to_bridge_quality(quality: QualityPreset) -> bridge::Quality
 }
 
 pub(super) fn to_bridge_character_reference(
-    reference: CharacterReference,
-) -> bridge::CharacterReference {
-    bridge::CharacterReference {
-        image: reference.image,
+    reference: &CharacterReference,
+) -> Result<bridge::CharacterReference, bridge::BridgeError> {
+    Ok(bridge::CharacterReference {
+        image: bridge::EncodedImage::from_base64(&reference.image)?,
         reference_type: to_bridge_character_reference_type(reference.reference_type),
         fidelity: reference.fidelity,
         strength: reference.strength,
-    }
-}
-
-pub(super) const fn to_bridge_director_tool(tool: DirectorTool) -> bridge::DirectorTool {
-    match tool {
-        DirectorTool::Lineart => bridge::DirectorTool::Lineart,
-        DirectorTool::Sketch => bridge::DirectorTool::Sketch,
-        DirectorTool::BgRemoval => bridge::DirectorTool::BgRemoval,
-        DirectorTool::Emotion => bridge::DirectorTool::Emotion,
-        DirectorTool::Declutter => bridge::DirectorTool::Declutter,
-        DirectorTool::Colorize => bridge::DirectorTool::Colorize,
-    }
+    })
 }

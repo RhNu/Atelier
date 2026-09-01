@@ -188,7 +188,7 @@ pub const fn quality_preset_to_dto(value: QualityPreset) -> QualityPresetDto {
 pub const fn prompt_structure_to_dto(value: PromptStructure) -> PromptStructureDto {
     match value {
         PromptStructure::Legacy => PromptStructureDto::Legacy,
-        PromptStructure::V4 => PromptStructureDto::V4,
+        _ => PromptStructureDto::V4,
     }
 }
 

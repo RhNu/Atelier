@@ -14,14 +14,16 @@ use super::{
 #[async_trait]
 impl<T> NovelAiGenerationClient for NovelAiBridgeAdapter<T>
 where
-    T: bridge::Transport,
+    T: bridge::Transport + bridge::StreamingTransport,
 {
     async fn generate(
         &self,
         request: GenerateImageRequest,
     ) -> GenerationResult<GenerateImageResult> {
+        let request = to_bridge_generate_request(request)
+            .map_err(|error| map_generation_error(map_bridge_error(error)))?;
         self.client
-            .generate(to_bridge_generate_request(request))
+            .generate(request)
             .await
             .map(|result| GenerateImageResult {
                 resolved_seed: result.resolved_seed,
@@ -38,9 +40,11 @@ where
         &self,
         request: GenerateImageStreamRequest,
     ) -> GenerationResult<GenerateImageStreamResult> {
+        let request = to_bridge_stream_request(request)
+            .map_err(|error| map_generation_error(map_bridge_error(error)))?;
         let stream = self
             .client
-            .generate_stream(to_bridge_stream_request(request))
+            .generate_stream(request)
             .await
             .map_err(|error| map_generation_error(map_bridge_error(error)))?;
         Ok(GenerateImageStreamResult {
@@ -74,10 +78,14 @@ where
     T: bridge::Transport,
 {
     async fn encode_vibe(&self, request: EncodeVibeRequest) -> VibeResult<EncodedVibe> {
+        let request = to_bridge_encode_vibe_request(&request)
+            .map_err(|error| map_vibe_error(map_bridge_error(error)))?;
         self.client
-            .encode_vibe(to_bridge_encode_vibe_request(request))
+            .encode_vibe(request)
             .await
-            .map(|payload| EncodedVibe { payload })
+            .map(|payload| EncodedVibe {
+                payload: payload.to_base64(),
+            })
             .map_err(|error| map_vibe_error(map_bridge_error(error)))
     }
 }
@@ -92,8 +100,10 @@ where
         request: RunDirectorToolRequest,
     ) -> DirectorResult<DirectorToolOutput> {
         let request = request.normalize_for_tool()?;
+        let request = to_bridge_director_request(request)
+            .map_err(|error| map_director_error(map_bridge_error(error)))?;
         self.client
-            .run_director_tool(to_bridge_director_request(request))
+            .run_director_tool(request)
             .await
             .map(|image| {
                 let seed = image.seed();

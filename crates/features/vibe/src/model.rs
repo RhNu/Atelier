@@ -58,7 +58,7 @@ impl VibeEncodeSettings {
     /// Returns an error when `information_extracted` is outside `[0.01, 1.0]`
     /// or is not finite.
     pub fn new(model: VibeModel, information_extracted: f32) -> VibeDomainResult<Self> {
-        if !model.capabilities().supports_vibe_transfer {
+        if !model.can_encode_vibe() {
             return Err(VibeError::invalid_settings(
                 "selected model does not support vibe encoding",
             ));

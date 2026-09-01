@@ -100,8 +100,10 @@ pub struct ClientDecodeContext {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ClientDecodeTarget {
+    JsonRequest,
     JsonResponse,
     StreamChunk,
+    ImageResponse,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

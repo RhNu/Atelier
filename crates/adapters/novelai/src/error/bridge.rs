@@ -10,7 +10,7 @@ pub fn map_bridge_error(error: bridge::BridgeError) -> NovelAiBridgeError {
         bridge::BridgeError::InvalidRequest(error) => {
             let message = error.to_string();
             let context = map_invalid_request_context(error);
-            NovelAiBridgeError::invalid_request_with_contexts(None, Some(context), None, message)
+            NovelAiBridgeError::invalid_request_with_contexts(None, context, None, message)
         }
         bridge::BridgeError::Api(error) => {
             let message = error.to_string();
@@ -64,6 +64,7 @@ pub fn map_bridge_error(error: bridge::BridgeError) -> NovelAiBridgeError {
                         message,
                     )
                 }
+                _ => NovelAiBridgeError::unknown_api_with_context(Some(status), context, message),
             }
         }
         bridge::BridgeError::Transport(error) => {
@@ -86,16 +87,25 @@ pub fn map_bridge_error(error: bridge::BridgeError) -> NovelAiBridgeError {
         bridge::BridgeError::Metadata(error) => {
             let message = error.to_string();
             let context = map_metadata_context(error);
-            NovelAiBridgeError::metadata_with_context(Some(context), message)
+            NovelAiBridgeError::metadata_with_context(context, message)
         }
+        other => NovelAiBridgeError::unknown_api(None, other.to_string()),
     }
 }
 
-fn map_invalid_request_context(error: bridge::InvalidRequest) -> BridgeInvalidRequestContext {
+fn map_invalid_request_context(
+    error: bridge::InvalidRequest,
+) -> Option<BridgeInvalidRequestContext> {
     use BridgeInvalidRequestKind as Kind;
     use bridge::InvalidRequest as Source;
 
-    match error {
+    let context = match error {
+        Source::PromptTokenLimitExceeded { field, used, limit } => BridgeInvalidRequestContext {
+            field: Some(field),
+            value: Some(used.to_string()),
+            max: Some(limit.to_string()),
+            ..invalid_request_context(Kind::NumericOutOfRange)
+        },
         Source::EmptyField { field } => field_context(Kind::EmptyField, field),
         Source::MissingConfiguration { name } => BridgeInvalidRequestContext {
             name: Some(name),
@@ -172,7 +182,9 @@ fn map_invalid_request_context(error: bridge::InvalidRequest) -> BridgeInvalidRe
             source: Some(source.to_string()),
             ..invalid_request_context(Kind::ImageEncodingFailed)
         },
-    }
+        _ => return None,
+    };
+    Some(context)
 }
 
 fn field_context(kind: BridgeInvalidRequestKind, field: String) -> BridgeInvalidRequestContext {
@@ -218,6 +230,7 @@ fn map_api_reason(reason: bridge::ApiErrorReason) -> BridgeApiErrorReason {
         bridge::ApiErrorReason::Message(value) => BridgeApiErrorReason::Message(value),
         bridge::ApiErrorReason::Detail(value) => BridgeApiErrorReason::Detail(value),
         bridge::ApiErrorReason::ErrorMessage(value) => BridgeApiErrorReason::ErrorMessage(value),
+        other => BridgeApiErrorReason::Message(other.to_string()),
     }
 }
 
@@ -227,27 +240,30 @@ const fn map_transport_operation(
     match operation {
         bridge::TransportOperation::BuildClient => BridgeTransportOperation::BuildClient,
         bridge::TransportOperation::BuildHeader => BridgeTransportOperation::BuildHeader,
-        bridge::TransportOperation::SendRequest => BridgeTransportOperation::SendRequest,
         bridge::TransportOperation::ReadResponseBytes => {
             BridgeTransportOperation::ReadResponseBytes
         }
         bridge::TransportOperation::ParseSse => BridgeTransportOperation::ParseSse,
+        _ => BridgeTransportOperation::SendRequest,
     }
 }
 
 const fn map_decode_target(target: bridge::DecodeTarget) -> BridgeDecodeTarget {
     match target {
-        bridge::DecodeTarget::JsonResponse => BridgeDecodeTarget::JsonResponse,
+        bridge::DecodeTarget::JsonRequest => BridgeDecodeTarget::JsonRequest,
         bridge::DecodeTarget::StreamChunk => BridgeDecodeTarget::StreamChunk,
+        bridge::DecodeTarget::ImageResponse => BridgeDecodeTarget::ImageResponse,
+        _ => BridgeDecodeTarget::JsonResponse,
     }
 }
 
-fn map_metadata_context(error: bridge::MetadataError) -> BridgeMetadataContext {
+fn map_metadata_context(error: bridge::MetadataError) -> Option<BridgeMetadataContext> {
     match error {
-        bridge::MetadataError::InvalidPngPayload { field, source } => BridgeMetadataContext {
+        bridge::MetadataError::InvalidPngPayload { field, source } => Some(BridgeMetadataContext {
             kind: BridgeMetadataKind::InvalidPngPayload,
             field,
             source: source.to_string(),
-        },
+        }),
+        _ => None,
     }
 }

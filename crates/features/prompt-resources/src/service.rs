@@ -352,7 +352,7 @@ fn validate_preset_request(request: &UpsertPromptPresetRequest) -> PromptResourc
         && request
             .models
             .iter()
-            .any(|model| !model.capabilities().supports_light_quality_preset)
+            .any(|model| !model.supports_light_quality_preset())
     {
         return Err(PromptResourceError::invalid_request(
             "Light quality override requires every bound model to support Light quality",

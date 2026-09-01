@@ -1,12 +1,41 @@
 //! `NovelAI` image generation domain model.
 //!
-//! Model capability knowledge is owned by `novelai-bridge` and re-exported
+//! Model descriptor knowledge is owned by `novelai-bridge` and re-exported
 //! here. Atelier keeps its own [`ImageModel`] because the model catalog is a
 //! product concern (ordering, DTO and database encodings), but every
-//! capability answer is delegated to the bridge so there is exactly one
-//! capability table in the workspace.
+//! descriptor query is delegated to the bridge so there is exactly one model
+//! registry in the workspace.
 
-pub use novelai_bridge::{ModelCapabilities, PromptStructure};
+pub use novelai_bridge::{ModelDescriptor, PromptStructure};
+
+/// Atelier-facing projection of the bridge model descriptor.
+///
+/// Values are derived from the bridge registry on every call; this is not a
+/// second writable capability table.
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ModelCapabilities {
+    pub prompt_structure: PromptStructure,
+    pub params_version: u32,
+    pub default_steps: u32,
+    pub default_scale: f32,
+    pub max_characters: u32,
+    pub supports_vibe_transfer: bool,
+    pub supports_encoded_vibe: bool,
+    pub supports_character_reference: bool,
+    pub supports_character_reference_inpainting: bool,
+    pub supports_variety_boost: bool,
+    pub supports_inpainting: bool,
+    pub supports_streaming: bool,
+    pub supports_smea: bool,
+    pub supports_dynamic_thresholding: bool,
+    pub uses_v5_extensions: bool,
+    pub has_opus_usage_limit: bool,
+    pub supports_light_quality_preset: bool,
+    pub supports_transparent_background: bool,
+    pub variety_sigma_coefficient: Option<f32>,
+    pub prompt_token_limit: u32,
+}
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum ImageModel {
@@ -58,8 +87,63 @@ impl ImageModel {
     }
 
     #[must_use]
+    pub const fn descriptor(self) -> &'static ModelDescriptor {
+        self.bridge_model().descriptor()
+    }
+
+    #[must_use]
     pub const fn capabilities(self) -> ModelCapabilities {
-        self.bridge_model().capabilities()
+        let descriptor = self.descriptor();
+        let character_reference_inpainting = descriptor.resolve_references(
+            novelai_bridge::GenerationMode::Inpainting,
+            novelai_bridge::ReferenceIntent {
+                vibe: false,
+                character: true,
+            },
+        );
+        ModelCapabilities {
+            prompt_structure: descriptor.wire().prompt_structure(),
+            params_version: descriptor.wire().params_version(),
+            default_steps: descriptor.defaults().sampling.steps,
+            default_scale: descriptor.defaults().sampling.scale,
+            max_characters: descriptor.prompt().max_characters(),
+            supports_vibe_transfer: descriptor.support().vibe.is_some(),
+            supports_encoded_vibe: descriptor.can_encode_vibe(),
+            supports_character_reference: descriptor.support().character_reference.is_some(),
+            supports_character_reference_inpainting: character_reference_inpainting
+                .character
+                .is_available(),
+            supports_variety_boost: descriptor.sampling().variety.is_some(),
+            supports_inpainting: descriptor.support().inpainting.is_some(),
+            supports_streaming: descriptor.support().streaming,
+            supports_smea: descriptor.sampling().smea,
+            supports_dynamic_thresholding: descriptor.sampling().dynamic_thresholding,
+            uses_v5_extensions: descriptor.wire().uses_v5_extensions(),
+            has_opus_usage_limit: matches!(
+                descriptor.pricing().opus_allowance,
+                novelai_bridge::OpusAllowance::Metered
+            ),
+            supports_light_quality_preset: descriptor
+                .prompt()
+                .quality
+                .supports(novelai_bridge::QualityPreset::Light),
+            supports_transparent_background: descriptor.prompt().transparent_background,
+            variety_sigma_coefficient: match descriptor.sampling().variety {
+                Some(profile) => Some(profile.sigma_coefficient),
+                None => None,
+            },
+            prompt_token_limit: descriptor.prompt().token_limit,
+        }
+    }
+
+    #[must_use]
+    pub const fn can_encode_vibe(self) -> bool {
+        self.descriptor().can_encode_vibe()
+    }
+
+    #[must_use]
+    pub const fn supports_light_quality_preset(self) -> bool {
+        self.capabilities().supports_light_quality_preset
     }
 
     pub const ALL: [Self; 8] = [
@@ -268,7 +352,7 @@ pub struct GenerateImageRequest {
 impl Default for GenerateImageRequest {
     fn default() -> Self {
         let model = ImageModel::default();
-        let capabilities = model.capabilities();
+        let defaults = model.descriptor().defaults();
         Self {
             prompt: String::new(),
             model,
@@ -277,8 +361,8 @@ impl Default for GenerateImageRequest {
             quality: QualityPreset::Standard,
             transparent_background: false,
             uc_preset: UcPreset::default(),
-            steps: capabilities.default_steps,
-            scale: capabilities.default_scale,
+            steps: defaults.sampling.steps,
+            scale: defaults.sampling.scale,
             sampler: Sampler::default(),
             noise_schedule: NoiseSchedule::default(),
             seed: 0,

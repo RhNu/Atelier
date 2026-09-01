@@ -40,9 +40,9 @@ Hard boundaries:
 ### `novelai-bridge` in `features/generation`
 
 `features/generation` is the one feature crate allowed to depend on `novelai-bridge`, and only for
-its model catalog knowledge: `Model`, `ModelCapabilities`, `PromptStructure`, and the pricing entry
-points. `ImageModel::bridge_model` is the single crossing point; everything else in the crate reads
-capabilities through `ImageModel::capabilities`.
+its model catalog knowledge: `Model`, read-only descriptor profiles, `PromptStructure`, and the
+pricing entry points. `ImageModel::bridge_model` is the single crossing point; the Atelier-facing
+capability projection is derived from `ImageModel::descriptor` and never stores a second table.
 
 The rule this replaces (capabilities restated in Atelier and guarded by a drift test) produced two
 capability tables that could disagree silently. Delegation makes upstream the only source.
@@ -125,7 +125,7 @@ Feature crates are the default owner for domain concepts:
   groups, install state, resolution, and leases.
 - `prompt`: NovelAI-oriented prompt syntax, formatting, functions, diagnostics.
 - `prompt-resources`: chunks, prompt functions, compile trace, prompt resource ports.
-- `generation`: NovelAI image generation params, normalization, Anlas estimate result model, request plan, generation client ports. Model capabilities and pricing formulas stay in `novelai-bridge`; capabilities are re-exported through `ImageModel::capabilities`, and pricing is invoked by `adapters/novelai`.
+- `generation`: NovelAI image generation params, normalization, Anlas estimate result model, request plan, generation client ports. Model descriptors and pricing formulas stay in `novelai-bridge`; `ImageModel::capabilities` derives Atelier's projection from the descriptor registry, and pricing is invoked by `adapters/novelai`.
 - `jobs`: job and batch state machine, retry/cancel policy, queue events.
 - `artifacts`: generated artifact semantics, replay manifest, visual asset references.
 - `gallery`: gallery item index model, query, source references, explicit unscanned/scanned/failed/

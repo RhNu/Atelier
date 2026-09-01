@@ -7,7 +7,8 @@
 //! from the real request rather than re-implemented here.
 
 use super::{
-    AnlasEstimate, AnlasEstimateStatus, GenerateImageRequest, GenerationPlanContext, bridge,
+    AnlasEstimate, AnlasEstimateStatus, GenerateImageRequest, GenerationPlanContext,
+    GenerationResult, bridge, map_bridge_error, map_generation_error,
     mapping::to_bridge_generate_request,
 };
 
@@ -16,15 +17,24 @@ use super::{
 /// `context.request_count` identical requests are priced; per-request components are multiplied
 /// out while the Vibe encoding charge is applied once, because an encoding is cached after its
 /// first `/ai/encode-vibe` call.
-#[must_use]
+///
+/// # Errors
+/// Returns a generation client error when an image or Vibe payload is invalid, or when the bridge
+/// cannot normalize the request for pricing.
 pub fn estimate_anlas_cost(
     request: &GenerateImageRequest,
     context: GenerationPlanContext,
-) -> AnlasEstimate {
-    let bridge_request = to_bridge_generate_request(request.clone());
-    let mut input = bridge_request.anlas_estimate_input(to_bridge_pricing_context(context));
+) -> GenerationResult<AnlasEstimate> {
+    let bridge_request = to_bridge_generate_request(request.clone())
+        .map_err(|error| map_generation_error(map_bridge_error(error)))?;
+    let mut input = bridge_request
+        .anlas_estimate_input(to_bridge_pricing_context(context))
+        .map_err(|error| map_generation_error(map_bridge_error(error)))?;
     input.pending_vibe_encodes = context.pending_vibe_encode_count;
-    from_bridge_anlas_estimate(bridge::estimate_anlas_cost(input), context.request_count)
+    Ok(from_bridge_anlas_estimate(
+        bridge::estimate_anlas_cost(input),
+        context.request_count,
+    ))
 }
 
 const fn to_bridge_pricing_context(context: GenerationPlanContext) -> bridge::AnlasPricingContext {

@@ -1,6 +1,5 @@
 use super::*;
 
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::{
     io::{self, Cursor},
@@ -19,11 +18,9 @@ use atelier_secrets::{
     SubscriptionClientError, SubscriptionProbeClient, SubscriptionResult,
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
-use futures_core::Stream;
 use futures_executor::block_on;
 use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
 use novelai_bridge::{ApiError, ApiErrorKind, ApiErrorReason, BridgeError};
-use serde::{Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 
 use crate::error::{
@@ -58,7 +55,7 @@ fn maps_generation_request_to_bridge_request() {
         ..Default::default()
     };
 
-    let bridge = to_bridge_generate_request(request);
+    let bridge = to_bridge_generate_request(request).unwrap();
 
     assert_eq!(bridge.core.prompt, "1girl");
     assert_eq!(bridge.core.model, novelai_bridge::Model::NaiDiffusion3);
@@ -82,13 +79,13 @@ fn maps_v5_extensions_and_rc1_enum_additions() {
         sampler: Sampler::DdimV3,
         noise_schedule: NoiseSchedule::Native,
         img2img: Some(Img2ImgRequest {
-            image: "source".to_owned(),
+            image: png_base64(2, 1),
             strength: 0.6,
             noise: 0.1,
-            mask: Some("mask".to_owned()),
+            mask: Some(png_base64(2, 1)),
         }),
         character_references: Some(vec![atelier_generation::CharacterReference {
-            image: "reference".to_owned(),
+            image: png_base64(2, 1),
             reference_type: atelier_generation::CharacterReferenceType::Costume,
             fidelity: 0.5,
             strength: 0.75,
@@ -96,7 +93,7 @@ fn maps_v5_extensions_and_rc1_enum_additions() {
         ..Default::default()
     };
 
-    let bridge = to_bridge_generate_request(request);
+    let bridge = to_bridge_generate_request(request).unwrap();
 
     assert_eq!(
         bridge.core.model,
@@ -105,12 +102,12 @@ fn maps_v5_extensions_and_rc1_enum_additions() {
     assert_eq!(bridge.core.quality, novelai_bridge::QualityPreset::Light);
     assert!(bridge.core.transparent_background);
     assert_eq!(bridge.sampling.sampler, novelai_bridge::Sampler::DdimV3);
-    assert_eq!(
+    assert!(
         bridge
             .img2img
             .as_ref()
-            .and_then(|value| value.mask.as_deref()),
-        Some("mask")
+            .and_then(|value| value.mask.as_ref())
+            .is_some()
     );
     assert_eq!(
         bridge.sampling.noise_schedule,
@@ -198,13 +195,13 @@ fn maps_bridge_error_categories() {
         other => panic!("unexpected invalid request mapping: {other:?}"),
     }
 
-    let auth = map_bridge_error(BridgeError::Api(ApiError {
-        kind: ApiErrorKind::AuthenticationFailed,
-        status: 401,
-        endpoint: "https://api.novelai.net/user/subscription".to_owned(),
-        server_reason: Some(ApiErrorReason::Detail("bad key".to_owned())),
-        raw_body: Some("{\"detail\":\"bad key\"}".to_owned()),
-    }));
+    let auth = map_bridge_error(BridgeError::Api(api_error(
+        ApiErrorKind::AuthenticationFailed,
+        401,
+        "https://api.novelai.net/user/subscription",
+        Some(ApiErrorReason::Detail("bad key".to_owned())),
+        Some("{\"detail\":\"bad key\"}"),
+    )));
     match auth {
         NovelAiBridgeError::Authentication {
             status: Some(401),
@@ -227,15 +224,15 @@ fn maps_bridge_error_categories() {
         other => panic!("unexpected auth mapping: {other:?}"),
     }
 
-    let rate_limited = map_bridge_error(BridgeError::Api(ApiError {
-        kind: ApiErrorKind::RateLimited {
+    let rate_limited = map_bridge_error(BridgeError::Api(api_error(
+        ApiErrorKind::RateLimited {
             retry_after: Some(Duration::from_secs(3)),
         },
-        status: 429,
-        endpoint: "https://image.novelai.net/ai/generate-image".to_owned(),
-        server_reason: None,
-        raw_body: None,
-    }));
+        429,
+        "https://image.novelai.net/ai/generate-image",
+        None,
+        None,
+    )));
     assert!(matches!(
         rate_limited,
         NovelAiBridgeError::RateLimited {
@@ -245,13 +242,13 @@ fn maps_bridge_error_categories() {
         } if delay == Duration::from_secs(3)
     ));
 
-    let insufficient_credit = map_bridge_error(BridgeError::Api(ApiError {
-        kind: ApiErrorKind::InsufficientCredit,
-        status: 402,
-        endpoint: "https://image.novelai.net/ai/generate-image".to_owned(),
-        server_reason: None,
-        raw_body: None,
-    }));
+    let insufficient_credit = map_bridge_error(BridgeError::Api(api_error(
+        ApiErrorKind::InsufficientCredit,
+        402,
+        "https://image.novelai.net/ai/generate-image",
+        None,
+        None,
+    )));
     assert!(matches!(
         insufficient_credit,
         NovelAiBridgeError::InsufficientCredit {
@@ -260,13 +257,13 @@ fn maps_bridge_error_categories() {
         }
     ));
 
-    let conflict = map_bridge_error(BridgeError::Api(ApiError {
-        kind: ApiErrorKind::RequestConflict,
-        status: 409,
-        endpoint: "https://image.novelai.net/ai/generate-image".to_owned(),
-        server_reason: None,
-        raw_body: None,
-    }));
+    let conflict = map_bridge_error(BridgeError::Api(api_error(
+        ApiErrorKind::RequestConflict,
+        409,
+        "https://image.novelai.net/ai/generate-image",
+        None,
+        None,
+    )));
     assert!(matches!(
         conflict,
         NovelAiBridgeError::RequestConflict {
@@ -278,11 +275,11 @@ fn maps_bridge_error_categories() {
 
 #[test]
 fn maps_bridge_transport_decode_and_metadata_contexts() {
-    let transport = map_bridge_error(BridgeError::Transport(novelai_bridge::TransportError {
-        operation: novelai_bridge::TransportOperation::SendRequest,
-        endpoint: Some("https://image.novelai.net/ai/generate-image".to_owned()),
-        source: Box::new(io::Error::other("network down")),
-    }));
+    let transport = map_bridge_error(BridgeError::Transport(novelai_bridge::TransportError::new(
+        novelai_bridge::TransportOperation::SendRequest,
+        Some("https://image.novelai.net/ai/generate-image".to_owned()),
+        Box::new(io::Error::other("network down")),
+    )));
     match transport {
         NovelAiBridgeError::Transport {
             context: Some(context),
@@ -298,10 +295,10 @@ fn maps_bridge_transport_decode_and_metadata_contexts() {
         other => panic!("unexpected transport mapping: {other:?}"),
     }
 
-    let decode = map_bridge_error(BridgeError::Decode(novelai_bridge::DecodeError {
-        target: novelai_bridge::DecodeTarget::JsonResponse,
-        source: Box::new(io::Error::other("bad json")),
-    }));
+    let decode = map_bridge_error(BridgeError::Decode(novelai_bridge::DecodeError::new(
+        novelai_bridge::DecodeTarget::JsonResponse,
+        Box::new(io::Error::other("bad json")),
+    )));
     match decode {
         NovelAiBridgeError::Decode {
             context: Some(context),
@@ -376,13 +373,13 @@ fn maps_bridge_context_to_feature_client_errors_without_flattening() {
         other => panic!("unexpected invalid feature error mapping: {other:?}"),
     }
 
-    let auth = map_generation_error(map_bridge_error(BridgeError::Api(ApiError {
-        kind: ApiErrorKind::AuthenticationFailed,
-        status: 401,
-        endpoint: "https://api.novelai.net/user/subscription".to_owned(),
-        server_reason: Some(ApiErrorReason::ErrorMessage("expired".to_owned())),
-        raw_body: Some("{\"error\":{\"message\":\"expired\"}}".to_owned()),
-    })));
+    let auth = map_generation_error(map_bridge_error(BridgeError::Api(api_error(
+        ApiErrorKind::AuthenticationFailed,
+        401,
+        "https://api.novelai.net/user/subscription",
+        Some(ApiErrorReason::ErrorMessage("expired".to_owned())),
+        Some("{\"error\":{\"message\":\"expired\"}}"),
+    ))));
     match auth {
         GenerationClientError::Authentication {
             context: Some(context),
@@ -635,32 +632,31 @@ impl RecordingDirectorTransport {
 
 #[async_trait]
 impl bridge::Transport for RecordingDirectorTransport {
-    async fn get_json<TRes: DeserializeOwned + Send>(
+    async fn execute(
         &self,
-        _endpoint: &str,
-    ) -> Result<TRes, BridgeError> {
-        panic!("director adapter test does not use JSON GET")
+        request: bridge::TransportRequest,
+    ) -> Result<bridge::TransportResponse, bridge::TransportError> {
+        let body = request.body.expect("director request body");
+        *self.last_body.lock().unwrap() = Some(serde_json::from_slice(&body).unwrap());
+        Ok(bridge::TransportResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: (*self.bytes_response).clone(),
+        })
     }
+}
 
-    async fn post_bytes<TReq: Serialize + Send + Sync>(
-        &self,
-        _endpoint: &str,
-        body: &TReq,
-    ) -> Result<Vec<u8>, BridgeError> {
-        *self.last_body.lock().unwrap() = Some(serde_json::to_value(body).unwrap());
-        Ok((*self.bytes_response).clone())
-    }
-
-    async fn post_sse<TReq: Serialize + Send + Sync>(
-        &self,
-        _endpoint: &str,
-        _body: &TReq,
-    ) -> Result<
-        Pin<Box<dyn Stream<Item = Result<bridge::ImageStreamChunk, BridgeError>> + Send>>,
-        BridgeError,
-    > {
-        panic!("director adapter test does not use SSE POST")
-    }
+fn api_error(
+    kind: ApiErrorKind,
+    status: u16,
+    endpoint: &str,
+    server_reason: Option<ApiErrorReason>,
+    raw_body: Option<&str>,
+) -> ApiError {
+    let mut error = ApiError::new(kind, status, endpoint);
+    error.server_reason = server_reason;
+    error.raw_body = raw_body.map(str::to_owned);
+    error
 }
 
 fn png_base64(width: u32, height: u32) -> String {

@@ -76,8 +76,10 @@ pub struct BridgeDecodeContext {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum BridgeDecodeTarget {
+    JsonRequest,
     JsonResponse,
     StreamChunk,
+    ImageResponse,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

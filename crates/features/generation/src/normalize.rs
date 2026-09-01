@@ -1,6 +1,6 @@
 use crate::{
     Character, CharacterReference, GenerateImageRequest, GenerationError, Img2ImgRequest,
-    ModelCapabilities, QualityPreset, VibeTransferConfig,
+    QualityPreset, VibeTransferConfig,
 };
 
 const IMAGE_DIMENSION_MIN: u32 = 64;
@@ -71,14 +71,14 @@ fn normalize_base_fields(
 }
 
 fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), GenerationError> {
-    let capabilities = request.model.capabilities();
-    normalize_character_reference_features(request, capabilities)?;
+    let descriptor = request.model.descriptor();
+    normalize_character_reference_features(request)?;
 
     if request
         .characters
         .as_ref()
         .is_some_and(|characters| !characters.is_empty())
-        && capabilities.max_characters == 0
+        && descriptor.prompt().max_characters() == 0
     {
         reject_or_clear(
             request.strict_mode,
@@ -89,7 +89,7 @@ fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), Ge
     } else if request
         .characters
         .as_ref()
-        .is_some_and(|characters| characters.len() > capabilities.max_characters as usize)
+        .is_some_and(|characters| characters.len() > descriptor.prompt().max_characters() as usize)
     {
         if request.strict_mode {
             return Err(GenerationError::unsupported_model_feature(
@@ -101,14 +101,14 @@ fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), Ge
             .characters
             .as_mut()
             .expect("checked above")
-            .truncate(capabilities.max_characters as usize);
+            .truncate(descriptor.prompt().max_characters() as usize);
     }
 
     if request
         .vibe_transfer
         .as_ref()
         .is_some_and(|vibe| !vibe.references.is_empty())
-        && !capabilities.supports_encoded_vibe
+        && !descriptor.can_encode_vibe()
     {
         reject_or_clear(
             request.strict_mode,
@@ -133,7 +133,7 @@ fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), Ge
         ));
     }
 
-    if request.variety_boost && !capabilities.supports_variety_boost {
+    if request.variety_boost && descriptor.sampling().variety.is_none() {
         reject_or_clear(
             request.strict_mode,
             "variety_boost",
@@ -141,7 +141,7 @@ fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), Ge
             || request.variety_boost = false,
         )?;
     }
-    if request.transparent_background && !capabilities.supports_transparent_background {
+    if request.transparent_background && !descriptor.prompt().transparent_background {
         reject_or_clear(
             request.strict_mode,
             "transparent_background",
@@ -149,7 +149,7 @@ fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), Ge
             || request.transparent_background = false,
         )?;
     }
-    if request.quality == QualityPreset::Light && !capabilities.supports_light_quality_preset {
+    if request.quality == QualityPreset::Light && !request.model.supports_light_quality_preset() {
         reject_or_clear(
             request.strict_mode,
             "quality.light",
@@ -163,38 +163,42 @@ fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), Ge
 
 fn normalize_character_reference_features(
     request: &mut GenerateImageRequest,
-    capabilities: ModelCapabilities,
 ) -> Result<(), GenerationError> {
-    if request
+    let has_references = request
         .character_references
         .as_ref()
-        .is_some_and(|refs| !refs.is_empty())
-        && !capabilities.supports_character_reference
-    {
-        reject_or_clear(
-            request.strict_mode,
-            "character_references",
-            "models with precise reference support",
-            || request.character_references = None,
-        )?;
+        .is_some_and(|refs| !refs.is_empty());
+    if !has_references {
+        return Ok(());
     }
 
-    if request
-        .character_references
-        .as_ref()
-        .is_some_and(|refs| !refs.is_empty())
-        && request
-            .img2img
-            .as_ref()
-            .is_some_and(|i2i| i2i.mask.is_some())
-        && !capabilities.supports_character_reference_inpainting
-    {
-        reject_or_clear(
-            request.strict_mode,
-            "character_references with img2img.mask",
-            "models with precise reference inpainting support",
-            || request.character_references = None,
-        )?;
+    let mode = match request.img2img.as_ref() {
+        Some(i2i) if i2i.mask.is_some() => novelai_bridge::GenerationMode::Inpainting,
+        Some(_) => novelai_bridge::GenerationMode::ImageToImage,
+        None => novelai_bridge::GenerationMode::TextToImage,
+    };
+    let resolution = request.model.descriptor().resolve_references(
+        mode,
+        novelai_bridge::ReferenceIntent {
+            vibe: false,
+            character: true,
+        },
+    );
+
+    if !resolution.character.is_available() {
+        let field = if matches!(mode, novelai_bridge::GenerationMode::Inpainting) {
+            "character_references with img2img.mask"
+        } else {
+            "character_references"
+        };
+        let supported_by = if matches!(mode, novelai_bridge::GenerationMode::Inpainting) {
+            "models with precise reference inpainting support"
+        } else {
+            "models with precise reference support"
+        };
+        reject_or_clear(request.strict_mode, field, supported_by, || {
+            request.character_references = None;
+        })?;
     }
 
     Ok(())

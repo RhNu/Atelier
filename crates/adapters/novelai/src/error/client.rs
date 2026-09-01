@@ -98,8 +98,10 @@ macro_rules! map_decode_context {
     ($context:expr, $context_target:ident, $target:ident) => {
         $context_target {
             target: match $context.target {
+                BridgeDecodeTarget::JsonRequest => $target::JsonRequest,
                 BridgeDecodeTarget::JsonResponse => $target::JsonResponse,
                 BridgeDecodeTarget::StreamChunk => $target::StreamChunk,
+                BridgeDecodeTarget::ImageResponse => $target::ImageResponse,
             },
             source: $context.source,
         }

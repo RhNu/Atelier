@@ -26,9 +26,9 @@ pub use model::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, GenerateImageRequest,
     GenerateImageResult, GenerateImageStreamRequest, GeneratedImage, GeneratedImageMetadata,
     GeneratedImageMetadataWarning, ImageFormat, ImageModel, ImageSize, ImageStreamEvent,
-    Img2ImgRequest, ModelCapabilities, NoiseSchedule, ParsedGeneratedImageMetadata,
-    PromptStructure, QualityPreset, Sampler, StreamMode, UcPreset, VibeReference,
-    VibeTransferConfig,
+    Img2ImgRequest, ModelCapabilities, ModelDescriptor, NoiseSchedule,
+    ParsedGeneratedImageMetadata, PromptStructure, QualityPreset, Sampler, StreamMode, UcPreset,
+    VibeReference, VibeTransferConfig,
 };
 pub use normalize::normalize_generate_request;
 pub use ports::{

@@ -71,7 +71,7 @@ pub fn plan_generation_stream_request(
     request: GenerateImageStreamRequest,
     _context: GenerationPlanContext,
 ) -> Result<GenerationRequestPlan, GenerationError> {
-    if !request.base.model.capabilities().supports_streaming {
+    if !request.base.model.descriptor().support().streaming {
         return Err(GenerationError::unsupported_model_feature(
             "generate_stream",
             "V4 and later image models",
