@@ -1,13 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <style>
-    :root { --ink: #0D0D0D }
-    @media (prefers-color-scheme: dark) { :root { --ink: #FFFFFF } }
-  </style>
-  <g fill="none" stroke="var(--ink)" stroke-width="36" stroke-linecap="round" stroke-linejoin="round">
+  <g fill="none" stroke="currentColor" stroke-width="36" stroke-linecap="round" stroke-linejoin="round">
     <path d="M190 114H172A44 44 0 0 0 128 158V212A44 44 0 0 1 78 256A44 44 0 0 1 128 300V354A44 44 0 0 0 172 398H190"/>
     <path d="M190 114H172A44 44 0 0 0 128 158V212A44 44 0 0 1 78 256A44 44 0 0 1 128 300V354A44 44 0 0 0 172 398H190" transform="translate(512,0) scale(-1,1)"/>
     <path d="M192 356L256 158"/>
     <path d="M320 356L256 158"/>
   </g>
-  <path d="M191.2 277.2L320.6 273.1A11 11 0 0 1 323.4 294.9L196.9 322.8A23 23 0 0 1 191.2 277.2Z" fill="var(--ink)"/>
+  <path d="M191.2 277.2L320.6 273.1A11 11 0 0 1 323.4 294.9L196.9 322.8A23 23 0 0 1 191.2 277.2Z" fill="currentColor"/>
 </svg>
