@@ -1,8 +1,9 @@
 /* eslint-disable react-perf/jsx-no-new-object-as-prop */
 import { useQueryClient } from "@tanstack/react-query";
-import { forwardRef, useImperativeHandle, useMemo } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { generationApi } from "@/platform/atelier";
 import type { ImageModelDto } from "@/types";
 
 import { createNaiPromptCompletion } from "./completion";
@@ -94,10 +95,64 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
           ].join(" ")}
           style={{ minHeight }}
         />
+        {model ? <PromptTokenMeter model={model} text={value} /> : null}
       </div>
     );
   },
 );
+
+function PromptTokenMeter({ model, text }: { model: ImageModelDto; text: string }) {
+  const { t } = useTranslation("promptEditor");
+  const [count, setCount] = useState<{ used: number; limit: number } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function refreshCount() {
+      try {
+        const next = await generationApi.countPromptTokens({ model, text });
+        if (active) setCount(next);
+      } catch {
+        if (active) setCount(null);
+      }
+    }
+    const timer = window.setTimeout(() => {
+      void refreshCount();
+    }, 160);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [model, text]);
+
+  if (!count) return <div aria-hidden="true" className="h-3" />;
+
+  const label = t("tokenUsage", count);
+  const overLimit = count.used > count.limit;
+  return (
+    <div className="flex h-3 items-center gap-1.5">
+      <progress
+        aria-label={label}
+        max={count.limit}
+        value={Math.min(count.used, count.limit)}
+        className={[
+          "h-px min-w-0 flex-1 appearance-none overflow-hidden bg-app-border [&::-webkit-progress-bar]:bg-app-border",
+          overLimit
+            ? "[&::-moz-progress-bar]:bg-red-400 [&::-webkit-progress-value]:bg-red-400"
+            : "[&::-moz-progress-bar]:bg-brand-400 [&::-webkit-progress-value]:bg-brand-400",
+        ].join(" ")}
+      />
+      <span
+        title={label}
+        className={[
+          "min-w-8 text-right font-mono text-[9px] leading-none",
+          overLimit ? "text-red-300" : "text-app-muted",
+        ].join(" ")}
+      >
+        {count.used}
+      </span>
+    </div>
+  );
+}
 
 type PromptEditorTranslator = ReturnType<typeof useTranslation<"promptEditor">>["t"];
 

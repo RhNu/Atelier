@@ -27,13 +27,14 @@ pub use model::{
     GenerateImageResult, GenerateImageStreamRequest, GeneratedImage, GeneratedImageMetadata,
     GeneratedImageMetadataWarning, ImageFormat, ImageModel, ImageSize, ImageStreamEvent,
     Img2ImgRequest, ModelCapabilities, ModelDescriptor, NoiseSchedule,
-    ParsedGeneratedImageMetadata, PromptStructure, QualityPreset, Sampler, StreamMode, UcPreset,
-    VibeReference, VibeTransferConfig,
+    ParsedGeneratedImageMetadata, PromptStructure, PromptTokenCount, PromptTokenCountError,
+    QualityPreset, Sampler, StreamMode, UcPreset, VibeReference, VibeTransferConfig,
+    count_prompt_tokens,
 };
 pub use normalize::normalize_generate_request;
 pub use ports::{
-    GenerateImageStreamResult, GeneratedImageMetadataInspector, GenerationResult,
-    ImageStreamResult, NovelAiGenerationClient,
+    CancellableImageStream, GenerateImageStreamResult, GeneratedImageMetadataInspector,
+    GenerationResult, ImageStreamResult, NovelAiGenerationClient, passive_image_stream,
 };
 pub use request_plan::{
     GenerationOutputMode, GenerationPlanContext, GenerationRequestPlan, SeedMode,
@@ -58,5 +59,19 @@ mod tests {
         assert_eq!(request.steps, 23);
         assert_eq!(request.n_samples, 1);
         assert_eq!(request.quality, QualityPreset::Standard);
+    }
+
+    #[test]
+    fn prompt_token_count_uses_the_model_descriptor_limit() {
+        let count = count_prompt_tokens(ImageModel::NaiDiffusion45Full, "1girl, blue hair")
+            .expect("bundled T5 tokenizer should load");
+
+        assert!(count.used > 0);
+        assert_eq!(
+            count.limit,
+            ImageModel::NaiDiffusion45Full
+                .capabilities()
+                .prompt_token_limit
+        );
     }
 }

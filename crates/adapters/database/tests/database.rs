@@ -316,7 +316,9 @@ impl NovelAiGenerationClient for DatabaseWorkflowPorts {
     ) -> GenerationResult<GenerateImageStreamResult> {
         Ok(GenerateImageStreamResult {
             resolved_seed: 99,
-            stream: Box::pin(futures_util::stream::empty()),
+            stream: atelier_generation::passive_image_stream(Box::pin(
+                futures_util::stream::empty(),
+            )),
         })
     }
 }

@@ -559,6 +559,36 @@ fn pause_resume_and_stop_wrap_queue_directives() {
     });
 }
 
+#[test]
+fn active_stream_cancellation_invokes_the_stream_cancel_hook() {
+    block_on(async {
+        struct CancelNow;
+        impl atelier_kernel::GenerationTaskCancellation for CancelNow {
+            fn is_cancelled(&self) -> bool {
+                true
+            }
+        }
+
+        let ports = MemoryKernelPorts::default().with_pending_stream();
+        let mut runtime = KernelRuntime::new(ports.clone());
+        let job_id = JobId::new("job-cancel");
+        runtime
+            .submit_generation_work(stream_work("batch-cancel", job_id.clone(), "1girl"))
+            .await
+            .unwrap();
+
+        let result = runtime
+            .run_scheduled_generation_job_cancellable(&job_id, &CancelNow)
+            .await;
+
+        assert_eq!(
+            result,
+            Err(atelier_kernel::KernelError::GenerationCancelled)
+        );
+        assert!(ports.stream_cancelled());
+    });
+}
+
 fn image_work(batch_id: &str, job_id: JobId, prompt: &str) -> SubmitGenerationWork {
     SubmitGenerationWork {
         batch_id: BatchId::new(batch_id),

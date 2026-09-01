@@ -3,13 +3,42 @@ use super::{
     GenerateImageResult, GenerateImageStreamRequest, GenerateImageStreamResult,
     GeneratedImageMetadata, GeneratedImageMetadataInspector, GenerationResult,
     NovelAiBridgeAdapter, NovelAiDirectorClient, NovelAiGenerationClient, NovelAiVibeClient,
-    RunDirectorToolRequest, StreamExt, SubscriptionClient, SubscriptionResult, SubscriptionSummary,
+    RunDirectorToolRequest, SubscriptionClient, SubscriptionResult, SubscriptionSummary,
     VibeResult, async_trait, bridge, from_bridge_generated_image,
     from_bridge_generated_image_metadata, from_bridge_stream_chunk, from_bridge_subscription,
     map_bridge_error, map_director_error, map_generation_error, map_subscription_error,
     map_vibe_error, to_bridge_director_request, to_bridge_encode_vibe_request,
     to_bridge_generate_request, to_bridge_stream_request,
 };
+use std::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+
+struct BridgeImageStream {
+    inner: bridge::GenerateImageStream,
+}
+
+impl futures_core::Stream for BridgeImageStream {
+    type Item = GenerationResult<atelier_generation::ImageStreamEvent>;
+
+    fn poll_next(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Pin::new(&mut self.inner).poll_next(context).map(|item| {
+            item.map(|result| {
+                result
+                    .map(from_bridge_stream_chunk)
+                    .map_err(|error| map_generation_error(map_bridge_error(error)))
+            })
+        })
+    }
+}
+
+#[async_trait]
+impl atelier_generation::CancellableImageStream for BridgeImageStream {
+    async fn cancel(self: Box<Self>) {
+        self.inner.cancel().await;
+    }
+}
 
 #[async_trait]
 impl<T> NovelAiGenerationClient for NovelAiBridgeAdapter<T>
@@ -49,10 +78,7 @@ where
             .map_err(|error| map_generation_error(map_bridge_error(error)))?;
         Ok(GenerateImageStreamResult {
             resolved_seed: stream.resolved_seed,
-            stream: Box::pin(stream.map(|item| {
-                item.map(from_bridge_stream_chunk)
-                    .map_err(|error| map_generation_error(map_bridge_error(error)))
-            })),
+            stream: Box::new(BridgeImageStream { inner: stream }),
         })
     }
 }

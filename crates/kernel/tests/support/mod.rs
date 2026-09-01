@@ -45,6 +45,8 @@ struct State {
     stream_requests: Vec<GenerateImageStreamRequest>,
     director_output: Option<DirectorToolOutput>,
     stream_items: VecDeque<GenerationResult<ImageStreamEvent>>,
+    stream_pending: bool,
+    stream_cancelled: bool,
     resources: BTreeMap<String, RegisteredResource>,
     precise_reference_images: BTreeMap<String, PreciseReferenceImage>,
     artifacts: BTreeMap<String, ArtifactRecord>,
@@ -75,6 +77,15 @@ pub struct RegisteredResource {
 }
 
 impl MemoryKernelPorts {
+    pub fn with_pending_stream(self) -> Self {
+        self.state.lock().unwrap().stream_pending = true;
+        self
+    }
+
+    pub fn stream_cancelled(&self) -> bool {
+        self.state.lock().unwrap().stream_cancelled
+    }
+
     pub fn with_expanded_prompt(self, prompt: &str) -> Self {
         let mut state = self.state.lock().unwrap();
         prompt.clone_into(&mut state.expanded_prompt);

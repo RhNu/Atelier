@@ -100,6 +100,7 @@ pub fn run() {
             commands::submit_generation_batch,
             commands::estimate_generation,
             commands::list_image_models,
+            commands::count_prompt_tokens,
             commands::run_generation_job,
             commands::pause_generation_queue,
             commands::resume_generation_queue,

@@ -568,7 +568,9 @@ impl NovelAiGenerationClient for RecordingClient {
     ) -> GenerationResult<GenerateImageStreamResult> {
         Ok(GenerateImageStreamResult {
             resolved_seed: 1,
-            stream: Box::pin(futures_util::stream::empty()),
+            stream: atelier_generation::passive_image_stream(Box::pin(
+                futures_util::stream::empty(),
+            )),
         })
     }
 }

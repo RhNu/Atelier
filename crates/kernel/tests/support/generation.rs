@@ -22,6 +22,10 @@ use atelier_safety::{
     SafetyResult, SafetyReviewOutcome, SafetyRiskBand,
 };
 use futures_util::stream;
+use std::{
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use super::{FakeFailure, MemoryKernelPorts, RegisteredResource};
 
@@ -238,11 +242,38 @@ impl NovelAiGenerationClient for MemoryKernelPorts {
         };
         state.operations.push("generate_stream".to_owned());
         state.stream_requests.push(request);
+        let pending = state.stream_pending;
         let items = state.stream_items.drain(..).collect::<Vec<_>>();
+        drop(state);
         Ok(GenerateImageStreamResult {
             resolved_seed,
-            stream: Box::pin(stream::iter(items)),
+            stream: if pending {
+                Box::new(PendingImageStream {
+                    state: self.state.clone(),
+                })
+            } else {
+                atelier_generation::passive_image_stream(Box::pin(stream::iter(items)))
+            },
         })
+    }
+}
+
+struct PendingImageStream {
+    state: std::sync::Arc<std::sync::Mutex<super::State>>,
+}
+
+impl futures_core::Stream for PendingImageStream {
+    type Item = GenerationResult<atelier_generation::ImageStreamEvent>;
+
+    fn poll_next(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Poll::Pending
+    }
+}
+
+#[async_trait]
+impl atelier_generation::CancellableImageStream for PendingImageStream {
+    async fn cancel(self: Box<Self>) {
+        self.state.lock().unwrap().stream_cancelled = true;
     }
 }
 

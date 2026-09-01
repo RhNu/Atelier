@@ -27,6 +27,7 @@ use crate::{
 pub async fn run_scheduled_generation_job<P>(
     runtime: &mut KernelRuntime<P>,
     job_id: &JobId,
+    cancellation: &dyn crate::GenerationTaskCancellation,
 ) -> KernelResult<QueueDirective>
 where
     P: GenerationPayloadStore + KernelClock + KernelEventSink + KernelGenerationPorts,
@@ -121,6 +122,7 @@ where
                 &compiled.prompt.expanded_prompt,
                 &plan,
                 request,
+                cancellation,
             )
             .await
         }

@@ -17,6 +17,7 @@ export type { CompiledGenerationCharacterPromptDto } from "./CompiledGenerationC
 export type { CompiledGenerationPromptDto } from "./CompiledGenerationPromptDto";
 export type { CompiledPromptDto } from "./CompiledPromptDto";
 export type { CopyResourceImageRequestDto } from "./CopyResourceImageRequestDto";
+export type { CountPromptTokensRequestDto } from "./CountPromptTokensRequestDto";
 export type { CreateApiKeyRequestDto } from "./CreateApiKeyRequestDto";
 export type { DanbooruAccountDto } from "./DanbooruAccountDto";
 export type { DanbooruAccountStateDto } from "./DanbooruAccountStateDto";
@@ -179,6 +180,7 @@ export type { PromptPresetDto } from "./PromptPresetDto";
 export type { PromptPresetKindDto } from "./PromptPresetKindDto";
 export type { PromptPresetPageDto } from "./PromptPresetPageDto";
 export type { PromptStructureDto } from "./PromptStructureDto";
+export type { PromptTokenCountDto } from "./PromptTokenCountDto";
 export type { PromptTraceDto } from "./PromptTraceDto";
 export type { QualityPresetDto } from "./QualityPresetDto";
 export type { QueueDelayDto } from "./QueueDelayDto";

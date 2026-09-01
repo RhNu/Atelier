@@ -2,6 +2,7 @@ use super::{
     EmbeddedVibeDocumentExtractor, NovelAiBridgeConfig, NovelAiBridgeError, VibeDomainResult,
     VibeError, async_trait, bridge, map_bridge_error,
 };
+use std::sync::Arc;
 
 pub struct NovelAiBridgeAdapter<T: bridge::Transport = bridge::ReqwestTransport> {
     pub(super) client: bridge::Client<T>,
@@ -36,7 +37,11 @@ impl NovelAiBridgeAdapter<bridge::ReqwestTransport> {
             timeout_ms: config.timeout_ms,
             ..bridge::ClientOptions::default()
         };
+        let tokenizers = bridge::Tokenizers::bundled()
+            .map_err(bridge::BridgeError::from)
+            .map_err(map_bridge_error)?;
         bridge::Client::new(options)
+            .map(|client| client.with_tokenizers(Arc::new(tokenizers)))
             .map(Self::from_client)
             .map_err(map_bridge_error)
     }

@@ -1,9 +1,9 @@
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::{
-    GenerationAnlasEstimateDto, GenerationDraftDto, GenerationEstimateRequestDto,
-    GenerationStatusDto, GenerationStatusQueryDto, ImageModelDescriptorDto, QueueDirectiveDto,
-    RunGenerationJobRequestDto, SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto,
-    SubmitGenerationRequestDto,
+    CountPromptTokensRequestDto, GenerationAnlasEstimateDto, GenerationDraftDto,
+    GenerationEstimateRequestDto, GenerationStatusDto, GenerationStatusQueryDto,
+    ImageModelDescriptorDto, PromptTokenCountDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
 };
 use atelier_app_api::prompt::AppendLexiconEntitiesRequestDto;
 use atelier_secrets::SecretStore;
@@ -27,6 +27,25 @@ where
             .into_iter()
             .map(crate::mapping::model_descriptor_to_dto)
             .collect())
+    }
+
+    /// Counts raw prompt-editor content with the selected model's bundled bridge tokenizer.
+    ///
+    /// # Errors
+    /// Returns an error envelope when bundled tokenizer assets cannot be loaded or encoding fails.
+    pub fn count_prompt_tokens(
+        &self,
+        request: &CountPromptTokensRequestDto,
+    ) -> CommandResult<PromptTokenCountDto> {
+        atelier_generation::count_prompt_tokens(
+            crate::mapping::image_model_to_domain(request.model),
+            &request.text,
+        )
+        .map(|count| PromptTokenCountDto {
+            used: count.used,
+            limit: count.limit,
+        })
+        .map_err(|error| crate::AppError::new("prompt_tokenizer", error.to_string()).envelope())
     }
 
     /// Returns the persisted generation workbench draft for the current workspace.
@@ -132,6 +151,19 @@ where
             self.current_session()?
                 .generation()
                 .run_job(&request.job_id)
+                .await,
+        )
+    }
+
+    pub(crate) async fn run_generation_job_cancellable(
+        &self,
+        request: RunGenerationJobRequestDto,
+        cancellation: &dyn atelier_kernel::GenerationTaskCancellation,
+    ) -> CommandResult<QueueDirectiveDto> {
+        Self::command_result(
+            self.current_session()?
+                .generation()
+                .run_job_cancellable(&request.job_id, cancellation)
                 .await,
         )
     }

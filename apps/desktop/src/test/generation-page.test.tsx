@@ -15,6 +15,7 @@ import type {
   AppEventDto,
   CompileGenerationPromptRequestDto,
   CompiledGenerationPromptDto,
+  CountPromptTokensRequestDto,
   DeleteGenerationHistoryBatchesRequestDto,
   DeleteGenerationHistoryBatchesResponseDto,
   DeleteRunHistoryItemsRequestDto,
@@ -46,6 +47,7 @@ import type {
   QueueDirectiveDto,
   PromptChunkPageDto,
   PromptPresetPageDto,
+  PromptTokenCountDto,
   ResourceImageDto,
   ReleaseImportedImageResourcesRequestDto,
   ReleaseImportedImageResourcesResponseDto,
@@ -80,6 +82,8 @@ import {
 
 const mocks = vi.hoisted(() => ({
   generationApi: {
+    countPromptTokens:
+      vi.fn<(request: CountPromptTokensRequestDto) => Promise<PromptTokenCountDto>>(),
     listModels: vi.fn<() => Promise<ImageModelDescriptorDto[]>>(),
     getDraft: vi.fn<() => Promise<GenerationDraftDto | null>>(),
     saveDraft: vi.fn<(request: SaveGenerationDraftRequestDto) => Promise<GenerationDraftDto>>(),
@@ -359,6 +363,7 @@ function setup(options?: {
   subscription?: SubscriptionSummaryDto;
 }) {
   mocks.generationApi.listModels.mockResolvedValue(imageModelCatalog);
+  mocks.generationApi.countPromptTokens.mockResolvedValue({ used: 3, limit: 512 });
   if (options?.settingsError) {
     mocks.settingsApi.get.mockRejectedValue(options.settingsError);
   } else {

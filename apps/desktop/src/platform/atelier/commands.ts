@@ -72,6 +72,7 @@ export const atelierCommands = {
   submitGenerationBatch: "submit_generation_batch",
   estimateGeneration: "estimate_generation",
   listImageModels: "list_image_models",
+  countPromptTokens: "count_prompt_tokens",
   runGenerationJob: "run_generation_job",
   pauseGenerationQueue: "pause_generation_queue",
   resumeGenerationQueue: "resume_generation_queue",

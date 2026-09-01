@@ -664,6 +664,8 @@ dependencies = [
  "atelier-safety",
  "atelier-settings",
  "base64 0.22.1",
+ "futures",
+ "futures-timer",
  "image",
  "log",
  "serde",
@@ -772,6 +774,7 @@ dependencies = [
  "base64 0.22.1",
  "futures-core",
  "futures-executor",
+ "futures-timer",
  "futures-util",
  "serde_json",
  "thiserror 2.0.20",
@@ -2295,6 +2298,17 @@ name = "fallible-streaming-iterator"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
+
+[[package]]
+name = "fancy-regex"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "476de73bddf2ef8490aa4ee8f1cf40b430bf1d56c48c22080e5186952cd580e6"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
 
 [[package]]
 name = "fastrand"
@@ -4007,11 +4021,14 @@ dependencies = [
  "async-trait",
  "base64 0.23.1",
  "eventsource-stream",
+ "fancy-regex",
+ "flate2",
  "futures-core",
  "futures-util",
  "httpdate",
  "image",
  "log",
+ "novelai-bridge-tokenizer-assets",
  "png 0.18.1",
  "reqwest",
  "secrecy",
@@ -4019,8 +4036,15 @@ dependencies = [
  "serde_json",
  "serde_with",
  "thiserror 2.0.20",
+ "unicode-normalization",
  "zip 8.6.0",
 ]
+
+[[package]]
+name = "novelai-bridge-tokenizer-assets"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bd507f1e0e1d3d9c7f52505fa7ce2fc929ada958f53e84c4ce71832c074303b"
 
 [[package]]
 name = "num"

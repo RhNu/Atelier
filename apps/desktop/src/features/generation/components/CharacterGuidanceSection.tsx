@@ -253,6 +253,7 @@ function CharacterCard({
           )
         }
         profile={promptProfileForModel(draft.model)}
+        model={draft.model}
         onKeyDown={handleEditorKeyDown}
         minHeight={88}
       />

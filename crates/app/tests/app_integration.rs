@@ -373,15 +373,17 @@ impl NovelAiGenerationClient for RecordingClient {
     ) -> GenerationResult<GenerateImageStreamResult> {
         Ok(GenerateImageStreamResult {
             resolved_seed: 42,
-            stream: Box::pin(futures_util::stream::iter(vec![Ok(ImageStreamEvent {
-                event_type: "final".to_owned(),
-                sample_index: 0,
-                step_index: Some(0),
-                generation_id: 1,
-                sigma: None,
-                image: base64::engine::general_purpose::STANDARD
-                    .encode(self.image_bytes.as_slice()),
-            })])),
+            stream: atelier_generation::passive_image_stream(Box::pin(futures_util::stream::iter(
+                vec![Ok(ImageStreamEvent {
+                    event_type: "final".to_owned(),
+                    sample_index: 0,
+                    step_index: Some(0),
+                    generation_id: 1,
+                    sigma: None,
+                    image: base64::engine::general_purpose::STANDARD
+                        .encode(self.image_bytes.as_slice()),
+                })],
+            ))),
         })
     }
 }

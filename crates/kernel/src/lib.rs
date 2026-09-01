@@ -20,4 +20,4 @@ pub use ports::{
     GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEventSink,
     KernelGenerationPorts, KernelPreciseReferencePorts, KernelVibePorts,
 };
-pub use runtime::KernelRuntime;
+pub use runtime::{GenerationTaskCancellation, KernelRuntime};

@@ -4,7 +4,10 @@ use atelier_generation::{GenerateImageStreamRequest, GenerationRequestPlan};
 use atelier_jobs::{JobId, QueueDirective};
 use atelier_resource_catalog::ResourceKind;
 use base64::Engine;
+use futures_timer::Delay;
 use futures_util::StreamExt;
+use futures_util::{FutureExt, future::Either};
+use std::time::Duration;
 
 use crate::workflow::generation::{
     PersistSample, fail_job, handle_novelai_failure, persist_sample,
@@ -14,6 +17,10 @@ use crate::{
     KernelGenerationPorts, KernelResult, KernelRuntime,
 };
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "stream persistence context and cancellation are explicit workflow boundaries"
+)]
 pub async fn run_stream_generation<P>(
     runtime: &mut KernelRuntime<P>,
     batch_id: &atelier_jobs::BatchId,
@@ -22,6 +29,7 @@ pub async fn run_stream_generation<P>(
     prompt_snapshot: &str,
     plan: &GenerationRequestPlan,
     request: GenerateImageStreamRequest,
+    cancellation: &dyn crate::GenerationTaskCancellation,
 ) -> KernelResult<QueueDirective>
 where
     P: GenerationPayloadStore + KernelClock + KernelEventSink + KernelGenerationPorts,
@@ -33,7 +41,19 @@ where
     let request_seed = stream_result.resolved_seed;
     let mut stream = stream_result.stream;
     let mut latest_images = BTreeMap::new();
-    while let Some(item) = stream.next().await {
+    loop {
+        if cancellation.is_cancelled() {
+            stream.cancel().await;
+            return Err(KernelError::GenerationCancelled);
+        }
+        let next = stream.next().fuse();
+        let tick = Delay::new(Duration::from_millis(20)).fuse();
+        futures_util::pin_mut!(next, tick);
+        let item = match futures_util::future::select(next, tick).await {
+            Either::Left((item, _)) => item,
+            Either::Right(_) => continue,
+        };
+        let Some(item) = item else { break };
         match item {
             Ok(event) => {
                 if !event.image.trim().is_empty() {

@@ -15,6 +15,7 @@ use atelier_vibe::EmbeddedVibeDocumentExtractor;
 #[derive(Clone, Debug, Default)]
 pub struct GenerationWorkerCancel {
     cancelled: Arc<AtomicBool>,
+    active_cancelled: Arc<AtomicBool>,
 }
 
 impl GenerationWorkerCancel {
@@ -27,9 +28,20 @@ impl GenerationWorkerCancel {
         self.cancelled.store(true, Ordering::SeqCst);
     }
 
+    pub fn cancel_active(&self) {
+        self.cancel();
+        self.active_cancelled.store(true, Ordering::SeqCst);
+    }
+
     #[must_use]
     pub fn is_cancelled(&self) -> bool {
         self.cancelled.load(Ordering::SeqCst)
+    }
+}
+
+impl atelier_kernel::GenerationTaskCancellation for GenerationWorkerCancel {
+    fn is_cancelled(&self) -> bool {
+        self.active_cancelled.load(Ordering::SeqCst)
     }
 }
 
@@ -55,7 +67,10 @@ where
             match directive {
                 QueueDirectiveDto::StartJob { job_id } => {
                     directive = self
-                        .run_generation_job(RunGenerationJobRequestDto { job_id })
+                        .run_generation_job_cancellable(
+                            RunGenerationJobRequestDto { job_id },
+                            &cancel,
+                        )
                         .await?;
                 }
                 QueueDirectiveDto::Wait { delay } => {

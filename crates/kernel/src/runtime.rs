@@ -13,6 +13,18 @@ use crate::{
     SubmitGenerationBatchJob, SubmitGenerationWork, SubmittedGenerationPayload,
 };
 
+pub trait GenerationTaskCancellation: Send + Sync {
+    fn is_cancelled(&self) -> bool;
+}
+
+struct NeverCancel;
+
+impl GenerationTaskCancellation for NeverCancel {
+    fn is_cancelled(&self) -> bool {
+        false
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct KernelRuntime<P> {
     queue: JobQueue,
@@ -203,7 +215,20 @@ where
         &mut self,
         job_id: &JobId,
     ) -> KernelResult<QueueDirective> {
-        crate::workflow::generation::run_scheduled_generation_job(self, job_id).await
+        self.run_scheduled_generation_job_cancellable(job_id, &NeverCancel)
+            .await
+    }
+
+    /// Runs one scheduled generation job with an out-of-band active-stream cancellation signal.
+    ///
+    /// # Errors
+    /// Returns an error when generation fails or the cancellation signal stops an active stream.
+    pub async fn run_scheduled_generation_job_cancellable(
+        &mut self,
+        job_id: &JobId,
+        cancellation: &dyn GenerationTaskCancellation,
+    ) -> KernelResult<QueueDirective> {
+        crate::workflow::generation::run_scheduled_generation_job(self, job_id, cancellation).await
     }
 
     pub(crate) fn mark_preparing(&mut self, job_id: &JobId) -> KernelResult<QueueDirective> {

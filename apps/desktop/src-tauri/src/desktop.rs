@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crate::desktop_system::{
     DesktopFileDialog, DesktopNotifier, DesktopPathOpener, DesktopPaths, DesktopSystem,
@@ -212,7 +213,7 @@ impl WorkerState {
     fn take_current_for_abort(&mut self) -> Option<tauri::async_runtime::JoinHandle<()>> {
         self.pending = None;
         let mut run = self.current.take()?;
-        run.cancel.cancel();
+        run.cancel.cancel_active();
         run.handle.take()
     }
 
@@ -327,8 +328,18 @@ impl DesktopGenerationWorker {
             state.take_current_for_abort()
         };
         if let Some(handle) = handle {
-            handle.abort();
-            let _ = handle.await;
+            match futures::future::select(
+                handle,
+                futures_timer::Delay::new(Duration::from_millis(500)),
+            )
+            .await
+            {
+                futures::future::Either::Left((_result, _delay)) => {}
+                futures::future::Either::Right((_elapsed, handle)) => {
+                    handle.abort();
+                    let _ = handle.await;
+                }
+            }
         }
     }
 

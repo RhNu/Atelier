@@ -10,7 +10,12 @@ import {
   promptEditorView,
   typeInPromptEditor,
 } from "@/test/prompt-editor-test-utils";
-import type { LexiconCompleteRequestDto, LexiconSearchItemDto, PromptChunkPageDto } from "@/types";
+import type {
+  ImageModelDto,
+  LexiconCompleteRequestDto,
+  LexiconSearchItemDto,
+  PromptChunkPageDto,
+} from "@/types";
 
 import { NaiPromptEditor, type NaiPromptHighlightMode } from "./NaiPromptEditor";
 import type { NaiPromptProfile } from "./prompt-analysis";
@@ -50,11 +55,16 @@ const mocks = vi.hoisted(() => ({
       },
     ],
   ),
+  countPromptTokens: vi.fn<() => Promise<{ used: number; limit: number }>>(async () => ({
+    used: 42,
+    limit: 512,
+  })),
 }));
 
 vi.mock("@/platform/atelier", () => ({
   promptApi: { listChunks: mocks.listChunks },
   lexiconApi: { complete: mocks.lexiconComplete },
+  generationApi: { countPromptTokens: mocks.countPromptTokens },
   queryKeys: {
     prompt: {
       chunks: (request: unknown) => ["prompt", "chunks", request],
@@ -159,6 +169,23 @@ describe("NaiPromptEditor", () => {
     expect(runKey(editorView, "Tab")).toBe(true);
     expect(promptEditorText(content)).toBe("cinematic_lighting, ");
   });
+
+  it("shows bridge-backed prompt token usage for model-aware editors", async () => {
+    render(
+      editor({
+        value: "1girl, blue hair",
+        ariaLabel: "Counted prompt",
+        model: "nai-diffusion-4-5-full",
+      }),
+    );
+
+    const meter = await screen.findByRole("progressbar", { name: "42 of 512 tokens" });
+    expect(meter).toHaveAttribute("value", "42");
+    expect(mocks.countPromptTokens).toHaveBeenCalledWith({
+      model: "nai-diffusion-4-5-full",
+      text: "1girl, blue hair",
+    });
+  });
 });
 
 type EditorOptions = {
@@ -169,6 +196,7 @@ type EditorOptions = {
   placeholder?: string;
   readOnly?: boolean;
   highlightMode?: NaiPromptHighlightMode;
+  model?: ImageModelDto;
   onChange?: (value: string) => void;
 };
 
@@ -184,6 +212,7 @@ function editor(options: EditorOptions) {
         placeholder={options.placeholder}
         readOnly={options.readOnly}
         highlightMode={options.highlightMode}
+        model={options.model}
       />
     </QueryClientProvider>
   );

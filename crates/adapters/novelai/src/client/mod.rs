@@ -19,7 +19,6 @@ use atelier_vibe::{
     EmbeddedVibeDocumentExtractor, EncodeVibeRequest, EncodedVibe, NovelAiVibeClient,
     VibeDomainResult, VibeError, VibeModel, VibeResult,
 };
-use futures_util::StreamExt;
 use novelai_bridge as bridge;
 
 use crate::error::{

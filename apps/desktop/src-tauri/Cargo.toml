@@ -18,6 +18,8 @@ tauri-build = { version = "2.6.3", features = [] }
 [dependencies]
 base64 = { workspace = true }
 image = { workspace = true, features = ["png"] }
+futures-timer = { workspace = true }
+futures = { workspace = true }
 arboard = "3.6"
 log = "0.4"
 atelier-adapter-keyring = { workspace = true }

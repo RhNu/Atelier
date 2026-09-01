@@ -64,6 +64,18 @@ pub struct ImageModelDescriptorDto {
     pub capabilities: ModelCapabilitiesDto,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CountPromptTokensRequestDto {
+    pub model: ImageModelDto,
+    pub text: String,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptTokenCountDto {
+    pub used: u32,
+    pub limit: u32,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ImageSizeDto {
     pub width: u32,

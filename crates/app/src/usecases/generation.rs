@@ -113,10 +113,24 @@ where
     }
 
     pub async fn run_job(&self, job_id: &str) -> AppResult<QueueDirectiveDto> {
+        struct NeverCancel;
+        impl atelier_kernel::GenerationTaskCancellation for NeverCancel {
+            fn is_cancelled(&self) -> bool {
+                false
+            }
+        }
+        self.run_job_cancellable(job_id, &NeverCancel).await
+    }
+
+    pub async fn run_job_cancellable(
+        &self,
+        job_id: &str,
+        cancellation: &dyn atelier_kernel::GenerationTaskCancellation,
+    ) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.inner.kernel.lock().await;
         let previous_snapshot = kernel.queue_snapshot();
         let result = kernel
-            .run_scheduled_generation_job(&JobId::new(job_id))
+            .run_scheduled_generation_job_cancellable(&JobId::new(job_id), cancellation)
             .await;
         let snapshot = kernel.queue_snapshot();
         let job_status = kernel.job_status(&JobId::new(job_id));

@@ -7,6 +7,7 @@ import type {
   AppBootstrapDto,
   CloseWorkspaceResponseDto,
   CompilePromptRequestDto,
+  CountPromptTokensRequestDto,
   CompileGenerationPromptRequestDto,
   CompiledGenerationPromptDto,
   CompiledPromptDto,
@@ -75,6 +76,7 @@ import type {
   LexiconSearchRequestDto,
   PromptPresetDto,
   PromptPresetPageDto,
+  PromptTokenCountDto,
   QueueDirectiveDto,
   RerunGenerationHistoryItemRequestDto,
   RerunGenerationHistoryItemResponseDto,
@@ -337,6 +339,8 @@ export const settingsApi = {
 export const generationApi = {
   listModels: () =>
     invokeAtelierCommand<ImageModelDescriptorDto[]>(atelierCommands.listImageModels),
+  countPromptTokens: (request: CountPromptTokensRequestDto) =>
+    invokeAtelierCommand<PromptTokenCountDto>(atelierCommands.countPromptTokens, { request }),
   getDraft: () =>
     invokeAtelierCommand<GenerationDraftDto | null>(atelierCommands.getGenerationDraft),
   saveDraft: (request: SaveGenerationDraftRequestDto) =>

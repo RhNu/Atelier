@@ -3,6 +3,7 @@ export const promptEditor = {
   reusableChunk: "Reusable prompt chunk",
   compileTimeComment: "Comment removed when the prompt is compiled",
   promptChunk: "Prompt chunk",
+  tokenUsage: "{{used}} of {{limit}} tokens",
   diagnostic: {
     unmatchedStrengtheningClose: "Strengthening close delimiter has no matching opener.",
     unmatchedWeakeningClose: "Weakening close delimiter has no matching opener.",

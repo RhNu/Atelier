@@ -9,6 +9,7 @@ async-trait = { workspace = true }
 base64 = { workspace = true }
 futures-core = { workspace = true }
 futures-util = { workspace = true }
+futures-timer = { workspace = true }
 atelier-artifacts = { workspace = true }
 atelier-director = { workspace = true }
 atelier-gallery = { workspace = true }
