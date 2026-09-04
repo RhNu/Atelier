@@ -240,7 +240,16 @@ describe("generation request builder", () => {
       negativePrompt: "low quality",
       i2i: {
         image: { id: "source-image", variant_id: null },
-        mask: { id: "mask-image", variant_id: null },
+        inpaint: {
+          regionToReplace: { id: "mask-image", variant_id: null },
+          display: {
+            color: "#2563eb",
+            opacity: 0.45,
+            pattern: "solid" as const,
+            showBorder: true,
+            brushSize: 48,
+          },
+        },
         strength: 0.64,
         noise: 0.12,
       },
@@ -281,7 +290,12 @@ describe("generation request builder", () => {
     expect(base).toMatchObject({
       img2img: {
         image: { kind: "resource_ref", resource: { id: "source-image", variant_id: null } },
-        mask: { kind: "resource_ref", resource: { id: "mask-image", variant_id: null } },
+        inpaint: {
+          region_to_replace: {
+            kind: "resource_ref",
+            resource: { id: "mask-image", variant_id: null },
+          },
+        },
         strength: 0.64,
         noise: 0.12,
       },

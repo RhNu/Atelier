@@ -307,7 +307,9 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
             image: ImageInputDto::resource("source-image"),
             strength: 0.45,
             noise: 0.2,
-            mask: Some(ImageInputDto::resource("mask-image")),
+            inpaint: Some(InpaintRequestDto {
+                region_to_replace: ImageInputDto::resource("mask-image"),
+            }),
         }),
         vibe_transfer: Some(VibeTransferConfigDto {
             references: vec![VibeReferenceDto {
@@ -361,9 +363,11 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
                 },
                 "strength": 0.45_f32,
                 "noise": 0.2_f32,
-                "mask": {
-                    "kind": "resource_ref",
-                    "resource": { "id": "mask-image" }
+                "inpaint": {
+                    "region_to_replace": {
+                        "kind": "resource_ref",
+                        "resource": { "id": "mask-image" }
+                    }
                 }
             },
             "vibe_transfer": {

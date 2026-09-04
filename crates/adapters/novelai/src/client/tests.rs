@@ -10,8 +10,8 @@ use async_trait::async_trait;
 use atelier_generation::{
     ClientApiErrorReason as GenerationApiErrorReason,
     ClientInvalidRequestKind as GenerationInvalidRequestKind, GenerateImageRequest, GeneratedImage,
-    GenerationClientError, ImageModel, ImageSize, NoiseSchedule, NovelAiGenerationClient,
-    QualityPreset, Sampler, UcPreset,
+    GenerationClientError, ImageModel, ImageSize, InpaintRequest, NoiseSchedule,
+    NovelAiGenerationClient, QualityPreset, Sampler, UcPreset,
 };
 use atelier_secrets::{
     SecretResolver, SecretValue, SecretsError, SecretsResult, SubscriptionClient,
@@ -82,7 +82,9 @@ fn maps_v5_extensions_and_rc1_enum_additions() {
             image: png_base64(2, 1),
             strength: 0.6,
             noise: 0.1,
-            mask: Some(png_base64(2, 1)),
+            inpaint: Some(InpaintRequest {
+                region_to_replace: png_base64(2, 1),
+            }),
         }),
         character_references: Some(vec![atelier_generation::CharacterReference {
             image: png_base64(2, 1),

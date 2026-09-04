@@ -71,7 +71,10 @@ fn sample_draft() -> GenerationDraftSnapshot {
         stream_enabled: false,
         i2i: Some(GenerationDraftI2i {
             image: resource("resource:i2i"),
-            mask: Some(resource("resource:mask")),
+            inpaint: Some(GenerationDraftInpaintSession {
+                region_to_replace: resource("resource:mask"),
+                display: GenerationDraftMaskDisplay::default(),
+            }),
             strength: 0.6,
             noise: 0.2,
         }),

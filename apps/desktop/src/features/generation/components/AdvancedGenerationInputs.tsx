@@ -38,6 +38,7 @@ type AdvancedGenerationInputsProps = {
   capabilities?: ModelCapabilitiesDto;
   tokenCounts: PromptTokenUsageDto | null;
   onOpenPositionEditor: () => void;
+  onOpenInpaintEditor: () => void;
 };
 
 const DEFAULT_REFERENCE_TYPE: CharacterReferenceTypeDto = "character";
@@ -61,6 +62,7 @@ export function AdvancedGenerationInputs({
   capabilities,
   tokenCounts,
   onOpenPositionEditor,
+  onOpenInpaintEditor,
 }: AdvancedGenerationInputsProps) {
   const { t } = useTranslation("generation");
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +97,7 @@ export function AdvancedGenerationInputs({
           {
             i2i: {
               image: resource,
-              mask: draft.i2i?.mask ?? null,
+              inpaint: draft.i2i?.inpaint ?? null,
               strength: draft.i2i?.strength ?? 0.7,
               noise: draft.i2i?.noise ?? 0,
             },
@@ -115,8 +117,13 @@ export function AdvancedGenerationInputs({
       const [resource, ...unused] = await onPickImageResources("source_image");
       await releaseImages(unused);
       if (resource && draft.i2i) {
-        const replaced = draft.i2i.mask;
-        updateI2i({ mask: resource });
+        const replaced = draft.i2i.inpaint?.regionToReplace ?? null;
+        updateI2i({
+          inpaint: {
+            regionToReplace: resource,
+            display: defaultMaskDisplay(),
+          },
+        });
         await releaseImages([replaced]);
       }
     } catch (err) {
@@ -200,6 +207,7 @@ export function AdvancedGenerationInputs({
           releaseImages={releaseImages}
           onFlush={onFlush}
           developerMode={developerMode}
+          onOpenInpaintEditor={onOpenInpaintEditor}
         />
         {capabilities?.supports_vibe_transfer !== false && draft.preciseReferences.length === 0 ? (
           <VibeGuidanceSection
@@ -251,4 +259,14 @@ export function AdvancedGenerationInputs({
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : "Command failed";
+}
+
+function defaultMaskDisplay() {
+  return {
+    color: "#2563eb",
+    opacity: 0.45,
+    pattern: "solid" as const,
+    showBorder: true,
+    brushSize: 48,
+  };
 }

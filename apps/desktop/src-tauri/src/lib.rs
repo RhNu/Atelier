@@ -35,6 +35,7 @@ pub fn run() {
             commands::pick_workspace_directory,
             commands::pick_export_directory,
             commands::pick_and_import_image_resources,
+            commands::commit_generation_canvas_resources,
             commands::pick_and_import_vibe_documents,
             commands::pick_and_import_embedded_png_vibe_documents,
             commands::save_vibe_document,

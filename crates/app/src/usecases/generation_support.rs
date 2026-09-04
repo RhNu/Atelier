@@ -126,7 +126,12 @@ fn estimate_request_to_domain(value: &GenerateImageRequestDto) -> GenerateImageR
             image: "estimate".to_owned(),
             strength: i2i.strength,
             noise: i2i.noise,
-            mask: i2i.mask.as_ref().map(|_| "estimate".to_owned()),
+            inpaint: i2i
+                .inpaint
+                .as_ref()
+                .map(|_| atelier_generation::InpaintRequest {
+                    region_to_replace: "estimate".to_owned(),
+                }),
         }),
         vibe_transfer: value.vibe_transfer.as_ref().map(|vibe| VibeTransferConfig {
             references: vibe

@@ -7,7 +7,11 @@ import { resolveOpusAllowance } from "@/features/account/components/opus-allowan
 import { useActiveAccountSummaryQuery } from "@/features/account/data/useActiveAccountSummaryQuery";
 import { PromptEditorSettingsProvider } from "@/features/prompt-editor";
 import { useToastStore } from "@/stores/toast-store";
-import type { CompiledGenerationPromptDto, GenerationBatchHistoryStatusDto } from "@/types";
+import type {
+  CompiledGenerationPromptDto,
+  GenerationBatchHistoryStatusDto,
+  ResourceRefDto,
+} from "@/types";
 
 import { AdvancedGenerationInputs } from "./components/AdvancedGenerationInputs";
 import { CharacterPositionWorkspace } from "./components/CharacterPositionWorkspace";
@@ -27,8 +31,10 @@ import {
   type GenerationPromptPanelHandle,
 } from "./components/GenerationPromptPanel";
 import { GenerationWorkbenchLayout } from "./components/GenerationWorkbenchLayout";
+import { InpaintCanvasWorkspace } from "./components/InpaintCanvasWorkspace";
 import {
   useClearGenerationDraftMutation,
+  useCommitGenerationCanvasMutation,
   useCompilePromptMutation,
   useGenerationDraftQuery,
   useGenerationEstimateQuery,
@@ -56,7 +62,7 @@ import {
   resetGenerationParameters,
   switchGenerationModel,
 } from "./model/generation-draft";
-import type { GenerationCharacterDraft } from "./model/generation-draft";
+import type { GenerationCharacterDraft, GenerationDraft } from "./model/generation-draft";
 import { buildGenerationBatchView, selectDefaultRequest } from "./model/generation-preview-model";
 import { useGenerationEventStore } from "./state/generation-event-store";
 import { useGenerationDraft } from "./state/useGenerationDraft";
@@ -83,6 +89,7 @@ export function GeneratePage() {
   const resumeMutation = useResumeGenerationMutation();
   const stopMutation = useStopGenerationMutation();
   const compileMutation = useCompilePromptMutation();
+  const canvasCommitMutation = useCommitGenerationCanvasMutation();
   const saveDraft = useCallback(
     (draft: Parameters<typeof saveDraftMutation.mutateAsync>[0]) =>
       saveDraftMutation.mutateAsync(draft),
@@ -155,7 +162,9 @@ export function GeneratePage() {
   const [compileDialogOpen, setCompileDialogOpen] = useState(false);
   const [compileError, setCompileError] = useState<string | null>(null);
   const [compiledPreview, setCompiledPreview] = useState<CompiledGenerationPromptDto | null>(null);
-  const [centerWorkspace, setCenterWorkspace] = useState<"preview" | "positions">("preview");
+  const [centerWorkspace, setCenterWorkspace] = useState<"preview" | "positions" | "inpaint">(
+    "preview",
+  );
 
   const status = statusQuery.data;
   const effectiveLiveBatchId = liveBatchId ?? status?.batch_id ?? null;
@@ -334,6 +343,7 @@ export function GeneratePage() {
 
   const openPositionEditor = useCallback(() => setCenterWorkspace("positions"), []);
   const closePositionEditor = useCallback(() => setCenterWorkspace("preview"), []);
+  const openInpaintEditor = useCallback(() => setCenterWorkspace("inpaint"), []);
   const applyCharacterPositions = useCallback(
     (positioned: GenerationCharacterDraft[]) => {
       if (!draft) return;
@@ -352,6 +362,34 @@ export function GeneratePage() {
     },
     [draft, patchDraft],
   );
+  const applyInpaintCanvas = useCallback(
+    (
+      image: ResourceRefDto,
+      inpaint: NonNullable<NonNullable<GenerationDraft["i2i"]>["inpaint"]>,
+    ) => {
+      if (!draft?.i2i) return;
+      const previous = [draft.i2i.image, draft.i2i.inpaint?.regionToReplace ?? null];
+      patchDraft({ i2i: { ...draft.i2i, image, inpaint } }, { persist: "immediate" });
+      setCenterWorkspace("preview");
+      void generationActions.handleReleaseImageResources(previous);
+    },
+    [draft, generationActions, patchDraft],
+  );
+  const editSelectedOutputAsInpaint = useCallback(() => {
+    if (!draft || !selectedSample?.resource || draft.model === "nai-diffusion-5-curated") return;
+    patchDraft(
+      {
+        i2i: {
+          image: selectedSample.resource,
+          inpaint: null,
+          strength: draft.i2i?.strength ?? 0.7,
+          noise: draft.i2i?.noise ?? 0,
+        },
+      },
+      { persist: "immediate" },
+    );
+    setCenterWorkspace("inpaint");
+  }, [draft, patchDraft, selectedSample?.resource]);
 
   const handleClearStoredDraft = useCallback(() => {
     if (!settingsQuery.data) {
@@ -439,6 +477,7 @@ export function GeneratePage() {
                   capabilities={capabilities}
                   tokenCounts={promptTokenCounts}
                   onOpenPositionEditor={openPositionEditor}
+                  onOpenInpaintEditor={openInpaintEditor}
                 />
               </PromptEditorSettingsProvider>
               <GenerationParamsPanel
@@ -478,7 +517,17 @@ export function GeneratePage() {
           </>
         }
         preview={
-          centerWorkspace === "positions" && capabilities && draft ? (
+          centerWorkspace === "inpaint" && draft.i2i ? (
+            <InpaintCanvasWorkspace
+              key={`${draft.i2i.image.id}-${draft.i2i.inpaint?.regionToReplace.id ?? "new"}`}
+              i2i={draft.i2i}
+              size={draft.size}
+              commitPending={canvasCommitMutation.isPending}
+              onCommit={canvasCommitMutation.mutateAsync}
+              onApply={applyInpaintCanvas}
+              onCancel={closePositionEditor}
+            />
+          ) : centerWorkspace === "positions" && capabilities && draft ? (
             <CharacterPositionWorkspace
               key={`${draft.model}-${draft.characters.map((character) => character.id).join("-")}`}
               characters={positionCharacters}
@@ -517,6 +566,11 @@ export function GeneratePage() {
               onDeleteRequest={generationActions.handleDeleteRequest}
               onCompilePrompt={handleCompile}
               onEditCharacterPositions={canEditPositions ? openPositionEditor : undefined}
+              onEditSampleAsInpaint={
+                selectedSample?.resource && draft.model !== "nai-diffusion-5-curated"
+                  ? editSelectedOutputAsInpaint
+                  : undefined
+              }
             />
           )
         }

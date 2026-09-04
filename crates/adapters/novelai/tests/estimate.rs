@@ -215,7 +215,7 @@ fn image_to_image_strength_scales_the_per_image_price() {
             image: png_base64(),
             strength: 0.7,
             noise: 0.0,
-            mask: None,
+            inpaint: None,
         }),
         ..base_request(ImageModel::NaiDiffusion45Full)
     };

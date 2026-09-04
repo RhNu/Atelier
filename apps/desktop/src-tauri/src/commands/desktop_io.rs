@@ -19,6 +19,7 @@ use atelier_app_api::{
     error::ErrorEnvelopeDto,
     gallery::RescanGallerySafetyRequestDto,
     resource::{
+        CommitGenerationCanvasResourcesRequestDto, CommitGenerationCanvasResourcesResponseDto,
         CopyResourceImageRequestDto, GetResourceImageRequestDto, ImageResourceKindDto,
         ImportImageResourceRequestDto, ImportImageResourceResponseDto,
         ReleaseImportedImageResourcesRequestDto, SaveResourceImageRequestDto,
@@ -40,6 +41,44 @@ use crate::{
     desktop::{DesktopState, TauriDialog, TauriPathOpener},
     desktop_system::{DesktopPaths, DesktopSystemError, DesktopSystemResult, PickFilesOptions},
 };
+
+#[tauri::command]
+pub async fn commit_generation_canvas_resources(
+    state: State<'_, DesktopState>,
+    request: CommitGenerationCanvasResourcesRequestDto,
+) -> CommandResult<CommitGenerationCanvasResourcesResponseDto> {
+    let source = state
+        .host
+        .import_image_resource(ImportImageResourceRequestDto {
+            kind: ImageResourceKindDto::SourceImage,
+            image_base64: request.source_png_base64,
+            mime_type: Some("image/png".to_owned()),
+        })
+        .await?;
+    let mask = state
+        .host
+        .import_image_resource(ImportImageResourceRequestDto {
+            kind: ImageResourceKindDto::SourceImage,
+            image_base64: request.region_to_replace_png_base64,
+            mime_type: Some("image/png".to_owned()),
+        })
+        .await;
+    match mask {
+        Ok(mask) => Ok(CommitGenerationCanvasResourcesResponseDto {
+            source: source.resource,
+            region_to_replace: mask.resource,
+        }),
+        Err(error) => {
+            let _ = state
+                .host
+                .release_imported_image_resources(ReleaseImportedImageResourcesRequestDto {
+                    resources: vec![source.resource],
+                })
+                .await;
+            Err(error)
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]

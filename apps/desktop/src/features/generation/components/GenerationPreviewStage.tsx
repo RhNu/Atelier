@@ -62,6 +62,7 @@ type GenerationPreviewStageProps = {
   onDeleteRequest: () => void;
   onCompilePrompt: () => void;
   onEditCharacterPositions?: () => void;
+  onEditSampleAsInpaint?: () => void;
 };
 
 const CROPPED_PREVIEW_STYLE: CSSProperties = { objectFit: "cover" };
@@ -93,6 +94,7 @@ export function GenerationPreviewStage({
   onDeleteRequest,
   onCompilePrompt,
   onEditCharacterPositions,
+  onEditSampleAsInpaint,
 }: GenerationPreviewStageProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const focusedSample =
@@ -119,6 +121,7 @@ export function GenerationPreviewStage({
         onResumeLive={onResumeLive}
         onCompilePrompt={onCompilePrompt}
         onEditCharacterPositions={onEditCharacterPositions}
+        onEditSampleAsInpaint={onEditSampleAsInpaint}
       />
       <RequestCursorStrip
         batch={batch}
@@ -163,6 +166,7 @@ function PreviewHeader({
   onResumeLive,
   onCompilePrompt,
   onEditCharacterPositions,
+  onEditSampleAsInpaint,
 }: Pick<
   GenerationPreviewStageProps,
   | "batch"
@@ -173,6 +177,7 @@ function PreviewHeader({
   | "onResumeLive"
   | "onCompilePrompt"
   | "onEditCharacterPositions"
+  | "onEditSampleAsInpaint"
 > & { showResume: boolean }) {
   const { t } = useTranslation("generation");
   const PreviewModeIcon = isViewingLive ? Activity : History;
@@ -231,6 +236,14 @@ function PreviewHeader({
             label={t("editCharacterPositions")}
             size="sm"
             onClick={onEditCharacterPositions}
+          />
+        ) : null}
+        {onEditSampleAsInpaint ? (
+          <AppIconButton
+            icon={ImageIcon}
+            label={t("editAsInpaint")}
+            size="sm"
+            onClick={onEditSampleAsInpaint}
           />
         ) : null}
         {queueControls}

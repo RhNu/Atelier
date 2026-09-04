@@ -868,7 +868,8 @@ describe("GeneratePage", () => {
     expect(strength).toHaveAttribute("step", "0.01");
     expect(noise).toHaveAttribute("min", "0");
     expect(noise).toHaveAttribute("max", "0.99");
-    expect(screen.getByRole("button", { name: "Add I2I mask" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Import mask" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Inpaint editor" })).toBeInTheDocument();
   });
 
   it("shows resource references only in developer mode", async () => {

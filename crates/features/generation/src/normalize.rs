@@ -1,6 +1,6 @@
 use crate::{
-    Character, CharacterReference, GenerateImageRequest, GenerationError, Img2ImgRequest,
-    QualityPreset, VibeTransferConfig,
+    Character, CharacterReference, GenerateImageRequest, GenerationError, ImageModel,
+    Img2ImgRequest, QualityPreset, VibeTransferConfig,
 };
 
 const IMAGE_DIMENSION_MIN: u32 = 64;
@@ -73,6 +73,18 @@ fn normalize_base_fields(
 fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), GenerationError> {
     let descriptor = request.model.descriptor();
     normalize_character_reference_features(request)?;
+
+    if request.model == ImageModel::NaiDiffusion5Curated
+        && request
+            .img2img
+            .as_ref()
+            .is_some_and(|i2i| i2i.inpaint.is_some())
+    {
+        return Err(GenerationError::unsupported_model_feature(
+            "img2img.inpaint",
+            "a model with dedicated inpainting support",
+        ));
+    }
 
     if request
         .characters
@@ -173,7 +185,7 @@ fn normalize_character_reference_features(
     }
 
     let mode = match request.img2img.as_ref() {
-        Some(i2i) if i2i.mask.is_some() => novelai_bridge::GenerationMode::Inpainting,
+        Some(i2i) if i2i.inpaint.is_some() => novelai_bridge::GenerationMode::Inpainting,
         Some(_) => novelai_bridge::GenerationMode::ImageToImage,
         None => novelai_bridge::GenerationMode::TextToImage,
     };
@@ -187,7 +199,7 @@ fn normalize_character_reference_features(
 
     if !resolution.character.is_available() {
         let field = if matches!(mode, novelai_bridge::GenerationMode::Inpainting) {
-            "character_references with img2img.mask"
+            "character_references with img2img.inpaint"
         } else {
             "character_references"
         };
@@ -300,7 +312,13 @@ fn normalize_i2i(
         return Ok(());
     };
 
-    i2i.strength = normalize_f32_range("i2i.strength", i2i.strength, 0.01, 0.99, strict_mode)?;
+    i2i.strength = normalize_f32_range(
+        "i2i.strength",
+        i2i.strength,
+        0.01,
+        if i2i.inpaint.is_some() { 1.0 } else { 0.99 },
+        strict_mode,
+    )?;
     i2i.noise = normalize_f32_range("i2i.noise", i2i.noise, 0.0, 0.99, strict_mode)?;
     Ok(())
 }

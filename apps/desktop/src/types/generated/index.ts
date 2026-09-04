@@ -12,6 +12,8 @@ export type { CharacterPromptTokenUsageDto } from "./CharacterPromptTokenUsageDt
 export type { CharacterReferenceDto } from "./CharacterReferenceDto";
 export type { CharacterReferenceTypeDto } from "./CharacterReferenceTypeDto";
 export type { CloseWorkspaceResponseDto } from "./CloseWorkspaceResponseDto";
+export type { CommitGenerationCanvasResourcesRequestDto } from "./CommitGenerationCanvasResourcesRequestDto";
+export type { CommitGenerationCanvasResourcesResponseDto } from "./CommitGenerationCanvasResourcesResponseDto";
 export type { CompileGenerationCharacterPromptDto } from "./CompileGenerationCharacterPromptDto";
 export type { CompileGenerationPromptRequestDto } from "./CompileGenerationPromptRequestDto";
 export type { CompilePromptRequestDto } from "./CompilePromptRequestDto";
@@ -102,6 +104,9 @@ export type { GenerationDraftCharacterDto } from "./GenerationDraftCharacterDto"
 export type { GenerationDraftCharacterPositionModeDto } from "./GenerationDraftCharacterPositionModeDto";
 export type { GenerationDraftDto } from "./GenerationDraftDto";
 export type { GenerationDraftI2iDto } from "./GenerationDraftI2iDto";
+export type { GenerationDraftInpaintSessionDto } from "./GenerationDraftInpaintSessionDto";
+export type { GenerationDraftMaskDisplayDto } from "./GenerationDraftMaskDisplayDto";
+export type { GenerationDraftMaskPatternDto } from "./GenerationDraftMaskPatternDto";
 export type { GenerationDraftPreciseReferenceDto } from "./GenerationDraftPreciseReferenceDto";
 export type { GenerationDraftPromptStateDto } from "./GenerationDraftPromptStateDto";
 export type { GenerationDraftSeedModeDto } from "./GenerationDraftSeedModeDto";
@@ -140,6 +145,7 @@ export type { ImportImageResourceRequestDto } from "./ImportImageResourceRequest
 export type { ImportImageResourceResponseDto } from "./ImportImageResourceResponseDto";
 export type { ImportVibeDocumentRequestDto } from "./ImportVibeDocumentRequestDto";
 export type { ImportedVibeDocumentsDto } from "./ImportedVibeDocumentsDto";
+export type { InpaintRequestDto } from "./InpaintRequestDto";
 export type { LexiconBootstrapDto } from "./LexiconBootstrapDto";
 export type { LexiconCapabilityStatusDto } from "./LexiconCapabilityStatusDto";
 export type { LexiconCategoryDto } from "./LexiconCategoryDto";

@@ -264,8 +264,12 @@ fn draft_resource_links(draft: &GenerationDraftSnapshot) -> BTreeMap<String, Dra
     let mut links = BTreeMap::new();
     if let Some(i2i) = &draft.i2i {
         insert_draft_link(&mut links, &i2i.image.id, ResourceRelation::Source);
-        if let Some(mask) = &i2i.mask {
-            insert_draft_link(&mut links, &mask.id, ResourceRelation::Source);
+        if let Some(inpaint) = &i2i.inpaint {
+            insert_draft_link(
+                &mut links,
+                &inpaint.region_to_replace.id,
+                ResourceRelation::Source,
+            );
         }
     }
     for slot in &draft.vibe.slots {

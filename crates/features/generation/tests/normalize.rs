@@ -1,7 +1,7 @@
 use atelier_generation::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, GenerateImageRequest,
-    GenerationErrorKind, ImageModel, ImageSize, Img2ImgRequest, QualityPreset, VibeReference,
-    VibeTransferConfig, normalize_generate_request,
+    GenerationErrorKind, ImageModel, ImageSize, Img2ImgRequest, InpaintRequest, QualityPreset,
+    VibeReference, VibeTransferConfig, normalize_generate_request,
 };
 
 fn assert_f32_eq(actual: f32, expected: f32) {
@@ -9,6 +9,39 @@ fn assert_f32_eq(actual: f32, expected: f32) {
         (actual - expected).abs() < f32::EPSILON,
         "expected {expected}, got {actual}"
     );
+}
+
+#[test]
+fn inpaint_allows_full_strength_but_v5_curated_is_temporarily_rejected() {
+    let request = GenerateImageRequest {
+        prompt: "1girl".to_owned(),
+        img2img: Some(Img2ImgRequest {
+            image: "source".to_owned(),
+            strength: 1.0,
+            noise: 0.0,
+            inpaint: Some(InpaintRequest {
+                region_to_replace: "mask".to_owned(),
+            }),
+        }),
+        strict_mode: true,
+        ..Default::default()
+    };
+    assert_f32_eq(
+        normalize_generate_request(request.clone())
+            .unwrap()
+            .img2img
+            .unwrap()
+            .strength,
+        1.0,
+    );
+
+    let error = normalize_generate_request(GenerateImageRequest {
+        model: ImageModel::NaiDiffusion5Curated,
+        ..request
+    })
+    .unwrap_err();
+    assert_eq!(error.kind, GenerationErrorKind::UnsupportedModelFeature);
+    assert_eq!(error.field.as_deref(), Some("img2img.inpaint"));
 }
 
 #[test]
@@ -107,7 +140,7 @@ fn non_strict_mode_clamps_and_snaps_request_values() {
             image: "image-payload-left-to-adapter".to_owned(),
             strength: 0.0,
             noise: 2.0,
-            mask: None,
+            inpaint: None,
         }),
         vibe_transfer: Some(VibeTransferConfig {
             strength: 2.0,

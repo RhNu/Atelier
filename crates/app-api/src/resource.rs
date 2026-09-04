@@ -49,6 +49,18 @@ pub struct ImportImageResourceResponseDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CommitGenerationCanvasResourcesRequestDto {
+    pub source_png_base64: String,
+    pub region_to_replace_png_base64: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CommitGenerationCanvasResourcesResponseDto {
+    pub source: ResourceRefDto,
+    pub region_to_replace: ResourceRefDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ReleaseImportedImageResourcesRequestDto {
     pub resources: Vec<ResourceRefDto>,
 }

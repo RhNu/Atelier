@@ -7,6 +7,7 @@ export const atelierCommands = {
   pickWorkspaceDirectory: "pick_workspace_directory",
   pickExportDirectory: "pick_export_directory",
   pickAndImportImageResources: "pick_and_import_image_resources",
+  commitGenerationCanvasResources: "commit_generation_canvas_resources",
   pickAndImportVibeDocuments: "pick_and_import_vibe_documents",
   pickAndImportEmbeddedPngVibeDocuments: "pick_and_import_embedded_png_vibe_documents",
   saveVibeDocument: "save_vibe_document",

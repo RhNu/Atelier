@@ -327,7 +327,13 @@ pub struct Img2ImgRequest {
     pub image: String,
     pub strength: f32,
     pub noise: f32,
-    pub mask: Option<String>,
+    pub inpaint: Option<InpaintRequest>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InpaintRequest {
+    /// Binary semantic mask where white pixels are the region to replace.
+    pub region_to_replace: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]

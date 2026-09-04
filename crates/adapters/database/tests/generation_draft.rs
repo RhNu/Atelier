@@ -3,10 +3,11 @@ use atelier_adapter_database::{
 };
 use atelier_generation::{
     CharacterPosition, CharacterReferenceType, GenerationDraftCharacter,
-    GenerationDraftCharacterPositionMode, GenerationDraftI2i, GenerationDraftPreciseReference,
-    GenerationDraftPromptState, GenerationDraftRepository, GenerationDraftSeedMode,
-    GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot, ImageFormat, ImageModel,
-    ImageSize, NoiseSchedule, QualityPreset, Sampler, UcPreset,
+    GenerationDraftCharacterPositionMode, GenerationDraftI2i, GenerationDraftInpaintSession,
+    GenerationDraftMaskDisplay, GenerationDraftPreciseReference, GenerationDraftPromptState,
+    GenerationDraftRepository, GenerationDraftSeedMode, GenerationDraftSnapshot,
+    GenerationDraftVibe, GenerationDraftVibeSlot, ImageFormat, ImageModel, ImageSize,
+    NoiseSchedule, QualityPreset, Sampler, UcPreset,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef};
 use atelier_settings::{WorkspaceSettings, WorkspaceSettingsRepository};
@@ -78,6 +79,43 @@ fn draft_reports_corrupt_and_unknown_schema_payloads() {
     }
 }
 
+#[test]
+fn draft_migrates_schema_v2_mask_to_semantic_inpaint_session() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("atelier.sqlite3");
+        let repository =
+            DatabaseGenerationDraftRepository::new(DatabaseConnection::open(&path).unwrap());
+        let expected = sample_draft();
+        repository.save_generation_draft(&expected).await.unwrap();
+
+        let raw_connection = Connection::open(&path).unwrap();
+        let raw: String = raw_connection
+            .query_row(
+                "SELECT value_json FROM workspace_settings WHERE setting_key = 'generation.draft'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let mut value: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        value["schema_version"] = serde_json::json!(2);
+        let i2i = value["i2i"].as_object_mut().unwrap();
+        let inpaint = i2i.remove("inpaint").unwrap();
+        i2i.insert("mask".to_owned(), inpaint["region_to_replace"].clone());
+        raw_connection
+            .execute(
+                "UPDATE workspace_settings SET value_json = ?1 WHERE setting_key = 'generation.draft'",
+                [serde_json::to_string(&value).unwrap()],
+            )
+            .unwrap();
+
+        assert_eq!(
+            repository.load_generation_draft().await.unwrap(),
+            Some(expected)
+        );
+    });
+}
+
 fn sample_draft() -> GenerationDraftSnapshot {
     GenerationDraftSnapshot {
         model: ImageModel::NaiDiffusion4Curated,
@@ -118,7 +156,10 @@ fn sample_draft() -> GenerationDraftSnapshot {
         stream_enabled: false,
         i2i: Some(GenerationDraftI2i {
             image: resource("resource:i2i"),
-            mask: Some(resource("resource:mask")),
+            inpaint: Some(GenerationDraftInpaintSession {
+                region_to_replace: resource("resource:mask"),
+                display: GenerationDraftMaskDisplay::default(),
+            }),
             strength: 0.55,
             noise: 0.15,
         }),

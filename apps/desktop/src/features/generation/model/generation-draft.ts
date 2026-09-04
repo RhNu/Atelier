@@ -26,9 +26,19 @@ export type GenerationSeedMode = "random" | "fixed";
 export type GenerationCharacterPositionMode = "global" | "manual";
 export type GenerationI2iDraft = {
   image: ResourceRefDto;
-  mask: ResourceRefDto | null;
+  inpaint: GenerationInpaintSessionDraft | null;
   strength: number;
   noise: number;
+};
+export type GenerationInpaintSessionDraft = {
+  regionToReplace: ResourceRefDto;
+  display: {
+    color: string;
+    opacity: number;
+    pattern: "solid" | "stripes";
+    showBorder: boolean;
+    brushSize: number;
+  };
 };
 export type GenerationVibeSlotDraft = {
   id: string;
@@ -202,7 +212,18 @@ export function generationDraftFromDto(value: GenerationDraftDto): GenerationDra
     i2i: value.i2i
       ? {
           image: value.i2i.image,
-          mask: value.i2i.mask,
+          inpaint: value.i2i.inpaint
+            ? {
+                regionToReplace: value.i2i.inpaint.region_to_replace,
+                display: {
+                  color: value.i2i.inpaint.display.color,
+                  opacity: value.i2i.inpaint.display.opacity,
+                  pattern: value.i2i.inpaint.display.pattern,
+                  showBorder: value.i2i.inpaint.display.show_border,
+                  brushSize: value.i2i.inpaint.display.brush_size,
+                },
+              }
+            : null,
           strength: value.i2i.strength,
           noise: value.i2i.noise,
         }
@@ -263,7 +284,18 @@ export function generationDraftToDto(value: GenerationDraft): GenerationDraftDto
     i2i: value.i2i
       ? {
           image: value.i2i.image,
-          mask: value.i2i.mask,
+          inpaint: value.i2i.inpaint
+            ? {
+                region_to_replace: value.i2i.inpaint.regionToReplace,
+                display: {
+                  color: value.i2i.inpaint.display.color,
+                  opacity: value.i2i.inpaint.display.opacity,
+                  pattern: value.i2i.inpaint.display.pattern,
+                  show_border: value.i2i.inpaint.display.showBorder,
+                  brush_size: value.i2i.inpaint.display.brushSize,
+                },
+              }
+            : null,
           strength: value.i2i.strength,
           noise: value.i2i.noise,
         }
@@ -456,7 +488,9 @@ function buildBaseGenerateRequest(
           image: resourceImageInput(draft.i2i.image),
           strength: draft.i2i.strength,
           noise: draft.i2i.noise,
-          mask: draft.i2i.mask ? resourceImageInput(draft.i2i.mask) : null,
+          inpaint: draft.i2i.inpaint
+            ? { region_to_replace: resourceImageInput(draft.i2i.inpaint.regionToReplace) }
+            : null,
         }
       : null,
     vibe_transfer: preciseReferences ? null : buildVibeTransfer(draft, capabilities),

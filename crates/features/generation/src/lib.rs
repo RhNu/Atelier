@@ -11,7 +11,8 @@ mod request_plan;
 
 pub use draft::{
     GenerationDraftCharacter, GenerationDraftCharacterPositionMode, GenerationDraftError,
-    GenerationDraftErrorKind, GenerationDraftI2i, GenerationDraftPreciseReference,
+    GenerationDraftErrorKind, GenerationDraftI2i, GenerationDraftInpaintSession,
+    GenerationDraftMaskDisplay, GenerationDraftMaskPattern, GenerationDraftPreciseReference,
     GenerationDraftPromptState, GenerationDraftRepository, GenerationDraftResult,
     GenerationDraftSeedMode, GenerationDraftService, GenerationDraftSnapshot, GenerationDraftVibe,
     GenerationDraftVibeSlot,
@@ -27,9 +28,9 @@ pub use model::{
     Character, CharacterPosition, CharacterPositionMode, CharacterReference,
     CharacterReferenceType, GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
     GeneratedImage, GeneratedImageMetadata, GeneratedImageMetadataWarning, ImageFormat, ImageModel,
-    ImageSize, ImageStreamEvent, Img2ImgRequest, ModelCapabilities, ModelDescriptor, NoiseSchedule,
-    ParsedGeneratedImageMetadata, PromptStructure, QualityPreset, Sampler, StreamMode, UcPreset,
-    VibeReference, VibeTransferConfig,
+    ImageSize, ImageStreamEvent, Img2ImgRequest, InpaintRequest, ModelCapabilities,
+    ModelDescriptor, NoiseSchedule, ParsedGeneratedImageMetadata, PromptStructure, QualityPreset,
+    Sampler, StreamMode, UcPreset, VibeReference, VibeTransferConfig,
 };
 pub use normalize::normalize_generate_request;
 pub use ports::{

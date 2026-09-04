@@ -1,11 +1,12 @@
 use super::{
     Character, CharacterPosition, CharacterReference, DatabaseResult, Deserialize,
     GenerateImageRequest, GenerateImageStreamRequest, GenerationWorkRequest, ImageSize,
-    Img2ImgRequest, Serialize, VibeReference, VibeTransferConfig, character_reference_type_as_str,
-    character_reference_type_from_str, image_format_as_str, image_format_from_str,
-    image_model_as_str, image_model_from_str, noise_schedule_as_str, noise_schedule_from_str,
-    quality_preset_as_str, quality_preset_from_str, sampler_as_str, sampler_from_str,
-    stream_mode_as_str, stream_mode_from_str, uc_preset_as_str, uc_preset_from_str,
+    Img2ImgRequest, InpaintRequest, Serialize, VibeReference, VibeTransferConfig,
+    character_reference_type_as_str, character_reference_type_from_str, image_format_as_str,
+    image_format_from_str, image_model_as_str, image_model_from_str, noise_schedule_as_str,
+    noise_schedule_from_str, quality_preset_as_str, quality_preset_from_str, sampler_as_str,
+    sampler_from_str, stream_mode_as_str, stream_mode_from_str, uc_preset_as_str,
+    uc_preset_from_str,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -190,7 +191,10 @@ impl From<&Img2ImgRequest> for Img2ImgRequestDto {
             image: value.image.clone(),
             strength: value.strength,
             noise: value.noise,
-            mask: value.mask.clone(),
+            mask: value
+                .inpaint
+                .as_ref()
+                .map(|inpaint| inpaint.region_to_replace.clone()),
         }
     }
 }
@@ -201,7 +205,9 @@ impl From<Img2ImgRequestDto> for Img2ImgRequest {
             image: value.image,
             strength: value.strength,
             noise: value.noise,
-            mask: value.mask,
+            inpaint: value
+                .mask
+                .map(|region_to_replace| InpaintRequest { region_to_replace }),
         }
     }
 }

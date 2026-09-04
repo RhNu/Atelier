@@ -539,7 +539,7 @@ fn resource_backed_generation_inputs_are_resolved_before_novelai_submission() {
                         },
                         strength: 0.5,
                         noise: 0.2,
-                        mask: None,
+                        inpaint: None,
                     }),
                     ..GenerateImageRequestDto::default()
                 }),

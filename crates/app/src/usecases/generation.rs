@@ -434,15 +434,19 @@ where
     }
 
     async fn i2i_to_domain(&self, value: Img2ImgRequestDto) -> AppResult<Img2ImgRequest> {
-        let mask = match value.mask {
-            Some(mask) => Some(self.image_input_to_base64(mask).await?),
+        let inpaint = match value.inpaint {
+            Some(inpaint) => Some(atelier_generation::InpaintRequest {
+                region_to_replace: self
+                    .image_input_to_base64(inpaint.region_to_replace)
+                    .await?,
+            }),
             None => None,
         };
         Ok(Img2ImgRequest {
             image: self.image_input_to_base64(value.image).await?,
             strength: value.strength,
             noise: value.noise,
-            mask,
+            inpaint,
         })
     }
 

@@ -175,7 +175,12 @@ pub struct Img2ImgRequestDto {
     pub strength: f32,
     pub noise: f32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mask: Option<ImageInputDto>,
+    pub inpaint: Option<InpaintRequestDto>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct InpaintRequestDto {
+    pub region_to_replace: ImageInputDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -258,9 +263,31 @@ pub enum GenerationDraftCharacterPositionModeDto {
 pub struct GenerationDraftI2iDto {
     pub image: ResourceRefDto,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mask: Option<ResourceRefDto>,
+    pub inpaint: Option<GenerationDraftInpaintSessionDto>,
     pub strength: f32,
     pub noise: f32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationDraftMaskPatternDto {
+    Solid,
+    Stripes,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationDraftMaskDisplayDto {
+    pub color: String,
+    pub opacity: f32,
+    pub pattern: GenerationDraftMaskPatternDto,
+    pub show_border: bool,
+    pub brush_size: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationDraftInpaintSessionDto {
+    pub region_to_replace: ResourceRefDto,
+    pub display: GenerationDraftMaskDisplayDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

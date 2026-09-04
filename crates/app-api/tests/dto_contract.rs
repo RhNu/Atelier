@@ -18,8 +18,8 @@ use atelier_app_api::generation::{
     CharacterDto, CharacterPositionDto, CharacterReferenceDto, CharacterReferenceTypeDto,
     GenerateImageRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
     GenerationRequestStatusDto, GenerationStatusDto, GenerationStatusQueryDto, ImageModelDto,
-    Img2ImgRequestDto, QueueDirectiveDto, RunGenerationJobRequestDto, StreamModeDto,
-    SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, VibeReferenceDto,
+    Img2ImgRequestDto, InpaintRequestDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    StreamModeDto, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, VibeReferenceDto,
     VibeTransferConfigDto,
 };
 use atelier_app_api::history::{

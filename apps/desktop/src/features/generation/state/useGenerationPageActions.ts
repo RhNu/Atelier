@@ -309,7 +309,7 @@ function exportZip(
 
 function generationDraftInputResources(draft: GenerationDraft): ResourceRefDto[] {
   return [
-    ...(draft.i2i ? [draft.i2i.image, draft.i2i.mask] : []),
+    ...(draft.i2i ? [draft.i2i.image, draft.i2i.inpaint?.regionToReplace ?? null] : []),
     ...draft.preciseReferences.map((reference) => reference.image),
     ...draft.vibe.slots.map((slot) => slot.sourceImage),
   ].filter((resource): resource is ResourceRefDto => resource !== null);

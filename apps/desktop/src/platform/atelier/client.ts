@@ -7,6 +7,8 @@ import type {
   AppBootstrapDto,
   CloseWorkspaceResponseDto,
   CompilePromptRequestDto,
+  CommitGenerationCanvasResourcesRequestDto,
+  CommitGenerationCanvasResourcesResponseDto,
   CountPromptTokensRequestDto,
   CompileGenerationPromptRequestDto,
   CompiledGenerationPromptDto,
@@ -319,6 +321,11 @@ export const lexiconApi = {
 export const resourceApi = {
   image: (request: GetResourceImageRequestDto) =>
     invokeAtelierCommand<ResourceImageDto>(atelierCommands.getResourceImage, { request }),
+  commitGenerationCanvas: (request: CommitGenerationCanvasResourcesRequestDto) =>
+    invokeAtelierCommand<CommitGenerationCanvasResourcesResponseDto>(
+      atelierCommands.commitGenerationCanvasResources,
+      { request },
+    ),
   releaseImportedImages: (request: ReleaseImportedImageResourcesRequestDto) =>
     invokeAtelierCommand<ReleaseImportedImageResourcesResponseDto>(
       atelierCommands.releaseImportedImageResources,

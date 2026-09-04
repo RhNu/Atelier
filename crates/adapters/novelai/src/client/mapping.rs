@@ -263,8 +263,8 @@ pub(super) fn to_bridge_i2i(
     let image = bridge::EncodedImage::from_base64(&request.image)?;
     let mut result = bridge::Img2ImgRequest::new(image, request.strength, request.noise);
     result.mask = request
-        .mask
-        .map(|mask| bridge::EncodedImage::from_base64(&mask))
+        .inpaint
+        .map(|inpaint| bridge::EncodedImage::from_base64(&inpaint.region_to_replace))
         .transpose()?;
     Ok(result)
 }

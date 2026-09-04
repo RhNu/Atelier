@@ -87,6 +87,7 @@ use atelier_app_api::{
         UpsertPromptPresetRequestDto,
     },
     resource::{
+        CommitGenerationCanvasResourcesRequestDto, CommitGenerationCanvasResourcesResponseDto,
         CopyResourceImageRequestDto, GetResourceImageRequestDto, ImageExportFormatDto,
         ImageInputDto, ImageResourceKindDto, ImportImageResourceRequestDto,
         ImportImageResourceResponseDto, ReleaseImportedImageResourcesRequestDto,
@@ -408,6 +409,8 @@ fn export_resource_types(config: &Config) -> Result<(), String> {
         ImageResourceKindDto,
         ImportImageResourceRequestDto,
         ImportImageResourceResponseDto,
+        CommitGenerationCanvasResourcesRequestDto,
+        CommitGenerationCanvasResourcesResponseDto,
         ReleaseImportedImageResourcesRequestDto,
         ReleaseImportedImageResourcesResponseDto,
         GetResourceImageRequestDto,

@@ -31,6 +31,7 @@ export function ImageToImageSection({
   releaseImages,
   onFlush,
   developerMode,
+  onOpenInpaintEditor,
 }: {
   draft: GenerationDraft;
   onPatch: (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
@@ -41,6 +42,7 @@ export function ImageToImageSection({
   releaseImages: (resources: ReadonlyArray<ResourceRefDto | null>) => Promise<void>;
   onFlush: () => void;
   developerMode: boolean;
+  onOpenInpaintEditor: () => void;
 }) {
   const { t } = useTranslation("generation");
   const i2i = draft.i2i;
@@ -58,22 +60,31 @@ export function ImageToImageSection({
               onClick={pickSourceImage}
               disabled={imageImportPending}
             />
+            {draft.model !== "nai-diffusion-5-curated" ? (
+              <AppIconButton
+                icon={Pencil}
+                label={t("editInpaintMask")}
+                size="sm"
+                onClick={onOpenInpaintEditor}
+                disabled={imageImportPending}
+              />
+            ) : null}
             <AppIconButton
               icon={ImagePlus}
-              label={i2i.mask ? t("replaceI2iMask") : t("addI2iMask")}
+              label={i2i.inpaint ? t("replaceI2iMask") : t("importI2iMask")}
               size="sm"
               onClick={pickMaskImage}
-              disabled={imageImportPending}
+              disabled={imageImportPending || draft.model === "nai-diffusion-5-curated"}
             />
-            {i2i.mask ? (
+            {i2i.inpaint ? (
               <AppIconButton
                 icon={Trash2}
                 label={t("removeI2iMask")}
                 size="sm"
                 variant="danger"
                 onClick={() => {
-                  const mask = i2i.mask;
-                  updateI2i({ mask: null });
+                  const mask = i2i.inpaint?.regionToReplace ?? null;
+                  updateI2i({ inpaint: null });
                   reportBackgroundPromise(releaseImages([mask]), "Release generation mask");
                 }}
               />
@@ -86,7 +97,7 @@ export function ImageToImageSection({
               onClick={() => {
                 onPatch({ i2i: null }, { persist: "immediate" });
                 reportBackgroundPromise(
-                  releaseImages([i2i.image, i2i.mask]),
+                  releaseImages([i2i.image, i2i.inpaint?.regionToReplace ?? null]),
                   "Release generation image guidance",
                 );
               }}
@@ -111,8 +122,12 @@ export function ImageToImageSection({
               alt="I2I source"
               className="size-14"
             />
-            {i2i.mask ? (
-              <GenerationResourceThumbnail resource={i2i.mask} alt="I2I mask" className="size-14" />
+            {i2i.inpaint ? (
+              <GenerationResourceThumbnail
+                resource={i2i.inpaint.regionToReplace}
+                alt="I2I mask"
+                className="size-14"
+              />
             ) : null}
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -121,7 +136,7 @@ export function ImageToImageSection({
               value={i2i.strength}
               valueText={i2i.strength.toFixed(2)}
               min={0.01}
-              max={0.99}
+              max={i2i.inpaint ? 1 : 0.99}
               step={0.01}
               onChange={(strength) => updateI2i({ strength })}
               onCommit={onFlush}
@@ -138,7 +153,14 @@ export function ImageToImageSection({
             />
           </div>
           <GuidanceDeveloperMetadata enabled={developerMode} label="source" resource={i2i.image} />
-          <GuidanceDeveloperMetadata enabled={developerMode} label="mask" resource={i2i.mask} />
+          <GuidanceDeveloperMetadata
+            enabled={developerMode}
+            label="mask"
+            resource={i2i.inpaint?.regionToReplace ?? null}
+          />
+          {draft.model === "nai-diffusion-5-curated" ? (
+            <p className="text-xs text-app-muted">{t("v5CuratedInpaintUnavailable")}</p>
+          ) : null}
         </div>
       ) : null}
     </GuidanceSection>

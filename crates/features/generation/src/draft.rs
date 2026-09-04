@@ -67,9 +67,42 @@ pub enum GenerationDraftCharacterPositionMode {
 #[derive(Clone, Debug, PartialEq)]
 pub struct GenerationDraftI2i {
     pub image: ResourceRef,
-    pub mask: Option<ResourceRef>,
+    pub inpaint: Option<GenerationDraftInpaintSession>,
     pub strength: f32,
     pub noise: f32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum GenerationDraftMaskPattern {
+    Solid,
+    Stripes,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GenerationDraftMaskDisplay {
+    pub color: String,
+    pub opacity: f32,
+    pub pattern: GenerationDraftMaskPattern,
+    pub show_border: bool,
+    pub brush_size: u32,
+}
+
+impl Default for GenerationDraftMaskDisplay {
+    fn default() -> Self {
+        Self {
+            color: "#2563eb".to_owned(),
+            opacity: 0.45,
+            pattern: GenerationDraftMaskPattern::Solid,
+            show_border: true,
+            brush_size: 48,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GenerationDraftInpaintSession {
+    pub region_to_replace: ResourceRef,
+    pub display: GenerationDraftMaskDisplay,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -191,10 +224,27 @@ impl GenerationDraftSnapshot {
 
         if let Some(i2i) = &self.i2i {
             validate_resource("i2i.image", &i2i.image)?;
-            if let Some(mask) = &i2i.mask {
-                validate_resource("i2i.mask", mask)?;
+            if let Some(inpaint) = &i2i.inpaint {
+                validate_resource("i2i.inpaint.region_to_replace", &inpaint.region_to_replace)?;
+                validate_f32(
+                    "i2i.inpaint.display.opacity",
+                    inpaint.display.opacity,
+                    0.0,
+                    1.0,
+                )?;
+                validate_u32(
+                    "i2i.inpaint.display.brush_size",
+                    inpaint.display.brush_size,
+                    1,
+                    512,
+                )?;
             }
-            validate_f32("i2i.strength", i2i.strength, 0.01, 0.99)?;
+            validate_f32(
+                "i2i.strength",
+                i2i.strength,
+                0.01,
+                if i2i.inpaint.is_some() { 1.0 } else { 0.99 },
+            )?;
             validate_f32("i2i.noise", i2i.noise, 0.0, 0.99)?;
         }
 

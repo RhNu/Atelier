@@ -1,12 +1,14 @@
 use atelier_app_api::generation::{
     CharacterPositionDto, GenerationDraftCharacterDto, GenerationDraftCharacterPositionModeDto,
-    GenerationDraftDto, GenerationDraftI2iDto, GenerationDraftPreciseReferenceDto,
-    GenerationDraftPromptStateDto, GenerationDraftSeedModeDto, GenerationDraftVibeDto,
-    GenerationDraftVibeSlotDto,
+    GenerationDraftDto, GenerationDraftI2iDto, GenerationDraftInpaintSessionDto,
+    GenerationDraftMaskDisplayDto, GenerationDraftMaskPatternDto,
+    GenerationDraftPreciseReferenceDto, GenerationDraftPromptStateDto, GenerationDraftSeedModeDto,
+    GenerationDraftVibeDto, GenerationDraftVibeSlotDto,
 };
 use atelier_generation::{
     CharacterPosition, CharacterReferenceType, GenerationDraftCharacter,
-    GenerationDraftCharacterPositionMode, GenerationDraftI2i, GenerationDraftPreciseReference,
+    GenerationDraftCharacterPositionMode, GenerationDraftI2i, GenerationDraftInpaintSession,
+    GenerationDraftMaskDisplay, GenerationDraftMaskPattern, GenerationDraftPreciseReference,
     GenerationDraftPromptState, GenerationDraftSeedMode, GenerationDraftSnapshot,
     GenerationDraftVibe, GenerationDraftVibeSlot,
 };
@@ -97,7 +99,19 @@ pub fn generation_draft_to_dto(value: &GenerationDraftSnapshot) -> GenerationDra
 fn i2i_to_domain(value: GenerationDraftI2iDto) -> GenerationDraftI2i {
     GenerationDraftI2i {
         image: resource_ref_from_dto(value.image),
-        mask: value.mask.map(resource_ref_from_dto),
+        inpaint: value.inpaint.map(|inpaint| GenerationDraftInpaintSession {
+            region_to_replace: resource_ref_from_dto(inpaint.region_to_replace),
+            display: GenerationDraftMaskDisplay {
+                color: inpaint.display.color,
+                opacity: inpaint.display.opacity,
+                pattern: match inpaint.display.pattern {
+                    GenerationDraftMaskPatternDto::Solid => GenerationDraftMaskPattern::Solid,
+                    GenerationDraftMaskPatternDto::Stripes => GenerationDraftMaskPattern::Stripes,
+                },
+                show_border: inpaint.display.show_border,
+                brush_size: inpaint.display.brush_size,
+            },
+        }),
         strength: value.strength,
         noise: value.noise,
     }
@@ -106,7 +120,24 @@ fn i2i_to_domain(value: GenerationDraftI2iDto) -> GenerationDraftI2i {
 fn i2i_to_dto(value: &GenerationDraftI2i) -> GenerationDraftI2iDto {
     GenerationDraftI2iDto {
         image: resource_ref_to_dto(&value.image),
-        mask: value.mask.as_ref().map(resource_ref_to_dto),
+        inpaint: value
+            .inpaint
+            .as_ref()
+            .map(|inpaint| GenerationDraftInpaintSessionDto {
+                region_to_replace: resource_ref_to_dto(&inpaint.region_to_replace),
+                display: GenerationDraftMaskDisplayDto {
+                    color: inpaint.display.color.clone(),
+                    opacity: inpaint.display.opacity,
+                    pattern: match inpaint.display.pattern {
+                        GenerationDraftMaskPattern::Solid => GenerationDraftMaskPatternDto::Solid,
+                        GenerationDraftMaskPattern::Stripes => {
+                            GenerationDraftMaskPatternDto::Stripes
+                        }
+                    },
+                    show_border: inpaint.display.show_border,
+                    brush_size: inpaint.display.brush_size,
+                },
+            }),
         strength: value.strength,
         noise: value.noise,
     }

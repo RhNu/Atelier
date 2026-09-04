@@ -3,8 +3,8 @@
 use atelier_generation::{
     Character, CharacterPosition, CharacterReference, CharacterReferenceType, GenerateImageRequest,
     GenerateImageStreamRequest, GenerationOutputMode, GenerationPlanContext, GenerationRequestPlan,
-    ImageFormat, ImageModel, ImageSize, Img2ImgRequest, NoiseSchedule, QualityPreset, Sampler,
-    SeedMode, StreamMode, UcPreset, VibeReference, VibeTransferConfig,
+    ImageFormat, ImageModel, ImageSize, Img2ImgRequest, InpaintRequest, NoiseSchedule,
+    QualityPreset, Sampler, SeedMode, StreamMode, UcPreset, VibeReference, VibeTransferConfig,
 };
 use atelier_jobs::{BatchId, JobId, JobPayloadRef};
 use atelier_kernel::{

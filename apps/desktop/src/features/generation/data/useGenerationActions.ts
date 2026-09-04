@@ -15,6 +15,7 @@ import {
 } from "@/platform/atelier";
 import type {
   CompileGenerationPromptRequestDto,
+  CommitGenerationCanvasResourcesRequestDto,
   GalleryImageReferenceRequestDto,
   ImageModelDto,
   ModelCapabilitiesDto,
@@ -119,6 +120,13 @@ export function usePickImageResourcesMutation() {
   return useMutation({
     mutationFn: ({ kind, extensions = [] }: PickImageResourcesRequest) =>
       desktopApi.pickAndImportImageResources(kind, { extensions }),
+  });
+}
+
+export function useCommitGenerationCanvasMutation() {
+  return useMutation({
+    mutationFn: (request: CommitGenerationCanvasResourcesRequestDto) =>
+      resourceApi.commitGenerationCanvas(request),
   });
 }
 

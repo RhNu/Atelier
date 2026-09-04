@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use atelier_generation::{
     CharacterPosition, GenerationDraftCharacter, GenerationDraftCharacterPositionMode,
-    GenerationDraftError, GenerationDraftI2i, GenerationDraftPreciseReference,
+    GenerationDraftError, GenerationDraftI2i, GenerationDraftInpaintSession,
+    GenerationDraftMaskDisplay, GenerationDraftMaskPattern, GenerationDraftPreciseReference,
     GenerationDraftPromptState, GenerationDraftRepository, GenerationDraftResult,
     GenerationDraftSeedMode, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
     ImageSize,
@@ -20,7 +21,7 @@ use crate::generation_codec::scalars::{
 use crate::{DatabaseConnection, DatabaseError};
 
 const DRAFT_KEY: &str = "generation.draft";
-const JSON_SCHEMA_VERSION: u32 = 2;
+const JSON_SCHEMA_VERSION: u32 = 3;
 
 #[derive(Clone, Debug)]
 pub struct DatabaseGenerationDraftRepository {
@@ -214,7 +215,10 @@ impl GenerationDraftDto {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct GenerationDraftI2iDto {
     image: ResourceRefDto,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     mask: Option<ResourceRefDto>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    inpaint: Option<GenerationDraftInpaintSessionDto>,
     strength: f32,
     noise: f32,
 }
@@ -223,7 +227,11 @@ impl GenerationDraftI2iDto {
     fn from_domain(value: &GenerationDraftI2i) -> Self {
         Self {
             image: ResourceRefDto::from_domain(&value.image),
-            mask: value.mask.as_ref().map(ResourceRefDto::from_domain),
+            mask: None,
+            inpaint: value
+                .inpaint
+                .as_ref()
+                .map(GenerationDraftInpaintSessionDto::from_domain),
             strength: value.strength,
             noise: value.noise,
         }
@@ -232,9 +240,78 @@ impl GenerationDraftI2iDto {
     fn into_domain(self) -> GenerationDraftI2i {
         GenerationDraftI2i {
             image: self.image.into_domain(),
-            mask: self.mask.map(ResourceRefDto::into_domain),
+            inpaint: self
+                .inpaint
+                .map(GenerationDraftInpaintSessionDto::into_domain)
+                .or_else(|| {
+                    self.mask.map(|mask| GenerationDraftInpaintSession {
+                        region_to_replace: mask.into_domain(),
+                        display: GenerationDraftMaskDisplay::default(),
+                    })
+                }),
             strength: self.strength,
             noise: self.noise,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct GenerationDraftInpaintSessionDto {
+    region_to_replace: ResourceRefDto,
+    display: GenerationDraftMaskDisplayDto,
+}
+
+impl GenerationDraftInpaintSessionDto {
+    fn from_domain(value: &GenerationDraftInpaintSession) -> Self {
+        Self {
+            region_to_replace: ResourceRefDto::from_domain(&value.region_to_replace),
+            display: GenerationDraftMaskDisplayDto::from_domain(&value.display),
+        }
+    }
+
+    fn into_domain(self) -> GenerationDraftInpaintSession {
+        GenerationDraftInpaintSession {
+            region_to_replace: self.region_to_replace.into_domain(),
+            display: self.display.into_domain(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct GenerationDraftMaskDisplayDto {
+    color: String,
+    opacity: f32,
+    pattern: String,
+    show_border: bool,
+    brush_size: u32,
+}
+
+impl GenerationDraftMaskDisplayDto {
+    fn from_domain(value: &GenerationDraftMaskDisplay) -> Self {
+        Self {
+            color: value.color.clone(),
+            opacity: value.opacity,
+            pattern: match value.pattern {
+                GenerationDraftMaskPattern::Solid => "solid",
+                GenerationDraftMaskPattern::Stripes => "stripes",
+            }
+            .to_owned(),
+            show_border: value.show_border,
+            brush_size: value.brush_size,
+        }
+    }
+
+    fn into_domain(self) -> GenerationDraftMaskDisplay {
+        GenerationDraftMaskDisplay {
+            color: self.color,
+            opacity: self.opacity,
+            pattern: if self.pattern == "stripes" {
+                GenerationDraftMaskPattern::Stripes
+            } else {
+                GenerationDraftMaskPattern::Solid
+            },
+            show_border: self.show_border,
+            brush_size: self.brush_size,
         }
     }
 }
@@ -489,7 +566,7 @@ fn position_mode_from_str(
 }
 
 fn ensure_schema(value: u32) -> GenerationDraftResult<()> {
-    if value == JSON_SCHEMA_VERSION {
+    if value == JSON_SCHEMA_VERSION || value == 2 {
         Ok(())
     } else {
         Err(GenerationDraftError::repository(format!(
