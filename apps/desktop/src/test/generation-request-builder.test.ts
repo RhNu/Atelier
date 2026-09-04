@@ -16,6 +16,8 @@ function modelCapabilities(defaultScale: number, supportsStreaming = true): Mode
     default_steps: 23,
     default_scale: defaultScale,
     max_characters: 6,
+    character_position_mode: "freeform",
+    can_position_one_character: true,
     supports_vibe_transfer: false,
     supports_encoded_vibe: false,
     supports_character_reference: false,
@@ -302,7 +304,7 @@ describe("generation request builder", () => {
           position: { x: 0.5, y: 0.5 },
         },
       ],
-      use_coords: null,
+      use_coords: false,
     });
   });
 

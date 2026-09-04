@@ -37,6 +37,7 @@ type AdvancedGenerationInputsProps = {
   developerMode: boolean;
   capabilities?: ModelCapabilitiesDto;
   tokenCounts: PromptTokenUsageDto | null;
+  onOpenPositionEditor: () => void;
 };
 
 const DEFAULT_REFERENCE_TYPE: CharacterReferenceTypeDto = "character";
@@ -59,6 +60,7 @@ export function AdvancedGenerationInputs({
   developerMode,
   capabilities,
   tokenCounts,
+  onOpenPositionEditor,
 }: AdvancedGenerationInputsProps) {
   const { t } = useTranslation("generation");
   const [error, setError] = useState<string | null>(null);
@@ -232,6 +234,8 @@ export function AdvancedGenerationInputs({
             characterPresets={characterPresets}
             characterPresetsPending={characterPresetsPending}
             tokenCounts={tokenCounts}
+            capabilities={capabilities}
+            onOpenPositionEditor={onOpenPositionEditor}
           />
         ) : null}
         {(!capabilities?.supports_vibe_transfer && draft.vibe.slots.length > 0) ||

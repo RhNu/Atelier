@@ -8,6 +8,12 @@
 
 pub use novelai_bridge::{ModelDescriptor, PromptStructure};
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CharacterPositionMode {
+    Grid5x5,
+    Freeform,
+}
+
 /// Atelier-facing projection of the bridge model descriptor.
 ///
 /// Values are derived from the bridge registry on every call; this is not a
@@ -20,6 +26,8 @@ pub struct ModelCapabilities {
     pub default_steps: u32,
     pub default_scale: f32,
     pub max_characters: u32,
+    pub character_position_mode: Option<CharacterPositionMode>,
+    pub can_position_one_character: bool,
     pub supports_vibe_transfer: bool,
     pub supports_encoded_vibe: bool,
     pub supports_character_reference: bool,
@@ -107,6 +115,25 @@ impl ImageModel {
             default_steps: descriptor.defaults().sampling.steps,
             default_scale: descriptor.defaults().sampling.scale,
             max_characters: descriptor.prompt().max_characters(),
+            character_position_mode: match descriptor.prompt().characters {
+                Some(profile) => match profile.positioning {
+                    novelai_bridge::CharacterPositionProfile::Grid5x5 => {
+                        Some(CharacterPositionMode::Grid5x5)
+                    }
+                    novelai_bridge::CharacterPositionProfile::Freeform => {
+                        Some(CharacterPositionMode::Freeform)
+                    }
+                    _ => None,
+                },
+                None => None,
+            },
+            can_position_one_character: matches!(
+                descriptor.prompt().characters,
+                Some(novelai_bridge::CharacterPromptProfile {
+                    positioning: novelai_bridge::CharacterPositionProfile::Freeform,
+                    ..
+                })
+            ),
             supports_vibe_transfer: descriptor.support().vibe.is_some(),
             supports_encoded_vibe: descriptor.can_encode_vibe(),
             supports_character_reference: descriptor.support().character_reference.is_some(),

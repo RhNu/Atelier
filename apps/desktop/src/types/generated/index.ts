@@ -7,6 +7,7 @@ export type { AppEventPageDto } from "./AppEventPageDto";
 export type { AppendLexiconEntitiesRequestDto } from "./AppendLexiconEntitiesRequestDto";
 export type { CharacterDto } from "./CharacterDto";
 export type { CharacterPositionDto } from "./CharacterPositionDto";
+export type { CharacterPositionModeDto } from "./CharacterPositionModeDto";
 export type { CharacterPromptTokenUsageDto } from "./CharacterPromptTokenUsageDto";
 export type { CharacterReferenceDto } from "./CharacterReferenceDto";
 export type { CharacterReferenceTypeDto } from "./CharacterReferenceTypeDto";

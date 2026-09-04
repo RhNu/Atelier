@@ -11,7 +11,6 @@ import type { GenerationCharacterDraft, GenerationDraft } from "../model/generat
 import { applyPromptPreset } from "../model/prompt-preset-model";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import { createLocalId, patchCharacter } from "./advanced-generation-model";
-import { CharacterPositionGrid } from "./CharacterPositionGrid";
 import { GenerationPresetControl } from "./GenerationPresetControl";
 import { GuidanceSection, GuidanceSettingsDisclosure } from "./GuidanceSection";
 
@@ -24,16 +23,25 @@ export function CharacterGuidanceSection({
   characterPresets,
   characterPresetsPending,
   tokenCounts,
+  capabilities,
+  onOpenPositionEditor,
 }: {
   draft: GenerationDraft;
   onPatch: PatchDraft;
   characterPresets: ReadonlyArray<PromptPresetDto>;
   characterPresetsPending: boolean;
   tokenCounts: PromptTokenUsageDto | null;
+  capabilities?: import("@/types").ModelCapabilitiesDto;
+  onOpenPositionEditor: () => void;
 }) {
   const { t } = useTranslation("generation");
   const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
-  const showPositionSettings = draft.characters.length >= 2;
+  const validCharacters = draft.characters.filter(
+    (character) => character.enabled && (character.prompt.trim() || character.presetId),
+  );
+  const showPositionSettings =
+    Boolean(capabilities?.character_position_mode) &&
+    validCharacters.length >= (capabilities?.can_position_one_character ? 1 : 2);
 
   function addCharacter() {
     onPatch(
@@ -76,8 +84,8 @@ export function CharacterGuidanceSection({
       <CharacterPositionSettings
         draft={draft}
         onPatch={onPatch}
-        activeCharacterIndex={activeCharacterIndex}
-        onSelectCharacter={setActiveCharacterIndex}
+        show={showPositionSettings}
+        onOpen={onOpenPositionEditor}
       />
       {draft.characters.length > 0 ? (
         <div className="-mx-2 grid gap-2">
@@ -105,16 +113,16 @@ export function CharacterGuidanceSection({
 function CharacterPositionSettings({
   draft,
   onPatch,
-  activeCharacterIndex,
-  onSelectCharacter,
+  show,
+  onOpen,
 }: {
   draft: GenerationDraft;
   onPatch: PatchDraft;
-  activeCharacterIndex: number;
-  onSelectCharacter: (index: number) => void;
+  show: boolean;
+  onOpen: () => void;
 }) {
   const { t } = useTranslation("generation");
-  if (draft.characters.length < 2) {
+  if (!show) {
     return null;
   }
   const useAiPositioning = draft.characterPositionMode === "global";
@@ -137,17 +145,13 @@ function CharacterPositionSettings({
         />
       </label>
       {!useAiPositioning ? (
-        <CharacterPositionGrid
-          characters={draft.characters}
-          activeIndex={Math.min(activeCharacterIndex, draft.characters.length - 1)}
-          onSelectCharacter={onSelectCharacter}
-          onChangePosition={(index, position) => {
-            const character = draft.characters[index];
-            if (character) {
-              patchCharacter(draft, onPatch, character.id, { position });
-            }
-          }}
-        />
+        <button
+          type="button"
+          className="h-9 w-full border border-app-border bg-app-surface text-xs font-semibold text-app-text hover:border-brand-400"
+          onClick={onOpen}
+        >
+          {t("openPositionEditor")}
+        </button>
       ) : null}
     </GuidanceSettingsDisclosure>
   );

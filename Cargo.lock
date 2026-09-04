@@ -4013,9 +4013,9 @@ dependencies = [
 
 [[package]]
 name = "novelai-bridge"
-version = "0.5.0-rc.1"
+version = "0.5.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad929b6c203e6c4ebae9821f4fbb6444e3c3a82179391c5eace0509fd489e973"
+checksum = "1ff7a3faf2fd489f9eba9e850739554df60880e3697089f2538ecd0c64e72614"
 dependencies = [
  "async-stream",
  "async-trait",

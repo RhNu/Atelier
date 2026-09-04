@@ -10,6 +10,7 @@ import { useToastStore } from "@/stores/toast-store";
 import type { CompiledGenerationPromptDto, GenerationBatchHistoryStatusDto } from "@/types";
 
 import { AdvancedGenerationInputs } from "./components/AdvancedGenerationInputs";
+import { CharacterPositionWorkspace } from "./components/CharacterPositionWorkspace";
 import {
   GenerationLoadingState,
   GenerationSettingsError,
@@ -55,6 +56,7 @@ import {
   resetGenerationParameters,
   switchGenerationModel,
 } from "./model/generation-draft";
+import type { GenerationCharacterDraft } from "./model/generation-draft";
 import { buildGenerationBatchView, selectDefaultRequest } from "./model/generation-preview-model";
 import { useGenerationEventStore } from "./state/generation-event-store";
 import { useGenerationDraft } from "./state/useGenerationDraft";
@@ -153,6 +155,7 @@ export function GeneratePage() {
   const [compileDialogOpen, setCompileDialogOpen] = useState(false);
   const [compileError, setCompileError] = useState<string | null>(null);
   const [compiledPreview, setCompiledPreview] = useState<CompiledGenerationPromptDto | null>(null);
+  const [centerWorkspace, setCenterWorkspace] = useState<"preview" | "positions">("preview");
 
   const status = statusQuery.data;
   const effectiveLiveBatchId = liveBatchId ?? status?.batch_id ?? null;
@@ -178,6 +181,18 @@ export function GeneratePage() {
       ? null
       : (selectedRequest?.samples.find((sample) => sample.sampleIndex === focusedSampleIndex) ??
         null);
+  const positionCharacters = useMemo(
+    () =>
+      draft?.characters.filter(
+        (character) =>
+          character.enabled && (character.prompt.trim() || Boolean(character.presetId)),
+      ) ?? [],
+    [draft?.characters],
+  );
+  const canEditPositions = Boolean(
+    capabilities?.character_position_mode &&
+    positionCharacters.length >= (capabilities.can_position_one_character ? 1 : 2),
+  );
   const historyBatches = historyQuery.data?.items ?? EMPTY_ITEMS;
   const isViewingLive = Boolean(viewBatchId && viewBatchId === effectiveLiveBatchId);
 
@@ -317,6 +332,27 @@ export function GeneratePage() {
     [draft, modelCatalogQuery.data, replaceDraft],
   );
 
+  const openPositionEditor = useCallback(() => setCenterWorkspace("positions"), []);
+  const closePositionEditor = useCallback(() => setCenterWorkspace("preview"), []);
+  const applyCharacterPositions = useCallback(
+    (positioned: GenerationCharacterDraft[]) => {
+      if (!draft) return;
+      const byId = new Map(positioned.map((character) => [character.id, character.position]));
+      patchDraft(
+        {
+          characters: draft.characters.map((character) => ({
+            ...character,
+            position: byId.get(character.id) ?? character.position,
+          })),
+          characterPositionMode: "manual",
+        },
+        { persist: "immediate" },
+      );
+      setCenterWorkspace("preview");
+    },
+    [draft, patchDraft],
+  );
+
   const handleClearStoredDraft = useCallback(() => {
     if (!settingsQuery.data) {
       return;
@@ -402,6 +438,7 @@ export function GeneratePage() {
                   developerMode={globalSettingsQuery.data?.frontend.developer_mode === true}
                   capabilities={capabilities}
                   tokenCounts={promptTokenCounts}
+                  onOpenPositionEditor={openPositionEditor}
                 />
               </PromptEditorSettingsProvider>
               <GenerationParamsPanel
@@ -441,33 +478,47 @@ export function GeneratePage() {
           </>
         }
         preview={
-          <GenerationPreviewStage
-            batch={batchView}
-            selectedRequest={selectedRequest}
-            focusedSampleIndex={focusedSampleIndex}
-            focusMode={focusMode}
-            isViewingLive={isViewingLive}
-            liveBatchAvailable={Boolean(effectiveLiveBatchId)}
-            statusError={statusQuery.isError ? formatError(statusQuery.error) : null}
-            lastError={lastError?.message ?? null}
-            savePending={generationActions.exportPending}
-            zipPending={generationActions.zipPending}
-            handoffPending={generationActions.handoffPending}
-            rerunPending={generationActions.rerunPending}
-            deletePending={generationActions.deletePending}
-            compilePending={compileMutation.isPending}
-            queueControls={queueControls}
-            onSelectRequest={selectRequest}
-            onFocusSample={focusSample}
-            onShowRequestGrid={showRequestGrid}
-            onResumeLive={resumeFollow}
-            onSaveSample={generationActions.handleSaveSample}
-            onSendSampleToDirector={generationActions.handleSendSampleToDirector}
-            onExportRequest={generationActions.handleExportRequest}
-            onRerunRequest={generationActions.handleRerunRequest}
-            onDeleteRequest={generationActions.handleDeleteRequest}
-            onCompilePrompt={handleCompile}
-          />
+          centerWorkspace === "positions" && capabilities && draft ? (
+            <CharacterPositionWorkspace
+              key={`${draft.model}-${draft.characters.map((character) => character.id).join("-")}`}
+              characters={positionCharacters}
+              capabilities={capabilities}
+              size={draft.size}
+              underlayResource={selectedSample?.resource ?? draft.i2i?.image ?? null}
+              underlayStreamSrc={selectedSample?.streamSrc ?? null}
+              onApply={applyCharacterPositions}
+              onCancel={closePositionEditor}
+            />
+          ) : (
+            <GenerationPreviewStage
+              batch={batchView}
+              selectedRequest={selectedRequest}
+              focusedSampleIndex={focusedSampleIndex}
+              focusMode={focusMode}
+              isViewingLive={isViewingLive}
+              liveBatchAvailable={Boolean(effectiveLiveBatchId)}
+              statusError={statusQuery.isError ? formatError(statusQuery.error) : null}
+              lastError={lastError?.message ?? null}
+              savePending={generationActions.exportPending}
+              zipPending={generationActions.zipPending}
+              handoffPending={generationActions.handoffPending}
+              rerunPending={generationActions.rerunPending}
+              deletePending={generationActions.deletePending}
+              compilePending={compileMutation.isPending}
+              queueControls={queueControls}
+              onSelectRequest={selectRequest}
+              onFocusSample={focusSample}
+              onShowRequestGrid={showRequestGrid}
+              onResumeLive={resumeFollow}
+              onSaveSample={generationActions.handleSaveSample}
+              onSendSampleToDirector={generationActions.handleSendSampleToDirector}
+              onExportRequest={generationActions.handleExportRequest}
+              onRerunRequest={generationActions.handleRerunRequest}
+              onDeleteRequest={generationActions.handleDeleteRequest}
+              onCompilePrompt={handleCompile}
+              onEditCharacterPositions={canEditPositions ? openPositionEditor : undefined}
+            />
+          )
         }
         history={
           <GenerationHistoryRail

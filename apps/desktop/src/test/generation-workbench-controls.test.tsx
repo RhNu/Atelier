@@ -1,10 +1,7 @@
-/* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-array-as-prop */
+/* eslint-disable react-perf/jsx-no-jsx-as-prop */
 import { fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
-import { CharacterPositionGrid } from "../features/generation/components/CharacterPositionGrid";
 import { GenerationWorkbenchLayout } from "../features/generation/components/GenerationWorkbenchLayout";
-import type { GenerationCharacterDraft } from "../features/generation/model/generation-draft";
 import { i18n } from "../i18n";
 
 const SIDEBAR_STORAGE_KEY = "atelier.ui.generate.sidebar-width.v1";
@@ -50,52 +47,3 @@ describe("GenerationWorkbenchLayout", () => {
     expect(screen.getByTestId("generation-settings-sidebar")).toHaveStyle({ width: "480px" });
   });
 });
-
-describe("CharacterPositionGrid", () => {
-  it("selects characters, snaps cells, and supports keyboard movement", async () => {
-    const user = userEvent.setup();
-    const onSelectCharacter = vi.fn<(index: number) => void>();
-    const onChangePosition = vi.fn<(index: number, position: { x: number; y: number }) => void>();
-    const characters: GenerationCharacterDraft[] = [
-      character("one", 0.5, 0.5),
-      character("two", 0.75, 0.75),
-    ];
-    render(
-      <CharacterPositionGrid
-        characters={characters}
-        activeIndex={0}
-        onSelectCharacter={onSelectCharacter}
-        onChangePosition={onChangePosition}
-      />,
-    );
-
-    await user.click(
-      screen.getByRole("button", { name: i18n.t("generation:selectCharacter", { index: 2 }) }),
-    );
-    expect(onSelectCharacter).toHaveBeenCalledWith(1);
-
-    await user.click(
-      screen.getByRole("gridcell", {
-        name: i18n.t("generation:positionCell", { x: 25, y: 75 }),
-      }),
-    );
-    expect(onChangePosition).toHaveBeenCalledWith(0, { x: 0.25, y: 0.75 });
-
-    const grid = screen.getByRole("grid", { name: i18n.t("generation:positionGrid") });
-    fireEvent.keyDown(grid, { key: "ArrowLeft" });
-    expect(onChangePosition).toHaveBeenLastCalledWith(0, { x: 0.25, y: 0.5 });
-    fireEvent.keyDown(grid, { key: "Home" });
-    expect(onChangePosition).toHaveBeenLastCalledWith(0, { x: 0.5, y: 0.5 });
-  });
-});
-
-function character(id: string, x: number, y: number): GenerationCharacterDraft {
-  return {
-    id,
-    presetId: null,
-    prompt: "",
-    negativePrompt: "",
-    enabled: true,
-    position: { x, y },
-  };
-}

@@ -32,6 +32,14 @@ pub enum PromptStructureDto {
     V4,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum CharacterPositionModeDto {
+    #[serde(rename = "grid_5x5")]
+    Grid5x5,
+    Freeform,
+}
+
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ModelCapabilitiesDto {
@@ -40,6 +48,8 @@ pub struct ModelCapabilitiesDto {
     pub default_steps: u32,
     pub default_scale: f32,
     pub max_characters: u32,
+    pub character_position_mode: Option<CharacterPositionModeDto>,
+    pub can_position_one_character: bool,
     pub supports_vibe_transfer: bool,
     pub supports_encoded_vibe: bool,
     pub supports_character_reference: bool,

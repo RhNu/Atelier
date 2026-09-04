@@ -309,6 +309,13 @@ const imageModelCatalog: ImageModelDescriptorDto[] = imageModelRows.map(
       default_steps: 23,
       default_scale: defaultScale,
       max_characters: model === "nai-diffusion-3" || model === "nai-diffusion-furry-3" ? 0 : 6,
+      character_position_mode:
+        model === "nai-diffusion-3" || model === "nai-diffusion-furry-3"
+          ? null
+          : isV5
+            ? "freeform"
+            : "grid_5x5",
+      can_position_one_character: isV5,
       supports_vibe_transfer: !isV5,
       supports_encoded_vibe:
         !isV5 && model !== "nai-diffusion-3" && model !== "nai-diffusion-furry-3",
@@ -831,12 +838,15 @@ describe("GeneratePage", () => {
 
     await user.click(screen.getByRole("button", { name: "Add character prompt" }));
     expect(screen.queryByLabelText("Use AI character positioning")).not.toBeInTheDocument();
+    typeInPromptEditor(screen.getByLabelText("Character 1 prompt"), "alice");
     await user.click(screen.getByRole("button", { name: "Add character prompt" }));
+    typeInPromptEditor(screen.getByLabelText("Character 2 prompt"), "bob");
     const aiPositioning = await screen.findByLabelText("Use AI character positioning");
     expect(aiPositioning).toBeChecked();
     await user.click(aiPositioning);
+    await user.click(await screen.findByRole("button", { name: "Open position editor" }));
     expect(
-      await screen.findByRole("grid", { name: "Character position grid" }),
+      await screen.findByRole("application", { name: "Character position canvas" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Disable character 1" })).toHaveAttribute(
       "aria-pressed",

@@ -462,8 +462,10 @@ function buildBaseGenerateRequest(
     vibe_transfer: preciseReferences ? null : buildVibeTransfer(draft, capabilities),
     character_references: preciseReferences,
     characters,
-    use_coords:
-      characters && characters.length >= 2 ? draft.characterPositionMode === "manual" : null,
+    use_coords: characters?.length
+      ? draft.characterPositionMode === "manual" &&
+        characters.length >= (capabilities?.can_position_one_character ? 1 : 2)
+      : null,
     image_format: draft.imageFormat,
   };
 }
@@ -478,7 +480,9 @@ function buildCharacters(
       character.enabled && (character.prompt.trim().length > 0 || Boolean(character.presetId)),
   );
   const limited = capabilities ? eligible.slice(0, capabilities.max_characters) : eligible;
-  const manual = limited.length >= 2 && draft.characterPositionMode === "manual";
+  const manual =
+    limited.length >= (capabilities?.can_position_one_character ? 1 : 2) &&
+    draft.characterPositionMode === "manual";
   const characters = limited.map((character) => ({
     preset_id: character.presetId,
     prompt: character.prompt,

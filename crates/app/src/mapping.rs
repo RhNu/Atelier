@@ -204,6 +204,16 @@ pub const fn model_descriptor_to_dto(
             default_steps: capabilities.default_steps,
             default_scale: capabilities.default_scale,
             max_characters: capabilities.max_characters,
+            character_position_mode: match capabilities.character_position_mode {
+                Some(atelier_generation::CharacterPositionMode::Grid5x5) => {
+                    Some(atelier_app_api::generation::CharacterPositionModeDto::Grid5x5)
+                }
+                Some(atelier_generation::CharacterPositionMode::Freeform) => {
+                    Some(atelier_app_api::generation::CharacterPositionModeDto::Freeform)
+                }
+                None => None,
+            },
+            can_position_one_character: capabilities.can_position_one_character,
             supports_vibe_transfer: capabilities.supports_vibe_transfer,
             supports_encoded_vibe: capabilities.supports_encoded_vibe,
             supports_character_reference: capabilities.supports_character_reference,

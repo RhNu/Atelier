@@ -24,10 +24,10 @@ pub use error::{
 };
 pub use estimate::{AnlasEstimate, AnlasEstimateStatus};
 pub use model::{
-    Character, CharacterPosition, CharacterReference, CharacterReferenceType, GenerateImageRequest,
-    GenerateImageResult, GenerateImageStreamRequest, GeneratedImage, GeneratedImageMetadata,
-    GeneratedImageMetadataWarning, ImageFormat, ImageModel, ImageSize, ImageStreamEvent,
-    Img2ImgRequest, ModelCapabilities, ModelDescriptor, NoiseSchedule,
+    Character, CharacterPosition, CharacterPositionMode, CharacterReference,
+    CharacterReferenceType, GenerateImageRequest, GenerateImageResult, GenerateImageStreamRequest,
+    GeneratedImage, GeneratedImageMetadata, GeneratedImageMetadataWarning, ImageFormat, ImageModel,
+    ImageSize, ImageStreamEvent, Img2ImgRequest, ModelCapabilities, ModelDescriptor, NoiseSchedule,
     ParsedGeneratedImageMetadata, PromptStructure, QualityPreset, Sampler, StreamMode, UcPreset,
     VibeReference, VibeTransferConfig,
 };
