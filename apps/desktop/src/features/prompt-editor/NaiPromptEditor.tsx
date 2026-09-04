@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "r
 import { useTranslation } from "react-i18next";
 
 import { generationApi } from "@/platform/atelier";
-import type { ImageModelDto } from "@/types";
+import type { ImageModelDto, PromptTokenCountDto } from "@/types";
 
 import { createNaiPromptCompletion } from "./completion";
 import type { NaiPromptHighlightMode } from "./editor-theme";
@@ -23,6 +23,7 @@ type NaiPromptEditorProps = {
   onChange: (value: string) => void;
   profile?: NaiPromptProfile;
   model?: ImageModelDto;
+  tokenCount?: PromptTokenCountDto | null;
   className?: string;
   minHeight?: number;
   placeholder?: string;
@@ -43,6 +44,7 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
       onChange,
       profile = "novelai_v45",
       model,
+      tokenCount,
       className,
       minHeight = 96,
       placeholder,
@@ -107,6 +109,7 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
           <PromptTokenMeter
             model={model}
             text={shouldConvertFullWidthPunctuation ? normalizeFullWidthPunctuation(value) : value}
+            suppliedCount={tokenCount}
           />
         ) : null}
       </div>
@@ -114,18 +117,39 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
   },
 );
 
-function PromptTokenMeter({ model, text }: { model: ImageModelDto; text: string }) {
+function PromptTokenMeter({
+  model,
+  text,
+  suppliedCount,
+}: {
+  model: ImageModelDto;
+  text: string;
+  suppliedCount?: PromptTokenCountDto | null;
+}) {
   const { t } = useTranslation("promptEditor");
-  const [count, setCount] = useState<{ used: number; limit: number } | null>(null);
+  const [remoteCount, setRemoteCount] = useState<PromptTokenCountDto | null>(null);
 
   useEffect(() => {
+    if (suppliedCount !== undefined) return;
     let active = true;
     async function refreshCount() {
       try {
-        const next = await generationApi.countPromptTokens({ model, text });
-        if (active) setCount(next);
+        const next = await generationApi.countPromptTokens({
+          compile: {
+            model,
+            main_preset_id: null,
+            prompt: text,
+            negative_prompt: null,
+            characters: [],
+            max_depth: 16,
+          },
+          quality: "none",
+          transparent_background: false,
+          uc_preset: "none",
+        });
+        if (active) setRemoteCount(next.prompt);
       } catch {
-        if (active) setCount(null);
+        if (active) setRemoteCount(null);
       }
     }
     const timer = window.setTimeout(() => {
@@ -135,7 +159,9 @@ function PromptTokenMeter({ model, text }: { model: ImageModelDto; text: string 
       active = false;
       window.clearTimeout(timer);
     };
-  }, [model, text]);
+  }, [model, suppliedCount, text]);
+
+  const count = suppliedCount === undefined ? remoteCount : suppliedCount;
 
   if (!count) return <div aria-hidden="true" className="h-3" />;
 

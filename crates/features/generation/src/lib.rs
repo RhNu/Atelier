@@ -6,6 +6,7 @@ mod estimate;
 mod model;
 mod normalize;
 mod ports;
+mod prompt_tokens;
 mod request_plan;
 
 pub use draft::{
@@ -27,14 +28,17 @@ pub use model::{
     GenerateImageResult, GenerateImageStreamRequest, GeneratedImage, GeneratedImageMetadata,
     GeneratedImageMetadataWarning, ImageFormat, ImageModel, ImageSize, ImageStreamEvent,
     Img2ImgRequest, ModelCapabilities, ModelDescriptor, NoiseSchedule,
-    ParsedGeneratedImageMetadata, PromptStructure, PromptTokenCount, PromptTokenCountError,
-    QualityPreset, Sampler, StreamMode, UcPreset, VibeReference, VibeTransferConfig,
-    count_prompt_tokens,
+    ParsedGeneratedImageMetadata, PromptStructure, QualityPreset, Sampler, StreamMode, UcPreset,
+    VibeReference, VibeTransferConfig,
 };
 pub use normalize::normalize_generate_request;
 pub use ports::{
     CancellableImageStream, GenerateImageStreamResult, GeneratedImageMetadataInspector,
     GenerationResult, ImageStreamResult, NovelAiGenerationClient, passive_image_stream,
+};
+pub use prompt_tokens::{
+    CharacterPromptTokenUsage, PromptTokenCount, PromptTokenCountError, PromptTokenUsage,
+    count_prompt_tokens,
 };
 pub use request_plan::{
     GenerationOutputMode, GenerationPlanContext, GenerationRequestPlan, SeedMode,
@@ -63,15 +67,51 @@ mod tests {
 
     #[test]
     fn prompt_token_count_uses_the_model_descriptor_limit() {
-        let count = count_prompt_tokens(ImageModel::NaiDiffusion45Full, "1girl, blue hair")
-            .expect("bundled T5 tokenizer should load");
+        let request = GenerateImageRequest {
+            prompt: "1girl, blue hair".to_owned(),
+            quality: QualityPreset::None,
+            uc_preset: UcPreset::None,
+            ..GenerateImageRequest::default()
+        };
+        let usage = count_prompt_tokens(&request).expect("bundled T5 tokenizer should load");
 
-        assert!(count.used > 0);
+        assert!(usage.prompt.used > 0);
         assert_eq!(
-            count.limit,
+            usage.prompt.limit,
             ImageModel::NaiDiffusion45Full
                 .capabilities()
                 .prompt_token_limit
         );
+    }
+
+    #[test]
+    fn prompt_token_count_uses_effective_request_fields() {
+        let request = GenerateImageRequest {
+            prompt: "1girl".to_owned(),
+            negative_prompt: Some("bad hands".to_owned()),
+            quality: QualityPreset::Standard,
+            uc_preset: UcPreset::Heavy,
+            characters: Some(vec![
+                Character {
+                    prompt: "hero".to_owned(),
+                    negative_prompt: Some("villain".to_owned()),
+                    position: CharacterPosition::default(),
+                    enabled: true,
+                },
+                Character {
+                    prompt: "disabled".to_owned(),
+                    negative_prompt: None,
+                    position: CharacterPosition::default(),
+                    enabled: false,
+                },
+            ]),
+            ..GenerateImageRequest::default()
+        };
+
+        let usage = count_prompt_tokens(&request).expect("bundled T5 tokenizer should load");
+
+        assert_eq!(usage.characters.len(), 1);
+        assert_eq!(usage.characters[0].index, 0);
+        assert!(usage.negative_prompt.used > 0);
     }
 }

@@ -40,6 +40,7 @@ import {
   useSubmitGenerationMutation,
 } from "./data/useGenerationActions";
 import { useGenerationGlobalSettingsQuery } from "./data/useGenerationGlobalSettingsQuery";
+import { useGenerationPromptTokenCounts } from "./data/useGenerationPromptTokenCounts";
 import {
   useGenerationHistoryBatchQuery,
   useGenerationHistoryQuery,
@@ -100,6 +101,7 @@ export function GeneratePage() {
       !settingsQuery.isPending && (!storedDraftQuery.isPending || storedDraftQuery.isError),
     saveDraft,
   });
+  const promptTokenCounts = useGenerationPromptTokenCounts(draft);
   const mainPresetsQuery = usePromptPresetsQuery({
     kind: "main",
     model: draft?.model ?? null,
@@ -380,6 +382,7 @@ export function GeneratePage() {
                   onModelChange={handleModelChange}
                   modelCatalog={modelCatalogQuery.data}
                   capabilities={capabilities}
+                  tokenCounts={promptTokenCounts}
                 />
                 <AdvancedGenerationInputs
                   draft={draft}
@@ -398,6 +401,7 @@ export function GeneratePage() {
                   onExportVibeDocument={generationActions.handleExportVibeDocument}
                   developerMode={globalSettingsQuery.data?.frontend.developer_mode === true}
                   capabilities={capabilities}
+                  tokenCounts={promptTokenCounts}
                 />
               </PromptEditorSettingsProvider>
               <GenerationParamsPanel

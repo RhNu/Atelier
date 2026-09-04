@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { AppIconButton, AppTabs } from "@/components/ui";
 import { NaiPromptEditor, promptProfileForModel } from "@/features/prompt-editor";
-import type { PromptPresetDto } from "@/types";
+import type { PromptPresetDto, PromptTokenUsageDto } from "@/types";
 
 import type { GenerationCharacterDraft, GenerationDraft } from "../model/generation-draft";
 import { applyPromptPreset } from "../model/prompt-preset-model";
@@ -23,11 +23,13 @@ export function CharacterGuidanceSection({
   onPatch,
   characterPresets,
   characterPresetsPending,
+  tokenCounts,
 }: {
   draft: GenerationDraft;
   onPatch: PatchDraft;
   characterPresets: ReadonlyArray<PromptPresetDto>;
   characterPresetsPending: boolean;
+  tokenCounts: PromptTokenUsageDto | null;
 }) {
   const { t } = useTranslation("generation");
   const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
@@ -88,6 +90,7 @@ export function CharacterGuidanceSection({
               selected={showPositionSettings && activeCharacterIndex === index}
               characterPresets={characterPresets}
               characterPresetsPending={characterPresetsPending}
+              tokenCounts={tokenCounts}
               onPatch={onPatch}
               onSelect={() => setActiveCharacterIndex(index)}
               onRemove={() => removeCharacter(character.id)}
@@ -157,6 +160,7 @@ function CharacterCard({
   selected,
   characterPresets,
   characterPresetsPending,
+  tokenCounts,
   onPatch,
   onSelect,
   onRemove,
@@ -167,6 +171,7 @@ function CharacterCard({
   selected: boolean;
   characterPresets: ReadonlyArray<PromptPresetDto>;
   characterPresetsPending: boolean;
+  tokenCounts: PromptTokenUsageDto | null;
   onPatch: PatchDraft;
   onSelect: () => void;
   onRemove: () => void;
@@ -254,6 +259,7 @@ function CharacterCard({
         }
         profile={promptProfileForModel(draft.model)}
         model={draft.model}
+        tokenCount={characterTokenCount(tokenCounts, index, activeTab, character.enabled)}
         onKeyDown={handleEditorKeyDown}
         minHeight={88}
       />
@@ -286,4 +292,17 @@ function CharacterCard({
       />
     </article>
   );
+}
+
+function characterTokenCount(
+  usage: PromptTokenUsageDto | null,
+  index: number,
+  activeTab: PromptTab,
+  enabled: boolean,
+) {
+  if (!usage) return null;
+  if (!enabled) return { used: 0, limit: usage.prompt.limit };
+  const character = usage.characters.find((item) => item.index === index);
+  if (!character) return null;
+  return activeTab === "positive" ? character.prompt : character.negative_prompt;
 }

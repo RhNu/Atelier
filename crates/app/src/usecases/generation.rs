@@ -23,7 +23,6 @@ use super::{
 pub struct GenerationUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }
-
 impl<S, F, E> GenerationUseCases<'_, S, F, E>
 where
     S: SecretStore + Clone + Send + Sync,

@@ -6,6 +6,7 @@ import { describeError, frontendLogger } from "@/app/logger";
 import type {
   CharacterReferenceTypeDto,
   ModelCapabilitiesDto,
+  PromptTokenUsageDto,
   PromptPresetDto,
   ResourceRefDto,
 } from "@/types";
@@ -35,6 +36,7 @@ type AdvancedGenerationInputsProps = {
   onExportVibeDocument: (vibeId: string) => void;
   developerMode: boolean;
   capabilities?: ModelCapabilitiesDto;
+  tokenCounts: PromptTokenUsageDto | null;
 };
 
 const DEFAULT_REFERENCE_TYPE: CharacterReferenceTypeDto = "character";
@@ -56,6 +58,7 @@ export function AdvancedGenerationInputs({
   onExportVibeDocument,
   developerMode,
   capabilities,
+  tokenCounts,
 }: AdvancedGenerationInputsProps) {
   const { t } = useTranslation("generation");
   const [error, setError] = useState<string | null>(null);
@@ -228,6 +231,7 @@ export function AdvancedGenerationInputs({
             onPatch={onPatch}
             characterPresets={characterPresets}
             characterPresetsPending={characterPresetsPending}
+            tokenCounts={tokenCounts}
           />
         ) : null}
         {(!capabilities?.supports_vibe_transfer && draft.vibe.slots.length > 0) ||

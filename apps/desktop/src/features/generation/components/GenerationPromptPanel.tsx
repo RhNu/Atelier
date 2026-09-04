@@ -14,6 +14,7 @@ import type {
   ImageModelDescriptorDto,
   ImageModelDto,
   ModelCapabilitiesDto,
+  PromptTokenUsageDto,
   PromptPresetDto,
 } from "@/types";
 
@@ -45,6 +46,7 @@ type GenerationPromptPanelProps = {
   onModelChange?: (model: ImageModelDto) => void;
   modelCatalog?: ReadonlyArray<ImageModelDescriptorDto>;
   capabilities?: ModelCapabilitiesDto;
+  tokenCounts: PromptTokenUsageDto | null;
 };
 
 function localizedUcPresetOptions(translate: TFunction<"generation">) {
@@ -136,6 +138,7 @@ export const GenerationPromptPanel = forwardRef<
     onModelChange,
     modelCatalog,
     capabilities,
+    tokenCounts,
   },
   forwardedRef,
 ) {
@@ -230,6 +233,9 @@ export const GenerationPromptPanel = forwardRef<
           onChange={handlePromptChange}
           profile={promptProfileForModel(draft.model)}
           model={draft.model}
+          tokenCount={
+            (activeTab === "positive" ? tokenCounts?.prompt : tokenCounts?.negative_prompt) ?? null
+          }
           onKeyDown={handleEditorKeyDown}
           onBlur={onFlush}
           minHeight={176}

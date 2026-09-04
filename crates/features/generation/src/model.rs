@@ -37,50 +37,6 @@ pub struct ModelCapabilities {
     pub prompt_token_limit: u32,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct PromptTokenCount {
-    pub used: u32,
-    pub limit: u32,
-}
-
-#[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
-#[error("prompt token counting failed: {message}")]
-pub struct PromptTokenCountError {
-    message: String,
-}
-
-/// Counts editor content with the tokenizer selected by the model descriptor.
-///
-/// Editor counts intentionally exclude model framing tokens. Effective request validation remains
-/// the responsibility of `novelai-bridge`, where quality, UC, and character prompt assembly are
-/// included before transport.
-///
-/// # Errors
-/// Returns an error when bundled tokenizer assets cannot be loaded or the text cannot be encoded.
-pub fn count_prompt_tokens(
-    model: ImageModel,
-    text: &str,
-) -> Result<PromptTokenCount, PromptTokenCountError> {
-    let tokenizers =
-        novelai_bridge::Tokenizers::bundled().map_err(|error| PromptTokenCountError {
-            message: error.to_string(),
-        })?;
-    let encoder = tokenizers
-        .require_for_model(model.bridge_model())
-        .map_err(|error| PromptTokenCountError {
-            message: error.to_string(),
-        })?;
-    let used = encoder
-        .count(text, novelai_bridge::FramingPolicy::ContentOnly)
-        .map_err(|error| PromptTokenCountError {
-            message: error.to_string(),
-        })?;
-    Ok(PromptTokenCount {
-        used,
-        limit: model.descriptor().prompt().token_limit,
-    })
-}
-
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum ImageModel {
     NaiDiffusion5Full,

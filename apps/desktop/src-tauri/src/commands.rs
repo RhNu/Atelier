@@ -551,11 +551,11 @@ pub fn list_image_models(
     clippy::needless_pass_by_value,
     reason = "Tauri commands extract managed state and request DTOs by value"
 )]
-pub fn count_prompt_tokens(
+pub async fn count_prompt_tokens(
     state: State<'_, DesktopState>,
     request: atelier_app_api::generation::CountPromptTokensRequestDto,
-) -> CommandResult<atelier_app_api::generation::PromptTokenCountDto> {
-    state.host.count_prompt_tokens(&request)
+) -> CommandResult<atelier_app_api::generation::PromptTokenUsageDto> {
+    state.host.count_prompt_tokens(request).await
 }
 
 #[tauri::command]

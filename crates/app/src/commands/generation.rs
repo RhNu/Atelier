@@ -2,7 +2,7 @@ use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::{
     CountPromptTokensRequestDto, GenerationAnlasEstimateDto, GenerationDraftDto,
     GenerationEstimateRequestDto, GenerationStatusDto, GenerationStatusQueryDto,
-    ImageModelDescriptorDto, PromptTokenCountDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    ImageModelDescriptorDto, PromptTokenUsageDto, QueueDirectiveDto, RunGenerationJobRequestDto,
     SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
 };
 use atelier_app_api::prompt::AppendLexiconEntitiesRequestDto;
@@ -29,23 +29,20 @@ where
             .collect())
     }
 
-    /// Counts raw prompt-editor content with the selected model's bundled bridge tokenizer.
+    /// Compiles and counts the effective prompt fields that `NovelAI` will receive.
     ///
     /// # Errors
     /// Returns an error envelope when bundled tokenizer assets cannot be loaded or encoding fails.
-    pub fn count_prompt_tokens(
+    pub async fn count_prompt_tokens(
         &self,
-        request: &CountPromptTokensRequestDto,
-    ) -> CommandResult<PromptTokenCountDto> {
-        atelier_generation::count_prompt_tokens(
-            crate::mapping::image_model_to_domain(request.model),
-            &request.text,
+        request: CountPromptTokensRequestDto,
+    ) -> CommandResult<PromptTokenUsageDto> {
+        Self::command_result(
+            self.current_session()?
+                .generation()
+                .count_prompt_tokens(request)
+                .await,
         )
-        .map(|count| PromptTokenCountDto {
-            used: count.used,
-            limit: count.limit,
-        })
-        .map_err(|error| crate::AppError::new("prompt_tokenizer", error.to_string()).envelope())
     }
 
     /// Returns the persisted generation workbench draft for the current workspace.

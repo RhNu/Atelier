@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::prompt::CompileGenerationPromptRequestDto;
 use crate::resource::{ImageInputDto, ResourceRefDto};
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -66,14 +67,30 @@ pub struct ImageModelDescriptorDto {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct CountPromptTokensRequestDto {
-    pub model: ImageModelDto,
-    pub text: String,
+    pub compile: CompileGenerationPromptRequestDto,
+    pub quality: QualityPresetDto,
+    pub transparent_background: bool,
+    pub uc_preset: UcPresetDto,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptTokenCountDto {
     pub used: u32,
     pub limit: u32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CharacterPromptTokenUsageDto {
+    pub index: usize,
+    pub prompt: PromptTokenCountDto,
+    pub negative_prompt: PromptTokenCountDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PromptTokenUsageDto {
+    pub prompt: PromptTokenCountDto,
+    pub negative_prompt: PromptTokenCountDto,
+    pub characters: Vec<CharacterPromptTokenUsageDto>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

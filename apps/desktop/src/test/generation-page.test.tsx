@@ -47,7 +47,7 @@ import type {
   QueueDirectiveDto,
   PromptChunkPageDto,
   PromptPresetPageDto,
-  PromptTokenCountDto,
+  PromptTokenUsageDto,
   ResourceImageDto,
   ReleaseImportedImageResourcesRequestDto,
   ReleaseImportedImageResourcesResponseDto,
@@ -83,7 +83,7 @@ import {
 const mocks = vi.hoisted(() => ({
   generationApi: {
     countPromptTokens:
-      vi.fn<(request: CountPromptTokensRequestDto) => Promise<PromptTokenCountDto>>(),
+      vi.fn<(request: CountPromptTokensRequestDto) => Promise<PromptTokenUsageDto>>(),
     listModels: vi.fn<() => Promise<ImageModelDescriptorDto[]>>(),
     getDraft: vi.fn<() => Promise<GenerationDraftDto | null>>(),
     saveDraft: vi.fn<(request: SaveGenerationDraftRequestDto) => Promise<GenerationDraftDto>>(),
@@ -365,7 +365,11 @@ function setup(options?: {
   subscription?: SubscriptionSummaryDto;
 }) {
   mocks.generationApi.listModels.mockResolvedValue(imageModelCatalog);
-  mocks.generationApi.countPromptTokens.mockResolvedValue({ used: 3, limit: 512 });
+  mocks.generationApi.countPromptTokens.mockResolvedValue({
+    prompt: { used: 3, limit: 512 },
+    negative_prompt: { used: 4, limit: 512 },
+    characters: [],
+  });
   if (options?.settingsError) {
     mocks.settingsApi.get.mockRejectedValue(options.settingsError);
   } else {
@@ -886,6 +890,66 @@ describe("GeneratePage", () => {
     });
     const savedRequest = mocks.generationApi.saveDraft.mock.lastCall?.[0];
     expect(savedRequest?.draft.prompt_states[0]?.prompt).toBe("restored prompt, detailed eyes");
+  });
+
+  it("counts the complete generation prompt assembly once and displays the returned field", async () => {
+    const draft = storedDraft({
+      prompt_states: [
+        {
+          model: "nai-diffusion-4-5-full",
+          main_preset_id: "preset-main",
+          prompt: '1girl, $comment("draft note")',
+          negative_prompt: "bad hands",
+          characters: [
+            {
+              id: "character-1",
+              preset_id: "preset-character",
+              prompt: "$chunk(hero)",
+              negative_prompt: "extra arms",
+              enabled: true,
+              position: { x: 0.5, y: 0.5 },
+            },
+          ],
+          character_position_mode: "global",
+        },
+      ],
+    });
+    setup({ storedDraft: draft });
+    mocks.generationApi.countPromptTokens.mockResolvedValue({
+      prompt: { used: 13, limit: 512 },
+      negative_prompt: { used: 9, limit: 512 },
+      characters: [
+        {
+          index: 0,
+          prompt: { used: 5, limit: 512 },
+          negative_prompt: { used: 4, limit: 512 },
+        },
+      ],
+    });
+
+    expect(
+      await screen.findByRole("progressbar", { name: "13 of 512 tokens" }),
+    ).toBeInTheDocument();
+    expect(mocks.generationApi.countPromptTokens).toHaveBeenCalledWith({
+      compile: {
+        model: "nai-diffusion-4-5-full",
+        main_preset_id: "preset-main",
+        prompt: '1girl, $comment("draft note")',
+        negative_prompt: "bad hands",
+        characters: [
+          {
+            preset_id: "preset-character",
+            prompt: "$chunk(hero)",
+            negative_prompt: "extra arms",
+            enabled: true,
+          },
+        ],
+        max_depth: 16,
+      },
+      quality: draft.quality,
+      transparent_background: false,
+      uc_preset: draft.uc_preset,
+    });
   });
 
   it("converts full-width punctuation in generation prompts when enabled", async () => {

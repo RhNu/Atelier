@@ -18,11 +18,12 @@ use atelier_app_api::gallery::{
     SetGallerySafetyOverrideRequestDto,
 };
 use atelier_app_api::generation::{
-    GenerateImageRequestDto, GenerationDraftCharacterPositionModeDto, GenerationDraftDto,
-    GenerationDraftPromptStateDto, GenerationDraftSeedModeDto, GenerationDraftVibeDto,
-    GenerationDraftVibeSlotDto, GenerationPlanContextDto, GenerationStatusQueryDto,
-    GenerationWorkRequestDto, ImageModelDto, QueueDirectiveDto, RunGenerationJobRequestDto,
-    SaveGenerationDraftRequestDto, SubmitGenerationRequestDto,
+    CountPromptTokensRequestDto, GenerateImageRequestDto, GenerationDraftCharacterPositionModeDto,
+    GenerationDraftDto, GenerationDraftPromptStateDto, GenerationDraftSeedModeDto,
+    GenerationDraftVibeDto, GenerationDraftVibeSlotDto, GenerationPlanContextDto,
+    GenerationStatusQueryDto, GenerationWorkRequestDto, ImageModelDto, QualityPresetDto,
+    QueueDirectiveDto, RunGenerationJobRequestDto, SaveGenerationDraftRequestDto,
+    SubmitGenerationRequestDto, UcPresetDto,
 };
 use atelier_app_api::history::{RunHistoryOutputStateDto, RunHistoryQueryDto};
 use atelier_app_api::prompt::{
@@ -68,6 +69,8 @@ use futures_executor::block_on;
 mod danbooru_commands;
 #[path = "command_facade/explore_commands.rs"]
 mod explore_commands;
+#[path = "command_facade/prompt_token_commands.rs"]
+mod prompt_token_commands;
 #[path = "command_facade/resource_preview_commands.rs"]
 mod resource_preview_commands;
 #[path = "command_facade/session_commands.rs"]

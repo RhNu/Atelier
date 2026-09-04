@@ -15,6 +15,8 @@ import type {
   LexiconCompleteRequestDto,
   LexiconSearchItemDto,
   PromptChunkPageDto,
+  PromptTokenCountDto,
+  PromptTokenUsageDto,
 } from "@/types";
 
 import { NaiPromptEditor, type NaiPromptHighlightMode } from "./NaiPromptEditor";
@@ -55,9 +57,10 @@ const mocks = vi.hoisted(() => ({
       },
     ],
   ),
-  countPromptTokens: vi.fn<() => Promise<{ used: number; limit: number }>>(async () => ({
-    used: 42,
-    limit: 512,
+  countPromptTokens: vi.fn<() => Promise<PromptTokenUsageDto>>(async () => ({
+    prompt: { used: 42, limit: 512 },
+    negative_prompt: { used: 1, limit: 512 },
+    characters: [],
   })),
 }));
 
@@ -182,9 +185,36 @@ describe("NaiPromptEditor", () => {
     const meter = await screen.findByRole("progressbar", { name: "42 of 512 tokens" });
     expect(meter).toHaveAttribute("value", "42");
     expect(mocks.countPromptTokens).toHaveBeenCalledWith({
-      model: "nai-diffusion-4-5-full",
-      text: "1girl, blue hair",
+      compile: {
+        model: "nai-diffusion-4-5-full",
+        main_preset_id: null,
+        prompt: "1girl, blue hair",
+        negative_prompt: null,
+        characters: [],
+        max_depth: 16,
+      },
+      quality: "none",
+      transparent_background: false,
+      uc_preset: "none",
     });
+  });
+
+  it("renders an assembled count without issuing a second count request", async () => {
+    mocks.countPromptTokens.mockClear();
+    render(
+      editor({
+        ariaLabel: "Assembled prompt",
+        value: '1girl, $comment("draft")',
+        model: "nai-diffusion-4-5-full",
+        tokenCount: { used: 7, limit: 512 },
+      }),
+    );
+
+    expect(screen.getByRole("progressbar", { name: "7 of 512 tokens" })).toBeInTheDocument();
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+    });
+    expect(mocks.countPromptTokens).not.toHaveBeenCalled();
   });
 
   it("converts full-width prompt punctuation to comma-space when enabled", async () => {
@@ -216,6 +246,7 @@ type EditorOptions = {
   readOnly?: boolean;
   highlightMode?: NaiPromptHighlightMode;
   model?: ImageModelDto;
+  tokenCount?: PromptTokenCountDto | null;
   onChange?: (value: string) => void;
   convertFullWidthPunctuation?: boolean;
 };
@@ -233,6 +264,7 @@ function editor(options: EditorOptions) {
         readOnly={options.readOnly}
         highlightMode={options.highlightMode}
         model={options.model}
+        tokenCount={options.tokenCount}
         convertFullWidthPunctuation={options.convertFullWidthPunctuation}
       />
     </QueryClientProvider>
