@@ -72,6 +72,10 @@ export function useGenerationDraftQuery() {
   });
 }
 
+export function loadGenerationResourceImage(resource: ResourceRefDto) {
+  return resourceApi.image({ resource });
+}
+
 export function useSaveGenerationDraftMutation() {
   return useMutation({
     mutationFn: (draft: GenerationDraft) =>

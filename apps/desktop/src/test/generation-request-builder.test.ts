@@ -250,6 +250,7 @@ describe("generation request builder", () => {
             brushSize: 48,
           },
           focus: null,
+          referenceInsets: [],
         },
         strength: 0.64,
         noise: 0.12,
@@ -459,6 +460,7 @@ describe("generation request builder", () => {
           brushSize: 48,
         },
         focus: { x: 0.25, y: 0.25, width: 0.5, height: 0.5, minimumContextArea: 0.25 },
+        referenceInsets: [],
       },
     };
     const request = buildSubmitGenerationBatchRequest(

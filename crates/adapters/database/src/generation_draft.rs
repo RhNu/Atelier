@@ -3,9 +3,9 @@ use atelier_generation::{
     CharacterPosition, GenerationDraftCharacter, GenerationDraftCharacterPositionMode,
     GenerationDraftError, GenerationDraftFocusRegion, GenerationDraftI2i,
     GenerationDraftInpaintSession, GenerationDraftMaskDisplay, GenerationDraftMaskPattern,
-    GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftRepository,
-    GenerationDraftResult, GenerationDraftSeedMode, GenerationDraftSnapshot, GenerationDraftVibe,
-    GenerationDraftVibeSlot, ImageSize,
+    GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftReferenceInset,
+    GenerationDraftRepository, GenerationDraftResult, GenerationDraftSeedMode,
+    GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot, ImageSize,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
 use rusqlite::{OptionalExtension, params};
@@ -248,6 +248,7 @@ impl GenerationDraftI2iDto {
                         region_to_replace: mask.into_domain(),
                         display: GenerationDraftMaskDisplay::default(),
                         focus: None,
+                        reference_insets: Vec::new(),
                     })
                 }),
             strength: self.strength,
@@ -262,6 +263,8 @@ struct GenerationDraftInpaintSessionDto {
     display: GenerationDraftMaskDisplayDto,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     focus: Option<GenerationDraftFocusRegionDto>,
+    #[serde(default)]
+    reference_insets: Vec<GenerationDraftReferenceInsetDto>,
 }
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]
@@ -271,6 +274,18 @@ struct GenerationDraftFocusRegionDto {
     width: f32,
     height: f32,
     minimum_context_area: f32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct GenerationDraftReferenceInsetDto {
+    id: String,
+    image: ResourceRefDto,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    border_enabled: bool,
+    border_width: u32,
 }
 
 impl GenerationDraftInpaintSessionDto {
@@ -285,6 +300,20 @@ impl GenerationDraftInpaintSessionDto {
                 height: focus.height,
                 minimum_context_area: focus.minimum_context_area,
             }),
+            reference_insets: value
+                .reference_insets
+                .iter()
+                .map(|inset| GenerationDraftReferenceInsetDto {
+                    id: inset.id.clone(),
+                    image: ResourceRefDto::from_domain(&inset.image),
+                    x: inset.x,
+                    y: inset.y,
+                    width: inset.width,
+                    height: inset.height,
+                    border_enabled: inset.border_enabled,
+                    border_width: inset.border_width,
+                })
+                .collect(),
         }
     }
 
@@ -299,6 +328,20 @@ impl GenerationDraftInpaintSessionDto {
                 height: focus.height,
                 minimum_context_area: focus.minimum_context_area,
             }),
+            reference_insets: self
+                .reference_insets
+                .into_iter()
+                .map(|inset| GenerationDraftReferenceInset {
+                    id: inset.id,
+                    image: inset.image.into_domain(),
+                    x: inset.x,
+                    y: inset.y,
+                    width: inset.width,
+                    height: inset.height,
+                    border_enabled: inset.border_enabled,
+                    border_width: inset.border_width,
+                })
+                .collect(),
         }
     }
 }

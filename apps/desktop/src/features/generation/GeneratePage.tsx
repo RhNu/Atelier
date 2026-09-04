@@ -525,6 +525,9 @@ export function GeneratePage() {
               size={draft.size}
               commitPending={canvasCommitMutation.isPending}
               onCommit={canvasCommitMutation.mutateAsync}
+              onPickImageResources={() =>
+                generationActions.handlePickImageResources("reference_image")
+              }
               onApply={applyInpaintCanvas}
               onCancel={closePositionEditor}
             />

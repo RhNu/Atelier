@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { describeError, frontendLogger } from "@/app/logger";
+import { AppButton } from "@/components/ui";
 import type {
   CharacterReferenceTypeDto,
   ModelCapabilitiesDto,
@@ -123,6 +124,7 @@ export function AdvancedGenerationInputs({
             regionToReplace: resource,
             display: defaultMaskDisplay(),
             focus: null,
+            referenceInsets: [],
           },
         });
         await releaseImages([replaced]);
@@ -210,6 +212,26 @@ export function AdvancedGenerationInputs({
           developerMode={developerMode}
           onOpenInpaintEditor={onOpenInpaintEditor}
         />
+        {draft.i2i?.inpaint?.referenceInsets.length &&
+        !draft.prompt.toLowerCase().includes("reference inset") ? (
+          <div className="flex items-center justify-between gap-2 border border-amber-400/40 bg-amber-400/10 p-2 text-xs text-amber-100">
+            <span>{t("referenceInsetPromptWarning")}</span>
+            <AppButton
+              variant="secondary"
+              className="h-8 text-xs"
+              onClick={() =>
+                onPatch(
+                  {
+                    prompt: `${draft.prompt.trim()}${draft.prompt.trim() ? ", " : ""}reference inset`,
+                  },
+                  { persist: "immediate" },
+                )
+              }
+            >
+              {t("insertReferenceInsetPrompt")}
+            </AppButton>
+          </div>
+        ) : null}
         {capabilities?.supports_vibe_transfer !== false && draft.preciseReferences.length === 0 ? (
           <VibeGuidanceSection
             draft={draft}
@@ -225,7 +247,8 @@ export function AdvancedGenerationInputs({
             developerMode={developerMode}
           />
         ) : null}
-        {capabilities?.supports_character_reference !== false ? (
+        {capabilities?.supports_character_reference !== false &&
+        (!draft.i2i?.inpaint || capabilities?.supports_character_reference_inpainting === true) ? (
           <PreciseReferenceSection
             draft={draft}
             onPatch={onPatch}

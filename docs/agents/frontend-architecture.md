@@ -92,6 +92,15 @@ Atelier uses a dark desktop workbench style:
 - No rounded corners, decorative orbs, marketing-style landing pages, or single-page catch-all settings surfaces.
 - No nested card stacks. Use full-height split layouts, panel columns, or section navigation instead.
 
+### Generation Center Workspace
+
+The generation feature owns the center preview region as a replaceable work surface. Generated
+outputs are its default mode; character positioning and image-guidance editors temporarily replace
+that preview instead of competing for width in the parameter column. Editors keep uncommitted
+pointer and canvas data locally (refs for high-frequency input, React state for controls). Only an
+explicit Apply writes coordinates or resource references into the durable generation draft; Cancel
+leaves the draft unchanged and confirms before discarding dirty canvas work.
+
 Settings pages should use a second-level section navigator inside the Settings route. The global
 icon rail remains the top-level app navigation; the Settings inner navigator owns application-level
 Connections, Interface, and Safety sections plus workspace lifecycle, Generation, and Images.

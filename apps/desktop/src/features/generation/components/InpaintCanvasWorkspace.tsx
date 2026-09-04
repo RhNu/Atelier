@@ -1,16 +1,17 @@
 /* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
-import { Check, Eraser, Paintbrush, Trash2, X } from "lucide-react";
+import { Check, Eraser, ImagePlus, Paintbrush, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppRangeField, AppSelect } from "@/components/ui";
 import type { CommitGenerationCanvasResourcesResponseDto } from "@/types";
 
-import { useResourceImageQuery } from "../data/useGenerationActions";
+import { loadGenerationResourceImage, useResourceImageQuery } from "../data/useGenerationActions";
 import type {
   GenerationFocusRegionDraft,
   GenerationI2iDraft,
   GenerationInpaintSessionDraft,
+  GenerationReferenceInsetDraft,
 } from "../model/generation-draft";
 
 type Tool = "brush" | "eraser";
@@ -20,6 +21,7 @@ export function InpaintCanvasWorkspace({
   size,
   commitPending,
   onCommit,
+  onPickImageResources,
   onApply,
   onCancel,
 }: {
@@ -30,6 +32,7 @@ export function InpaintCanvasWorkspace({
     source_png_base64: string;
     region_to_replace_png_base64: string;
   }) => Promise<CommitGenerationCanvasResourcesResponseDto>;
+  onPickImageResources: () => Promise<CommitGenerationCanvasResourcesResponseDto["source"][]>;
   onApply: (
     image: CommitGenerationCanvasResourcesResponseDto["source"],
     inpaint: GenerationInpaintSessionDraft,
@@ -49,6 +52,7 @@ export function InpaintCanvasWorkspace({
   const [resizeSize, setResizeSize] = useState(size);
   const [anchor, setAnchor] = useState("center");
   const [focus, setFocus] = useState<GenerationFocusRegionDraft | null>(i2i.inpaint?.focus ?? null);
+  const [referenceInsets, setReferenceInsets] = useState(() => i2i.inpaint?.referenceInsets ?? []);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [display, setDisplay] = useState(
@@ -176,6 +180,9 @@ export function InpaintCanvasWorkspace({
     if (!source || !mask) return;
     setError(null);
     try {
+      if (referenceInsets.length) {
+        await flattenReferenceInsets(source, mask, referenceInsets, display.color);
+      }
       if (focus && !hasPaintedPixels(mask)) {
         const context = mask.getContext("2d");
         if (context) {
@@ -194,12 +201,35 @@ export function InpaintCanvasWorkspace({
       });
       onApply(
         committed.source,
-        { regionToReplace: committed.region_to_replace, display, focus },
+        {
+          regionToReplace: committed.region_to_replace,
+          display,
+          focus,
+          referenceInsets,
+        },
         canvasSize,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
+  }
+
+  async function addReferenceInsets() {
+    const resources = await onPickImageResources();
+    setReferenceInsets((current) => [
+      ...current,
+      ...resources.map((image, index) => ({
+        id: `reference-inset-${Date.now()}-${index}`,
+        image,
+        x: 0.15 + ((current.length + index) % 4) * 0.08,
+        y: 0.15 + ((current.length + index) % 4) * 0.08,
+        width: 0.35,
+        height: 0.35,
+        borderEnabled: true,
+        borderWidth: 4,
+      })),
+    ]);
+    if (resources.length) setDirty(true);
   }
 
   function cancel() {
@@ -271,6 +301,9 @@ export function InpaintCanvasWorkspace({
                 }}
               />
             ) : null}
+            {referenceInsets.map((inset) => (
+              <ReferenceInsetLayer key={inset.id} inset={inset} />
+            ))}
           </div>
         </div>
         <aside className="grid content-start gap-4 overflow-auto border-l border-app-border p-3">
@@ -435,6 +468,94 @@ export function InpaintCanvasWorkspace({
               {t("applyResize")}
             </AppButton>
           </div>
+          <div className="grid gap-2 border-t border-app-border pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-app-text">{t("referenceInpainting")}</span>
+              <AppButton
+                variant="secondary"
+                className="h-8 px-2 text-xs"
+                onClick={() => void addReferenceInsets()}
+              >
+                <ImagePlus className="size-4" />
+                {t("addReferenceInset")}
+              </AppButton>
+            </div>
+            {referenceInsets.map((inset, index) => (
+              <div key={inset.id} className="grid gap-2 border border-app-border p-2">
+                <span className="text-xs text-app-text">
+                  {t("referenceInset", { index: index + 1 })}
+                </span>
+                <AppRangeField
+                  label="X"
+                  value={inset.x}
+                  valueText={inset.x.toFixed(2)}
+                  min={0}
+                  max={1 - inset.width}
+                  step={0.01}
+                  onChange={(x) =>
+                    setReferenceInsets((items) => patchInset(items, inset.id, { x }))
+                  }
+                />
+                <AppRangeField
+                  label="Y"
+                  value={inset.y}
+                  valueText={inset.y.toFixed(2)}
+                  min={0}
+                  max={1 - inset.height}
+                  step={0.01}
+                  onChange={(y) =>
+                    setReferenceInsets((items) => patchInset(items, inset.id, { y }))
+                  }
+                />
+                <AppRangeField
+                  label={t("insetSize")}
+                  value={inset.width}
+                  valueText={`${Math.round(inset.width * 100)}%`}
+                  min={0.05}
+                  max={Math.min(1 - inset.x, 1 - inset.y)}
+                  step={0.01}
+                  onChange={(width) =>
+                    setReferenceInsets((items) =>
+                      patchInset(items, inset.id, { width, height: width }),
+                    )
+                  }
+                />
+                <label className="flex justify-between text-xs text-app-muted">
+                  {t("insetBorder")}
+                  <input
+                    type="checkbox"
+                    checked={inset.borderEnabled}
+                    onChange={(event) =>
+                      setReferenceInsets((items) =>
+                        patchInset(items, inset.id, { borderEnabled: event.target.checked }),
+                      )
+                    }
+                  />
+                </label>
+                <AppRangeField
+                  label={t("borderWidth")}
+                  value={inset.borderWidth}
+                  valueText={`${inset.borderWidth}px`}
+                  min={0}
+                  max={32}
+                  step={1}
+                  onChange={(borderWidth) =>
+                    setReferenceInsets((items) => patchInset(items, inset.id, { borderWidth }))
+                  }
+                />
+                <AppButton
+                  variant="danger"
+                  className="h-8 text-xs"
+                  onClick={() =>
+                    setReferenceInsets((items) => items.filter((item) => item.id !== inset.id))
+                  }
+                >
+                  <Trash2 className="size-4" />
+                  {t("remove")}
+                </AppButton>
+              </div>
+            ))}
+          </div>
         </aside>
       </div>
       <footer className="flex items-center justify-between gap-2 border-t border-app-border px-3 py-2">
@@ -487,6 +608,71 @@ function binaryMaskBase64(mask: HTMLCanvasElement): string {
 }
 function dataUrlPayload(value: string): string {
   return value.slice(value.indexOf(",") + 1);
+}
+
+function ReferenceInsetLayer({ inset }: { inset: GenerationReferenceInsetDraft }) {
+  const query = useResourceImageQuery(inset.image);
+  return query.data ? (
+    <img
+      src={`data:${query.data.mime_type ?? "image/png"};base64,${query.data.image_base64}`}
+      alt=""
+      className="pointer-events-none absolute object-fill"
+      style={{
+        left: `${inset.x * 100}%`,
+        top: `${inset.y * 100}%`,
+        width: `${inset.width * 100}%`,
+        height: `${inset.height * 100}%`,
+        border: inset.borderEnabled ? `${inset.borderWidth}px solid black` : undefined,
+      }}
+    />
+  ) : null;
+}
+
+function patchInset(
+  insets: GenerationReferenceInsetDraft[],
+  id: string,
+  patch: Partial<GenerationReferenceInsetDraft>,
+) {
+  return insets.map((inset) => (inset.id === id ? { ...inset, ...patch } : inset));
+}
+
+async function flattenReferenceInsets(
+  source: HTMLCanvasElement,
+  mask: HTMLCanvasElement,
+  insets: GenerationReferenceInsetDraft[],
+  maskColor: string,
+) {
+  const sourceContext = source.getContext("2d");
+  const maskContext = mask.getContext("2d");
+  if (!sourceContext || !maskContext) return;
+  sourceContext.fillStyle = "white";
+  sourceContext.fillRect(0, 0, source.width, source.height);
+  maskContext.fillStyle = maskColor;
+  maskContext.fillRect(0, 0, mask.width, mask.height);
+  for (const inset of insets) {
+    const resource = await loadGenerationResourceImage(inset.image);
+    const image = await loadHtmlImage(resource.image_base64, resource.mime_type ?? "image/png");
+    const x = inset.x * source.width;
+    const y = inset.y * source.height;
+    const width = inset.width * source.width;
+    const height = inset.height * source.height;
+    sourceContext.drawImage(image, x, y, width, height);
+    if (inset.borderEnabled && inset.borderWidth > 0) {
+      sourceContext.strokeStyle = "black";
+      sourceContext.lineWidth = inset.borderWidth;
+      sourceContext.strokeRect(x, y, width, height);
+    }
+    maskContext.clearRect(x, y, width, height);
+  }
+}
+
+function loadHtmlImage(base64: string, mimeType: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Unable to decode reference inset"));
+    image.src = `data:${mimeType};base64,${base64}`;
+  });
 }
 
 function copyCanvas(source: HTMLCanvasElement): HTMLCanvasElement {

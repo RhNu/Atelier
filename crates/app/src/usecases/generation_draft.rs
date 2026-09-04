@@ -270,6 +270,9 @@ fn draft_resource_links(draft: &GenerationDraftSnapshot) -> BTreeMap<String, Dra
                 &inpaint.region_to_replace.id,
                 ResourceRelation::Source,
             );
+            for inset in &inpaint.reference_insets {
+                insert_draft_link(&mut links, &inset.image.id, ResourceRelation::Reference);
+            }
         }
     }
     for slot in &draft.vibe.slots {

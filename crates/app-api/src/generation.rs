@@ -290,6 +290,7 @@ pub struct GenerationDraftInpaintSessionDto {
     pub display: GenerationDraftMaskDisplayDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub focus: Option<GenerationDraftFocusRegionDto>,
+    pub reference_insets: Vec<GenerationDraftReferenceInsetDto>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -299,6 +300,18 @@ pub struct GenerationDraftFocusRegionDto {
     pub width: f32,
     pub height: f32,
     pub minimum_context_area: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationDraftReferenceInsetDto {
+    pub id: String,
+    pub image: ResourceRefDto,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub border_enabled: bool,
+    pub border_width: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

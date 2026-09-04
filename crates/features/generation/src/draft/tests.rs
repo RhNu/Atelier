@@ -92,6 +92,7 @@ fn sample_draft() -> GenerationDraftSnapshot {
                 region_to_replace: resource("resource:mask"),
                 display: GenerationDraftMaskDisplay::default(),
                 focus: None,
+                reference_insets: Vec::new(),
             }),
             strength: 0.6,
             noise: 0.2,

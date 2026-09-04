@@ -110,6 +110,7 @@ export type { GenerationDraftMaskDisplayDto } from "./GenerationDraftMaskDisplay
 export type { GenerationDraftMaskPatternDto } from "./GenerationDraftMaskPatternDto";
 export type { GenerationDraftPreciseReferenceDto } from "./GenerationDraftPreciseReferenceDto";
 export type { GenerationDraftPromptStateDto } from "./GenerationDraftPromptStateDto";
+export type { GenerationDraftReferenceInsetDto } from "./GenerationDraftReferenceInsetDto";
 export type { GenerationDraftSeedModeDto } from "./GenerationDraftSeedModeDto";
 export type { GenerationDraftVibeDto } from "./GenerationDraftVibeDto";
 export type { GenerationDraftVibeSlotDto } from "./GenerationDraftVibeSlotDto";

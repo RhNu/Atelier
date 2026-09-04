@@ -13,9 +13,9 @@ pub use draft::{
     GenerationDraftCharacter, GenerationDraftCharacterPositionMode, GenerationDraftError,
     GenerationDraftErrorKind, GenerationDraftFocusRegion, GenerationDraftI2i,
     GenerationDraftInpaintSession, GenerationDraftMaskDisplay, GenerationDraftMaskPattern,
-    GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftRepository,
-    GenerationDraftResult, GenerationDraftSeedMode, GenerationDraftService,
-    GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
+    GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftReferenceInset,
+    GenerationDraftRepository, GenerationDraftResult, GenerationDraftSeedMode,
+    GenerationDraftService, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
 };
 pub use error::{
     ClientApiErrorContext, ClientApiErrorReason, ClientDecodeContext, ClientDecodeTarget,

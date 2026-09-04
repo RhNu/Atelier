@@ -40,6 +40,7 @@ export type GenerationInpaintSessionDraft = {
     brushSize: number;
   };
   focus: GenerationFocusRegionDraft | null;
+  referenceInsets: GenerationReferenceInsetDraft[];
 };
 export type GenerationFocusRegionDraft = {
   x: number;
@@ -47,6 +48,16 @@ export type GenerationFocusRegionDraft = {
   width: number;
   height: number;
   minimumContextArea: number;
+};
+export type GenerationReferenceInsetDraft = {
+  id: string;
+  image: ResourceRefDto;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  borderEnabled: boolean;
+  borderWidth: number;
 };
 export type GenerationVibeSlotDraft = {
   id: string;
@@ -239,6 +250,16 @@ export function generationDraftFromDto(value: GenerationDraftDto): GenerationDra
                       minimumContextArea: value.i2i.inpaint.focus.minimum_context_area,
                     }
                   : null,
+                referenceInsets: value.i2i.inpaint.reference_insets.map((inset) => ({
+                  id: inset.id,
+                  image: inset.image,
+                  x: inset.x,
+                  y: inset.y,
+                  width: inset.width,
+                  height: inset.height,
+                  borderEnabled: inset.border_enabled,
+                  borderWidth: inset.border_width,
+                })),
               }
             : null,
           strength: value.i2i.strength,
@@ -320,6 +341,16 @@ export function generationDraftToDto(value: GenerationDraft): GenerationDraftDto
                       minimum_context_area: value.i2i.inpaint.focus.minimumContextArea,
                     }
                   : null,
+                reference_insets: value.i2i.inpaint.referenceInsets.map((inset) => ({
+                  id: inset.id,
+                  image: inset.image,
+                  x: inset.x,
+                  y: inset.y,
+                  width: inset.width,
+                  height: inset.height,
+                  border_enabled: inset.borderEnabled,
+                  border_width: inset.borderWidth,
+                })),
               }
             : null,
           strength: value.i2i.strength,
@@ -595,6 +626,8 @@ function buildPreciseReferences(
 ): GenerateImageRequestDto["character_references"] {
   if (
     capabilities?.supports_character_reference === false ||
+    (Boolean(draft.i2i?.inpaint) &&
+      capabilities?.supports_character_reference_inpainting !== true) ||
     draft.preciseReferences.length === 0
   ) {
     return null;

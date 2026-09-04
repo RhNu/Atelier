@@ -1,4 +1,4 @@
-/* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises */
+/* eslint-disable max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop, typescript/no-misused-promises */
 import { ImagePlus, Pencil, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -84,8 +84,12 @@ export function ImageToImageSection({
                 variant="danger"
                 onClick={() => {
                   const mask = i2i.inpaint?.regionToReplace ?? null;
+                  const insets = i2i.inpaint?.referenceInsets.map((inset) => inset.image) ?? [];
                   updateI2i({ inpaint: null });
-                  reportBackgroundPromise(releaseImages([mask]), "Release generation mask");
+                  reportBackgroundPromise(
+                    releaseImages([mask, ...insets]),
+                    "Release generation mask",
+                  );
                 }}
               />
             ) : null}
@@ -97,7 +101,11 @@ export function ImageToImageSection({
               onClick={() => {
                 onPatch({ i2i: null }, { persist: "immediate" });
                 reportBackgroundPromise(
-                  releaseImages([i2i.image, i2i.inpaint?.regionToReplace ?? null]),
+                  releaseImages([
+                    i2i.image,
+                    i2i.inpaint?.regionToReplace ?? null,
+                    ...(i2i.inpaint?.referenceInsets.map((inset) => inset.image) ?? []),
+                  ]),
                   "Release generation image guidance",
                 );
               }}

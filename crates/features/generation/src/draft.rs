@@ -104,6 +104,7 @@ pub struct GenerationDraftInpaintSession {
     pub region_to_replace: ResourceRef,
     pub display: GenerationDraftMaskDisplay,
     pub focus: Option<GenerationDraftFocusRegion>,
+    pub reference_insets: Vec<GenerationDraftReferenceInset>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -113,6 +114,18 @@ pub struct GenerationDraftFocusRegion {
     pub width: f32,
     pub height: f32,
     pub minimum_context_area: f32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GenerationDraftReferenceInset {
+    pub id: String,
+    pub image: ResourceRef,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub border_enabled: bool,
+    pub border_width: u32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -263,6 +276,52 @@ impl GenerationDraftSnapshot {
                         return Err(GenerationDraftError::invalid(
                             "i2i.inpaint.focus",
                             "focused inpaint rectangle must stay inside the canvas",
+                        ));
+                    }
+                }
+                for (index, inset) in inpaint.reference_insets.iter().enumerate() {
+                    validate_id(
+                        &format!("i2i.inpaint.reference_insets[{index}].id"),
+                        &inset.id,
+                    )?;
+                    validate_resource(
+                        &format!("i2i.inpaint.reference_insets[{index}].image"),
+                        &inset.image,
+                    )?;
+                    validate_f32(
+                        &format!("i2i.inpaint.reference_insets[{index}].x"),
+                        inset.x,
+                        0.0,
+                        1.0,
+                    )?;
+                    validate_f32(
+                        &format!("i2i.inpaint.reference_insets[{index}].y"),
+                        inset.y,
+                        0.0,
+                        1.0,
+                    )?;
+                    validate_f32(
+                        &format!("i2i.inpaint.reference_insets[{index}].width"),
+                        inset.width,
+                        0.01,
+                        1.0,
+                    )?;
+                    validate_f32(
+                        &format!("i2i.inpaint.reference_insets[{index}].height"),
+                        inset.height,
+                        0.01,
+                        1.0,
+                    )?;
+                    validate_u32(
+                        &format!("i2i.inpaint.reference_insets[{index}].border_width"),
+                        inset.border_width,
+                        0,
+                        32,
+                    )?;
+                    if inset.x + inset.width > 1.000_001 || inset.y + inset.height > 1.000_001 {
+                        return Err(GenerationDraftError::invalid(
+                            format!("i2i.inpaint.reference_insets[{index}]"),
+                            "reference inset must stay inside the canvas",
                         ));
                     }
                 }
