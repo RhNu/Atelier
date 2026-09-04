@@ -44,6 +44,11 @@ describe("frontend i18n", () => {
     expect(zhCN.generation.positive).toBe("提示词");
     expect(zhCN.generation.undesiredContent).toBe("负面内容");
     expect(zhCN.generation.ucPreset).toBe("负面提示预设");
+    expect(zhCN.generation.qualityOptions).toEqual({
+      none: "无",
+      standard: "标准",
+      light: "轻量",
+    });
     expect(zhCN.generation.ucPresetOptions).toEqual({
       heavy: "重度",
       light: "轻度",

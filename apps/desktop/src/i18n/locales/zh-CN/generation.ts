@@ -102,6 +102,8 @@ export const generation = {
   referenceInsetPromptWarning: "在提示词中加入“reference inset”可使位置更可靠。",
   insertReferenceInsetPrompt: "插入短语",
   remove: "移除",
+  positionX: "X 坐标",
+  positionY: "Y 坐标",
   focusWidth: "聚焦宽度",
   focusHeight: "聚焦高度",
   minimumContextArea: "最小上下文区域",
@@ -256,6 +258,11 @@ export const generation = {
   model: "模型",
   promptOptions: "提示词选项",
   qualityTags: "质量标签",
+  qualityOptions: {
+    none: "无",
+    standard: "标准",
+    light: "轻量",
+  },
   ucPreset: "负面提示预设",
   ucPresetOptions: {
     heavy: "重度",

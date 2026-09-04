@@ -376,7 +376,7 @@ export function InpaintCanvasWorkspace({
           {focus ? (
             <>
               <AppRangeField
-                label="X"
+                label={t("positionX")}
                 value={focus.x}
                 valueText={focus.x.toFixed(2)}
                 min={0}
@@ -385,7 +385,7 @@ export function InpaintCanvasWorkspace({
                 onChange={(x) => setFocus({ ...focus, x })}
               />
               <AppRangeField
-                label="Y"
+                label={t("positionY")}
                 value={focus.y}
                 valueText={focus.y.toFixed(2)}
                 min={0}
@@ -426,7 +426,7 @@ export function InpaintCanvasWorkspace({
             <span className="text-xs font-medium text-app-text">{t("resizeCanvas")}</span>
             <input
               aria-label={t("canvasWidth")}
-              className="rounded border border-app-border bg-app-bg px-2 py-1 text-xs"
+              className="border border-app-border bg-app-bg px-2 py-1 text-xs"
               type="number"
               min={64}
               max={1600}
@@ -438,7 +438,7 @@ export function InpaintCanvasWorkspace({
             />
             <input
               aria-label={t("canvasHeight")}
-              className="rounded border border-app-border bg-app-bg px-2 py-1 text-xs"
+              className="border border-app-border bg-app-bg px-2 py-1 text-xs"
               type="number"
               min={64}
               max={1600}
@@ -486,7 +486,7 @@ export function InpaintCanvasWorkspace({
                   {t("referenceInset", { index: index + 1 })}
                 </span>
                 <AppRangeField
-                  label="X"
+                  label={t("positionX")}
                   value={inset.x}
                   valueText={inset.x.toFixed(2)}
                   min={0}
@@ -497,7 +497,7 @@ export function InpaintCanvasWorkspace({
                   }
                 />
                 <AppRangeField
-                  label="Y"
+                  label={t("positionY")}
                   value={inset.y}
                   valueText={inset.y.toFixed(2)}
                   min={0}

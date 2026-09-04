@@ -196,6 +196,7 @@ describe("NaiPromptEditor", () => {
       quality: "none",
       transparent_background: false,
       uc_preset: "none",
+      furry_mode: false,
     });
   });
 

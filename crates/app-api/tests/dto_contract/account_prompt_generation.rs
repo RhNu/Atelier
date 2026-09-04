@@ -399,6 +399,10 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the DTO contract keeps the complete batch payload visible in one assertion"
+)]
 fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
     let request = SubmitGenerationBatchRequestDto {
         batch_id: "batch-1".to_owned(),

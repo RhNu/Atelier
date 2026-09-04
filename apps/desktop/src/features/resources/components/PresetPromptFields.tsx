@@ -88,9 +88,9 @@ export function PresetPromptFields({
             value={draft.qualityOverride}
             options={[
               { value: "", label: t("inherit") },
-              { value: "standard", label: "Standard" },
-              ...(supportsLight ? [{ value: "light", label: "Light" }] : []),
-              { value: "none", label: "None" },
+              { value: "standard", label: t("qualityOptions.standard") },
+              ...(supportsLight ? [{ value: "light", label: t("qualityOptions.light") }] : []),
+              { value: "none", label: t("qualityOptions.none") },
             ]}
             onChange={(qualityOverride) =>
               onChange({

@@ -70,6 +70,10 @@ fn normalize_base_fields(
     Ok(())
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "model capability normalization keeps feature compatibility rules together"
+)]
 fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), GenerationError> {
     let descriptor = request.model.descriptor();
     normalize_character_reference_features(request)?;

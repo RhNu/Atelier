@@ -62,6 +62,10 @@ impl GenerateImageStreamRequestDto {
     }
 }
 
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "serialized generation feature flags are independent NovelAI request controls"
+)]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(super) struct GenerateImageRequestDto {
     prompt: String,

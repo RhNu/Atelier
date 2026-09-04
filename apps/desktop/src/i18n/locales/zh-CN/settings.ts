@@ -190,6 +190,11 @@ export const settings = {
   cfgRescale: "CFG 重缩放",
   imageFormat: "图像格式",
   quality: "质量增强",
+  qualityOptions: {
+    none: "无",
+    standard: "标准",
+    light: "轻量",
+  },
   varietyBoost: "多样性增强",
   strictMode: "严格模式",
   imagesDescriptionLong: "工作区所存资源的缩略图和预览尺寸。",

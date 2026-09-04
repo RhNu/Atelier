@@ -340,7 +340,7 @@ pub struct Img2ImgRequest {
     pub inpaint: Option<InpaintRequest>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InpaintRequest {
     /// Binary semantic mask where white pixels are the region to replace.
     pub region_to_replace: String,
@@ -366,6 +366,10 @@ pub enum QualityPreset {
     None,
 }
 
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "generation feature flags are independent NovelAI request controls"
+)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct GenerateImageRequest {
     pub prompt: String,

@@ -54,6 +54,11 @@ export const resources = {
   ucAfter: "UC after",
   ucReplace: "UC replace",
   qualityOverride: "Quality override",
+  qualityOptions: {
+    none: "None",
+    standard: "Standard",
+    light: "Light",
+  },
   ucPresetOverride: "UC preset override",
   showHidden: "Show hidden",
   localDisplayName: "Local display name",

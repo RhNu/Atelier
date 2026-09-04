@@ -181,7 +181,7 @@ pub struct Img2ImgRequestDto {
     pub inpaint: Option<InpaintRequestDto>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct InpaintRequestDto {
     pub region_to_replace: ImageInputDto,
 }
@@ -408,6 +408,10 @@ pub struct SaveGenerationDraftRequestDto {
     pub draft: GenerationDraftDto,
 }
 
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "generation feature flags are independent NovelAI request controls"
+)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct GenerateImageRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]

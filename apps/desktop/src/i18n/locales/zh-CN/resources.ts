@@ -57,6 +57,11 @@ export const resources = {
   ucAfter: "UC 后置",
   ucReplace: "UC 替换",
   qualityOverride: "质量覆盖",
+  qualityOptions: {
+    none: "无",
+    standard: "标准",
+    light: "轻量",
+  },
   ucPresetOverride: "负面提示预设覆盖",
   showHidden: "显示隐藏项",
   localDisplayName: "本地显示名称",

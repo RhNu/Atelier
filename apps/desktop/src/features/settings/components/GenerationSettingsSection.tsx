@@ -243,11 +243,13 @@ function GenerationCapabilityFields({
   const { t } = useTranslation("settings");
   const qualityOptions = useMemo(
     () => [
-      { value: "standard", label: "Standard" },
-      ...(capabilities?.supports_light_quality_preset ? [{ value: "light", label: "Light" }] : []),
-      { value: "none", label: "None" },
+      { value: "standard", label: t("qualityOptions.standard") },
+      ...(capabilities?.supports_light_quality_preset
+        ? [{ value: "light", label: t("qualityOptions.light") }]
+        : []),
+      { value: "none", label: t("qualityOptions.none") },
     ],
-    [capabilities?.supports_light_quality_preset],
+    [capabilities?.supports_light_quality_preset, t],
   );
   const qualityChange = useCallback(
     (value: string) => onFieldChange("quality", toQualityPreset(value)),

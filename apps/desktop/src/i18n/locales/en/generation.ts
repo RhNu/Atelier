@@ -102,6 +102,8 @@ export const generation = {
   referenceInsetPromptWarning: "Add ‘reference inset’ to the prompt for more reliable placement.",
   insertReferenceInsetPrompt: "Insert phrase",
   remove: "Remove",
+  positionX: "X",
+  positionY: "Y",
   focusWidth: "Focus width",
   focusHeight: "Focus height",
   minimumContextArea: "Minimum Context Area",
@@ -256,6 +258,11 @@ export const generation = {
   model: "Model",
   promptOptions: "Prompt options",
   qualityTags: "Quality tags",
+  qualityOptions: {
+    none: "None",
+    standard: "Standard",
+    light: "Light",
+  },
   ucPreset: "UC preset",
   ucPresetOptions: {
     heavy: "Heavy",

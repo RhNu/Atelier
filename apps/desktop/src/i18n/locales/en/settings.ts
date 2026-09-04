@@ -191,6 +191,11 @@ export const settings = {
   cfgRescale: "CFG rescale",
   imageFormat: "Image format",
   quality: "Quality",
+  qualityOptions: {
+    none: "None",
+    standard: "Standard",
+    light: "Light",
+  },
   varietyBoost: "Variety boost",
   strictMode: "Strict mode",
   imagesDescriptionLong: "Workspace thumbnail and preview sizing for stored resources.",

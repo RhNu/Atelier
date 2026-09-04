@@ -64,9 +64,9 @@ export function CharacterPositionWorkspace({
   }, [characters]);
 
   const commitPosition = useCallback((id: string, position: Position) => {
-    const rounded = { x: round3(position.x), y: round3(position.y) };
+    const normalizedPosition = { x: round3(position.x), y: round3(position.y) };
     draftRef.current = draftRef.current.map((item) =>
-      item.id === id ? { ...item, position: rounded } : item,
+      item.id === id ? { ...item, position: normalizedPosition } : item,
     );
     setDraft(draftRef.current);
     setDirty(true);

@@ -69,11 +69,13 @@ function PromptOptionsMenu({
   const ucPresetOptions = useMemo(() => localizedUcPresetOptions(t), [t]);
   const qualityOptions = useMemo(
     () => [
-      { value: "standard", label: "Standard" },
-      ...(capabilities?.supports_light_quality_preset ? [{ value: "light", label: "Light" }] : []),
-      { value: "none", label: "None" },
+      { value: "standard", label: t("qualityOptions.standard") },
+      ...(capabilities?.supports_light_quality_preset
+        ? [{ value: "light", label: t("qualityOptions.light") }]
+        : []),
+      { value: "none", label: t("qualityOptions.none") },
     ],
-    [capabilities?.supports_light_quality_preset],
+    [capabilities?.supports_light_quality_preset, t],
   );
   return (
     <details className="group relative">

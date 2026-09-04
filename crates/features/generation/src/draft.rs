@@ -212,6 +212,10 @@ impl GenerationDraftSnapshot {
     /// # Errors
     /// Returns an error when numeric controls, stable ids, coordinates, or resource references are
     /// outside the ranges supported by the generation UI.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "persisted generation state validation keeps related field checks together"
+    )]
     pub fn validate(&self) -> GenerationDraftResult<()> {
         if self.prompt_states.is_empty() {
             return Err(GenerationDraftError::invalid(
