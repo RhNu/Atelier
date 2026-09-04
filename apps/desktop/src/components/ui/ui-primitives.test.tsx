@@ -70,13 +70,15 @@ describe("UI primitives", () => {
 
     render(
       <>
-        <AppTabs value="gallery" tabs={tabItems} onChange={onChange} />
+        <AppTabs value="gallery" tabs={tabItems} fill onChange={onChange} />
         <SafetyBadge label="sensitive" />
         <EmptyState title="No artifacts" description="Generate images to populate this view." />
       </>,
     );
 
-    expect(screen.getByRole("tab", { name: "Gallery", selected: true })).toBeInTheDocument();
+    const tablist = screen.getByRole("tablist");
+    expect(tablist).toHaveClass("flex", "w-full");
+    expect(screen.getByRole("tab", { name: "Gallery", selected: true })).toHaveClass("flex-1");
     expect(screen.getByText("SENSITIVE")).toBeInTheDocument();
     expect(screen.getByText("No artifacts")).toBeInTheDocument();
   });

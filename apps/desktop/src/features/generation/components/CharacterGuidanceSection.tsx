@@ -7,11 +7,7 @@ import { AppIconButton, AppTabs } from "@/components/ui";
 import { NaiPromptEditor, promptProfileForModel } from "@/features/prompt-editor";
 import type { PromptPresetDto, PromptTokenUsageDto } from "@/types";
 
-import {
-  isGenerationCharacterEligible,
-  type GenerationCharacterDraft,
-  type GenerationDraft,
-} from "../model/generation-draft";
+import type { GenerationCharacterDraft, GenerationDraft } from "../model/generation-draft";
 import { applyPromptPreset } from "../model/prompt-preset-model";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import { characterTokenCount, createLocalId, patchCharacter } from "./advanced-generation-model";
@@ -40,9 +36,8 @@ export function CharacterGuidanceSection({
 }) {
   const { t } = useTranslation("generation");
   const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
-  const validCharacters = draft.characters.filter(isGenerationCharacterEligible);
   const showPositionSettings =
-    Boolean(capabilities?.character_position_mode) && validCharacters.length > 0;
+    Boolean(capabilities?.character_position_mode) && draft.characters.length > 0;
 
   function addCharacter() {
     onPatch(
@@ -136,16 +131,23 @@ function CharacterPositionSettings({
   const useAiPositioning = draft.characterPositionMode === "global";
 
   return (
-    <div className="flex items-stretch gap-1">
+    <div className="flex w-full items-stretch gap-1">
       <AppTabs
         label={t("position")}
         value={useAiPositioning ? "global" : "manual"}
         tabs={positionTabs}
+        fill
+        className="min-w-0 flex-1"
         onChange={(characterPositionMode) =>
           onPatch({ characterPositionMode }, { persist: "immediate" })
         }
       />
-      <AppIconButton icon={MousePointer2} label={t("openPositionEditor")} onClick={onOpen} />
+      <AppIconButton
+        icon={MousePointer2}
+        label={t("openPositionEditor")}
+        size="sm"
+        onClick={onOpen}
+      />
     </div>
   );
 }

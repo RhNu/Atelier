@@ -822,7 +822,7 @@ describe("GeneratePage", () => {
     expect(screen.getByText("2% · ~215h")).toBeInTheDocument();
   });
 
-  it("shows position controls for one valid character and keeps the editor eligibility live", async () => {
+  it("shows position controls for an empty character and keeps the editor eligibility live", async () => {
     const { user } = setup();
 
     expect(await screen.findByRole("button", { name: "Add I2I source" })).toBeEnabled();
@@ -839,31 +839,27 @@ describe("GeneratePage", () => {
     expect(screen.queryByText(/Add source images, Vibe encodings/u)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add character prompt" }));
-    expect(screen.queryByRole("tab", { name: "AI's Choice" })).not.toBeInTheDocument();
-    typeInPromptEditor(screen.getByLabelText("Character 1 prompt"), "alice");
     expect(await screen.findByRole("tab", { name: "AI's Choice" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
     expect(screen.getByRole("tab", { name: "Custom" })).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Open position editor" })).toHaveLength(1);
+    expect(screen.getByRole("tablist", { name: "Position" })).toHaveClass("flex-1", "w-full");
+    const openPositionEditor = screen.getByRole("button", { name: "Open position editor" });
+    expect(openPositionEditor).toHaveClass("size-8");
 
-    await user.click(screen.getByRole("button", { name: "Add character prompt" }));
-    await user.click(await screen.findByRole("button", { name: "Open position editor" }));
+    await user.click(openPositionEditor);
     const positionCanvas = await screen.findByRole("application", {
       name: "Character position canvas",
     });
     expect(positionCanvas).toBeInTheDocument();
     expect(
-      within(positionCanvas).getByRole("button", { name: "Select character 1" }),
-    ).toBeInTheDocument();
-    expect(
-      within(positionCanvas).queryByRole("button", { name: "Select character 2" }),
+      within(positionCanvas).queryByRole("button", { name: "Select character 1" }),
     ).not.toBeInTheDocument();
 
-    typeInPromptEditor(screen.getByLabelText("Character 2 prompt"), "bob");
+    typeInPromptEditor(screen.getByLabelText("Character 1 prompt"), "alice");
     expect(
-      await within(positionCanvas).findByRole("button", { name: "Select character 2" }),
+      await within(positionCanvas).findByRole("button", { name: "Select character 1" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Disable character 1" })).toHaveAttribute(
       "aria-pressed",
