@@ -342,6 +342,7 @@ fn generation_request_exposes_resource_backed_drawing_inputs() {
         serde_json::to_value(request).unwrap(),
         json!({
             "prompt": "1girl",
+            "furry_mode": false,
             "model": "nai-diffusion-4-5-full",
             "size": { "width": 832, "height": 1216 },
             "quality": "standard",
@@ -446,6 +447,7 @@ fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
                         "kind": "image",
                         "request": {
                             "prompt": "first",
+                            "furry_mode": false,
                             "model": "nai-diffusion-4-5-full",
                             "size": { "width": 832, "height": 1216 },
                             "quality": "standard",
@@ -470,6 +472,7 @@ fn generation_batch_submit_dto_keeps_jobs_under_one_batch() {
                         "request": {
                             "base": {
                                 "prompt": "second",
+                                "furry_mode": false,
                                 "model": "nai-diffusion-4-5-full",
                                 "size": { "width": 832, "height": 1216 },
                                 "quality": "standard",

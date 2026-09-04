@@ -245,6 +245,7 @@ fn v5_preserves_supported_outputs_and_gates_dormant_guidance() {
         model: ImageModel::NaiDiffusion5Full,
         quality: QualityPreset::Light,
         transparent_background: true,
+        furry_mode: true,
         variety_boost: true,
         vibe_transfer: Some(VibeTransferConfig {
             strength: 1.0,
@@ -259,6 +260,7 @@ fn v5_preserves_supported_outputs_and_gates_dormant_guidance() {
     let normalized = normalize_generate_request(request.clone()).unwrap();
     assert_eq!(normalized.quality, QualityPreset::Light);
     assert!(normalized.transparent_background);
+    assert!(normalized.furry_mode);
     assert!(!normalized.variety_boost);
     assert!(normalized.vibe_transfer.is_none());
 
@@ -268,4 +270,25 @@ fn v5_preserves_supported_outputs_and_gates_dormant_guidance() {
     })
     .unwrap_err();
     assert_eq!(error.kind, GenerationErrorKind::UnsupportedModelFeature);
+}
+
+#[test]
+fn furry_mode_is_gated_to_v4_and_newer_models() {
+    let request = GenerateImageRequest {
+        prompt: "wolf".to_owned(),
+        model: ImageModel::NaiDiffusion3,
+        furry_mode: true,
+        ..Default::default()
+    };
+    assert!(
+        !normalize_generate_request(request.clone())
+            .unwrap()
+            .furry_mode
+    );
+    let error = normalize_generate_request(GenerateImageRequest {
+        strict_mode: true,
+        ..request
+    })
+    .unwrap_err();
+    assert_eq!(error.field.as_deref(), Some("furry_mode"));
 }

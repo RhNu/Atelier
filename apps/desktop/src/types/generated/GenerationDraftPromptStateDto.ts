@@ -8,6 +8,7 @@ export type GenerationDraftPromptStateDto = {
   main_preset_id: string | null;
   prompt: string;
   negative_prompt: string;
+  furry_mode: boolean;
   characters: Array<GenerationDraftCharacterDto>;
   character_position_mode: GenerationDraftCharacterPositionModeDto;
 };

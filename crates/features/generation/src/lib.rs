@@ -115,4 +115,21 @@ mod tests {
         assert_eq!(usage.characters[0].index, 0);
         assert!(usage.negative_prompt.used > 0);
     }
+
+    #[test]
+    fn furry_mode_prefix_is_included_in_prompt_token_count() {
+        let request = GenerateImageRequest {
+            prompt: "1girl".to_owned(),
+            quality: QualityPreset::None,
+            uc_preset: UcPreset::None,
+            ..GenerateImageRequest::default()
+        };
+        let plain = count_prompt_tokens(&request).unwrap();
+        let furry = count_prompt_tokens(&GenerateImageRequest {
+            furry_mode: true,
+            ..request
+        })
+        .unwrap();
+        assert!(furry.prompt.used > plain.prompt.used);
+    }
 }

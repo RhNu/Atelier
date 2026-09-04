@@ -79,6 +79,7 @@ where
             .collect::<Vec<_>>();
         let generation_request = GenerateImageRequest {
             prompt: compiled.prompt,
+            furry_mode: request.furry_mode,
             model,
             negative_prompt: (!compiled.negative_prompt.trim().is_empty())
                 .then_some(compiled.negative_prompt),

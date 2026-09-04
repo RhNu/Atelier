@@ -72,6 +72,7 @@ function capabilities(
     supports_character_reference_inpainting: true,
     supports_variety_boost: true,
     supports_inpainting: true,
+    supports_furry_mode: true,
     supports_streaming: true,
     supports_smea: false,
     supports_dynamic_thresholding: false,

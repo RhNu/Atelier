@@ -150,6 +150,7 @@ fn sample_draft() -> GenerationDraftSnapshot {
             main_preset_id: Some("main-preset".to_owned()),
             prompt: "1girl, cinematic lighting".to_owned(),
             negative_prompt: "low quality".to_owned(),
+            furry_mode: true,
             characters: vec![GenerationDraftCharacter {
                 id: "character-slot".to_owned(),
                 preset_id: Some("character-preset".to_owned()),

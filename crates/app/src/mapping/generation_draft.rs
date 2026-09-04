@@ -236,6 +236,7 @@ fn prompt_state_to_domain(value: GenerationDraftPromptStateDto) -> GenerationDra
         main_preset_id: value.main_preset_id,
         prompt: value.prompt,
         negative_prompt: value.negative_prompt,
+        furry_mode: value.furry_mode,
         characters: value
             .characters
             .into_iter()
@@ -251,6 +252,7 @@ fn prompt_state_to_dto(value: &GenerationDraftPromptState) -> GenerationDraftPro
         main_preset_id: value.main_preset_id.clone(),
         prompt: value.prompt.clone(),
         negative_prompt: value.negative_prompt.clone(),
+        furry_mode: value.furry_mode,
         characters: value.characters.iter().map(character_to_dto).collect(),
         character_position_mode: position_mode_to_dto(value.character_position_mode),
     }

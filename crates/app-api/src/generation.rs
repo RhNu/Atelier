@@ -56,6 +56,7 @@ pub struct ModelCapabilitiesDto {
     pub supports_character_reference_inpainting: bool,
     pub supports_variety_boost: bool,
     pub supports_inpainting: bool,
+    pub supports_furry_mode: bool,
     pub supports_streaming: bool,
     pub supports_smea: bool,
     pub supports_dynamic_thresholding: bool,
@@ -81,6 +82,8 @@ pub struct CountPromptTokensRequestDto {
     pub quality: QualityPresetDto,
     pub transparent_background: bool,
     pub uc_preset: UcPresetDto,
+    #[serde(default)]
+    pub furry_mode: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -365,6 +368,8 @@ pub struct GenerationDraftPromptStateDto {
     pub main_preset_id: Option<String>,
     pub prompt: String,
     pub negative_prompt: String,
+    #[serde(default)]
+    pub furry_mode: bool,
     pub characters: Vec<GenerationDraftCharacterDto>,
     pub character_position_mode: GenerationDraftCharacterPositionModeDto,
 }
@@ -408,6 +413,8 @@ pub struct GenerateImageRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub main_preset_id: Option<String>,
     pub prompt: String,
+    #[serde(default)]
+    pub furry_mode: bool,
     pub model: ImageModelDto,
     pub size: ImageSizeDto,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -442,6 +449,7 @@ impl Default for GenerateImageRequestDto {
     fn default() -> Self {
         Self {
             prompt: String::new(),
+            furry_mode: false,
             main_preset_id: None,
             model: ImageModelDto::default(),
             size: ImageSizeDto::default(),

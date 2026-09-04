@@ -30,7 +30,7 @@ pub(super) fn to_bridge_generate_request(
     Ok(bridge::GenerateImageRequest {
         core: bridge::GenerationCore {
             prompt: request.prompt,
-            furry_mode: false,
+            furry_mode: request.furry_mode,
             negative_prompt: request.negative_prompt,
             model: request.model.bridge_model(),
             size: to_bridge_size(request.size),

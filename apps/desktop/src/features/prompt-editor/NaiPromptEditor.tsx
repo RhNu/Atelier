@@ -146,6 +146,7 @@ function PromptTokenMeter({
           quality: "none",
           transparent_background: false,
           uc_preset: "none",
+          furry_mode: false,
         });
         if (active) setRemoteCount(next.prompt);
       } catch {

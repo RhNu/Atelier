@@ -467,6 +467,8 @@ struct GenerationDraftPromptStateDto {
     main_preset_id: Option<String>,
     prompt: String,
     negative_prompt: String,
+    #[serde(default)]
+    furry_mode: bool,
     characters: Vec<GenerationDraftCharacterDto>,
     character_position_mode: String,
 }
@@ -478,6 +480,7 @@ impl GenerationDraftPromptStateDto {
             main_preset_id: value.main_preset_id.clone(),
             prompt: value.prompt.clone(),
             negative_prompt: value.negative_prompt.clone(),
+            furry_mode: value.furry_mode,
             characters: value
                 .characters
                 .iter()
@@ -493,6 +496,7 @@ impl GenerationDraftPromptStateDto {
             main_preset_id: self.main_preset_id,
             prompt: self.prompt,
             negative_prompt: self.negative_prompt,
+            furry_mode: self.furry_mode,
             characters: self
                 .characters
                 .into_iter()

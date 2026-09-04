@@ -105,6 +105,7 @@ fn estimate_request_to_domain(value: &GenerateImageRequestDto) -> GenerateImageR
         } else {
             value.prompt.clone()
         },
+        furry_mode: value.furry_mode,
         model: image_model_to_domain(value.model),
         size: ImageSize {
             width: value.size.width,

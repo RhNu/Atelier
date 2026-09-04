@@ -34,6 +34,7 @@ pub struct ModelCapabilities {
     pub supports_character_reference_inpainting: bool,
     pub supports_variety_boost: bool,
     pub supports_inpainting: bool,
+    pub supports_furry_mode: bool,
     pub supports_streaming: bool,
     pub supports_smea: bool,
     pub supports_dynamic_thresholding: bool,
@@ -142,6 +143,15 @@ impl ImageModel {
                 .is_available(),
             supports_variety_boost: descriptor.sampling().variety.is_some(),
             supports_inpainting: descriptor.support().inpainting.is_some(),
+            supports_furry_mode: matches!(
+                self,
+                Self::NaiDiffusion4Full
+                    | Self::NaiDiffusion4Curated
+                    | Self::NaiDiffusion45Full
+                    | Self::NaiDiffusion45Curated
+                    | Self::NaiDiffusion5Full
+                    | Self::NaiDiffusion5Curated
+            ),
             supports_streaming: descriptor.support().streaming,
             supports_smea: descriptor.sampling().smea,
             supports_dynamic_thresholding: descriptor.sampling().dynamic_thresholding,
@@ -359,6 +369,7 @@ pub enum QualityPreset {
 #[derive(Clone, Debug, PartialEq)]
 pub struct GenerateImageRequest {
     pub prompt: String,
+    pub furry_mode: bool,
     pub model: ImageModel,
     pub size: ImageSize,
     pub negative_prompt: Option<String>,
@@ -388,6 +399,7 @@ impl Default for GenerateImageRequest {
         let defaults = model.descriptor().defaults();
         Self {
             prompt: String::new(),
+            furry_mode: false,
             model,
             size: ImageSize::default(),
             negative_prompt: None,

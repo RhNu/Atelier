@@ -52,5 +52,6 @@ export function promptTokenCountRequest(draft: GenerationDraft): CountPromptToke
     quality: draft.quality,
     transparent_background: draft.transparentBackground,
     uc_preset: draft.ucPreset,
+    furry_mode: draft.furryMode,
   };
 }

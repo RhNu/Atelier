@@ -91,6 +91,7 @@ export type GenerationPromptState = {
   mainPresetId: string | null;
   prompt: string;
   negativePrompt: string;
+  furryMode: boolean;
   characters: GenerationCharacterDraft[];
   characterPositionMode: GenerationCharacterPositionMode;
 };
@@ -98,6 +99,7 @@ export type GenerationDraft = {
   mainPresetId: string | null;
   prompt: string;
   negativePrompt: string;
+  furryMode: boolean;
   model: ImageModelDto;
   promptStates: GenerationPromptState[];
   size: ImageSizeDto;
@@ -135,6 +137,7 @@ function activePromptState(draft: GenerationDraft): GenerationPromptState {
     mainPresetId: draft.mainPresetId,
     prompt: draft.prompt,
     negativePrompt: draft.negativePrompt,
+    furryMode: draft.furryMode,
     characters: draft.characters.map(copyCharacter),
     characterPositionMode: draft.characterPositionMode,
   };
@@ -163,6 +166,7 @@ export function switchGenerationModel(
     mainPresetId: restored.mainPresetId,
     prompt: restored.prompt,
     negativePrompt: restored.negativePrompt,
+    furryMode: restored.furryMode,
     characters: restored.characters.map(copyCharacter),
     characterPositionMode: restored.characterPositionMode,
   };
@@ -202,6 +206,7 @@ export function generationDraftFromDto(value: GenerationDraftDto): GenerationDra
     mainPresetId: state.main_preset_id,
     prompt: state.prompt,
     negativePrompt: state.negative_prompt,
+    furryMode: state.furry_mode,
     characters: state.characters.map(fromCharacterDto),
     characterPositionMode: state.character_position_mode,
   }));
@@ -299,6 +304,7 @@ export function generationDraftToDto(value: GenerationDraft): GenerationDraftDto
       main_preset_id: state.mainPresetId,
       prompt: state.prompt,
       negative_prompt: state.negativePrompt,
+      furry_mode: state.furryMode,
       characters: state.characters.map(toCharacterDto),
       character_position_mode: state.characterPositionMode,
     })),
@@ -525,6 +531,7 @@ function buildBaseGenerateRequest(
   return {
     main_preset_id: draft.mainPresetId,
     prompt: draft.prompt,
+    furry_mode: capabilities?.supports_furry_mode === true && draft.furryMode,
     model: draft.model,
     size: { ...draft.size },
     negative_prompt: normalizeOptionalText(draft.negativePrompt),
@@ -646,6 +653,7 @@ function emptyPromptState(model: ImageModelDto): GenerationPromptState {
     mainPresetId: null,
     prompt: "",
     negativePrompt: "",
+    furryMode: false,
     characters: [],
     characterPositionMode: "global",
   };

@@ -106,6 +106,18 @@ function PromptOptionsMenu({
             />
           </label>
         ) : null}
+        {capabilities?.supports_furry_mode ? (
+          <label className="flex items-center justify-between gap-3 text-sm text-app-text">
+            {t("furryMode")}
+            <input
+              aria-label={t("furryMode")}
+              type="checkbox"
+              checked={draft.furryMode}
+              onChange={(event) => onPatch({ furryMode: event.target.checked })}
+              onBlur={onFlush}
+            />
+          </label>
+        ) : null}
         <label
           htmlFor="generation-uc-preset"
           className="grid gap-1 text-xs font-semibold text-app-muted uppercase"

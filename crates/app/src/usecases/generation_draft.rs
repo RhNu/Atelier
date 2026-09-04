@@ -146,6 +146,7 @@ fn default_draft(settings: &atelier_settings::WorkspaceSettings) -> GenerationDr
             main_preset_id: None,
             prompt: String::new(),
             negative_prompt: String::new(),
+            furry_mode: false,
             characters: Vec::new(),
             character_position_mode: GenerationDraftCharacterPositionMode::Global,
         }],

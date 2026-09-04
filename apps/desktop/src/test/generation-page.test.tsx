@@ -323,6 +323,7 @@ const imageModelCatalog: ImageModelDescriptorDto[] = imageModelRows.map(
       supports_character_reference_inpainting: !isV5 && String(model).includes("4-5"),
       supports_variety_boost: !isV5 && String(model).includes("diffusion-4"),
       supports_inpainting: true,
+      supports_furry_mode: model !== "nai-diffusion-3" && model !== "nai-diffusion-furry-3",
       supports_streaming: model !== "nai-diffusion-3" && model !== "nai-diffusion-furry-3",
       supports_smea: model === "nai-diffusion-3" || model === "nai-diffusion-furry-3",
       supports_dynamic_thresholding:
@@ -701,6 +702,7 @@ function storedDraft(overrides: Partial<GenerationDraftDto> = {}): GenerationDra
         main_preset_id: null,
         prompt: "restored prompt",
         negative_prompt: "restored negative",
+        furry_mode: false,
         characters: [],
         character_position_mode: "global",
       },
@@ -911,6 +913,7 @@ describe("GeneratePage", () => {
           main_preset_id: "preset-main",
           prompt: '1girl, $comment("draft note")',
           negative_prompt: "bad hands",
+          furry_mode: false,
           characters: [
             {
               id: "character-1",
@@ -960,6 +963,7 @@ describe("GeneratePage", () => {
       quality: draft.quality,
       transparent_background: false,
       uc_preset: draft.uc_preset,
+      furry_mode: false,
     });
   });
 

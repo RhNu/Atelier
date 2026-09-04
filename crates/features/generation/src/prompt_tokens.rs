@@ -46,6 +46,7 @@ pub fn count_prompt_tokens(
         request.model.bridge_model(),
     )
     .quality(quality_preset_to_bridge(request.quality))
+    .furry_mode(request.furry_mode)
     .transparent_background(request.transparent_background)
     .uc_preset(uc_preset_to_bridge(request.uc_preset));
     if let Some(negative_prompt) = &request.negative_prompt {

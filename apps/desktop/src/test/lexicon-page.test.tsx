@@ -384,6 +384,7 @@ function generationDraft(): GenerationDraftDto {
         main_preset_id: null,
         prompt: "cinematic_lighting, ",
         negative_prompt: "",
+        furry_mode: false,
         characters: [],
         character_position_mode: "global",
       },

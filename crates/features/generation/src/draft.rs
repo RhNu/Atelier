@@ -174,6 +174,7 @@ pub struct GenerationDraftPromptState {
     pub main_preset_id: Option<String>,
     pub prompt: String,
     pub negative_prompt: String,
+    pub furry_mode: bool,
     pub characters: Vec<GenerationDraftCharacter>,
     pub character_position_mode: GenerationDraftCharacterPositionMode,
 }

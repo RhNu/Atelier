@@ -8,4 +8,5 @@ export type CountPromptTokensRequestDto = {
   quality: QualityPresetDto;
   transparent_background: boolean;
   uc_preset: UcPresetDto;
+  furry_mode: boolean;
 };

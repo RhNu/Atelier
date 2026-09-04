@@ -278,6 +278,7 @@ export const generation = {
   characterNegative: "Character {{index}} undesired content",
   addCharacter: "Add character prompt",
   transparentBackground: "Transparent background",
+  furryMode: "Furry mode",
   dormantGuidanceSummary:
     "Unsupported guidance is preserved in this draft but is not enabled for the current model.",
   opusAllowance: "Opus generations",

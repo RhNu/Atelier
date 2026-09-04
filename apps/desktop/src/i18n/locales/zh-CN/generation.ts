@@ -278,6 +278,7 @@ export const generation = {
   characterNegative: "角色 {{index}} 不期望内容",
   addCharacter: "添加角色提示词",
   transparentBackground: "透明背景",
+  furryMode: "Furry 模式",
   dormantGuidanceSummary: "不受支持的引导已保留在草稿中，但不会对当前模型启用。",
   opusAllowance: "Opus 生成额度",
   opusAllowanceNegative: "已透支",

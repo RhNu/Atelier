@@ -20,6 +20,7 @@ fn prompt_token_count_uses_compiled_effective_request_text() {
             quality,
             transparent_background: false,
             uc_preset: UcPresetDto::None,
+            furry_mode: false,
         };
 
         let compiled = host

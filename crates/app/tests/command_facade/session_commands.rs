@@ -350,6 +350,7 @@ fn generation_draft_promotes_resources_survives_reopen_and_clears_owners() {
                 main_preset_id: None,
                 prompt: "1girl".to_owned(),
                 negative_prompt: String::new(),
+                furry_mode: false,
                 characters: Vec::new(),
                 character_position_mode: GenerationDraftCharacterPositionModeDto::Global,
             }],

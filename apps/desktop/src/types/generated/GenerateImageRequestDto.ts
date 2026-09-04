@@ -14,6 +14,7 @@ import type { VibeTransferConfigDto } from "./VibeTransferConfigDto";
 export type GenerateImageRequestDto = {
   main_preset_id: string | null;
   prompt: string;
+  furry_mode: boolean;
   model: ImageModelDto;
   size: ImageSizeDto;
   negative_prompt: string | null;

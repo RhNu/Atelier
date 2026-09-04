@@ -300,6 +300,7 @@ where
         let value = self.apply_prompt_presets(value).await?;
         Ok(GenerateImageRequest {
             prompt: value.prompt,
+            furry_mode: value.furry_mode,
             model: image_model_to_domain(value.model),
             size: ImageSize {
                 width: value.size.width,

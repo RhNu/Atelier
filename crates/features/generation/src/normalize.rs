@@ -74,6 +74,15 @@ fn normalize_model_features(request: &mut GenerateImageRequest) -> Result<(), Ge
     let descriptor = request.model.descriptor();
     normalize_character_reference_features(request)?;
 
+    if request.furry_mode && !request.model.capabilities().supports_furry_mode {
+        reject_or_clear(
+            request.strict_mode,
+            "furry_mode",
+            "NovelAI V4, V4.5, or V5 models",
+            || request.furry_mode = false,
+        )?;
+    }
+
     if request.model == ImageModel::NaiDiffusion5Curated
         && request
             .img2img

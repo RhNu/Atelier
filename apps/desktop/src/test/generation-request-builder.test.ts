@@ -24,6 +24,7 @@ function modelCapabilities(defaultScale: number, supportsStreaming = true): Mode
     supports_character_reference_inpainting: false,
     supports_variety_boost: false,
     supports_inpainting: true,
+    supports_furry_mode: true,
     supports_streaming: supportsStreaming,
     supports_smea: false,
     supports_dynamic_thresholding: false,
@@ -173,6 +174,7 @@ describe("generation request builder", () => {
           stream: "sse",
           base: {
             prompt: "1girl, atelier lighting",
+            furry_mode: false,
             main_preset_id: null,
             negative_prompt: "low quality",
             model: "nai-diffusion-4-5-full" as const,
@@ -469,5 +471,28 @@ describe("generation request builder", () => {
       { capabilities: modelCapabilities(5) },
     );
     expect(request.jobs[0]?.work.kind).toBe("image");
+  });
+
+  it("keeps furry mode model-scoped and sends it only when supported", () => {
+    const draft = { ...createGenerationDraft(settings), furryMode: true };
+    const enabled = buildSubmitGenerationBatchRequest(
+      draft,
+      { batchId: "batch-furry", jobIds: ["job-furry"] },
+      { capabilities: modelCapabilities(5) },
+    );
+    const work = enabled.jobs[0]?.work;
+    const base = work?.kind === "stream" ? work.request.base : work?.request;
+    expect(base?.furry_mode).toBe(true);
+
+    const unsupported = { ...modelCapabilities(5), supports_furry_mode: false };
+    const disabled = buildSubmitGenerationBatchRequest(
+      draft,
+      { batchId: "batch-plain", jobIds: ["job-plain"] },
+      { capabilities: unsupported },
+    );
+    const disabledWork = disabled.jobs[0]?.work;
+    const disabledBase =
+      disabledWork?.kind === "stream" ? disabledWork.request.base : disabledWork?.request;
+    expect(disabledBase?.furry_mode).toBe(false);
   });
 });

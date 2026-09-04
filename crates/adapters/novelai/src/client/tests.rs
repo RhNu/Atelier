@@ -37,7 +37,8 @@ fn crate_metadata_is_available() {
 fn maps_generation_request_to_bridge_request() {
     let request = GenerateImageRequest {
         prompt: "1girl".to_owned(),
-        model: ImageModel::NaiDiffusion3,
+        furry_mode: true,
+        model: ImageModel::NaiDiffusion4Full,
         size: ImageSize {
             width: 1024,
             height: 1024,
@@ -58,7 +59,8 @@ fn maps_generation_request_to_bridge_request() {
     let bridge = to_bridge_generate_request(request).unwrap();
 
     assert_eq!(bridge.core.prompt, "1girl");
-    assert_eq!(bridge.core.model, novelai_bridge::Model::NaiDiffusion3);
+    assert!(bridge.core.furry_mode);
+    assert_eq!(bridge.core.model, novelai_bridge::Model::NaiDiffusion4Full);
     assert_eq!(bridge.core.size.width, 1024);
     assert_eq!(bridge.core.uc_preset, novelai_bridge::UcPreset::Heavy);
     assert_eq!(bridge.sampling.sampler, novelai_bridge::Sampler::KDpmpp2m);

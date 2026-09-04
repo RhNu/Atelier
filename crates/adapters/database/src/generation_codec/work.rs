@@ -65,6 +65,8 @@ impl GenerateImageStreamRequestDto {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub(super) struct GenerateImageRequestDto {
     prompt: String,
+    #[serde(default)]
+    furry_mode: bool,
     model: String,
     width: u32,
     height: u32,
@@ -93,6 +95,7 @@ impl From<&GenerateImageRequest> for GenerateImageRequestDto {
     fn from(value: &GenerateImageRequest) -> Self {
         Self {
             prompt: value.prompt.clone(),
+            furry_mode: value.furry_mode,
             model: image_model_as_str(value.model).to_owned(),
             width: value.size.width,
             height: value.size.height,
@@ -135,6 +138,7 @@ impl GenerateImageRequestDto {
     pub(super) fn into_domain(self) -> DatabaseResult<GenerateImageRequest> {
         Ok(GenerateImageRequest {
             prompt: self.prompt,
+            furry_mode: self.furry_mode,
             model: image_model_from_str(&self.model)?,
             size: ImageSize {
                 width: self.width,

@@ -221,6 +221,7 @@ pub const fn model_descriptor_to_dto(
                 .supports_character_reference_inpainting,
             supports_variety_boost: capabilities.supports_variety_boost,
             supports_inpainting: capabilities.supports_inpainting,
+            supports_furry_mode: capabilities.supports_furry_mode,
             supports_streaming: capabilities.supports_streaming,
             supports_smea: capabilities.supports_smea,
             supports_dynamic_thresholding: capabilities.supports_dynamic_thresholding,
