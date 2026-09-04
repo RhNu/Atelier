@@ -1,6 +1,13 @@
 /* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop, jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex */
 import { Check, X } from "lucide-react";
-import { useCallback, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppSelect } from "@/components/ui";
@@ -42,6 +49,19 @@ export function CharacterPositionWorkspace({
   const markerRefs = useRef(new Map<string, HTMLButtonElement>());
   const dragRef = useRef<{ id: string; pointerId: number } | null>(null);
   const freeform = capabilities.character_position_mode === "freeform";
+
+  useEffect(() => {
+    const currentById = new Map(draftRef.current.map((character) => [character.id, character]));
+    const next = initializePositionDraft(characters).map((character) => {
+      const current = currentById.get(character.id);
+      return current ? { ...character, position: { ...current.position } } : character;
+    });
+    draftRef.current = next;
+    setDraft(next);
+    setActiveId((current) =>
+      next.some((character) => character.id === current) ? current : (next[0]?.id ?? ""),
+    );
+  }, [characters]);
 
   const commitPosition = useCallback((id: string, position: Position) => {
     const rounded = { x: round3(position.x), y: round3(position.y) };

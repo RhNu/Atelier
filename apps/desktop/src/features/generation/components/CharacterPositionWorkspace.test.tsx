@@ -52,6 +52,41 @@ describe("CharacterPositionWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Apply" }));
     expect(onApply.mock.calls[0]?.[0][0].position).toEqual({ x: 0.1, y: 0.9 });
   });
+
+  it("adds newly eligible characters without losing staged positions", () => {
+    const { rerender } = render(
+      <CharacterPositionWorkspace
+        characters={characters.slice(0, 1)}
+        capabilities={capabilities("grid_5x5", false)}
+        size={{ width: 832, height: 1216 }}
+        underlayResource={null}
+        underlayStreamSrc={null}
+        onApply={vi.fn<(characters: GenerationCharacterDraft[]) => void>()}
+        onCancel={vi.fn<() => void>()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Position 10%, 90%" }));
+
+    const onApply = vi.fn<(characters: GenerationCharacterDraft[]) => void>();
+    rerender(
+      <CharacterPositionWorkspace
+        characters={characters}
+        capabilities={capabilities("grid_5x5", false)}
+        size={{ width: 832, height: 1216 }}
+        underlayResource={null}
+        underlayStreamSrc={null}
+        onApply={onApply}
+        onCancel={vi.fn<() => void>()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Select character 2" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(onApply.mock.calls[0]?.[0].map((character) => character.position)).toEqual([
+      { x: 0.1, y: 0.9 },
+      { x: 0.3, y: 0.5 },
+    ]);
+  });
 });
 
 function capabilities(

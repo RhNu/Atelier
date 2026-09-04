@@ -6,7 +6,6 @@ import {
   History,
   ImageIcon,
   ListOrdered,
-  MousePointer2,
   RadioTower,
   RotateCcw,
   Save,
@@ -61,7 +60,6 @@ type GenerationPreviewStageProps = {
   onRerunRequest: () => void;
   onDeleteRequest: () => void;
   onCompilePrompt: () => void;
-  onEditCharacterPositions?: () => void;
   onEditSampleAsInpaint?: () => void;
 };
 
@@ -93,7 +91,6 @@ export function GenerationPreviewStage({
   onRerunRequest,
   onDeleteRequest,
   onCompilePrompt,
-  onEditCharacterPositions,
   onEditSampleAsInpaint,
 }: GenerationPreviewStageProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -120,7 +117,6 @@ export function GenerationPreviewStage({
         queueControls={queueControls}
         onResumeLive={onResumeLive}
         onCompilePrompt={onCompilePrompt}
-        onEditCharacterPositions={onEditCharacterPositions}
         onEditSampleAsInpaint={onEditSampleAsInpaint}
       />
       <RequestCursorStrip
@@ -165,7 +161,6 @@ function PreviewHeader({
   queueControls,
   onResumeLive,
   onCompilePrompt,
-  onEditCharacterPositions,
   onEditSampleAsInpaint,
 }: Pick<
   GenerationPreviewStageProps,
@@ -176,7 +171,6 @@ function PreviewHeader({
   | "queueControls"
   | "onResumeLive"
   | "onCompilePrompt"
-  | "onEditCharacterPositions"
   | "onEditSampleAsInpaint"
 > & { showResume: boolean }) {
   const { t } = useTranslation("generation");
@@ -230,14 +224,6 @@ function PreviewHeader({
           <Sparkles aria-hidden="true" className="size-4" />
           {t("compile")}
         </AppButton>
-        {onEditCharacterPositions ? (
-          <AppIconButton
-            icon={MousePointer2}
-            label={t("editCharacterPositions")}
-            size="sm"
-            onClick={onEditCharacterPositions}
-          />
-        ) : null}
         {onEditSampleAsInpaint ? (
           <AppIconButton
             icon={ImageIcon}

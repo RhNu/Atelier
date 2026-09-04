@@ -57,6 +57,7 @@ export const generation = {
   positionCell: "位置 {{x}}%、{{y}}%",
   position: "位置",
   aiPositioning: "使用 AI 角色定位",
+  aiChoice: "AI 选择",
   openPositionEditor: "打开位置编辑器",
   editCharacterPositions: "编辑角色位置",
   characterPositionEditor: "角色位置",

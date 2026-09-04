@@ -59,6 +59,7 @@ import {
   buildSubmitGenerationBatchRequest,
   canSubmitGenerationDraft,
   createGenerationDraft,
+  isGenerationCharacterEligible,
   resetGenerationParameters,
   switchGenerationModel,
 } from "./model/generation-draft";
@@ -191,16 +192,8 @@ export function GeneratePage() {
       : (selectedRequest?.samples.find((sample) => sample.sampleIndex === focusedSampleIndex) ??
         null);
   const positionCharacters = useMemo(
-    () =>
-      draft?.characters.filter(
-        (character) =>
-          character.enabled && (character.prompt.trim() || Boolean(character.presetId)),
-      ) ?? [],
+    () => draft?.characters.filter(isGenerationCharacterEligible) ?? [],
     [draft?.characters],
-  );
-  const canEditPositions = Boolean(
-    capabilities?.character_position_mode &&
-    positionCharacters.length >= (capabilities.can_position_one_character ? 1 : 2),
   );
   const historyBatches = historyQuery.data?.items ?? EMPTY_ITEMS;
   const isViewingLive = Boolean(viewBatchId && viewBatchId === effectiveLiveBatchId);
@@ -533,7 +526,7 @@ export function GeneratePage() {
             />
           ) : centerWorkspace === "positions" && capabilities && draft ? (
             <CharacterPositionWorkspace
-              key={`${draft.model}-${draft.characters.map((character) => character.id).join("-")}`}
+              key={draft.model}
               characters={positionCharacters}
               capabilities={capabilities}
               size={draft.size}
@@ -569,7 +562,6 @@ export function GeneratePage() {
               onRerunRequest={generationActions.handleRerunRequest}
               onDeleteRequest={generationActions.handleDeleteRequest}
               onCompilePrompt={handleCompile}
-              onEditCharacterPositions={canEditPositions ? openPositionEditor : undefined}
               onEditSampleAsInpaint={
                 selectedSample?.resource && draft.model !== "nai-diffusion-5-curated"
                   ? editSelectedOutputAsInpaint

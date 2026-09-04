@@ -822,7 +822,7 @@ describe("GeneratePage", () => {
     expect(screen.getByText("2% · ~215h")).toBeInTheDocument();
   });
 
-  it("keeps empty guidance sections compact and reveals character positions only when useful", async () => {
+  it("shows position controls for one valid character and keeps the editor eligibility live", async () => {
     const { user } = setup();
 
     expect(await screen.findByRole("button", { name: "Add I2I source" })).toBeEnabled();
@@ -834,26 +834,52 @@ describe("GeneratePage", () => {
     expect(screen.queryByRole("button", { name: "Remove I2I source" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /I2I mask/u })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Vibe strength")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Use AI character positioning")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "AI's Choice" })).not.toBeInTheDocument();
     expect(screen.queryByText(/64–1600px/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/Add source images, Vibe encodings/u)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add character prompt" }));
-    expect(screen.queryByLabelText("Use AI character positioning")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "AI's Choice" })).not.toBeInTheDocument();
     typeInPromptEditor(screen.getByLabelText("Character 1 prompt"), "alice");
+    expect(await screen.findByRole("tab", { name: "AI's Choice" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Custom" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Open position editor" })).toHaveLength(1);
+
     await user.click(screen.getByRole("button", { name: "Add character prompt" }));
-    typeInPromptEditor(screen.getByLabelText("Character 2 prompt"), "bob");
-    const aiPositioning = await screen.findByLabelText("Use AI character positioning");
-    expect(aiPositioning).toBeChecked();
-    await user.click(aiPositioning);
     await user.click(await screen.findByRole("button", { name: "Open position editor" }));
+    const positionCanvas = await screen.findByRole("application", {
+      name: "Character position canvas",
+    });
+    expect(positionCanvas).toBeInTheDocument();
     expect(
-      await screen.findByRole("application", { name: "Character position canvas" }),
+      within(positionCanvas).getByRole("button", { name: "Select character 1" }),
+    ).toBeInTheDocument();
+    expect(
+      within(positionCanvas).queryByRole("button", { name: "Select character 2" }),
+    ).not.toBeInTheDocument();
+
+    typeInPromptEditor(screen.getByLabelText("Character 2 prompt"), "bob");
+    expect(
+      await within(positionCanvas).findByRole("button", { name: "Select character 2" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Disable character 1" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+  });
+
+  it("dims disabled character cards", async () => {
+    const { user } = setup();
+
+    await user.click(await screen.findByRole("button", { name: "Add character prompt" }));
+    const card = screen.getByRole("article", { name: "Character 1" });
+    expect(card).not.toHaveClass("opacity-50", "grayscale");
+
+    await user.click(screen.getByRole("button", { name: "Disable character 1" }));
+    expect(card).toHaveClass("opacity-50", "grayscale");
   });
 
   it("uses bounded sliders only after an I2I source exists", async () => {

@@ -322,7 +322,7 @@ describe("generation request builder", () => {
           position: { x: 0.5, y: 0.5 },
         },
       ],
-      use_coords: false,
+      use_coords: true,
     });
   });
 

@@ -1,5 +1,5 @@
 /* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-function-as-prop */
-import { Plus, Power, Trash2 } from "lucide-react";
+import { MousePointer2, Plus, Power, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -7,12 +7,16 @@ import { AppIconButton, AppTabs } from "@/components/ui";
 import { NaiPromptEditor, promptProfileForModel } from "@/features/prompt-editor";
 import type { PromptPresetDto, PromptTokenUsageDto } from "@/types";
 
-import type { GenerationCharacterDraft, GenerationDraft } from "../model/generation-draft";
+import {
+  isGenerationCharacterEligible,
+  type GenerationCharacterDraft,
+  type GenerationDraft,
+} from "../model/generation-draft";
 import { applyPromptPreset } from "../model/prompt-preset-model";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 import { characterTokenCount, createLocalId, patchCharacter } from "./advanced-generation-model";
 import { GenerationPresetControl } from "./GenerationPresetControl";
-import { GuidanceSection, GuidanceSettingsDisclosure } from "./GuidanceSection";
+import { GuidanceSection } from "./GuidanceSection";
 
 type PatchDraft = (patch: Partial<GenerationDraft>, options?: GenerationDraftPatchOptions) => void;
 type PromptTab = "positive" | "negative";
@@ -36,12 +40,9 @@ export function CharacterGuidanceSection({
 }) {
   const { t } = useTranslation("generation");
   const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
-  const validCharacters = draft.characters.filter(
-    (character) => character.enabled && (character.prompt.trim() || character.presetId),
-  );
+  const validCharacters = draft.characters.filter(isGenerationCharacterEligible);
   const showPositionSettings =
-    Boolean(capabilities?.character_position_mode) &&
-    validCharacters.length >= (capabilities?.can_position_one_character ? 1 : 2);
+    Boolean(capabilities?.character_position_mode) && validCharacters.length > 0;
 
   function addCharacter() {
     onPatch(
@@ -67,7 +68,7 @@ export function CharacterGuidanceSection({
     onPatch(
       {
         characters,
-        characterPositionMode: characters.length >= 2 ? draft.characterPositionMode : "global",
+        characterPositionMode: characters.length > 0 ? draft.characterPositionMode : "global",
       },
       { persist: "immediate" },
     );
@@ -122,38 +123,30 @@ function CharacterPositionSettings({
   onOpen: () => void;
 }) {
   const { t } = useTranslation("generation");
+  const positionTabs = useMemo(
+    () => [
+      { value: "global" as const, label: t("aiChoice") },
+      { value: "manual" as const, label: t("custom") },
+    ],
+    [t],
+  );
   if (!show) {
     return null;
   }
   const useAiPositioning = draft.characterPositionMode === "global";
 
   return (
-    <GuidanceSettingsDisclosure title={t("position")} defaultOpen>
-      <label className="flex items-center justify-between gap-3 text-xs text-app-muted">
-        {t("aiPositioning")}
-        <input
-          aria-label={t("aiPositioning")}
-          title={t("aiPositioning")}
-          type="checkbox"
-          checked={useAiPositioning}
-          onChange={(event) =>
-            onPatch(
-              { characterPositionMode: event.target.checked ? "global" : "manual" },
-              { persist: "immediate" },
-            )
-          }
-        />
-      </label>
-      {!useAiPositioning ? (
-        <button
-          type="button"
-          className="h-9 w-full border border-app-border bg-app-surface text-xs font-semibold text-app-text hover:border-brand-400"
-          onClick={onOpen}
-        >
-          {t("openPositionEditor")}
-        </button>
-      ) : null}
-    </GuidanceSettingsDisclosure>
+    <div className="flex items-stretch gap-1">
+      <AppTabs
+        label={t("position")}
+        value={useAiPositioning ? "global" : "manual"}
+        tabs={positionTabs}
+        onChange={(characterPositionMode) =>
+          onPatch({ characterPositionMode }, { persist: "immediate" })
+        }
+      />
+      <AppIconButton icon={MousePointer2} label={t("openPositionEditor")} onClick={onOpen} />
+    </div>
   );
 }
 
@@ -203,6 +196,7 @@ function CharacterCard({
       className={[
         "grid gap-2 border bg-app-bg/70 p-2",
         selected ? "border-brand-400/60" : "border-app-border",
+        character.enabled ? "" : "opacity-50 grayscale",
       ].join(" ")}
     >
       <header className="flex items-center justify-between gap-2">
