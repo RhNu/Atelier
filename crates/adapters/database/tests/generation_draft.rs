@@ -3,11 +3,11 @@ use atelier_adapter_database::{
 };
 use atelier_generation::{
     CharacterPosition, CharacterReferenceType, GenerationDraftCharacter,
-    GenerationDraftCharacterPositionMode, GenerationDraftI2i, GenerationDraftInpaintSession,
-    GenerationDraftMaskDisplay, GenerationDraftPreciseReference, GenerationDraftPromptState,
-    GenerationDraftRepository, GenerationDraftSeedMode, GenerationDraftSnapshot,
-    GenerationDraftVibe, GenerationDraftVibeSlot, ImageFormat, ImageModel, ImageSize,
-    NoiseSchedule, QualityPreset, Sampler, UcPreset,
+    GenerationDraftCharacterPositionMode, GenerationDraftFocusRegion, GenerationDraftI2i,
+    GenerationDraftInpaintSession, GenerationDraftMaskDisplay, GenerationDraftPreciseReference,
+    GenerationDraftPromptState, GenerationDraftRepository, GenerationDraftSeedMode,
+    GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot, ImageFormat, ImageModel,
+    ImageSize, NoiseSchedule, QualityPreset, Sampler, UcPreset,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef};
 use atelier_settings::{WorkspaceSettings, WorkspaceSettingsRepository};
@@ -30,7 +30,15 @@ fn draft_round_trips_all_fields_without_overwriting_workspace_settings() {
             draft_repository.load_generation_draft().await.unwrap(),
             None
         );
-        let draft = sample_draft();
+        let mut draft = sample_draft();
+        draft.i2i.as_mut().unwrap().inpaint.as_mut().unwrap().focus =
+            Some(GenerationDraftFocusRegion {
+                x: 0.25,
+                y: 0.25,
+                width: 0.5,
+                height: 0.5,
+                minimum_context_area: 0.25,
+            });
         draft_repository
             .save_generation_draft(&draft)
             .await
@@ -159,6 +167,7 @@ fn sample_draft() -> GenerationDraftSnapshot {
             inpaint: Some(GenerationDraftInpaintSession {
                 region_to_replace: resource("resource:mask"),
                 display: GenerationDraftMaskDisplay::default(),
+                focus: None,
             }),
             strength: 0.55,
             noise: 0.15,

@@ -103,6 +103,16 @@ impl Default for GenerationDraftMaskDisplay {
 pub struct GenerationDraftInpaintSession {
     pub region_to_replace: ResourceRef,
     pub display: GenerationDraftMaskDisplay,
+    pub focus: Option<GenerationDraftFocusRegion>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct GenerationDraftFocusRegion {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub minimum_context_area: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -238,6 +248,24 @@ impl GenerationDraftSnapshot {
                     1,
                     512,
                 )?;
+                if let Some(focus) = inpaint.focus {
+                    validate_f32("i2i.inpaint.focus.x", focus.x, 0.0, 1.0)?;
+                    validate_f32("i2i.inpaint.focus.y", focus.y, 0.0, 1.0)?;
+                    validate_f32("i2i.inpaint.focus.width", focus.width, 0.001, 1.0)?;
+                    validate_f32("i2i.inpaint.focus.height", focus.height, 0.001, 1.0)?;
+                    validate_f32(
+                        "i2i.inpaint.focus.minimum_context_area",
+                        focus.minimum_context_area,
+                        0.0,
+                        1.0,
+                    )?;
+                    if focus.x + focus.width > 1.000_001 || focus.y + focus.height > 1.000_001 {
+                        return Err(GenerationDraftError::invalid(
+                            "i2i.inpaint.focus",
+                            "focused inpaint rectangle must stay inside the canvas",
+                        ));
+                    }
+                }
             }
             validate_f32(
                 "i2i.strength",

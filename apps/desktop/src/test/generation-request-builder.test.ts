@@ -249,6 +249,7 @@ describe("generation request builder", () => {
             showBorder: true,
             brushSize: 48,
           },
+          focus: null,
         },
         strength: 0.64,
         noise: 0.12,
@@ -440,5 +441,31 @@ describe("generation request builder", () => {
         strength: 0.6,
       },
     ]);
+  });
+
+  it("forces focused inpainting onto the final-image path", () => {
+    const draft = createGenerationDraft(settings);
+    draft.i2i = {
+      image: { id: "source", variant_id: null },
+      strength: 1,
+      noise: 0,
+      inpaint: {
+        regionToReplace: { id: "mask", variant_id: null },
+        display: {
+          color: "#2563eb",
+          opacity: 0.45,
+          pattern: "solid",
+          showBorder: true,
+          brushSize: 48,
+        },
+        focus: { x: 0.25, y: 0.25, width: 0.5, height: 0.5, minimumContextArea: 0.25 },
+      },
+    };
+    const request = buildSubmitGenerationBatchRequest(
+      draft,
+      { batchId: "batch-focus", jobIds: ["job-focus"] },
+      { capabilities: modelCapabilities(5) },
+    );
+    expect(request.jobs[0]?.work.kind).toBe("image");
   });
 });

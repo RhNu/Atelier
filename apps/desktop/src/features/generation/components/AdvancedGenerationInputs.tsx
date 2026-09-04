@@ -122,6 +122,7 @@ export function AdvancedGenerationInputs({
           inpaint: {
             regionToReplace: resource,
             display: defaultMaskDisplay(),
+            focus: null,
           },
         });
         await releaseImages([replaced]);

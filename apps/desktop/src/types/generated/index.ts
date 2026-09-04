@@ -103,6 +103,7 @@ export type { GenerationDefaultsDto } from "./GenerationDefaultsDto";
 export type { GenerationDraftCharacterDto } from "./GenerationDraftCharacterDto";
 export type { GenerationDraftCharacterPositionModeDto } from "./GenerationDraftCharacterPositionModeDto";
 export type { GenerationDraftDto } from "./GenerationDraftDto";
+export type { GenerationDraftFocusRegionDto } from "./GenerationDraftFocusRegionDto";
 export type { GenerationDraftI2iDto } from "./GenerationDraftI2iDto";
 export type { GenerationDraftInpaintSessionDto } from "./GenerationDraftInpaintSessionDto";
 export type { GenerationDraftMaskDisplayDto } from "./GenerationDraftMaskDisplayDto";

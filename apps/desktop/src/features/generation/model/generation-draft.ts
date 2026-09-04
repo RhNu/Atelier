@@ -39,6 +39,14 @@ export type GenerationInpaintSessionDraft = {
     showBorder: boolean;
     brushSize: number;
   };
+  focus: GenerationFocusRegionDraft | null;
+};
+export type GenerationFocusRegionDraft = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  minimumContextArea: number;
 };
 export type GenerationVibeSlotDraft = {
   id: string;
@@ -222,6 +230,15 @@ export function generationDraftFromDto(value: GenerationDraftDto): GenerationDra
                   showBorder: value.i2i.inpaint.display.show_border,
                   brushSize: value.i2i.inpaint.display.brush_size,
                 },
+                focus: value.i2i.inpaint.focus
+                  ? {
+                      x: value.i2i.inpaint.focus.x,
+                      y: value.i2i.inpaint.focus.y,
+                      width: value.i2i.inpaint.focus.width,
+                      height: value.i2i.inpaint.focus.height,
+                      minimumContextArea: value.i2i.inpaint.focus.minimum_context_area,
+                    }
+                  : null,
               }
             : null,
           strength: value.i2i.strength,
@@ -294,6 +311,15 @@ export function generationDraftToDto(value: GenerationDraft): GenerationDraftDto
                   show_border: value.i2i.inpaint.display.showBorder,
                   brush_size: value.i2i.inpaint.display.brushSize,
                 },
+                focus: value.i2i.inpaint.focus
+                  ? {
+                      x: value.i2i.inpaint.focus.x,
+                      y: value.i2i.inpaint.focus.y,
+                      width: value.i2i.inpaint.focus.width,
+                      height: value.i2i.inpaint.focus.height,
+                      minimum_context_area: value.i2i.inpaint.focus.minimumContextArea,
+                    }
+                  : null,
               }
             : null,
           strength: value.i2i.strength,
@@ -433,7 +459,9 @@ function buildGenerationWorkRequest(
   capabilities?: ModelCapabilitiesDto,
 ): GenerationWorkRequestDto {
   const base = buildBaseGenerateRequest(draft, capabilities);
-  return draft.streamEnabled && capabilities?.supports_streaming !== false
+  return draft.streamEnabled &&
+    capabilities?.supports_streaming !== false &&
+    !draft.i2i?.inpaint?.focus
     ? { kind: "stream", request: { base, stream: "sse" } }
     : { kind: "image", request: base };
 }

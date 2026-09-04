@@ -31,6 +31,23 @@ fn generation_draft_rejects_vibe_and_precise_reference_conflict() {
     assert_eq!(draft.validate().unwrap_err().field.as_deref(), Some("vibe"));
 }
 
+#[test]
+fn generation_draft_validates_focused_inpaint_bounds() {
+    let mut draft = sample_draft();
+    draft.i2i.as_mut().unwrap().inpaint.as_mut().unwrap().focus =
+        Some(GenerationDraftFocusRegion {
+            x: 0.7,
+            y: 0.2,
+            width: 0.4,
+            height: 0.5,
+            minimum_context_area: 0.25,
+        });
+    assert_eq!(
+        draft.validate().unwrap_err().field.as_deref(),
+        Some("i2i.inpaint.focus")
+    );
+}
+
 fn sample_draft() -> GenerationDraftSnapshot {
     GenerationDraftSnapshot {
         model: ImageModel::NaiDiffusion45Full,
@@ -74,6 +91,7 @@ fn sample_draft() -> GenerationDraftSnapshot {
             inpaint: Some(GenerationDraftInpaintSession {
                 region_to_replace: resource("resource:mask"),
                 display: GenerationDraftMaskDisplay::default(),
+                focus: None,
             }),
             strength: 0.6,
             noise: 0.2,

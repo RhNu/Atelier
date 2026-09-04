@@ -1,16 +1,16 @@
 use atelier_app_api::generation::{
     CharacterPositionDto, GenerationDraftCharacterDto, GenerationDraftCharacterPositionModeDto,
-    GenerationDraftDto, GenerationDraftI2iDto, GenerationDraftInpaintSessionDto,
-    GenerationDraftMaskDisplayDto, GenerationDraftMaskPatternDto,
+    GenerationDraftDto, GenerationDraftFocusRegionDto, GenerationDraftI2iDto,
+    GenerationDraftInpaintSessionDto, GenerationDraftMaskDisplayDto, GenerationDraftMaskPatternDto,
     GenerationDraftPreciseReferenceDto, GenerationDraftPromptStateDto, GenerationDraftSeedModeDto,
     GenerationDraftVibeDto, GenerationDraftVibeSlotDto,
 };
 use atelier_generation::{
     CharacterPosition, CharacterReferenceType, GenerationDraftCharacter,
-    GenerationDraftCharacterPositionMode, GenerationDraftI2i, GenerationDraftInpaintSession,
-    GenerationDraftMaskDisplay, GenerationDraftMaskPattern, GenerationDraftPreciseReference,
-    GenerationDraftPromptState, GenerationDraftSeedMode, GenerationDraftSnapshot,
-    GenerationDraftVibe, GenerationDraftVibeSlot,
+    GenerationDraftCharacterPositionMode, GenerationDraftFocusRegion, GenerationDraftI2i,
+    GenerationDraftInpaintSession, GenerationDraftMaskDisplay, GenerationDraftMaskPattern,
+    GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftSeedMode,
+    GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
 };
 
 use super::{
@@ -111,6 +111,13 @@ fn i2i_to_domain(value: GenerationDraftI2iDto) -> GenerationDraftI2i {
                 show_border: inpaint.display.show_border,
                 brush_size: inpaint.display.brush_size,
             },
+            focus: inpaint.focus.map(|focus| GenerationDraftFocusRegion {
+                x: focus.x,
+                y: focus.y,
+                width: focus.width,
+                height: focus.height,
+                minimum_context_area: focus.minimum_context_area,
+            }),
         }),
         strength: value.strength,
         noise: value.noise,
@@ -137,6 +144,13 @@ fn i2i_to_dto(value: &GenerationDraftI2i) -> GenerationDraftI2iDto {
                     show_border: inpaint.display.show_border,
                     brush_size: inpaint.display.brush_size,
                 },
+                focus: inpaint.focus.map(|focus| GenerationDraftFocusRegionDto {
+                    x: focus.x,
+                    y: focus.y,
+                    width: focus.width,
+                    height: focus.height,
+                    minimum_context_area: focus.minimum_context_area,
+                }),
             }),
         strength: value.strength,
         noise: value.noise,

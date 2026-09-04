@@ -288,6 +288,17 @@ pub struct GenerationDraftMaskDisplayDto {
 pub struct GenerationDraftInpaintSessionDto {
     pub region_to_replace: ResourceRefDto,
     pub display: GenerationDraftMaskDisplayDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focus: Option<GenerationDraftFocusRegionDto>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct GenerationDraftFocusRegionDto {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub minimum_context_area: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

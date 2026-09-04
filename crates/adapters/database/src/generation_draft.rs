@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use atelier_generation::{
     CharacterPosition, GenerationDraftCharacter, GenerationDraftCharacterPositionMode,
-    GenerationDraftError, GenerationDraftI2i, GenerationDraftInpaintSession,
-    GenerationDraftMaskDisplay, GenerationDraftMaskPattern, GenerationDraftPreciseReference,
-    GenerationDraftPromptState, GenerationDraftRepository, GenerationDraftResult,
-    GenerationDraftSeedMode, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
-    ImageSize,
+    GenerationDraftError, GenerationDraftFocusRegion, GenerationDraftI2i,
+    GenerationDraftInpaintSession, GenerationDraftMaskDisplay, GenerationDraftMaskPattern,
+    GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftRepository,
+    GenerationDraftResult, GenerationDraftSeedMode, GenerationDraftSnapshot, GenerationDraftVibe,
+    GenerationDraftVibeSlot, ImageSize,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
 use rusqlite::{OptionalExtension, params};
@@ -247,6 +247,7 @@ impl GenerationDraftI2iDto {
                     self.mask.map(|mask| GenerationDraftInpaintSession {
                         region_to_replace: mask.into_domain(),
                         display: GenerationDraftMaskDisplay::default(),
+                        focus: None,
                     })
                 }),
             strength: self.strength,
@@ -259,6 +260,17 @@ impl GenerationDraftI2iDto {
 struct GenerationDraftInpaintSessionDto {
     region_to_replace: ResourceRefDto,
     display: GenerationDraftMaskDisplayDto,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    focus: Option<GenerationDraftFocusRegionDto>,
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+struct GenerationDraftFocusRegionDto {
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    minimum_context_area: f32,
 }
 
 impl GenerationDraftInpaintSessionDto {
@@ -266,6 +278,13 @@ impl GenerationDraftInpaintSessionDto {
         Self {
             region_to_replace: ResourceRefDto::from_domain(&value.region_to_replace),
             display: GenerationDraftMaskDisplayDto::from_domain(&value.display),
+            focus: value.focus.map(|focus| GenerationDraftFocusRegionDto {
+                x: focus.x,
+                y: focus.y,
+                width: focus.width,
+                height: focus.height,
+                minimum_context_area: focus.minimum_context_area,
+            }),
         }
     }
 
@@ -273,6 +292,13 @@ impl GenerationDraftInpaintSessionDto {
         GenerationDraftInpaintSession {
             region_to_replace: self.region_to_replace.into_domain(),
             display: self.display.into_domain(),
+            focus: self.focus.map(|focus| GenerationDraftFocusRegion {
+                x: focus.x,
+                y: focus.y,
+                width: focus.width,
+                height: focus.height,
+                minimum_context_area: focus.minimum_context_area,
+            }),
         }
     }
 }

@@ -1,4 +1,4 @@
-/* eslint-disable max-lines-per-function, react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
+/* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
 import { Check, Eraser, Paintbrush, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,7 +7,11 @@ import { AppButton, AppRangeField, AppSelect } from "@/components/ui";
 import type { CommitGenerationCanvasResourcesResponseDto } from "@/types";
 
 import { useResourceImageQuery } from "../data/useGenerationActions";
-import type { GenerationI2iDraft, GenerationInpaintSessionDraft } from "../model/generation-draft";
+import type {
+  GenerationFocusRegionDraft,
+  GenerationI2iDraft,
+  GenerationInpaintSessionDraft,
+} from "../model/generation-draft";
 
 type Tool = "brush" | "eraser";
 
@@ -29,6 +33,7 @@ export function InpaintCanvasWorkspace({
   onApply: (
     image: CommitGenerationCanvasResourcesResponseDto["source"],
     inpaint: GenerationInpaintSessionDraft,
+    size: { width: number; height: number },
   ) => void;
   onCancel: () => void;
 }) {
@@ -40,6 +45,10 @@ export function InpaintCanvasWorkspace({
   const drawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const [tool, setTool] = useState<Tool>("brush");
+  const [canvasSize, setCanvasSize] = useState(size);
+  const [resizeSize, setResizeSize] = useState(size);
+  const [anchor, setAnchor] = useState("center");
+  const [focus, setFocus] = useState<GenerationFocusRegionDraft | null>(i2i.inpaint?.focus ?? null);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [display, setDisplay] = useState(
@@ -60,20 +69,20 @@ export function InpaintCanvasWorkspace({
     if (!source || !mask || !sourceData) return;
     const image = new Image();
     image.onload = () => {
-      source.width = size.width;
-      source.height = size.height;
-      mask.width = size.width;
-      mask.height = size.height;
+      source.width = canvasSize.width;
+      source.height = canvasSize.height;
+      mask.width = canvasSize.width;
+      mask.height = canvasSize.height;
       const context = source.getContext("2d");
       if (context) {
         context.imageSmoothingEnabled = true;
         context.imageSmoothingQuality = "high";
-        context.drawImage(image, 0, 0, size.width, size.height);
+        context.drawImage(image, 0, 0, canvasSize.width, canvasSize.height);
       }
       if (maskQuery.data) drawExistingMask(mask, maskQuery.data.image_base64);
     };
     image.src = `data:${sourceData.mime_type ?? "image/png"};base64,${sourceData.image_base64}`;
-  }, [maskQuery.data, size.height, size.width, sourceQuery.data]);
+  }, [canvasSize.height, canvasSize.width, maskQuery.data, sourceQuery.data]);
 
   function point(event: PointerEvent<HTMLCanvasElement>) {
     const canvas = maskRef.current;
@@ -127,17 +136,67 @@ export function InpaintCanvasWorkspace({
     setDirty(true);
   }
 
+  function resizeCanvas() {
+    const source = sourceRef.current;
+    const mask = maskRef.current;
+    if (!source || !mask) return;
+    const width = legalDimension(resizeSize.width);
+    const height = legalDimension(resizeSize.height);
+    const [anchorX, anchorY] = anchorFactors(anchor);
+    const offsetX = Math.round((width - source.width) * anchorX);
+    const offsetY = Math.round((height - source.height) * anchorY);
+    const oldSource = copyCanvas(source);
+    const oldMask = copyCanvas(mask);
+    source.width = width;
+    source.height = height;
+    const sourceContext = source.getContext("2d");
+    if (!sourceContext) return;
+    sourceContext.fillStyle = "white";
+    sourceContext.fillRect(0, 0, width, height);
+    sourceContext.drawImage(oldSource, offsetX, offsetY);
+    mask.width = width;
+    mask.height = height;
+    const maskContext = mask.getContext("2d");
+    if (!maskContext) return;
+    if (width > oldMask.width || height > oldMask.height) {
+      maskContext.fillStyle = display.color;
+      maskContext.fillRect(0, 0, width, height);
+      maskContext.clearRect(offsetX, offsetY, oldMask.width, oldMask.height);
+    }
+    maskContext.drawImage(oldMask, offsetX, offsetY);
+    setCanvasSize({ width, height });
+    setResizeSize({ width, height });
+    setFocus(null);
+    setDirty(true);
+  }
+
   async function commit() {
     const source = sourceRef.current;
     const mask = maskRef.current;
     if (!source || !mask) return;
     setError(null);
     try {
+      if (focus && !hasPaintedPixels(mask)) {
+        const context = mask.getContext("2d");
+        if (context) {
+          context.fillStyle = display.color;
+          context.fillRect(
+            focus.x * mask.width,
+            focus.y * mask.height,
+            focus.width * mask.width,
+            focus.height * mask.height,
+          );
+        }
+      }
       const committed = await onCommit({
         source_png_base64: dataUrlPayload(source.toDataURL("image/png")),
         region_to_replace_png_base64: binaryMaskBase64(mask),
       });
-      onApply(committed.source, { regionToReplace: committed.region_to_replace, display });
+      onApply(
+        committed.source,
+        { regionToReplace: committed.region_to_replace, display, focus },
+        canvasSize,
+      );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
@@ -201,9 +260,20 @@ export function InpaintCanvasWorkspace({
               onPointerUp={stopDrawing}
               onPointerCancel={stopDrawing}
             />
+            {focus ? (
+              <div
+                className="pointer-events-none absolute border-2 border-amber-300 bg-amber-300/10"
+                style={{
+                  left: `${focus.x * 100}%`,
+                  top: `${focus.y * 100}%`,
+                  width: `${focus.width * 100}%`,
+                  height: `${focus.height * 100}%`,
+                }}
+              />
+            ) : null}
           </div>
         </div>
-        <aside className="grid content-start gap-4 border-l border-app-border p-3">
+        <aside className="grid content-start gap-4 overflow-auto border-l border-app-border p-3">
           <label className="grid gap-1 text-xs text-app-muted">
             {t("maskColor")}
             <input
@@ -256,6 +326,115 @@ export function InpaintCanvasWorkspace({
               }
             />
           </label>
+          <label className="flex items-center justify-between gap-2 text-xs text-app-muted">
+            {t("focusedInpaint")}
+            <input
+              type="checkbox"
+              checked={Boolean(focus)}
+              onChange={(event) =>
+                setFocus(
+                  event.target.checked
+                    ? { x: 0.25, y: 0.25, width: 0.5, height: 0.5, minimumContextArea: 0.25 }
+                    : null,
+                )
+              }
+            />
+          </label>
+          {focus ? (
+            <>
+              <AppRangeField
+                label="X"
+                value={focus.x}
+                valueText={focus.x.toFixed(2)}
+                min={0}
+                max={1 - focus.width}
+                step={0.01}
+                onChange={(x) => setFocus({ ...focus, x })}
+              />
+              <AppRangeField
+                label="Y"
+                value={focus.y}
+                valueText={focus.y.toFixed(2)}
+                min={0}
+                max={1 - focus.height}
+                step={0.01}
+                onChange={(y) => setFocus({ ...focus, y })}
+              />
+              <AppRangeField
+                label={t("focusWidth")}
+                value={focus.width}
+                valueText={focus.width.toFixed(2)}
+                min={0.05}
+                max={1 - focus.x}
+                step={0.01}
+                onChange={(width) => setFocus({ ...focus, width })}
+              />
+              <AppRangeField
+                label={t("focusHeight")}
+                value={focus.height}
+                valueText={focus.height.toFixed(2)}
+                min={0.05}
+                max={1 - focus.y}
+                step={0.01}
+                onChange={(height) => setFocus({ ...focus, height })}
+              />
+              <AppRangeField
+                label={t("minimumContextArea")}
+                value={focus.minimumContextArea}
+                valueText={`${Math.round(focus.minimumContextArea * 100)}%`}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={(minimumContextArea) => setFocus({ ...focus, minimumContextArea })}
+              />
+            </>
+          ) : null}
+          <div className="grid gap-2 border-t border-app-border pt-3">
+            <span className="text-xs font-medium text-app-text">{t("resizeCanvas")}</span>
+            <input
+              aria-label={t("canvasWidth")}
+              className="rounded border border-app-border bg-app-bg px-2 py-1 text-xs"
+              type="number"
+              min={64}
+              max={1600}
+              step={64}
+              value={resizeSize.width}
+              onChange={(event) =>
+                setResizeSize((current) => ({ ...current, width: Number(event.target.value) }))
+              }
+            />
+            <input
+              aria-label={t("canvasHeight")}
+              className="rounded border border-app-border bg-app-bg px-2 py-1 text-xs"
+              type="number"
+              min={64}
+              max={1600}
+              step={64}
+              value={resizeSize.height}
+              onChange={(event) =>
+                setResizeSize((current) => ({ ...current, height: Number(event.target.value) }))
+              }
+            />
+            <AppSelect
+              aria-label={t("canvasAnchor")}
+              value={anchor}
+              options={[
+                { value: "top-left", label: t("anchor.top-left") },
+                { value: "top-center", label: t("anchor.top-center") },
+                { value: "top-right", label: t("anchor.top-right") },
+                { value: "center-left", label: t("anchor.center-left") },
+                { value: "center-center", label: t("anchor.center-center") },
+                { value: "center-right", label: t("anchor.center-right") },
+                { value: "bottom-left", label: t("anchor.bottom-left") },
+                { value: "bottom-center", label: t("anchor.bottom-center") },
+                { value: "bottom-right", label: t("anchor.bottom-right") },
+              ]}
+              onValueChange={setAnchor}
+            />
+            <AppButton variant="secondary" className="h-8 text-xs" onClick={resizeCanvas}>
+              {t("applyResize")}
+            </AppButton>
+          </div>
         </aside>
       </div>
       <footer className="flex items-center justify-between gap-2 border-t border-app-border px-3 py-2">
@@ -308,4 +487,31 @@ function binaryMaskBase64(mask: HTMLCanvasElement): string {
 }
 function dataUrlPayload(value: string): string {
   return value.slice(value.indexOf(",") + 1);
+}
+
+function copyCanvas(source: HTMLCanvasElement): HTMLCanvasElement {
+  const copy = document.createElement("canvas");
+  copy.width = source.width;
+  copy.height = source.height;
+  copy.getContext("2d")?.drawImage(source, 0, 0);
+  return copy;
+}
+
+function hasPaintedPixels(canvas: HTMLCanvasElement): boolean {
+  const pixels = canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height).data;
+  if (!pixels) return false;
+  for (let index = 3; index < pixels.length; index += 4) if (pixels[index]) return true;
+  return false;
+}
+
+function legalDimension(value: number): number {
+  return Math.max(64, Math.min(1600, Math.round(value / 64) * 64));
+}
+
+function anchorFactors(anchor: string): [number, number] {
+  const [vertical, horizontal] = anchor.split("-");
+  return [
+    horizontal === "left" ? 0 : horizontal === "right" ? 1 : 0.5,
+    vertical === "top" ? 0 : vertical === "bottom" ? 1 : 0.5,
+  ];
 }

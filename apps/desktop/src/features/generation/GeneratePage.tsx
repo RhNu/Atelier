@@ -366,10 +366,11 @@ export function GeneratePage() {
     (
       image: ResourceRefDto,
       inpaint: NonNullable<NonNullable<GenerationDraft["i2i"]>["inpaint"]>,
+      size: GenerationDraft["size"],
     ) => {
       if (!draft?.i2i) return;
       const previous = [draft.i2i.image, draft.i2i.inpaint?.regionToReplace ?? null];
-      patchDraft({ i2i: { ...draft.i2i, image, inpaint } }, { persist: "immediate" });
+      patchDraft({ i2i: { ...draft.i2i, image, inpaint }, size }, { persist: "immediate" });
       setCenterWorkspace("preview");
       void generationActions.handleReleaseImageResources(previous);
     },

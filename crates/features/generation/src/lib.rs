@@ -11,11 +11,11 @@ mod request_plan;
 
 pub use draft::{
     GenerationDraftCharacter, GenerationDraftCharacterPositionMode, GenerationDraftError,
-    GenerationDraftErrorKind, GenerationDraftI2i, GenerationDraftInpaintSession,
-    GenerationDraftMaskDisplay, GenerationDraftMaskPattern, GenerationDraftPreciseReference,
-    GenerationDraftPromptState, GenerationDraftRepository, GenerationDraftResult,
-    GenerationDraftSeedMode, GenerationDraftService, GenerationDraftSnapshot, GenerationDraftVibe,
-    GenerationDraftVibeSlot,
+    GenerationDraftErrorKind, GenerationDraftFocusRegion, GenerationDraftI2i,
+    GenerationDraftInpaintSession, GenerationDraftMaskDisplay, GenerationDraftMaskPattern,
+    GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftRepository,
+    GenerationDraftResult, GenerationDraftSeedMode, GenerationDraftService,
+    GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
 };
 pub use error::{
     ClientApiErrorContext, ClientApiErrorReason, ClientDecodeContext, ClientDecodeTarget,
