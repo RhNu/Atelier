@@ -1,6 +1,10 @@
-import type { CharacterReferenceTypeDto } from "@/types";
+import type { CharacterReferenceTypeDto, PromptTokenUsageDto } from "@/types";
 
-import type { GenerationDraft } from "../model/generation-draft";
+import {
+  isGenerationCharacterEligible,
+  type GenerationCharacterDraft,
+  type GenerationDraft,
+} from "../model/generation-draft";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
 
 export const REFERENCE_TYPE_OPTIONS = [
@@ -39,6 +43,23 @@ export function patchCharacter(
     },
     options,
   );
+}
+
+export function characterTokenCount(
+  usage: PromptTokenUsageDto | null,
+  characters: ReadonlyArray<GenerationCharacterDraft>,
+  index: number,
+  promptType: "positive" | "negative",
+) {
+  if (!usage) return null;
+  const current = characters[index];
+  if (!current || !isGenerationCharacterEligible(current)) {
+    return { used: 0, limit: usage.prompt.limit };
+  }
+  const effectiveIndex = characters.slice(0, index).filter(isGenerationCharacterEligible).length;
+  const character = usage.characters.find((item) => item.index === effectiveIndex);
+  if (!character) return null;
+  return promptType === "positive" ? character.prompt : character.negative_prompt;
 }
 
 export function createLocalId(prefix: string): string {

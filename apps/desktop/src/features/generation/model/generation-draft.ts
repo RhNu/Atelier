@@ -575,10 +575,7 @@ function buildCharacters(
   capabilities?: ModelCapabilitiesDto,
 ): CharacterDto[] | null {
   if (capabilities?.max_characters === 0) return null;
-  const eligible = draft.characters.filter(
-    (character) =>
-      character.enabled && (character.prompt.trim().length > 0 || Boolean(character.presetId)),
-  );
+  const eligible = draft.characters.filter(isGenerationCharacterEligible);
   const limited = capabilities ? eligible.slice(0, capabilities.max_characters) : eligible;
   const manual =
     limited.length >= (capabilities?.can_position_one_character ? 1 : 2) &&
@@ -591,6 +588,10 @@ function buildCharacters(
     enabled: true,
   }));
   return characters.length ? characters : null;
+}
+
+export function isGenerationCharacterEligible(character: GenerationCharacterDraft): boolean {
+  return character.enabled && (character.prompt.trim().length > 0 || Boolean(character.presetId));
 }
 
 function currentVibeSlots(draft: GenerationDraft) {

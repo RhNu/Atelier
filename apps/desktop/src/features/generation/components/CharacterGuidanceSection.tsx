@@ -10,7 +10,7 @@ import type { PromptPresetDto, PromptTokenUsageDto } from "@/types";
 import type { GenerationCharacterDraft, GenerationDraft } from "../model/generation-draft";
 import { applyPromptPreset } from "../model/prompt-preset-model";
 import type { GenerationDraftPatchOptions } from "../state/useGenerationDraft";
-import { createLocalId, patchCharacter } from "./advanced-generation-model";
+import { characterTokenCount, createLocalId, patchCharacter } from "./advanced-generation-model";
 import { GenerationPresetControl } from "./GenerationPresetControl";
 import { GuidanceSection, GuidanceSettingsDisclosure } from "./GuidanceSection";
 
@@ -263,7 +263,7 @@ function CharacterCard({
         }
         profile={promptProfileForModel(draft.model)}
         model={draft.model}
-        tokenCount={characterTokenCount(tokenCounts, index, activeTab, character.enabled)}
+        tokenCount={characterTokenCount(tokenCounts, draft.characters, index, activeTab)}
         onKeyDown={handleEditorKeyDown}
         minHeight={88}
       />
@@ -296,17 +296,4 @@ function CharacterCard({
       />
     </article>
   );
-}
-
-function characterTokenCount(
-  usage: PromptTokenUsageDto | null,
-  index: number,
-  activeTab: PromptTab,
-  enabled: boolean,
-) {
-  if (!usage) return null;
-  if (!enabled) return { used: 0, limit: usage.prompt.limit };
-  const character = usage.characters.find((item) => item.index === index);
-  if (!character) return null;
-  return activeTab === "positive" ? character.prompt : character.negative_prompt;
 }

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { generationApi } from "@/platform/atelier";
 import type { CountPromptTokensRequestDto, PromptTokenUsageDto } from "@/types";
 
-import type { GenerationDraft } from "../model/generation-draft";
+import { isGenerationCharacterEligible, type GenerationDraft } from "../model/generation-draft";
 
 export function useGenerationPromptTokenCounts(
   draft: GenerationDraft | null,
@@ -41,11 +41,11 @@ export function promptTokenCountRequest(draft: GenerationDraft): CountPromptToke
       main_preset_id: draft.mainPresetId,
       prompt: draft.prompt,
       negative_prompt: draft.negativePrompt.trim() ? draft.negativePrompt : null,
-      characters: draft.characters.map((character) => ({
+      characters: draft.characters.filter(isGenerationCharacterEligible).map((character) => ({
         preset_id: character.presetId,
         prompt: character.prompt,
         negative_prompt: character.negativePrompt.trim() ? character.negativePrompt : null,
-        enabled: character.enabled,
+        enabled: true,
       })),
       max_depth: 16,
     },

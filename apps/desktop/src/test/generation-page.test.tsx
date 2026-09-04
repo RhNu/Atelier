@@ -967,6 +967,38 @@ describe("GeneratePage", () => {
     });
   });
 
+  it("keeps an empty character prompt at zero without sending it for token counting", async () => {
+    const draft = storedDraft({
+      prompt_states: [
+        {
+          model: "nai-diffusion-4-5-full",
+          main_preset_id: null,
+          prompt: "1girl",
+          negative_prompt: "",
+          furry_mode: false,
+          characters: [
+            {
+              id: "character-1",
+              preset_id: null,
+              prompt: "",
+              negative_prompt: "",
+              enabled: true,
+              position: { x: 0.5, y: 0.5 },
+            },
+          ],
+          character_position_mode: "global",
+        },
+      ],
+    });
+    setup({ storedDraft: draft });
+
+    const character = await screen.findByRole("article", { name: "Character 1" });
+    expect(
+      await within(character).findByRole("progressbar", { name: "0 of 512 tokens" }),
+    ).toBeInTheDocument();
+    expect(mocks.generationApi.countPromptTokens.mock.lastCall?.[0].compile.characters).toEqual([]);
+  });
+
   it("converts full-width punctuation in generation prompts when enabled", async () => {
     setup({ convertFullWidthPunctuation: true });
     const prompt = await screen.findByLabelText("Positive prompt");
