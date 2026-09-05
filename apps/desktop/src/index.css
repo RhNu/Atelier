@@ -17,6 +17,9 @@
   --color-brand-700: #12655f;
   --shadow-app-panel: 0 18px 52px rgba(0, 0, 0, 0.32);
   --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-prompt:
+    "Maple Mono CN", "Maple Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
 }
 
 @layer base {

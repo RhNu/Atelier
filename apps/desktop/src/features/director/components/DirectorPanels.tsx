@@ -24,6 +24,7 @@ import {
   EmptyState,
   ResourceImage,
 } from "@/components/ui";
+import { NaiPromptEditor } from "@/features/prompt-editor";
 import type { DirectorToolDto, DirectorToolResultDto } from "@/types";
 
 import { DIRECTOR_TOOLS, type DirectorInput } from "../director-model";
@@ -173,7 +174,7 @@ export function DirectorRunPanel({
   savePending: boolean;
   safetyPending: boolean;
   onToolChange: (value: string) => void;
-  onPromptChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  onPromptChange: (value: string) => void;
   onDefryChange: (value: number) => void;
   onRefresh: () => void;
   onRun: () => void;
@@ -207,11 +208,11 @@ export function DirectorRunPanel({
           {showsPrompt ? (
             <label className="grid min-w-0 gap-2 text-xs font-semibold text-app-muted uppercase">
               {promptRequired ? t("promptRequired") : t("promptOptional")}
-              <textarea
+              <NaiPromptEditor
                 aria-label={t("prompt")}
                 value={prompt}
                 onChange={onPromptChange}
-                className="min-h-20 min-w-0 resize-none border border-app-border bg-black/20 p-3 text-sm font-normal text-app-text normal-case outline-none focus:border-brand-400"
+                minHeight={80}
               />
             </label>
           ) : null}

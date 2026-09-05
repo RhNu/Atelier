@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 
 import "./i18n";
 
+import "@automann/maple-mono-cn/regular.css";
 import "./index.css";
 import App from "./App.tsx";
 import { AtelierEventBridge } from "./app/AtelierEventBridge";

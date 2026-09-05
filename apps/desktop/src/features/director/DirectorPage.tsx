@@ -1,5 +1,5 @@
 /* eslint-disable max-lines-per-function */
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { reportBackgroundPromise, runLoggedAction } from "@/app/logger";
 import { desktopApi, resourceApi, uniqueImportedImageResources } from "@/platform/atelier";
@@ -150,9 +150,7 @@ export function DirectorPage() {
     setResult(null);
   }, []);
 
-  const handlePromptChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
-    setPrompt(event.target.value);
-  }, []);
+  const handlePromptChange = useCallback((value: string) => setPrompt(value), []);
 
   const handleDefryChange = useCallback((value: number) => {
     setDefry(clampDefry(value));

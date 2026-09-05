@@ -1,6 +1,6 @@
 # CREDITS
 
-- 快照日期：2026-07-30
+- 快照日期：2026-09-05
 - 目的：记录本仓库在设计、对齐、实现与专项核对阶段参考过的外部项目、许可证与映射范围。
 
 ## 参考清单
@@ -14,3 +14,4 @@
 - [`deepghs/anime_dbrating`](https://huggingface.co/deepghs/anime_dbrating) — 模型卡只标识 `openrail` 许可证家族，未给出可据以再分发的确定条款。Atelier 不随安装包分发该模型；应用按用户运行需要下载固定 revision `7af21db648acdeb74f5c334abda9dd7403407b3c`，并校验文件大小与 SHA-256。
 - [`SmilingWolf/wd-swinv2-tagger-v3`](https://huggingface.co/SmilingWolf/wd-swinv2-tagger-v3) — Apache-2.0；可选 WD 自动复核及未来图像标签能力。Atelier 下载并校验固定 revision `627aef95638667ddcaa3ac8ae625e88ea5b02f51`，不跟随仓库 head，且不随安装包预装模型权重。
 - [`ONNX Runtime`](https://github.com/microsoft/onnxruntime) — MIT；提供 Windows x64 CPU 动态运行库 `v1.24.2`，见 `apps/desktop/src-tauri/resources/onnx-runtime/README.md`。运行库许可证随资源打包；无需系统级安装。
+- [`Maple Mono`](https://github.com/subframe7536/maple-font) — SIL Open Font License 1.1；通过 [`@automann/maple-mono-cn@7.9.2`](https://www.npmjs.com/package/@automann/maple-mono-cn) 将 CN webfont 随 desktop 前端打包，供提示词编辑器使用。

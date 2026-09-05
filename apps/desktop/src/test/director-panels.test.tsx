@@ -1,4 +1,5 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 
 import {
@@ -112,32 +113,38 @@ describe("Director panels", () => {
 
   it("uses the backend defry bounds for prompt-capable tools", () => {
     render(
-      <DirectorRunPanel
-        tool="colorize"
-        anlas={1200}
-        showsPrompt
-        promptRequired={false}
-        prompt=""
-        defry={2}
-        canRun
-        runPending={false}
-        result={null}
-        safetyOverride=""
-        readinessPending={false}
-        readinessError={null}
-        savePending={false}
-        safetyPending={false}
-        onToolChange={() => undefined}
-        onPromptChange={() => undefined}
-        onDefryChange={() => undefined}
-        onRefresh={() => undefined}
-        onRun={() => undefined}
-        onSave={() => undefined}
-        onSafetyChange={() => undefined}
-        onApplySafety={() => undefined}
-      />,
+      <QueryClientProvider client={new QueryClient()}>
+        <DirectorRunPanel
+          tool="colorize"
+          anlas={1200}
+          showsPrompt
+          promptRequired={false}
+          prompt=""
+          defry={2}
+          canRun
+          runPending={false}
+          result={null}
+          safetyOverride=""
+          readinessPending={false}
+          readinessError={null}
+          savePending={false}
+          safetyPending={false}
+          onToolChange={() => undefined}
+          onPromptChange={() => undefined}
+          onDefryChange={() => undefined}
+          onRefresh={() => undefined}
+          onRun={() => undefined}
+          onSave={() => undefined}
+          onSafetyChange={() => undefined}
+          onApplySafety={() => undefined}
+        />
+      </QueryClientProvider>,
     );
 
+    expect(screen.getByRole("textbox", { name: "Director prompt" })).toHaveAttribute(
+      "contenteditable",
+      "true",
+    );
     const slider = screen.getByRole("slider", { name: "Defry" });
     expect(slider).toHaveAttribute("min", "0");
     expect(slider).toHaveAttribute("max", "5");
