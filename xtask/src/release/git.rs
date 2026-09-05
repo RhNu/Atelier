@@ -1,5 +1,7 @@
+use std::io::{self, Read, Write};
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
+use std::thread;
 
 use semver::Version;
 
@@ -107,33 +109,67 @@ pub fn push_release(root: &Path, snapshot: &GitSnapshot, source_sha: &str) -> Re
 }
 
 pub fn capture(root: &Path, program: &str, args: &[&str]) -> Result<String, String> {
-    let output = command(root, program, args)
-        .output()
-        .map_err(|error| format!("failed to start `{program}`: {error}"))?;
+    let output = output(root, program, args)?;
     output_text(program, args, &output)
 }
 
 pub fn run(root: &Path, program: &str, args: &[&str]) -> Result<(), String> {
-    let output = command(root, program, args)
-        .stdin(Stdio::null())
-        .output()
-        .map_err(|error| format!("failed to start `{program}`: {error}"))?;
+    let output = output(root, program, args)?;
     output_text(program, args, &output).map(|_| ())
 }
 
 pub fn run_live(root: &Path, program: &str, args: &[&str]) -> Result<(), String> {
-    let status = command(root, program, args)
+    let mut child = command(root, program, args)
         .stdin(Stdio::null())
-        .status()
+        .stderr(Stdio::piped())
+        .spawn()
         .map_err(|error| format!("failed to start `{program}`: {error}"))?;
+    let mut stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| format!("failed to capture `{program}` stderr"))?;
+    let stderr_reader = thread::spawn(move || {
+        let mut captured = Vec::new();
+        let mut buffer = [0_u8; 8 * 1024];
+        loop {
+            let read = stderr
+                .read(&mut buffer)
+                .map_err(|error| format!("failed to read command stderr: {error}"))?;
+            if read == 0 {
+                break;
+            }
+            io::stderr()
+                .write_all(&buffer[..read])
+                .map_err(|error| format!("failed to write command stderr: {error}"))?;
+            io::stderr()
+                .flush()
+                .map_err(|error| format!("failed to flush command stderr: {error}"))?;
+            captured.extend_from_slice(&buffer[..read]);
+        }
+        Ok::<_, String>(captured)
+    });
+    let status = child
+        .wait()
+        .map_err(|error| format!("failed to wait for `{program}`: {error}"))?;
+    let stderr = stderr_reader
+        .join()
+        .map_err(|_| format!("failed to join `{program}` stderr reader"))??;
     if status.success() {
         Ok(())
     } else {
         Err(format!(
-            "`{program} {}` exited with {status}",
-            args.join(" ")
+            "`{program} {}` exited with {status}: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&stderr).trim()
         ))
     }
+}
+
+pub fn output(root: &Path, program: &str, args: &[&str]) -> Result<Output, String> {
+    command(root, program, args)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|error| format!("failed to start `{program}`: {error}"))
 }
 
 fn succeeds(root: &Path, program: &str, args: &[&str]) -> Result<bool, String> {

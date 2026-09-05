@@ -5,7 +5,10 @@ use std::time::Duration;
 use semver::Version;
 use serde::Deserialize;
 
-use super::git::{capture, run, run_live};
+use super::git::{output, run_live};
+
+const GH_MAX_RETRIES: usize = 10;
+const GH_RETRY_DELAY: Duration = Duration::from_secs(3);
 
 const RUN_FIELDS: &str = "databaseId,displayTitle,headSha,status,conclusion,url";
 
@@ -42,11 +45,107 @@ pub struct ReleaseView {
     pub url: String,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FoundRelease {
+    url: String,
+    is_draft: bool,
+}
+
+fn gh_capture(root: &Path, args: &[&str]) -> Result<String, String> {
+    let output = gh_output(root, args)?;
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+}
+
+fn gh_output(root: &Path, args: &[&str]) -> Result<std::process::Output, String> {
+    let command = format!("gh {}", args.join(" "));
+    retry_gh(&command, || {
+        let output = output(root, "gh", args)?;
+        if output.status.success() {
+            Ok(output)
+        } else {
+            Err(format!(
+                "`gh {}` exited with {}: {}",
+                args.join(" "),
+                output.status,
+                String::from_utf8_lossy(&output.stderr).trim()
+            ))
+        }
+    })
+}
+
+fn gh_run(root: &Path, args: &[&str]) -> Result<(), String> {
+    gh_output(root, args).map(|_| ())
+}
+
+fn gh_run_live(root: &Path, args: &[&str]) -> Result<(), String> {
+    let command = format!("gh {}", args.join(" "));
+    retry_gh(&command, || run_live(root, "gh", args))
+}
+
+fn retry_gh<T, F>(command: &str, mut operation: F) -> Result<T, String>
+where
+    F: FnMut() -> Result<T, String>,
+{
+    retry_gh_with(command, &mut operation, thread::sleep)
+}
+
+fn retry_gh_with<T, F, S>(command: &str, mut operation: F, mut sleep: S) -> Result<T, String>
+where
+    F: FnMut() -> Result<T, String>,
+    S: FnMut(Duration),
+{
+    for retry in 0..=GH_MAX_RETRIES {
+        match operation() {
+            Ok(value) => return Ok(value),
+            Err(error) if retry < GH_MAX_RETRIES && is_retryable_gh_error(&error) => {
+                eprintln!(
+                    "GitHub command `{command}` failed: {error}; retrying in {} seconds ({}/{})",
+                    GH_RETRY_DELAY.as_secs(),
+                    retry + 1,
+                    GH_MAX_RETRIES
+                );
+                sleep(GH_RETRY_DELAY);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    unreachable!("retry loop always returns after the final attempt")
+}
+
+fn is_retryable_gh_error(error: &str) -> bool {
+    let error = error.to_ascii_lowercase();
+    [
+        "eof",
+        "fetch failed",
+        "timed out",
+        "timeout",
+        "connection aborted",
+        "connection closed",
+        "connection refused",
+        "connection reset",
+        "network is unreachable",
+        "no such host",
+        "temporary failure",
+        "broken pipe",
+        "tls",
+        "transport error",
+        "http 500",
+        "http 502",
+        "http 503",
+        "http 504",
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
+    ]
+    .iter()
+    .any(|marker| error.contains(marker))
+}
+
 pub fn ensure_release_prerequisites(root: &Path) -> Result<GitHubContext, String> {
-    capture(root, "gh", &["auth", "status", "--active"])?;
-    let repository = capture(
+    gh_capture(root, &["auth", "status", "--active"])?;
+    let repository = gh_capture(
         root,
-        "gh",
         &[
             "repo",
             "view",
@@ -56,9 +155,8 @@ pub fn ensure_release_prerequisites(root: &Path) -> Result<GitHubContext, String
             ".nameWithOwner",
         ],
     )?;
-    let default_branch = capture(
+    let default_branch = gh_capture(
         root,
-        "gh",
         &[
             "repo",
             "view",
@@ -73,9 +171,8 @@ pub fn ensure_release_prerequisites(root: &Path) -> Result<GitHubContext, String
             "GitHub default branch is `{default_branch}`, expected `main`"
         ));
     }
-    capture(
+    gh_capture(
         root,
-        "gh",
         &["workflow", "view", "release-app.yml", "-R", &repository],
     )?;
     Ok(GitHubContext { repository })
@@ -87,8 +184,9 @@ pub fn published_release(
     version: &Version,
 ) -> Result<Option<ReleaseView>, String> {
     let tag = format!("v{version}");
-    let output = std::process::Command::new("gh")
-        .args([
+    let output = match gh_output(
+        root,
+        &[
             "release",
             "view",
             &tag,
@@ -96,31 +194,19 @@ pub fn published_release(
             &github.repository,
             "--json",
             "url,isDraft",
-        ])
-        .current_dir(root)
-        .env("GH_PROMPT_DISABLED", "1")
-        .output()
-        .map_err(|error| format!("failed to start `gh`: {error}"))?;
-    if output.status.success() {
-        #[derive(Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        struct FoundRelease {
-            url: String,
-            is_draft: bool,
+        ],
+    ) {
+        Ok(output) => output,
+        Err(error) if error.contains("release not found") || error.contains("HTTP 404") => {
+            return Ok(None);
         }
-        let found: FoundRelease = serde_json::from_slice(&output.stdout)
-            .map_err(|error| format!("invalid gh release JSON: {error}"))?;
-        return Ok((!found.is_draft).then_some(ReleaseView { url: found.url }));
-    }
-    let error = String::from_utf8_lossy(&output.stderr);
-    if error.contains("release not found") || error.contains("HTTP 404") {
-        Ok(None)
-    } else {
-        Err(format!(
-            "failed to inspect GitHub release {tag}: {}",
-            error.trim()
-        ))
-    }
+        Err(error) => {
+            return Err(format!("failed to inspect GitHub release {tag}: {error}"));
+        }
+    };
+    let found: FoundRelease = serde_json::from_slice(&output.stdout)
+        .map_err(|error| format!("invalid gh release JSON: {error}"))?;
+    Ok((!found.is_draft).then_some(ReleaseView { url: found.url }))
 }
 
 pub fn find_ci_run(root: &Path, github: &GitHubContext, sha: &str) -> Result<WorkflowRun, String> {
@@ -148,9 +234,8 @@ pub fn dispatch_release(
 ) -> Result<WorkflowRun, String> {
     let commit = format!("commit={sha}");
     let request = format!("request_id={request_id}");
-    let output = capture(
+    let output = gh_capture(
         root,
-        "gh",
         &[
             "workflow",
             "run",
@@ -250,9 +335,8 @@ pub fn release_artifact_expired(
         "repos/{}/actions/runs/{run_id}/artifacts",
         github.repository
     );
-    let result = capture(
+    let result = gh_capture(
         root,
-        "gh",
         &[
             "api",
             &endpoint,
@@ -277,9 +361,8 @@ pub fn watch_run(
         return watch_run_quiet(root, github, run.database_id);
     }
     let id = run.database_id.to_string();
-    run_live(
+    gh_run_live(
         root,
-        "gh",
         &[
             "run",
             "watch",
@@ -309,9 +392,8 @@ fn watch_run_quiet(root: &Path, github: &GitHubContext, run_id: u64) -> Result<(
 
 pub fn get_run(root: &Path, github: &GitHubContext, run_id: u64) -> Result<WorkflowRun, String> {
     let id = run_id.to_string();
-    let json = capture(
+    let json = gh_capture(
         root,
-        "gh",
         &[
             "run",
             "view",
@@ -337,14 +419,13 @@ pub fn rerun(
         args.push("--failed");
     }
     args.extend_from_slice(&["-R", &github.repository]);
-    run(root, "gh", &args)
+    gh_run(root, &args)
 }
 
 pub fn show_failed_logs(root: &Path, github: &GitHubContext, run_id: u64) {
     let id = run_id.to_string();
-    let _ = run_live(
+    let _ = gh_run_live(
         root,
-        "gh",
         &["run", "view", &id, "--log-failed", "-R", &github.repository],
     );
 }
@@ -353,13 +434,15 @@ fn list_runs(root: &Path, repository: &str, filters: &[&str]) -> Result<Vec<Work
     let mut args = vec!["run", "list"];
     args.extend_from_slice(filters);
     args.extend_from_slice(&["--limit", "20", "--json", RUN_FIELDS, "-R", repository]);
-    let json = capture(root, "gh", &args)?;
+    let json = gh_capture(root, &args)?;
     serde_json::from_str(&json).map_err(|error| format!("invalid gh run JSON: {error}"))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::dispatch_run_id;
+    use std::time::Duration;
+
+    use super::{GH_MAX_RETRIES, dispatch_run_id, is_retryable_gh_error, retry_gh_with};
 
     #[test]
     fn extracts_dispatch_run_id_from_plain_or_decorated_output() {
@@ -372,5 +455,46 @@ mod tests {
             Some(98)
         );
         assert_eq!(dispatch_run_id("workflow dispatched"), None);
+    }
+
+    #[test]
+    fn retries_transient_gh_failures_ten_times_before_succeeding() {
+        let mut attempts = 0;
+        let mut waits = Vec::new();
+        let result = retry_gh_with(
+            "gh test",
+            || {
+                attempts += 1;
+                if attempts <= GH_MAX_RETRIES {
+                    Err("request failed: EOF".to_owned())
+                } else {
+                    Ok::<_, String>("success")
+                }
+            },
+            |duration: Duration| waits.push(duration),
+        )
+        .unwrap();
+
+        assert_eq!(result, "success");
+        assert_eq!(attempts, GH_MAX_RETRIES + 1);
+        assert_eq!(waits, vec![Duration::from_secs(3); GH_MAX_RETRIES]);
+    }
+
+    #[test]
+    fn does_not_retry_non_network_gh_failures() {
+        let mut attempts = 0;
+        let result = retry_gh_with(
+            "gh test",
+            || {
+                attempts += 1;
+                Err::<(), _>("permission denied: HTTP 403".to_owned())
+            },
+            |_| panic!("non-network failures must not wait"),
+        );
+
+        assert_eq!(attempts, 1);
+        assert!(result.is_err());
+        assert!(is_retryable_gh_error("Get https://api.github.com: EOF"));
+        assert!(!is_retryable_gh_error("HTTP 422: validation failed"));
     }
 }

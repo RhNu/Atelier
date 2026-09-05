@@ -159,8 +159,10 @@ before the application so its catalog endpoint is available.
   overwritten. Publish changed bytes as a new version.
 - If a saved artifact expires, start a new run. Do not use a newly rebuilt installer to replace an
   already public version; signatures or installer bytes may differ between builds.
-- Failed commands and API calls terminate immediately. Only a genuine 404 means "not found";
-  authentication/network errors never trigger release recreation.
+- GitHub commands and API calls retry transient network failures, including EOF, timeouts,
+  connection resets, and 5xx responses, up to 10 times with a 3-second delay. Deterministic
+  failures such as authentication, permission, validation, and unexpected 404 responses still
+  terminate immediately; authentication/network errors never trigger release recreation.
 
 Release immutability is currently disabled. The pipeline nevertheless uses draft → complete
 attachments → publish, so enabling it later does not require changing the catalog design.

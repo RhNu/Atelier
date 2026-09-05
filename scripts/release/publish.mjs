@@ -53,7 +53,7 @@ export async function publishRelease(github, plan, directory, { body, latest = f
     if (release.assets.some((asset) => !expectedNames.has(asset.name))) {
       throw new Error(`Draft ${plan.tag} has unexpected assets; inspect it before retrying`);
     }
-    github.upload(
+    await github.upload(
       plan.tag,
       plan.assets.map((asset) => join(directory, asset.name)),
     );

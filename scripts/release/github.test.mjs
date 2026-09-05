@@ -15,9 +15,41 @@ test("GitHub distinguishes 404 from permission, server and validation failures",
       "owner/repo",
       "unused",
       async () => new Response("failure", { status }),
+      { wait: async () => {} },
     );
     await assert.rejects(github.api("releases", { missing: true }), new RegExp(`HTTP ${status}`));
   }
+});
+
+test("transient GitHub API and gh upload failures retry ten times", async () => {
+  let requests = 0;
+  let executions = 0;
+  const waits = [];
+  const github = new GitHub(
+    "owner/repo",
+    "unused",
+    async () => {
+      requests++;
+      if (requests <= 10) throw new Error("request failed: EOF");
+      return new Response('{"ok":true}', { status: 200 });
+    },
+    {
+      wait: async (milliseconds) => waits.push(milliseconds),
+      execute: async () => {
+        executions++;
+        if (executions <= 10) throw new Error("upload failed: EOF");
+      },
+    },
+  );
+
+  assert.deepEqual(await github.api("releases"), { ok: true });
+  await github.upload("v1.0.0", ["asset.zip"]);
+  assert.equal(requests, 11);
+  assert.equal(executions, 11);
+  assert.deepEqual(
+    waits,
+    Array.from({ length: 20 }, () => 3_000),
+  );
 });
 
 test("tag identity peels annotated tags and never moves an existing reference", async () => {

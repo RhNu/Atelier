@@ -1,32 +1,115 @@
+import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
-import { repository, required, run } from "./shared.mjs";
+import { repository, required } from "./shared.mjs";
+
+const DEFAULT_RETRIES = 10;
+const RETRY_DELAY_MS = 3_000;
+
+function isRetryableNetworkError(error) {
+  const message = String(error?.message ?? error).toLowerCase();
+  return [
+    "eof",
+    "fetch failed",
+    "timed out",
+    "timeout",
+    "connection aborted",
+    "connection closed",
+    "connection refused",
+    "connection reset",
+    "network is unreachable",
+    "no such host",
+    "temporary failure",
+    "broken pipe",
+    "tls",
+    "transport error",
+    "http 500",
+    "http 502",
+    "http 503",
+    "http 504",
+    "bad gateway",
+    "service unavailable",
+    "gateway timeout",
+  ].some((marker) => message.includes(marker));
+}
+
+async function retryNetwork(label, operation, { retries, wait }) {
+  for (let retry = 0; retry <= retries; retry++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (retry >= retries || !isRetryableNetworkError(error)) throw error;
+      console.error(
+        `${label} failed: ${error.message}; retrying in ${RETRY_DELAY_MS / 1000} seconds (${retry + 1}/${retries})`,
+      );
+      await wait(RETRY_DELAY_MS);
+    }
+  }
+  throw new Error(`${label} exhausted its retry budget`);
+}
+
+function runGh(args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn("gh", args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stderr = "";
+    child.stdout.on("data", (chunk) => process.stdout.write(chunk));
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+      process.stderr.write(chunk);
+    });
+    child.once("error", reject);
+    child.once("close", (status, signal) => {
+      if (status === 0) {
+        resolve();
+      } else {
+        reject(new Error(`gh ${args.join(" ")} failed (${status ?? signal}): ${stderr.trim()}`));
+      }
+    });
+  });
+}
 
 export class GitHub {
-  constructor(repo = repository(), token = required("GH_TOKEN"), request = fetch) {
+  constructor(
+    repo = repository(),
+    token = required("GH_TOKEN"),
+    request = fetch,
+    { retries = DEFAULT_RETRIES, wait = delay, execute = runGh } = {},
+  ) {
     this.repository = repo;
     this.token = token;
     this.request = request;
+    this.retries = retries;
+    this.wait = wait;
+    this.execute = execute;
   }
 
   async api(path, { method = "GET", body, missing = false } = {}) {
-    const response = await this.request(`https://api.github.com/repos/${this.repository}/${path}`, {
-      method,
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${this.token}`,
-        "X-GitHub-Api-Version": "2026-03-10",
-        "Content-Type": "application/json",
+    return retryNetwork(
+      `GitHub ${method} ${path}`,
+      async () => {
+        const response = await this.request(
+          `https://api.github.com/repos/${this.repository}/${path}`,
+          {
+            method,
+            headers: {
+              Accept: "application/vnd.github+json",
+              Authorization: `Bearer ${this.token}`,
+              "X-GitHub-Api-Version": "2026-03-10",
+              "Content-Type": "application/json",
+            },
+            body: body === undefined ? undefined : JSON.stringify(body),
+            signal: AbortSignal.timeout(60_000),
+          },
+        );
+        if (missing && response.status === 404) return null;
+        if (!response.ok) {
+          throw new Error(
+            `GitHub ${method} ${path}: HTTP ${response.status}: ${await response.text()}`,
+          );
+        }
+        return response.status === 204 ? null : response.json();
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(60_000),
-    });
-    if (missing && response.status === 404) return null;
-    if (!response.ok) {
-      throw new Error(
-        `GitHub ${method} ${path}: HTTP ${response.status}: ${await response.text()}`,
-      );
-    }
-    return response.status === 204 ? null : response.json();
+      { retries: this.retries, wait: this.wait },
+    );
   }
 
   async releases() {
@@ -71,9 +154,13 @@ export class GitHub {
     }
   }
 
-  upload(tag, paths) {
-    // Only called for a verified draft. spawnSync checks every external command's exit status.
-    run("gh", ["release", "upload", tag, ...paths, "--repo", this.repository, "--clobber"]);
+  async upload(tag, paths) {
+    await retryNetwork(
+      `gh release upload ${tag}`,
+      () =>
+        this.execute(["release", "upload", tag, ...paths, "--repo", this.repository, "--clobber"]),
+      { retries: this.retries, wait: this.wait },
+    );
   }
 }
 
