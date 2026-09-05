@@ -21,6 +21,8 @@ test("release workflows are manual, trusted-main only, queued and split before p
 
 test("application publishing uses a separate release-profile cache and mutable branch catalog", async () => {
   const source = await workflow("release-app.yml");
+  assert.match(source, /run-name: Release application .* inputs\.request_id/);
+  assert.match(source, /request_id:/);
   assert.match(source, /app-release-\$\{\{ runner.os \}\}/);
   assert.match(source, /working-directory: source\/apps\/desktop/);
   assert.match(source, /node node_modules\/@tauri-apps\/cli\/tauri.js build --ci .* -- --locked/);

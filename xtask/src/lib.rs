@@ -13,4 +13,7 @@ pub use lexicon::{
 pub use line_budget::{
     LineBudgetConfig, LineBudgetFinding, LineBudgetLevel, LineBudgetReport, check_line_budget,
 };
-pub use release::{prepare_app_release, validate_resource_catalog};
+pub use release::{
+    ApplicationReleaseRequest, prepare_app_release, resolve_release_version,
+    run_application_release, validate_resource_catalog,
+};

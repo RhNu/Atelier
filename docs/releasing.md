@@ -32,7 +32,25 @@ GitHub credentials, network access, or real publications.
 
 ## Application releases
 
-Prepare a version newer than the current package version:
+The normal release path is a single local command. It prepares the version, creates and pushes the
+dedicated release commit, waits for CI on that exact commit, dispatches the application workflow,
+and follows it through publication:
+
+```powershell
+cargo xtask release patch
+cargo xtask release minor
+cargo xtask release major
+cargo xtask release 0.6.0
+```
+
+The command requires a clean, synchronized `main` branch and authenticated GitHub CLI. It never
+commits unrelated changes, moves tags, or replaces published assets. Use `--dry-run` to inspect the
+resolved plan, `--yes` for non-interactive use, `--no-wait` to return after dispatch, and `--json`
+for a machine-readable final result. An interrupted or failed command saves its checkpoint below
+`.git/atelier/`; rerun the same selector to resume. A failed release run is resumed with
+`gh run rerun --failed`, preserving the workflow's saved artifact and publication safeguards.
+
+The lower-level preparation-only command remains available when manual orchestration is needed:
 
 ```powershell
 cargo xtask release prepare 0.5.3
@@ -42,7 +60,8 @@ git commit -m "chore(release): prepare 0.5.3"
 git push origin main
 ```
 
-Then run `Release application` from main. GitHub CLI is an optional alternative to the Actions UI:
+Then run `Release application` from main. GitHub CLI remains an optional low-level alternative to
+the Actions UI:
 
 ```powershell
 gh workflow run release-app.yml --ref main

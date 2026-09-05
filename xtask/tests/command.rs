@@ -72,6 +72,32 @@ fn rejects_warning_threshold_above_deny_threshold() {
     );
 }
 
+#[test]
+fn release_prepare_legacy_command_remains_available() {
+    let workspace = TestWorkspace::new("release_prepare");
+    workspace.write_file(
+        "apps/desktop/package.json",
+        "{\n  \"name\": \"@atelier/desktop\",\n  \"version\": \"0.5.7\"\n}\n",
+    );
+    let result = run_in_workspace(
+        args(["xtask", "release", "prepare", "0.5.8"]),
+        workspace.path(),
+    );
+    assert!(result.is_ok());
+    assert!(
+        fs::read_to_string(workspace.path().join("apps/desktop/package.json"))
+            .unwrap()
+            .contains("\"version\": \"0.5.8\"")
+    );
+}
+
+#[test]
+fn release_requires_a_selector() {
+    let workspace = TestWorkspace::new("release_selector");
+    let error = run_in_workspace(args(["xtask", "release"]), workspace.path()).unwrap_err();
+    assert!(error.contains("release requires VERSION, patch, minor, or major"));
+}
+
 fn args(values: impl IntoIterator<Item = &'static str>) -> Vec<OsString> {
     values.into_iter().map(OsString::from).collect()
 }

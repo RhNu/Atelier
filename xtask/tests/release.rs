@@ -1,8 +1,36 @@
 use std::fs;
 use std::path::Path;
 
+use semver::Version;
 use tempfile::tempdir;
-use xtask::{prepare_app_release, validate_resource_catalog};
+use xtask::{prepare_app_release, resolve_release_version, validate_resource_catalog};
+
+#[test]
+fn release_selectors_resolve_stable_increasing_versions() {
+    let current = Version::parse("0.5.7").unwrap();
+    assert_eq!(
+        resolve_release_version(&current, "patch").unwrap(),
+        Version::parse("0.5.8").unwrap()
+    );
+    assert_eq!(
+        resolve_release_version(&current, "minor").unwrap(),
+        Version::parse("0.6.0").unwrap()
+    );
+    assert_eq!(
+        resolve_release_version(&current, "major").unwrap(),
+        Version::parse("1.0.0").unwrap()
+    );
+    assert_eq!(
+        resolve_release_version(&current, "0.7.2").unwrap(),
+        Version::parse("0.7.2").unwrap()
+    );
+    for invalid in ["0.5.7", "0.5.6", "0.6.0-beta.1", "0.6.0+local", "wat"] {
+        assert!(
+            resolve_release_version(&current, invalid).is_err(),
+            "{invalid}"
+        );
+    }
+}
 
 #[test]
 fn release_prepare_updates_only_the_desktop_version_and_requires_new_stable_semver() {

@@ -1,10 +1,15 @@
 name: Release application
+run-name: Release application · ${{ inputs.request_id || 'manual' }}
 
 on:
   workflow_dispatch:
     inputs:
       commit:
         description: "Full commit SHA on main (blank uses the workflow's main revision). Version comes from package.json."
+        type: string
+        default: ""
+      request_id:
+        description: "Optional caller correlation ID used only for run tracking."
         type: string
         default: ""
 

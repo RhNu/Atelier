@@ -5,9 +5,10 @@ use std::process::Command;
 use clap::{Args, Parser, Subcommand, error::ErrorKind};
 
 use crate::{
-    AppApiTypeExportConfig, LexiconBenchmarkConfig, LexiconBundleConfig, LineBudgetConfig,
-    LineBudgetLevel, benchmark_lexicon, build_lexicon_bundle, check_line_budget,
-    export_app_api_types, prepare_app_release, validate_lexicon_bundle, validate_resource_catalog,
+    AppApiTypeExportConfig, ApplicationReleaseRequest, LexiconBenchmarkConfig, LexiconBundleConfig,
+    LineBudgetConfig, LineBudgetLevel, benchmark_lexicon, build_lexicon_bundle, check_line_budget,
+    export_app_api_types, prepare_app_release, run_application_release, validate_lexicon_bundle,
+    validate_resource_catalog,
 };
 
 const DEFAULT_WARN_LINES: usize = 600;
@@ -28,16 +29,34 @@ enum XtaskCommand {
     LineBudget(LineBudgetArgs),
     #[command(about = "Build or check prompt lexicon assets")]
     Lexicon(LexiconArgs),
-    #[command(about = "Prepare the next Atelier application version")]
+    #[command(about = "Prepare and publish an Atelier application release")]
     Release(ReleaseArgs),
     #[command(about = "Validate the downloadable resource catalog")]
     Resource(ResourceArgs),
 }
 
 #[derive(Debug, Args)]
+#[command(args_conflicts_with_subcommands = true)]
+#[allow(clippy::struct_excessive_bools)]
 struct ReleaseArgs {
+    #[arg(
+        value_name = "VERSION|patch|minor|major",
+        help = "Stable SemVer or the component to increment"
+    )]
+    target: Option<String>,
+    #[arg(
+        long,
+        help = "Show the resolved release plan without changing files or GitHub"
+    )]
+    dry_run: bool,
+    #[arg(long, help = "Skip the confirmation prompt")]
+    yes: bool,
+    #[arg(long, help = "Return after dispatching the release workflow")]
+    no_wait: bool,
+    #[arg(long, help = "Emit the final result as JSON")]
+    json: bool,
     #[command(subcommand)]
-    command: ReleaseCommand,
+    command: Option<ReleaseCommand>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -172,8 +191,24 @@ pub fn run_in_workspace(
         XtaskCommand::LineBudget(args) => run_line_budget(workspace_root, &args),
         XtaskCommand::Lexicon(args) => run_lexicon(workspace_root, &args),
         XtaskCommand::Release(args) => match args.command {
-            ReleaseCommand::Prepare { version } => {
+            Some(ReleaseCommand::Prepare { version }) => {
                 prepare_app_release(workspace_root.as_ref(), &version)
+            }
+            None => {
+                let selector = args.target.ok_or_else(|| {
+                    "release requires VERSION, patch, minor, or major; use --help for details"
+                        .to_owned()
+                })?;
+                run_application_release(
+                    workspace_root.as_ref(),
+                    &ApplicationReleaseRequest {
+                        selector,
+                        dry_run: args.dry_run,
+                        yes: args.yes,
+                        no_wait: args.no_wait,
+                        json: args.json,
+                    },
+                )
             }
         },
         XtaskCommand::Resource(args) => match args.command {
