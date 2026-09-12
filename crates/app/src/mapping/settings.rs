@@ -1,12 +1,20 @@
 use super::{
-    AppResult, FrontendLanguage, FrontendLanguageDto, GenerationDefaults, GenerationDefaultsDto,
-    GlobalFrontendSettings, GlobalFrontendSettingsDto, GlobalGallerySettings,
-    GlobalGallerySettingsDto, GlobalSafetySettings, GlobalSafetySettingsDto, GlobalSettings,
-    GlobalSettingsDto, ImageSize, ImageSizeDto, ImageVariantSettings, ImageVariantSettingsDto,
-    WorkspaceSettings, WorkspaceSettingsDto, image_format_to_domain, image_format_to_dto,
-    image_model_to_domain, image_model_to_dto, noise_schedule_to_domain, noise_schedule_to_dto,
-    quality_preset_to_domain, quality_preset_to_dto, sampler_to_domain, sampler_to_dto,
-    uc_preset_to_domain, uc_preset_to_dto,
+    image_format_to_domain, image_format_to_dto, image_model_to_domain, image_model_to_dto,
+    noise_schedule_to_domain, noise_schedule_to_dto, quality_preset_to_domain,
+    quality_preset_to_dto, sampler_to_domain, sampler_to_dto, uc_preset_to_domain,
+    uc_preset_to_dto,
+};
+use crate::AppResult;
+use atelier_app_api::generation::ImageSizeDto;
+use atelier_app_api::settings::{
+    FrontendLanguageDto, GenerationDefaultsDto, GlobalFrontendSettingsDto,
+    GlobalGallerySettingsDto, GlobalSafetySettingsDto, GlobalSettingsDto, ImageVariantSettingsDto,
+    WorkspaceSettingsDto,
+};
+use atelier_generation::ImageSize;
+use atelier_settings::{
+    FrontendLanguage, GenerationDefaults, GlobalFrontendSettings, GlobalGallerySettings,
+    GlobalSafetySettings, GlobalSettings, ImageVariantSettings, WorkspaceSettings,
 };
 
 pub fn workspace_settings_to_dto(value: &WorkspaceSettings) -> WorkspaceSettingsDto {

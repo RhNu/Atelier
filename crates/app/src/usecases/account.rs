@@ -1,9 +1,11 @@
-use super::{
-    ApiKeyId, ApiKeyRecordDto, AppError, AppResult, CreateApiKeyRequestDto, NovelAiClientFactory,
-    SecretStore, SecretValue, SubscriptionSummaryDto, UpdateApiKeyRequestDto,
-    api_key_record_to_dto, create_api_key_to_domain, subscription_to_dto,
-};
+use crate::mapping::{api_key_record_to_dto, create_api_key_to_domain, subscription_to_dto};
 use crate::ports::AppApiKeyService;
+use crate::{AppError, AppResult};
+use atelier_adapter_novelai::NovelAiClientFactory;
+use atelier_app_api::account::{
+    ApiKeyRecordDto, CreateApiKeyRequestDto, SubscriptionSummaryDto, UpdateApiKeyRequestDto,
+};
+use atelier_secrets::{ApiKeyId, SecretStore, SecretValue};
 
 pub struct AccountUseCases<'a, S, F> {
     pub(crate) api_keys: &'a AppApiKeyService<S, F>,

@@ -1,9 +1,10 @@
-use super::{
-    AppError, AppResult, ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto,
-    WorkspaceSettingsDto, workspace_settings_to_domain, workspace_settings_to_dto,
-};
+use crate::mapping::{workspace_settings_to_domain, workspace_settings_to_dto};
 use crate::ports::SharedWorkspaceSettings;
+use crate::{AppError, AppResult};
 use atelier_adapter_database::DatabaseSettingsRepository;
+use atelier_app_api::settings::{
+    ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
+};
 use atelier_settings::WorkspaceSettingsService;
 
 pub struct SettingsUseCases<'a> {

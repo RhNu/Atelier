@@ -1,18 +1,23 @@
-use super::{
-    AppError, AppResult, CompileGenerationPromptRequestDto, CompilePromptRequest,
-    CompilePromptRequestDto, CompiledGenerationCharacterPromptDto, CompiledGenerationPromptDto,
-    CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
-    DeletePromptPresetRequestDto, DeletePromptPresetResponseDto, GetPromptChunkRequestDto,
-    ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkId,
-    PromptChunkKey, PromptChunkPageDto, PromptPresetDto, PromptPresetId, PromptPresetPageDto,
-    UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto, compiled_prompt_to_dto,
-    image_model_to_domain, prompt_chunk_to_dto, prompt_preset_kind_to_domain, prompt_preset_to_dto,
-    prompt_trace_to_dto, quality_preset_to_dto, upsert_prompt_chunk_to_domain,
-    upsert_prompt_preset_to_domain,
+use crate::mapping::{
+    compiled_prompt_to_dto, image_model_to_domain, prompt_chunk_to_dto,
+    prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto, quality_preset_to_dto,
+    upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain,
 };
 use crate::ports::AppResourceCatalog;
+use crate::{AppError, AppResult};
 use atelier_adapter_database::DatabasePromptResourceRepository;
-use atelier_prompt_resources::{PromptChunkService, PromptCompiler, PromptPresetService};
+use atelier_app_api::prompt::{
+    CompileGenerationPromptRequestDto, CompilePromptRequestDto,
+    CompiledGenerationCharacterPromptDto, CompiledGenerationPromptDto, CompiledPromptDto,
+    DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, DeletePromptPresetRequestDto,
+    DeletePromptPresetResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
+    ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkPageDto, PromptPresetDto,
+    PromptPresetPageDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
+};
+use atelier_prompt_resources::{
+    CompilePromptRequest, PromptChunkId, PromptChunkKey, PromptChunkService, PromptCompiler,
+    PromptPresetId, PromptPresetService,
+};
 use atelier_resource_catalog::{
     ResourceCatalogErrorKind, ResourceId, ResourceOwner, ResourceOwnerKind, ResourceRef,
     ResourceRelation,

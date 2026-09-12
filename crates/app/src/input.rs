@@ -1,9 +1,13 @@
-use crate::{AppError, AppResult, mapping::resource_ref_from_dto, ports::AppResourceReader};
-use atelier_app_api::{generation::CharacterReferenceDto, resource::ImageInputDto};
+use crate::mapping::resource_ref_from_dto;
+use crate::ports::AppResourceReader;
+use crate::{AppError, AppResult};
+use atelier_app_api::generation::CharacterReferenceDto;
+use atelier_app_api::resource::ImageInputDto;
 use atelier_generation::CharacterReference;
 use atelier_precise_reference::{PreciseReferenceImage, prepare_reference};
 use atelier_resource_catalog::ResourceKind;
-use base64::{Engine, engine::general_purpose::STANDARD};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 
 pub struct ImageInputResolver<'a> {
     reader: &'a AppResourceReader,
@@ -22,7 +26,7 @@ impl<'a> ImageInputResolver<'a> {
         let image = self.read(input.image).await?;
         prepare_reference(
             image,
-            crate::usecases::character_reference_type_to_domain(input.reference_type),
+            crate::mapping::character_reference_type_to_domain(input.reference_type),
             input.fidelity,
             input.strength,
         )

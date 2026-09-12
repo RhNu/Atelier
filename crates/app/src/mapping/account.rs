@@ -1,7 +1,5 @@
-use super::{
-    ApiKeyId, ApiKeyRecord, ApiKeyRecordDto, CreateApiKeyRequest, SecretValue,
-    SubscriptionSummaryDto,
-};
+use atelier_app_api::account::{ApiKeyRecordDto, SubscriptionSummaryDto};
+use atelier_secrets::{ApiKeyId, ApiKeyRecord, CreateApiKeyRequest, SecretValue};
 
 pub fn api_key_record_to_dto(record: &ApiKeyRecord) -> ApiKeyRecordDto {
     ApiKeyRecordDto {

@@ -1,9 +1,6 @@
-use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, Weak};
-
+use crate::catalog::CatalogDocument;
+use crate::download::{download_file, verify};
+use crate::state::{InstalledState, operation, write_json_atomic};
 use async_trait::async_trait;
 use atelier_downloadable_resources::{
     DownloadableResourceCatalog, DownloadableResourceDescriptor, DownloadableResourceError,
@@ -11,10 +8,11 @@ use atelier_downloadable_resources::{
     DownloadableResourceStatus, InstalledResource, ResourceInstallProgress,
     ResourceInstallProgressSink, validate_catalog,
 };
-
-use crate::catalog::CatalogDocument;
-use crate::download::{download_file, verify};
-use crate::state::{InstalledState, operation, write_json_atomic};
+use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, Weak};
 
 pub struct FileSystemDownloadableResourceManager {
     inner: Arc<ManagerInner>,
@@ -83,60 +81,6 @@ impl FileSystemDownloadableResourceManager {
                 leases: Mutex::new(HashMap::new()),
             }),
         }))
-    }
-
-    /// Renames the exact pre-0.5 image-analysis directory and removes it in the background once.
-    ///
-    /// # Errors
-    /// Returns an error when path containment cannot be proven or the rename/marker write fails.
-    pub fn cleanup_legacy_image_analysis(
-        &self,
-        app_data_dir: &Path,
-    ) -> DownloadableResourceResult<()> {
-        let mut state = self.inner.lock_state()?;
-        if state.legacy_cleanup_complete {
-            return Ok(());
-        }
-        let legacy = app_data_dir.join("models").join("image-analysis");
-        if legacy.exists() {
-            let canonical_app_data = fs::canonicalize(app_data_dir).map_err(operation)?;
-            let parent = legacy.parent().ok_or_else(|| {
-                DownloadableResourceError::Operation("legacy model path has no parent".to_owned())
-            })?;
-            let canonical_parent = fs::canonicalize(parent).map_err(operation)?;
-            if !canonical_parent.starts_with(&canonical_app_data)
-                || self.inner.root.starts_with(&legacy)
-            {
-                return Err(DownloadableResourceError::Operation(
-                    "refusing to remove legacy resources outside app data".to_owned(),
-                ));
-            }
-            let deleting = parent.join(format!(
-                "image-analysis.deleting-0.5.0-{}",
-                std::process::id()
-            ));
-            fs::rename(&legacy, &deleting).map_err(operation)?;
-            let mut updated = state.clone();
-            updated.legacy_cleanup_complete = true;
-            if let Err(error) = updated.write(&self.inner.state_path()) {
-                let _ = fs::rename(&deleting, &legacy);
-                return Err(error);
-            }
-            *state = updated;
-            drop(state);
-            std::thread::spawn(move || {
-                if let Err(error) = fs::remove_dir_all(&deleting) {
-                    log::warn!("failed to remove renamed legacy model directory: {error}");
-                }
-            });
-            return Ok(());
-        }
-        let mut updated = state.clone();
-        updated.legacy_cleanup_complete = true;
-        updated.write(&self.inner.state_path())?;
-        *state = updated;
-        drop(state);
-        Ok(())
     }
 
     async fn load_catalog(
@@ -508,129 +452,6 @@ impl DownloadableResourceManager for FileSystemDownloadableResourceManager {
     }
 }
 
-impl ManagerInner {
-    fn state_path(&self) -> PathBuf {
-        self.root.join("state.json")
-    }
-    fn cache_path(&self) -> PathBuf {
-        self.root.join("catalog-v1.json")
-    }
-    fn staging_root(&self, value: &DownloadableResourceDescriptor) -> PathBuf {
-        self.root
-            .join(".staging")
-            .join(&value.id)
-            .join(&value.version)
-    }
-    fn version_root(&self, value: &DownloadableResourceDescriptor) -> PathBuf {
-        self.root.join(&value.id).join(&value.version)
-    }
-    fn lock_state(&self) -> DownloadableResourceResult<std::sync::MutexGuard<'_, InstalledState>> {
-        self.state.lock().map_err(poisoned)
-    }
-    fn lock_catalog(
-        &self,
-    ) -> DownloadableResourceResult<std::sync::MutexGuard<'_, Option<DownloadableResourceCatalog>>>
-    {
-        self.catalog.lock().map_err(poisoned)
-    }
-    fn ready(&self, value: &DownloadableResourceDescriptor) -> bool {
-        self.lock_state()
-            .ok()
-            .and_then(|state| state.active.get(&value.id).cloned())
-            .is_some_and(|version| {
-                version == value.version && self.version_root(value).join("resource.json").is_file()
-            })
-    }
-    fn status(&self, value: &DownloadableResourceDescriptor) -> DownloadableResourceStatus {
-        let installed = self
-            .lock_state()
-            .ok()
-            .and_then(|state| state.active.get(&value.id).cloned());
-        let activity = self
-            .activities
-            .lock()
-            .ok()
-            .and_then(|activities| activities.get(&value.id).cloned());
-        let failure = self
-            .failures
-            .lock()
-            .ok()
-            .and_then(|failures| failures.get(&value.id).cloned());
-        let state = activity.as_ref().map_or_else(
-            || {
-                if installed.as_deref() == Some(value.version.as_str()) {
-                    DownloadableResourceState::Ready
-                } else if installed.is_some() {
-                    DownloadableResourceState::UpdateAvailable
-                } else if failure.is_some() {
-                    DownloadableResourceState::Failed
-                } else {
-                    DownloadableResourceState::Missing
-                }
-            },
-            |activity| activity.state,
-        );
-        DownloadableResourceStatus {
-            id: value.id.clone(),
-            available_version: value.version.clone(),
-            installed_version: installed,
-            state,
-            size_bytes: value.size_bytes(),
-            downloaded_bytes: activity.map_or(0, |value| value.downloaded_bytes),
-            message: failure,
-        }
-    }
-    fn finish_pending_delete(&self, key: &str) {
-        let Ok(mut state) = self.state.lock() else {
-            return;
-        };
-        if !state.pending_delete.contains(key) {
-            return;
-        }
-        if let Some((id, version)) = key.rsplit_once('@') {
-            if remove_version(&self.root, id, version).is_err() {
-                return;
-            }
-            let mut updated = state.clone();
-            updated.pending_delete.remove(key);
-            if updated.write(&self.state_path()).is_ok() {
-                *state = updated;
-            }
-        }
-    }
-
-    fn retire_version(&self, id: &str, version: &str) -> DownloadableResourceResult<()> {
-        let key = format!("{id}@{version}");
-        let in_use = self
-            .leases
-            .lock()
-            .map_err(poisoned)?
-            .get(&key)
-            .and_then(Weak::upgrade)
-            .is_some();
-        if in_use {
-            let mut state = self.lock_state()?;
-            let mut updated = state.clone();
-            updated.pending_delete.insert(key);
-            updated.write(&self.state_path())?;
-            *state = updated;
-            drop(state);
-            Ok(())
-        } else {
-            remove_version(&self.root, id, version)
-        }
-    }
-
-    fn update_activity(&self, id: &str, state: DownloadableResourceState, downloaded_bytes: u64) {
-        if let Ok(mut activities) = self.activities.lock()
-            && let Some(activity) = activities.get_mut(id)
-        {
-            activity.state = state;
-            activity.downloaded_bytes = downloaded_bytes;
-        }
-    }
-}
-
 struct InstallRegistration {
     resource_id: String,
     manager: Weak<ManagerInner>,
@@ -732,3 +553,6 @@ fn write_catalog_cache(path: &Path, bytes: &[u8]) -> DownloadableResourceResult<
 fn poisoned<T>(_: std::sync::PoisonError<T>) -> DownloadableResourceError {
     DownloadableResourceError::Operation("downloadable resource state is unavailable".to_owned())
 }
+
+mod legacy;
+mod lifecycle;

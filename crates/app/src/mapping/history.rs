@@ -1,10 +1,13 @@
-use super::{
-    GenerationBatchHistoryQuery, GenerationBatchHistoryRecord, GenerationBatchHistoryStatus,
+use atelier_app_api::history::{
     GenerationBatchHistoryStatusDto, GenerationHistoryBatchDto, GenerationHistoryPageDto,
-    GenerationHistoryQueryDto, ResourceRefDto, RunHistoryItemDto, RunHistoryKind,
-    RunHistoryKindDto, RunHistoryOutputDto, RunHistoryOutputStateDto, RunHistoryPageDto,
-    RunHistoryQuery, RunHistoryQueryDto, RunHistoryRecord, RunHistoryStatus, RunHistoryStatusDto,
-    RunOutputRecord, RunOutputState,
+    GenerationHistoryQueryDto, RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto,
+    RunHistoryOutputStateDto, RunHistoryPageDto, RunHistoryQueryDto, RunHistoryStatusDto,
+};
+use atelier_app_api::resource::ResourceRefDto;
+use atelier_jobs::{
+    GenerationBatchHistoryQuery, GenerationBatchHistoryRecord, GenerationBatchHistoryStatus,
+    RunHistoryKind, RunHistoryQuery, RunHistoryRecord, RunHistoryStatus, RunOutputRecord,
+    RunOutputState,
 };
 
 pub const fn run_history_kind_to_dto(value: RunHistoryKind) -> RunHistoryKindDto {

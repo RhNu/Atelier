@@ -1,14 +1,23 @@
-use super::{
-    AppError, AppResult, ArtifactKind, EmbeddedMetadataStatus, EmbeddedMetadataWarning,
-    GalleryImageReference, GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItem,
-    GalleryItemDto, GalleryMetadataStatusDto, GalleryMetadataWarningCodeDto,
-    GalleryMetadataWarningDto, GalleryPageDto, GalleryQuery, GalleryQueryDto, GallerySafetyDto,
-    GallerySafetyLabelDto, GallerySafetyModelEvidenceDto, GallerySafetyOverride,
-    GallerySafetyOverrideDto, GallerySafetyRatingScoresDto, GallerySafetyReviewDto,
-    GallerySafetyReviewStateDto, GallerySafetyRiskBandDto, GallerySafetyScanStateDto,
-    GallerySafetyState, GallerySourceKind, GallerySourceKindDto, ImageReferenceTarget,
-    ResourceVariantKind, SafetyAssessment, SafetyLabel, SafetyModelEvidence, SafetyReviewOutcome,
-    SafetyRiskBand, VisualAssetDto, VisualAssetRole, resource_ref_to_dto,
+use super::resource_ref_to_dto;
+use crate::{AppError, AppResult};
+use atelier_app_api::gallery::{
+    GalleryImageReferenceDto, GalleryImageReferenceTargetDto, GalleryItemDto,
+    GalleryMetadataStatusDto, GalleryMetadataWarningCodeDto, GalleryMetadataWarningDto,
+    GalleryPageDto, GalleryQueryDto, GallerySafetyDto, GallerySafetyLabelDto,
+    GallerySafetyModelEvidenceDto, GallerySafetyOverrideDto, GallerySafetyRatingScoresDto,
+    GallerySafetyReviewDto, GallerySafetyReviewStateDto, GallerySafetyRiskBandDto,
+    GallerySafetyScanStateDto, GallerySourceKindDto, VisualAssetDto,
+};
+use atelier_artifacts::{
+    ArtifactKind, EmbeddedMetadataStatus, EmbeddedMetadataWarning, VisualAssetRole,
+};
+use atelier_gallery::{
+    GalleryImageReference, GalleryItem, GalleryQuery, GallerySafetyOverride, GallerySafetyState,
+    GallerySourceKind, ImageReferenceTarget,
+};
+use atelier_resource_catalog::ResourceVariantKind;
+use atelier_safety::{
+    SafetyAssessment, SafetyLabel, SafetyModelEvidence, SafetyReviewOutcome, SafetyRiskBand,
 };
 
 pub fn gallery_query_to_domain(value: &GalleryQueryDto) -> AppResult<GalleryQuery> {

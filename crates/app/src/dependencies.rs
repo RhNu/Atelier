@@ -25,7 +25,7 @@ pub struct RuntimeDependencies<
     pub image_analysis: Option<ImageAnalysisDependencies>,
     pub lexicon: Arc<dyn LexiconEngine>,
     pub danbooru: Arc<dyn DanbooruClient>,
-    pub novelai_explore: Option<Arc<crate::commands::explore::NovelAiExploreSource>>,
+    pub novelai_explore: Option<Arc<crate::explore::NovelAiExploreSource>>,
 }
 
 pub struct ImageAnalysisDependencies {

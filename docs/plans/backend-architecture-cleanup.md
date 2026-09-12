@@ -5,6 +5,8 @@
 
 ## 执行记录
 
+- 批次 8：移除 usecases/mod 的集中依赖导入，mapping 各文件局部依赖；共享时钟与请求映射归位；Explore/Danbooru 从 command registry 移至 app 功能模块。desktop 拆分 worker/platform，Tauri commands 按功能分组；下载管理器拆分 lifecycle/legacy，保留 pre-0.5 升级行为。
+
 - 批次 7：新提交、单项重放与批量重放先投影完整历史，再复用 commit_submission 原子提交；目标唯一性在生成锁内复核。新增 metadata 写入失败导致队列/历史一起回滚的生产入口测试。
 
 - 批次 6：WorkflowContext 共享实际服务，Vibe/Director 不再持有生成锁；QueueView 独立提供短锁状态读取。生成变更锁覆盖状态与持久化，保持单队列串行写语义；worker 固定 session 并检查替换身份。新增阻塞网络下状态/Vibe 读取及旧 worker 不推进新 workspace 回归。

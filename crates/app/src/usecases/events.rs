@@ -1,5 +1,5 @@
-use super::AppEventDto;
 use crate::events::AppEventHub;
+use atelier_app_api::event::AppEventDto;
 
 pub struct EventsUseCases<'a> {
     pub(crate) events: &'a AppEventHub,

@@ -1,3 +1,10 @@
+use crate::mapping::{
+    generation_history_batch_to_dto, generation_history_page_to_dto,
+    generation_history_query_to_domain, queue_directive_to_dto, run_history_item_to_dto,
+    run_history_page_to_dto, run_history_query_to_domain, run_output_to_dto,
+};
+use crate::session::WorkspaceSession;
+use crate::{AppError, AppResult};
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::history::{
     DeleteGenerationHistoryBatchesRequestDto, DeleteGenerationHistoryBatchesResponseDto,
@@ -16,6 +23,10 @@ use atelier_kernel::{
     SubmittedGenerationPayload,
 };
 use atelier_secrets::{SecretStore, SecretsErrorKind};
+use persistence::ensure_generation_history_target_is_new;
+use projection::{
+    aggregate_generation_batch, generation_history_request_to_dto, preferred_run_outputs,
+};
 use std::collections::BTreeSet;
 
 mod persistence;
@@ -25,19 +36,6 @@ pub use persistence::{
     GenerationHistoryPosition, GenerationHistoryUpdate,
     generation_history_records_from_queue_snapshot, project_generation_history,
 };
-
-use persistence::ensure_generation_history_target_is_new;
-use projection::{
-    aggregate_generation_batch, generation_history_request_to_dto, preferred_run_outputs,
-};
-
-use crate::mapping::{
-    generation_history_batch_to_dto, generation_history_page_to_dto,
-    generation_history_query_to_domain, queue_directive_to_dto, run_history_item_to_dto,
-    run_history_page_to_dto, run_history_query_to_domain, run_output_to_dto,
-};
-use crate::session::WorkspaceSession;
-use crate::{AppError, AppResult};
 
 pub struct HistoryUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -501,3 +499,5 @@ where
 fn history_error(error: impl std::fmt::Display) -> AppError {
     AppError::new("run_history", error.to_string())
 }
+
+pub use persistence::run_history_status_from_job_status;

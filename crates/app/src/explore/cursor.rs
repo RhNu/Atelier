@@ -1,9 +1,9 @@
+use super::CommandResult;
 use atelier_app_api::explore::ExploreQueryDto;
 use atelier_explore::{ExploreCursor, ExploreError, ExploreResult};
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use sha2::{Digest, Sha256};
-
-use super::CommandResult;
 
 pub(super) fn fingerprint(query: &ExploreQueryDto, revision: u64) -> CommandResult<String> {
     let bytes = serde_json::to_vec(query).map_err(|_| {

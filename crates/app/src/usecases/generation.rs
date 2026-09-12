@@ -1,22 +1,32 @@
 use super::generation_support::{
     ensure_generation_batch_target_is_new, estimate_generation_anlas, parse_uc_preset_override,
 };
-use super::{
-    AppError, AppResult, BatchId, CharacterReference, CharacterReferenceDto, GenerateImageRequest,
-    GenerateImageRequestDto, GenerateImageStreamRequest, GenerationAnlasEstimateDto,
-    GenerationEstimateRequestDto, GenerationHistoryPosition, GenerationHistoryUpdate,
-    GenerationStatusDto, GenerationWorkRequest, GenerationWorkRequestDto, ImageSize,
-    Img2ImgRequest, Img2ImgRequestDto, JobId, NovelAiClientFactory, QueueDirectiveDto,
-    RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, SecretStore, SecretsErrorKind,
-    SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationBatchJobDto,
-    SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, VibeReference, VibeTransferConfig,
-    VibeTransferConfigDto, WorkspaceSession, characters_to_domain, generation_status_to_dto,
-    generation_work_title, image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
-    plan_context_to_domain, project_generation_history, quality_preset_to_domain,
-    quality_preset_to_dto, queue_directive_to_dto, resource_ref_from_dto,
-    run_history_status_from_job_status, sampler_to_domain, stream_mode_to_domain,
-    uc_preset_to_domain,
+use crate::mapping::{
+    characters_to_domain, generation_status_to_dto, generation_work_title, image_format_to_domain,
+    image_model_to_domain, noise_schedule_to_domain, plan_context_to_domain,
+    quality_preset_to_domain, quality_preset_to_dto, queue_directive_to_dto, resource_ref_from_dto,
+    sampler_to_domain, stream_mode_to_domain, uc_preset_to_domain,
 };
+use crate::session::WorkspaceSession;
+use crate::usecases::history::{
+    GenerationHistoryPosition, GenerationHistoryUpdate, project_generation_history,
+    run_history_status_from_job_status,
+};
+use crate::{AppError, AppResult};
+use atelier_adapter_novelai::NovelAiClientFactory;
+use atelier_app_api::generation::{
+    CharacterReferenceDto, GenerateImageRequestDto, GenerationAnlasEstimateDto,
+    GenerationEstimateRequestDto, GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto,
+    QueueDirectiveDto, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
+    SubmitGenerationRequestDto, VibeTransferConfigDto,
+};
+use atelier_generation::{
+    CharacterReference, GenerateImageRequest, GenerateImageStreamRequest, ImageSize,
+    Img2ImgRequest, VibeReference, VibeTransferConfig,
+};
+use atelier_jobs::{BatchId, JobId, RunHistoryRecord, RunHistoryRepository, RunHistoryStatus};
+use atelier_kernel::{GenerationWorkRequest, SubmitGenerationBatch, SubmitGenerationBatchJob};
+use atelier_secrets::{SecretStore, SecretsErrorKind};
 pub struct GenerationUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
 }

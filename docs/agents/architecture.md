@@ -302,3 +302,12 @@ replacement, including after waits. App event cursors are assigned when events e
 Initial history metadata (title, sample count, position and replay origin) is projected before
 submission and committed with queue state. Submission and replay recheck target uniqueness
 under the generation mutation lock; no separate post-submit metadata write is required.
+
+### Module ownership
+
+App use cases import their own dependencies; the usecase module root only registers and
+exports use cases. DTO mappings belong to mapping modules, and Explore/Danbooru orchestration
+lives in app feature modules. Desktop command modules group unchanged IPC names by feature.
+Desktop worker scheduling and platform I/O implementations have separate modules. Download
+resource lifecycle and pre-0.5 cleanup are isolated from catalog/install coordination; the
+versioned cleanup remains supported rather than being treated as unused code.

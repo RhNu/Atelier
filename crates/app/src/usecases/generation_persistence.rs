@@ -1,11 +1,11 @@
+use super::generation::GenerationUseCases;
+use crate::usecases::history::generation_history_records_from_queue_snapshot;
+use crate::{AppError, AppResult};
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::QueueDirectiveDto;
 use atelier_jobs::GenerationStore;
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
-
-use super::generation::GenerationUseCases;
-use super::{AppError, AppResult, generation_history_records_from_queue_snapshot};
 
 impl<S, F, E> GenerationUseCases<'_, S, F, E>
 where

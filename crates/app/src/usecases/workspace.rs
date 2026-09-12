@@ -1,4 +1,4 @@
-use super::WorkspaceStatusDto;
+use atelier_app_api::workspace::WorkspaceStatusDto;
 use atelier_workspace::WorkspaceRoot;
 
 pub struct WorkspaceUseCases<'a> {

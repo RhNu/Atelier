@@ -1,9 +1,11 @@
-use super::{
-    EnsuredVibeEncoding, EnsuredVibeEncodingDto, ExportedVibeDocument, ExportedVibeDocumentDto,
-    ImageModelDto, ImportedVibeDocuments, ImportedVibeDocumentsDto, VibeDocumentEntry,
-    VibeDocumentEntryDto, VibeEncodingConfigDto, VibeExportFormat, VibeExportFormatDto, VibeModel,
-    image_model_to_domain, image_model_to_dto, resource_ref_to_dto,
+use super::{image_model_to_domain, image_model_to_dto, resource_ref_to_dto};
+use atelier_app_api::generation::ImageModelDto;
+use atelier_app_api::vibe::{
+    EnsuredVibeEncodingDto, ExportedVibeDocumentDto, ImportedVibeDocumentsDto,
+    VibeDocumentEntryDto, VibeEncodingConfigDto, VibeExportFormatDto,
 };
+use atelier_kernel::{EnsuredVibeEncoding, ExportedVibeDocument, ImportedVibeDocuments};
+use atelier_vibe::{VibeDocumentEntry, VibeExportFormat, VibeModel};
 
 pub fn imported_vibes_to_dto(value: ImportedVibeDocuments) -> ImportedVibeDocumentsDto {
     ImportedVibeDocumentsDto {

@@ -1,6 +1,8 @@
-use super::{
-    ActiveJobBatchSnapshot, BatchStatus, GenerationRequestStatusDto, GenerationStatusDto,
-    QueueDelay, QueueDelayDto, QueueDirective, QueueDirectiveDto, RunHistoryRecord,
+use atelier_app_api::generation::{
+    GenerationRequestStatusDto, GenerationStatusDto, QueueDelayDto, QueueDirectiveDto,
+};
+use atelier_jobs::{
+    ActiveJobBatchSnapshot, BatchStatus, QueueDelay, QueueDirective, RunHistoryRecord,
 };
 
 pub fn queue_directive_to_dto(value: QueueDirective) -> QueueDirectiveDto {

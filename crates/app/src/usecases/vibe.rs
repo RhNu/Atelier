@@ -1,15 +1,25 @@
-use super::{
-    AppError, AppResult, Engine, EnsureVibeEncoding, EnsureVibeEncodingRequestDto,
-    EnsuredVibeEncodingDto, ExportVibeDocument, ExportVibeDocumentRequestDto,
-    ExportedVibeDocumentDto, GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocument,
-    ImportEmbeddedPngVibeDocumentRequestDto, ImportVibeDocument, ImportVibeDocumentRequestDto,
-    ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto, NovelAiClientFactory,
-    RenameVibeDocumentRequestDto, STANDARD, SecretStore, SetVibeDocumentHiddenRequestDto,
-    VibeDocumentEntryDto, VibeDocumentPageDto, VibeEncodeSettings, VibeId, VibeSourceIdentity,
-    WorkspaceSession, ensured_vibe_to_dto, exported_vibe_to_dto, imported_vibes_to_dto,
-    unix_timestamp_ms, vibe_entry_to_dto, vibe_format_to_domain, vibe_model_to_domain,
+use crate::mapping::{
+    ensured_vibe_to_dto, exported_vibe_to_dto, imported_vibes_to_dto, vibe_entry_to_dto,
+    vibe_format_to_domain, vibe_model_to_domain,
 };
-use atelier_vibe::VibeRepository;
+use crate::session::WorkspaceSession;
+use crate::time::unix_timestamp_ms;
+use crate::{AppError, AppResult};
+use atelier_adapter_novelai::NovelAiClientFactory;
+use atelier_app_api::vibe::{
+    EnsureVibeEncodingRequestDto, EnsuredVibeEncodingDto, ExportVibeDocumentRequestDto,
+    ExportedVibeDocumentDto, GetVibeDocumentRequestDto, ImportEmbeddedPngVibeDocumentRequestDto,
+    ImportVibeDocumentRequestDto, ImportedVibeDocumentsDto, ListVibeDocumentsRequestDto,
+    RenameVibeDocumentRequestDto, SetVibeDocumentHiddenRequestDto, VibeDocumentEntryDto,
+    VibeDocumentPageDto,
+};
+use atelier_kernel::{
+    EnsureVibeEncoding, ExportVibeDocument, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
+};
+use atelier_secrets::SecretStore;
+use atelier_vibe::{VibeEncodeSettings, VibeId, VibeRepository, VibeSourceIdentity};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 
 pub struct VibeUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,

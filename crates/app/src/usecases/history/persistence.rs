@@ -1,12 +1,10 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
+use crate::time::unix_timestamp_ms;
+use crate::{AppError, AppResult};
 use atelier_adapter_database::DatabaseRunHistoryRepository;
 use atelier_jobs::{
     BatchStatus, JobKind, JobQueueSnapshot, JobRecord, JobStatus, RunHistoryKind, RunHistoryRecord,
     RunHistoryRepository, RunHistoryStatus,
 };
-
-use crate::{AppError, AppResult};
 
 pub(super) async fn ensure_generation_history_target_is_new(
     repository: &DatabaseRunHistoryRepository,
@@ -199,7 +197,7 @@ async fn build_generation_history_from_job(
     Ok(record)
 }
 
-const fn run_history_status_from_job_status(status: JobStatus) -> RunHistoryStatus {
+pub const fn run_history_status_from_job_status(status: JobStatus) -> RunHistoryStatus {
     match status {
         JobStatus::Queued => RunHistoryStatus::Queued,
         JobStatus::Preparing => RunHistoryStatus::Preparing,
@@ -220,12 +218,4 @@ pub(super) const fn status_is_terminal(status: RunHistoryStatus) -> bool {
             | RunHistoryStatus::Skipped
             | RunHistoryStatus::Stopped
     )
-}
-
-fn unix_timestamp_ms() -> u64 {
-    let millis = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
-    u64::try_from(millis).unwrap_or(u64::MAX)
 }

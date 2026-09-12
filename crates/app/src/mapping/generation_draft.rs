@@ -1,3 +1,9 @@
+use super::{
+    image_format_to_domain, image_format_to_dto, image_model_to_domain, image_model_to_dto,
+    noise_schedule_to_domain, noise_schedule_to_dto, quality_preset_to_domain,
+    quality_preset_to_dto, resource_ref_from_dto, resource_ref_to_dto, sampler_to_domain,
+    sampler_to_dto, uc_preset_to_domain, uc_preset_to_dto,
+};
 use atelier_app_api::generation::{
     CharacterPositionDto, GenerationDraftCharacterDto, GenerationDraftCharacterPositionModeDto,
     GenerationDraftDto, GenerationDraftFocusRegionDto, GenerationDraftI2iDto,
@@ -12,13 +18,6 @@ use atelier_generation::{
     GenerationDraftInpaintSession, GenerationDraftMaskDisplay, GenerationDraftMaskPattern,
     GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftReferenceInset,
     GenerationDraftSeedMode, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
-};
-
-use super::{
-    image_format_to_domain, image_format_to_dto, image_model_to_domain, image_model_to_dto,
-    noise_schedule_to_domain, noise_schedule_to_dto, quality_preset_to_domain,
-    quality_preset_to_dto, resource_ref_from_dto, resource_ref_to_dto, sampler_to_domain,
-    sampler_to_dto, uc_preset_to_domain, uc_preset_to_dto,
 };
 
 pub fn generation_draft_to_domain(value: GenerationDraftDto) -> GenerationDraftSnapshot {

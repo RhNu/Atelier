@@ -1,17 +1,19 @@
-use super::{
-    AppError, AppResult, GalleryItemId, GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto,
+use crate::mapping::{
     gallery_image_reference_to_dto, gallery_item_to_dto, gallery_page_to_dto,
     gallery_query_to_domain, image_reference_target_to_domain, safety_override_to_domain,
 };
 use crate::ports::{AppArtifactService, AppGalleryService, AppResourceCatalog, AppResourceReader};
-use atelier_adapter_database::DatabaseGalleryIndex;
-use atelier_adapter_database::{GalleryHardDeletePlan, GalleryTransientOwner};
+use crate::{AppError, AppResult};
+use atelier_adapter_database::{
+    DatabaseGalleryIndex, GalleryHardDeletePlan, GalleryTransientOwner,
+};
 use atelier_app_api::gallery::{
     DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryItemDetailDto,
-    GalleryItemDetailRequestDto, RescanGallerySafetyRequestDto, RescanGallerySafetyResponseDto,
+    GalleryItemDetailRequestDto, GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto,
+    RescanGallerySafetyRequestDto, RescanGallerySafetyResponseDto,
 };
 use atelier_artifacts::{ArtifactId, ArtifactSource};
-use atelier_gallery::{GalleryItem, GallerySafetyState};
+use atelier_gallery::{GalleryItem, GalleryItemId, GallerySafetyState};
 use atelier_safety::{SafetyScanInput, SafetyScanner};
 use futures::lock::Mutex;
 use std::sync::Arc;
@@ -103,7 +105,7 @@ impl GalleryUseCases<'_> {
         let items = self.gallery.get_items(&item_ids).await?;
         let scanner = self.safety_scanner.clone();
         let reader = self.resource_reader.clone();
-        let now_ms = super::unix_timestamp_ms();
+        let now_ms = crate::time::unix_timestamp_ms();
         let Some(scanner) = scanner else {
             for item in &items {
                 self.gallery

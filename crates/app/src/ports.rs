@@ -1,6 +1,5 @@
-use std::sync::{Arc, Mutex as StdMutex};
-use std::time::{SystemTime, UNIX_EPOCH};
-
+use crate::events::AppEventHub;
+use crate::mapping::resource_variant_kind_as_str;
 use async_trait::async_trait;
 use atelier_adapter_database::{
     DatabaseArtifactRepository, DatabaseGalleryIndex, DatabaseGenerationPayloadStore,
@@ -46,11 +45,10 @@ use atelier_vibe::{
     EmbeddedVibeDocumentExtractor, VibeDocumentEntry, VibeDomainResult, VibeEncodeSettings,
     VibeEncodingRecord, VibeError, VibeErrorKind, VibeId, VibeRepository, VibeSourceIdentity,
 };
+use std::sync::{Arc, Mutex as StdMutex};
 
 mod external;
 mod output;
-
-use crate::events::AppEventHub;
 
 pub type AppApiKeyService<S, F> = ApiKeyRegistryService<
     Arc<dyn ApiKeyRegistryStore>,
@@ -176,11 +174,7 @@ where
     E: Send + Sync,
 {
     fn now_ms(&self) -> u64 {
-        let millis = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis();
-        u64::try_from(millis).unwrap_or(u64::MAX)
+        crate::time::unix_timestamp_ms()
     }
 }
 
@@ -449,16 +443,6 @@ fn gallery_resource_ids(item: &GalleryItem) -> Vec<ResourceId> {
 
 fn gallery_repository_error(error: impl std::fmt::Display) -> GalleryError {
     GalleryError::repository(error.to_string())
-}
-
-const fn resource_variant_kind_as_str(value: ResourceVariantKind) -> &'static str {
-    match value {
-        ResourceVariantKind::Original => "original",
-        ResourceVariantKind::Preview => "preview",
-        ResourceVariantKind::Thumbnail => "thumbnail",
-        ResourceVariantKind::Sanitized => "sanitized",
-        ResourceVariantKind::Export => "export",
-    }
 }
 
 #[async_trait]

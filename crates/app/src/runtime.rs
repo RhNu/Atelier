@@ -1,10 +1,11 @@
-use std::sync::{Arc, Mutex, MutexGuard};
-
+use crate::ports::AppApiKeyService;
+use crate::{AppError, AppEventListener, AppResult, WorkspaceSession};
 use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory,
 };
-use atelier_app_api::{error::ErrorEnvelopeDto, event::AppEventDto};
+use atelier_app_api::error::ErrorEnvelopeDto;
+use atelier_app_api::event::AppEventDto;
 use atelier_danbooru::DanbooruClient;
 use atelier_downloadable_resources::DownloadableResourceManager;
 use atelier_image_analysis::ImageAnalysisSessionControl;
@@ -13,9 +14,7 @@ use atelier_safety::{SafetyPolicyControl, SafetyScanner};
 use atelier_secrets::{ApiKeyRegistryService, SecretStore};
 use atelier_settings::GlobalSettingsService;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
-
-use crate::ports::AppApiKeyService;
-use crate::{AppError, AppEventListener, AppResult, WorkspaceSession};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 pub type CommandResult<T> = Result<T, ErrorEnvelopeDto>;
 type Session<S, F, E> = Option<Arc<WorkspaceSession<S, F, E>>>;
@@ -36,7 +35,7 @@ pub struct AtelierRuntime<
     pub(crate) safety_policy_control: Option<Arc<dyn SafetyPolicyControl>>,
     pub(crate) lexicon: Arc<dyn LexiconEngine>,
     pub(crate) danbooru: Arc<dyn DanbooruClient>,
-    pub(crate) novelai_explore: Option<Arc<crate::commands::explore::NovelAiExploreSource>>,
+    pub(crate) novelai_explore: Option<Arc<crate::explore::NovelAiExploreSource>>,
     pub(crate) explore_identity_revision: std::sync::atomic::AtomicU64,
     pub(crate) danbooru_account_gate: futures::lock::Mutex<()>,
     pub(crate) event_listeners: Mutex<Vec<AppEventListener>>,

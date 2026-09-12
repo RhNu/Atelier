@@ -1,4 +1,5 @@
-use super::{ResourceId, ResourceRef, ResourceRefDto, VariantId};
+use atelier_app_api::resource::ResourceRefDto;
+use atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
 
 pub fn resource_ref_to_dto(value: &ResourceRef) -> ResourceRefDto {
     ResourceRefDto {

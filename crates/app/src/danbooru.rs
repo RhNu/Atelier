@@ -1,5 +1,5 @@
-use std::collections::HashMap;
-
+use super::{AtelierRuntime, CommandResult};
+use crate::AppError;
 use atelier_app_api::danbooru::{
     DanbooruAccountDto, DanbooruAccountStateDto, DanbooruPostDetailDto, DanbooruPostSummaryDto,
     DanbooruRatingDto, DanbooruTagCategoryDto, DanbooruTagDto, SaveDanbooruAccountRequestDto,
@@ -9,9 +9,7 @@ use atelier_danbooru::{
     DanbooruCredentials, DanbooruErrorKind, DanbooruPost, DanbooruRating, DanbooruTagCategory,
 };
 use atelier_secrets::{SecretRecordId, SecretStore, SecretValue, SecretsErrorKind};
-
-use super::{AtelierRuntime, CommandResult};
-use crate::AppError;
+use std::collections::HashMap;
 
 const DANBOORU_SECRET_ID: &str = "danbooru-api-key:default";
 
@@ -198,7 +196,7 @@ where
         Ok(anonymous_account())
     }
 
-    pub(super) fn enrich_danbooru_post(&self, post: &DanbooruPost) -> DanbooruPostDetailDto {
+    pub(crate) fn enrich_danbooru_post(&self, post: &DanbooruPost) -> DanbooruPostDetailDto {
         let names = post
             .ordered_tags()
             .into_iter()
@@ -243,7 +241,7 @@ where
         }
     }
 
-    pub(super) async fn danbooru_credentials(&self) -> CommandResult<Option<DanbooruCredentials>> {
+    pub(crate) async fn danbooru_credentials(&self) -> CommandResult<Option<DanbooruCredentials>> {
         let settings = self
             .global_settings
             .get_global_settings()
@@ -302,7 +300,7 @@ async fn rollback_secret<S: SecretStore>(
     }
 }
 
-pub(super) const fn rating_to_domain(value: DanbooruRatingDto) -> DanbooruRating {
+pub const fn rating_to_domain(value: DanbooruRatingDto) -> DanbooruRating {
     match value {
         DanbooruRatingDto::General => DanbooruRating::General,
         DanbooruRatingDto::Sensitive => DanbooruRating::Sensitive,
@@ -330,7 +328,7 @@ const fn tag_category_to_dto(value: DanbooruTagCategory) -> DanbooruTagCategoryD
     }
 }
 
-pub(super) fn post_summary_to_dto(post: &DanbooruPost) -> DanbooruPostSummaryDto {
+pub fn post_summary_to_dto(post: &DanbooruPost) -> DanbooruPostSummaryDto {
     DanbooruPostSummaryDto {
         id: post.id,
         rating: rating_to_dto(post.rating),
