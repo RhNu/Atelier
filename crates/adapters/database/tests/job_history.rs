@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use atelier_adapter_database::{
-    DatabaseConnection, DatabaseJobQueueRepository, DatabaseRunHistoryRepository,
+    DatabaseConnection, DatabaseGenerationStore, DatabaseRunHistoryRepository,
 };
 use atelier_jobs::{
     BatchId, BatchStatus, GenerationBatchHistoryQuery, GenerationBatchHistoryStatus,
-    JobFailureImpact, JobId, JobKind, JobPayloadRef, JobQueue, JobQueueRepository, JobStatus,
+    GenerationStore, JobFailureImpact, JobId, JobKind, JobPayloadRef, JobQueue, JobStatus,
     QueueDelay, RunHistoryKind, RunHistoryQuery, RunHistoryRecord, RunHistoryRepository,
     RunHistoryStatus, RunOutputRecord, RunOutputState, SubmitJob,
 };
@@ -14,8 +14,7 @@ use futures_executor::block_on;
 #[test]
 fn job_queue_repository_round_trips_active_snapshot() {
     block_on(async {
-        let repository =
-            DatabaseJobQueueRepository::new(DatabaseConnection::open_memory().unwrap());
+        let repository = DatabaseGenerationStore::new(DatabaseConnection::open_memory().unwrap());
         let mut queue = JobQueue::default();
         queue
             .submit_batch(BatchId::new("batch-1"), vec![job("job-1"), job("job-2")])
@@ -33,18 +32,18 @@ fn job_queue_repository_round_trips_active_snapshot() {
             .unwrap();
 
         repository
-            .save_queue_snapshot(&queue.snapshot())
+            .commit(Some(&queue.snapshot()), Vec::new())
             .await
             .unwrap();
-        let restored_snapshot = repository.load_queue_snapshot().await.unwrap().unwrap();
+        let restored_snapshot = repository.load().await.unwrap().unwrap();
         let restored = JobQueue::from_snapshot(restored_snapshot).unwrap();
 
         assert_eq!(restored.batch_status(), Some(BatchStatus::Waiting));
         assert_eq!(restored.job_status(&first), Some(JobStatus::WaitingRetry));
         assert_eq!(restored.retry_attempts(&first), Some(1));
 
-        repository.clear_queue_snapshot().await.unwrap();
-        assert!(repository.load_queue_snapshot().await.unwrap().is_none());
+        repository.commit(None, Vec::new()).await.unwrap();
+        assert!(repository.load().await.unwrap().is_none());
     });
 }
 

@@ -8,6 +8,7 @@ use atelier_app_api::history::{
     RerunGenerationHistoryBatchResponseDto, RerunGenerationHistoryItemRequestDto,
     RerunGenerationHistoryItemResponseDto, RunHistoryPageDto, RunHistoryQueryDto,
 };
+use atelier_jobs::GenerationStore;
 use atelier_jobs::{
     BatchId, JobId, JobPayloadRef, JobQueueSnapshot, RunHistoryKind, RunHistoryRecord,
     RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState,
@@ -486,7 +487,8 @@ where
         let durable_snapshot = (!matches!(directive, QueueDirectiveDto::Idle)).then_some(snapshot);
         self.app
             .queue_repository
-            .commit_queue_and_history(durable_snapshot, history)
+            .commit(durable_snapshot, history)
+            .await
             .map_err(|error| AppError::new("job_queue", error.to_string()))
     }
 

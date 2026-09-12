@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use atelier_artifacts::{ArtifactRecord, ArtifactResult, RegisterArtifactRequest};
-use atelier_director::NovelAiDirectorClient;
 use atelier_gallery::{GalleryItem, GalleryResult, GallerySafetyState};
 use atelier_generation::{GeneratedImageMetadataInspector, NovelAiGenerationClient};
 use atelier_jobs::JobPayloadRef;
@@ -45,13 +44,16 @@ pub trait GenerationPayloadStore: Send + Sync {
 
 #[async_trait]
 pub trait KernelGenerationPorts:
-    NovelAiGenerationClient + GeneratedImageMetadataInspector + Send + Sync
+    NovelAiGenerationClient + GeneratedImageMetadataInspector + KernelOutputPorts + Send + Sync
 {
     async fn compile_legacy_prompt(
         &self,
         request: CompilePromptRequest,
     ) -> PromptResourceResult<CompiledPrompt>;
+}
 
+#[async_trait]
+pub trait KernelOutputPorts: Send + Sync {
     async fn register_resource(
         &self,
         request: RegisterResourceRequest,
@@ -65,31 +67,6 @@ pub trait KernelGenerationPorts:
     async fn score_image(&self, resource: ResourceRef) -> SafetyResult<Option<SafetyAssessment>>;
 
     async fn index_gallery_item(
-        &self,
-        artifact: ArtifactRecord,
-        indexed_at_ms: u64,
-        safety: GallerySafetyState,
-    ) -> GalleryResult<GalleryItem>;
-}
-
-#[async_trait]
-pub trait KernelDirectorPorts: NovelAiDirectorClient + Send + Sync {
-    async fn register_director_resource(
-        &self,
-        request: RegisterResourceRequest,
-    ) -> ResourceResult<ResourceRef>;
-
-    async fn register_director_artifact(
-        &self,
-        request: RegisterArtifactRequest,
-    ) -> ArtifactResult<ArtifactRecord>;
-
-    async fn score_director_image(
-        &self,
-        resource: ResourceRef,
-    ) -> SafetyResult<Option<SafetyAssessment>>;
-
-    async fn index_director_gallery_item(
         &self,
         artifact: ArtifactRecord,
         indexed_at_ms: u64,

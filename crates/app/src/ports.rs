@@ -28,9 +28,8 @@ use atelier_generation::{
     GenerationResult, NovelAiGenerationClient,
 };
 use atelier_kernel::{
-    GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEvent, KernelEventSink,
-    KernelGenerationPorts, KernelResult, KernelVibePorts, PreparedGenerationPayload,
-    SubmittedGenerationPayload,
+    GenerationPayloadStore, KernelClock, KernelEvent, KernelEventSink, KernelGenerationPorts,
+    KernelResult, KernelVibePorts, PreparedGenerationPayload, SubmittedGenerationPayload,
 };
 use atelier_prompt_resources::{
     CompilePromptRequest, CompiledPrompt, PromptCompiler, PromptResourceResult,
@@ -49,6 +48,7 @@ use atelier_vibe::{
 };
 
 mod external;
+mod output;
 
 use crate::events::AppEventHub;
 
@@ -70,6 +70,7 @@ pub type AppGalleryService = GalleryService<DatabaseGalleryIndex>;
 pub type AppResourceReader = FileSystemResourceContentReader<DatabaseResourceCatalogRepository>;
 
 pub struct AppKernelPorts<S, F, E> {
+    pub run_history: atelier_adapter_database::DatabaseRunHistoryRepository,
     pub payloads: DatabaseGenerationPayloadStore,
     pub prompt_compiler: PromptCompiler<DatabasePromptResourceRepository>,
     pub novelai: AppNovelAiAdapter<S, F>,
@@ -246,7 +247,15 @@ where
     ) -> PromptResourceResult<CompiledPrompt> {
         self.prompt_compiler.compile(request).await
     }
+}
 
+#[async_trait]
+impl<S, F, E> atelier_kernel::KernelOutputPorts for AppKernelPorts<S, F, E>
+where
+    S: SecretStore + Clone + Send + Sync,
+    F: NovelAiClientFactory + Clone + Send + Sync,
+    E: Send + Sync,
+{
     async fn register_resource(
         &self,
         request: RegisterResourceRequest,
@@ -276,6 +285,7 @@ where
             .gallery
             .index_artifact(artifact, indexed_at_ms, safety)
             .await?;
+        self.record_outputs(&item).await?;
         self.reassign_gallery_resource_ownership(&item).await?;
         Ok(item)
     }
@@ -293,50 +303,6 @@ where
         request: RunDirectorToolRequest,
     ) -> DirectorResult<DirectorToolOutput> {
         self.novelai.run_director_tool(request).await
-    }
-}
-
-#[async_trait]
-impl<S, F, E> KernelDirectorPorts for AppKernelPorts<S, F, E>
-where
-    S: SecretStore + Clone + Send + Sync,
-    F: NovelAiClientFactory + Clone + Send + Sync,
-    E: Send + Sync,
-{
-    async fn register_director_resource(
-        &self,
-        request: RegisterResourceRequest,
-    ) -> ResourceResult<ResourceRef> {
-        self.resources.register_resource(request).await
-    }
-
-    async fn register_director_artifact(
-        &self,
-        mut request: RegisterArtifactRequest,
-    ) -> ArtifactResult<ArtifactRecord> {
-        self.add_generated_gallery_variants(&mut request).await;
-        self.artifacts.register_artifact(request).await
-    }
-
-    async fn score_director_image(
-        &self,
-        resource: ResourceRef,
-    ) -> SafetyResult<Option<SafetyAssessment>> {
-        self.score_with_scanner(resource).await
-    }
-
-    async fn index_director_gallery_item(
-        &self,
-        artifact: ArtifactRecord,
-        indexed_at_ms: u64,
-        safety: GallerySafetyState,
-    ) -> GalleryResult<GalleryItem> {
-        let item = self
-            .gallery
-            .index_artifact(artifact, indexed_at_ms, safety)
-            .await?;
-        self.reassign_gallery_resource_ownership(&item).await?;
-        Ok(item)
     }
 }
 

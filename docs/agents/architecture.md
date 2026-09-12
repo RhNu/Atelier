@@ -277,3 +277,14 @@ interpreting function-like output again. Submitted payload JSON version 4 requir
 snapshot; version 3 remains the legacy input format and compiles through kernel's isolated
 `legacy_prompt` module. Prepared payload JSON and database schema versions are unchanged.
 Unknown versions and inconsistent version/snapshot combinations are rejected.
+
+### Output and queue persistence
+
+Generation and Director use `KernelOutputPorts` for resource/artifact registration,
+safety assessment and gallery indexing. App records each indexed asset in run history as it
+arrives, including partial results; it does not discover outputs by scanning Gallery later.
+Director creates its running history before execution. `GenerationStore::commit` atomically
+writes the active queue and projected history through the database transaction gate.
+After external execution, a failed terminal commit leaves the in-memory terminal state intact;
+it must not restore an executable pre-request snapshot. Files, remote generation and SQLite
+remain separate failure boundaries, and restart recovery remains explicitly paused.

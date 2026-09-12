@@ -6,10 +6,10 @@ use atelier_jobs::{
 use crate::{
     EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
     GenerationPayloadStore, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
-    ImportedVibeDocuments, KernelClock, KernelDirectorPorts, KernelError, KernelEvent,
-    KernelEventKind, KernelEventSink, KernelGenerationPorts, KernelResult, KernelVibePorts,
-    RanDirectorTool, RunDirectorTool, SubmitGenerationBatch, SubmitGenerationBatchJob,
-    SubmitGenerationWork, SubmittedGenerationPayload,
+    ImportedVibeDocuments, KernelClock, KernelError, KernelEvent, KernelEventKind, KernelEventSink,
+    KernelGenerationPorts, KernelOutputPorts, KernelResult, KernelVibePorts, RanDirectorTool,
+    RunDirectorTool, SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationWork,
+    SubmittedGenerationPayload,
 };
 
 pub trait GenerationTaskCancellation: Send + Sync {
@@ -267,7 +267,7 @@ where
 
 impl<P> KernelRuntime<P>
 where
-    P: KernelClock + KernelDirectorPorts + KernelEventSink,
+    P: KernelClock + KernelOutputPorts + atelier_director::NovelAiDirectorClient + KernelEventSink,
 {
     /// Runs one Director tool request and indexes the produced image.
     ///

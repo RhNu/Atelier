@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex as StdMutex};
 
 use atelier_adapter_database::{
-    DatabaseGalleryIndex, DatabaseGenerationDraftRepository, DatabaseJobQueueRepository,
+    DatabaseGalleryIndex, DatabaseGenerationDraftRepository, DatabaseGenerationStore,
     DatabasePromptResourceRepository, DatabaseRunHistoryRepository, DatabaseSettingsRepository,
 };
 use atelier_adapter_keyring::KeyringSecretStore;
@@ -49,7 +49,7 @@ pub struct WorkspaceSession<
     pub(crate) resources: AppResourceCatalog,
     pub(crate) resource_reader: AppResourceReader,
     pub(crate) safety_scanner: Option<Arc<dyn SafetyScanner>>,
-    pub(crate) queue_repository: DatabaseJobQueueRepository,
+    pub(crate) queue_repository: DatabaseGenerationStore,
     pub(crate) run_history: DatabaseRunHistoryRepository,
     pub(crate) kernel: Mutex<KernelRuntime<AppKernelPorts<S, F, E>>>,
     pub(crate) events: AppEventHub,

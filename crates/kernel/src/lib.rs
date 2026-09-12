@@ -17,7 +17,7 @@ pub use payload::{
     SubmittedGenerationPayload,
 };
 pub use ports::{
-    GenerationPayloadStore, KernelClock, KernelDirectorPorts, KernelEventSink,
-    KernelGenerationPorts, KernelVibePorts,
+    GenerationPayloadStore, KernelClock, KernelEventSink, KernelGenerationPorts, KernelOutputPorts,
+    KernelVibePorts,
 };
 pub use runtime::{GenerationTaskCancellation, KernelRuntime};

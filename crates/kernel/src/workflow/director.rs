@@ -9,8 +9,8 @@ use atelier_resource_catalog::{
 };
 
 use crate::{
-    KernelClock, KernelDirectorPorts, KernelEventKind, KernelEventSink, KernelResult,
-    KernelRuntime, RanDirectorTool, RunDirectorTool,
+    KernelClock, KernelEventKind, KernelEventSink, KernelOutputPorts, KernelResult, KernelRuntime,
+    RanDirectorTool, RunDirectorTool,
 };
 
 pub async fn run_director_tool<P>(
@@ -18,14 +18,14 @@ pub async fn run_director_tool<P>(
     request: RunDirectorTool,
 ) -> KernelResult<RanDirectorTool>
 where
-    P: KernelClock + KernelDirectorPorts + KernelEventSink,
+    P: KernelClock + KernelOutputPorts + atelier_director::NovelAiDirectorClient + KernelEventSink,
 {
     let run_id = request.run_id;
     let tool_request = request.request.normalize_for_tool()?;
     let output = runtime.ports().run_director_tool(tool_request).await?;
     let resource = runtime
         .ports()
-        .register_director_resource(RegisterResourceRequest {
+        .register_resource(RegisterResourceRequest {
             resource_id: ResourceId::new(format!("resource:director:{run_id}")),
             kind: ResourceKind::DirectorResult,
             lifecycle: ResourceLifecycle::JobScoped,
@@ -37,7 +37,7 @@ where
     let artifact_id = ArtifactId::new(format!("director:{run_id}"));
     let artifact = runtime
         .ports()
-        .register_director_artifact(RegisterArtifactRequest {
+        .register_artifact(RegisterArtifactRequest {
             id: artifact_id.clone(),
             kind: ArtifactKind::DirectorResult,
             source: ArtifactSource::DirectorRun {
@@ -57,7 +57,7 @@ where
         })
         .await?;
     let attempted_at_ms = runtime.ports().now_ms();
-    let safety = match runtime.ports().score_director_image(resource.clone()).await {
+    let safety = match runtime.ports().score_image(resource.clone()).await {
         Ok(Some(assessment)) => GallerySafetyState::Scanned(Box::new(assessment)),
         Ok(None) => GallerySafetyState::Unavailable {
             message: "automatic safety scanning is unavailable".to_owned(),
@@ -78,7 +78,7 @@ where
     };
     let item = runtime
         .ports()
-        .index_director_gallery_item(artifact, runtime.ports().now_ms(), safety)
+        .index_gallery_item(artifact, runtime.ports().now_ms(), safety)
         .await?;
     Ok(RanDirectorTool {
         resource,

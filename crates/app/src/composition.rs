@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use atelier_adapter_database::{
     DatabaseArtifactRepository, DatabaseConnection, DatabaseGalleryIndex,
-    DatabaseGenerationDraftRepository, DatabaseGenerationPayloadStore, DatabaseJobQueueRepository,
+    DatabaseGenerationDraftRepository, DatabaseGenerationPayloadStore, DatabaseGenerationStore,
     DatabasePromptResourceRepository, DatabaseResourceCatalogRepository,
     DatabaseRunHistoryRepository, DatabaseSettingsRepository, DatabaseVibeRepository,
 };
@@ -15,7 +15,7 @@ use atelier_adapter_storage_fs::{
 };
 use atelier_artifacts::ArtifactService;
 use atelier_gallery::GalleryService;
-use atelier_jobs::JobQueueRepository;
+use atelier_jobs::GenerationStore;
 use atelier_kernel::KernelRuntime;
 use atelier_prompt_resources::{PromptChunkService, PromptCompiler, PromptPresetService};
 use atelier_resource_catalog::ResourceCatalog;
@@ -66,7 +66,7 @@ where
             .acquire(&root, &layout)
             .await?;
         let connection = DatabaseConnection::open(workspace_database_path(&root))?;
-        let queue_repository = DatabaseJobQueueRepository::new(connection.clone());
+        let queue_repository = DatabaseGenerationStore::new(connection.clone());
         let run_history = DatabaseRunHistoryRepository::new(connection.clone());
         let resource_repository = DatabaseResourceCatalogRepository::new(connection.clone());
         let prompt_repository = DatabasePromptResourceRepository::new(connection.clone());
@@ -97,6 +97,7 @@ where
         let events = AppEventHub::default();
         let prompt_compiler = PromptCompiler::new(prompt_repository.clone());
         let ports = AppKernelPorts {
+            run_history: run_history.clone(),
             payloads: DatabaseGenerationPayloadStore::new(connection.clone()),
             prompt_compiler: PromptCompiler::new(prompt_repository.clone()),
             novelai: ResolverBackedNovelAiAdapter::new(api_keys.clone(), factory),
@@ -140,11 +141,11 @@ where
     }
     async fn restore_kernel(
         ports: AppKernelPorts<S, F, E>,
-        queue_repository: &DatabaseJobQueueRepository,
+        queue_repository: &DatabaseGenerationStore,
         run_history: &DatabaseRunHistoryRepository,
     ) -> AppResult<KernelRuntime<AppKernelPorts<S, F, E>>> {
         let restored_snapshot = queue_repository
-            .load_queue_snapshot()
+            .load()
             .await
             .map_err(|error| AppError::new("job_queue", error.to_string()))?;
         let kernel = if let Some(snapshot) = restored_snapshot {
@@ -154,7 +155,8 @@ where
             let history =
                 generation_history_records_from_queue_snapshot(run_history, &snapshot).await?;
             queue_repository
-                .commit_queue_and_history(Some(&snapshot), history)
+                .commit(Some(&snapshot), history)
+                .await
                 .map_err(|error| AppError::new("job_queue", error.to_string()))?;
             runtime
         } else {

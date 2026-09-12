@@ -114,7 +114,10 @@ impl KernelGenerationPorts for MemoryKernelPorts {
             },
         })
     }
+}
 
+#[async_trait]
+impl atelier_kernel::KernelOutputPorts for MemoryKernelPorts {
     async fn register_resource(
         &self,
         request: RegisterResourceRequest,

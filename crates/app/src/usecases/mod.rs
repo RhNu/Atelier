@@ -33,9 +33,8 @@ use atelier_app_api::vibe::{
     VibeDocumentPageDto,
 };
 use atelier_app_api::workspace::WorkspaceStatusDto;
-use atelier_artifacts::{ArtifactSource, VisualAssetRole};
 use atelier_director::{DirectorTool, RunDirectorToolRequest};
-use atelier_gallery::{GalleryItemId, GalleryQuery, GallerySourceKind};
+use atelier_gallery::GalleryItemId;
 use atelier_generation::{
     AnlasEstimate, AnlasEstimateStatus, Character, CharacterPosition, CharacterReference,
     CharacterReferenceType, GenerateImageRequest, GenerateImageStreamRequest, ImageSize,
@@ -43,7 +42,7 @@ use atelier_generation::{
 };
 use atelier_jobs::{
     BatchId, JobId, JobStatus, RunHistoryKind, RunHistoryRecord, RunHistoryRepository,
-    RunHistoryStatus, RunOutputRecord, RunOutputState,
+    RunHistoryStatus,
 };
 use atelier_kernel::{
     EnsureVibeEncoding, ExportVibeDocument, GenerationWorkRequest, ImportEmbeddedPngVibeDocument,
@@ -52,7 +51,6 @@ use atelier_kernel::{
 use atelier_prompt_resources::{
     CompilePromptRequest, PromptChunkId, PromptChunkKey, PromptPresetId,
 };
-use atelier_resource_catalog::ResourceVariantKind;
 use atelier_secrets::{ApiKeyId, SecretStore, SecretValue, SecretsErrorKind};
 use atelier_vibe::{VibeEncodeSettings, VibeId, VibeSourceIdentity};
 use base64::Engine;
@@ -164,26 +162,6 @@ const fn run_history_status_from_job_status(status: JobStatus) -> RunHistoryStat
         JobStatus::Succeeded => RunHistoryStatus::Succeeded,
         JobStatus::Failed => RunHistoryStatus::Failed,
         JobStatus::Skipped => RunHistoryStatus::Skipped,
-    }
-}
-
-const fn visual_asset_role_as_str(value: VisualAssetRole) -> &'static str {
-    match value {
-        VisualAssetRole::Original => "original",
-        VisualAssetRole::Thumbnail => "thumbnail",
-        VisualAssetRole::Preview => "preview",
-        VisualAssetRole::Sanitized => "sanitized",
-        VisualAssetRole::Export => "export",
-    }
-}
-
-const fn resource_variant_kind_as_str(value: ResourceVariantKind) -> &'static str {
-    match value {
-        ResourceVariantKind::Original => "original",
-        ResourceVariantKind::Preview => "preview",
-        ResourceVariantKind::Thumbnail => "thumbnail",
-        ResourceVariantKind::Sanitized => "sanitized",
-        ResourceVariantKind::Export => "export",
     }
 }
 

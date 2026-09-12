@@ -2,21 +2,20 @@ use super::generation_support::{
     ensure_generation_batch_target_is_new, estimate_generation_anlas, parse_uc_preset_override,
 };
 use super::{
-    AppError, AppResult, ArtifactSource, BatchId, CharacterReference, CharacterReferenceDto,
-    GalleryQuery, GallerySourceKind, GenerateImageRequest, GenerateImageRequestDto,
-    GenerateImageStreamRequest, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
-    GenerationHistoryPosition, GenerationHistoryUpdate, GenerationStatusDto, GenerationWorkRequest,
-    GenerationWorkRequestDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId,
-    NovelAiClientFactory, QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository,
-    RunHistoryStatus, RunOutputRecord, RunOutputState, SecretStore, SecretsErrorKind,
+    AppError, AppResult, BatchId, CharacterReference, CharacterReferenceDto, GenerateImageRequest,
+    GenerateImageRequestDto, GenerateImageStreamRequest, GenerationAnlasEstimateDto,
+    GenerationEstimateRequestDto, GenerationHistoryPosition, GenerationHistoryUpdate,
+    GenerationStatusDto, GenerationWorkRequest, GenerationWorkRequestDto, ImageSize,
+    Img2ImgRequest, Img2ImgRequestDto, JobId, NovelAiClientFactory, QueueDirectiveDto,
+    RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, SecretStore, SecretsErrorKind,
     SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationBatchJobDto,
     SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, VibeReference, VibeTransferConfig,
     VibeTransferConfigDto, WorkspaceSession, characters_to_domain, generation_status_to_dto,
     generation_work_title, image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
     plan_context_to_domain, quality_preset_to_domain, quality_preset_to_dto,
-    queue_directive_to_dto, resource_ref_from_dto, resource_variant_kind_as_str,
-    run_history_status_from_job_status, sampler_to_domain, stream_mode_to_domain,
-    uc_preset_to_domain, upsert_generation_history_record, visual_asset_role_as_str,
+    queue_directive_to_dto, resource_ref_from_dto, run_history_status_from_job_status,
+    sampler_to_domain, stream_mode_to_domain, uc_preset_to_domain,
+    upsert_generation_history_record,
 };
 pub struct GenerationUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -124,7 +123,6 @@ where
         cancellation: &dyn atelier_kernel::GenerationTaskCancellation,
     ) -> AppResult<QueueDirectiveDto> {
         let mut kernel = self.app.kernel.lock().await;
-        let previous_snapshot = kernel.queue_snapshot();
         let result = kernel
             .run_scheduled_generation_job_cancellable(&JobId::new(job_id), cancellation)
             .await;
@@ -143,15 +141,13 @@ where
                 return Err(AppError::from(error));
             }
         };
-        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
-            .await?;
+        self.persist_queue_snapshot(&directive, &snapshot).await?;
         let status = job_status.map_or(
             RunHistoryStatus::Succeeded,
             run_history_status_from_job_status,
         );
         self.update_generation_history_status(job_id, status, None)
             .await?;
-        self.persist_generation_outputs(job_id).await?;
         Ok(directive)
     }
 
@@ -486,66 +482,6 @@ where
             },
         )
         .await?;
-        Ok(())
-    }
-
-    async fn persist_generation_outputs(&self, job_id: &str) -> AppResult<()> {
-        let mut offset = 0;
-        loop {
-            let items = self
-                .app
-                .gallery
-                .query(GalleryQuery {
-                    offset,
-                    source_kind: Some(GallerySourceKind::Generation),
-                    ..GalleryQuery::default()
-                })
-                .await?;
-            if items.is_empty() {
-                break;
-            }
-            let item_count = items.len();
-            for item in items {
-                let ArtifactSource::GenerationJob {
-                    job_id: source_job_id,
-                    ..
-                } = &item.source
-                else {
-                    continue;
-                };
-                if source_job_id != job_id {
-                    continue;
-                }
-                for asset in &item.assets {
-                    self.app
-                        .run_history
-                        .upsert_run_output(RunOutputRecord {
-                            run_id: job_id.to_owned(),
-                            sample_index: item.metadata.sample_index,
-                            artifact_id: item.artifact_id.as_str().to_owned(),
-                            item_id: Some(item.id.as_str().to_owned()),
-                            resource_id: Some(asset.resource.id.as_str().to_owned()),
-                            variant_id: asset
-                                .resource
-                                .variant_id
-                                .as_ref()
-                                .map(|id| id.as_str().to_owned()),
-                            asset_role: visual_asset_role_as_str(asset.role).to_owned(),
-                            variant_kind: asset
-                                .variant_kind
-                                .map(resource_variant_kind_as_str)
-                                .map(str::to_owned),
-                            state: RunOutputState::Available,
-                        })
-                        .await
-                        .map_err(|error| AppError::new("run_history", error.to_string()))?;
-                }
-            }
-            if item_count < GalleryQuery::default().limit {
-                break;
-            }
-            offset += item_count;
-        }
         Ok(())
     }
 }

@@ -335,7 +335,7 @@ const fn image_reference_target_to_dto(
     }
 }
 
-const fn visual_asset_role_as_str(value: VisualAssetRole) -> &'static str {
+pub const fn visual_asset_role_as_str(value: VisualAssetRole) -> &'static str {
     match value {
         VisualAssetRole::Original => "original",
         VisualAssetRole::Thumbnail => "thumbnail",
@@ -345,7 +345,7 @@ const fn visual_asset_role_as_str(value: VisualAssetRole) -> &'static str {
     }
 }
 
-const fn resource_variant_kind_as_str(value: ResourceVariantKind) -> &'static str {
+pub const fn resource_variant_kind_as_str(value: ResourceVariantKind) -> &'static str {
     match value {
         ResourceVariantKind::Original => "original",
         ResourceVariantKind::Preview => "preview",

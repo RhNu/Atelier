@@ -348,7 +348,10 @@ impl KernelGenerationPorts for DatabaseWorkflowPorts {
             },
         })
     }
+}
 
+#[async_trait]
+impl atelier_kernel::KernelOutputPorts for DatabaseWorkflowPorts {
     async fn register_resource(
         &self,
         request: RegisterResourceRequest,

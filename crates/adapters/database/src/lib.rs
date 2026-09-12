@@ -21,7 +21,7 @@ pub use error::{DatabaseError, DatabaseErrorKind, DatabaseResult};
 pub use gallery::{DatabaseGalleryIndex, GalleryHardDeletePlan, GalleryTransientOwner};
 pub use generation_draft::DatabaseGenerationDraftRepository;
 pub use generation_payload::DatabaseGenerationPayloadStore;
-pub use job_history::{DatabaseJobQueueRepository, DatabaseRunHistoryRepository};
+pub use job_history::{DatabaseGenerationStore, DatabaseRunHistoryRepository};
 pub use prompt_resources::DatabasePromptResourceRepository;
 pub use resource_catalog::DatabaseResourceCatalogRepository;
 pub use settings::DatabaseSettingsRepository;

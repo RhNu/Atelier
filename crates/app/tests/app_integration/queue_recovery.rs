@@ -56,3 +56,59 @@ fn generation_queue_recovers_as_paused_after_workspace_reopen() {
         );
     });
 }
+
+#[test]
+fn failed_terminal_commit_keeps_outputs_and_does_not_reissue_generation() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
+        let app = TestApp::open(
+            temp.path().to_path_buf(),
+            MemorySecretStore::default(),
+            factory.clone(),
+        )
+        .await
+        .unwrap();
+        app.account()
+            .create_api_key(CreateApiKeyRequestDto {
+                id: "main".to_owned(),
+                display_name: "Main".to_owned(),
+                secret: "secret".to_owned(),
+            })
+            .await
+            .unwrap();
+        app.account().set_active_api_key("main").await.unwrap();
+        app.generation()
+            .submit(submit_request("batch", "job", "1girl"))
+            .await
+            .unwrap();
+        let connection = rusqlite::Connection::open(workspace_database_path(&WorkspaceRoot::new(
+            temp.path().to_path_buf(),
+        )))
+        .unwrap();
+        connection.execute_batch("CREATE TRIGGER fail_queue_delete BEFORE DELETE ON generation_queue_state BEGIN SELECT RAISE(ABORT, 'injected commit failure'); END;").unwrap();
+        assert!(app.generation().run_job("job").await.is_err());
+        assert_eq!(
+            app.generation()
+                .status(Some("job"))
+                .await
+                .unwrap()
+                .job_status
+                .as_deref(),
+            Some("succeeded")
+        );
+        let outputs: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM run_outputs WHERE run_id = 'job'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(
+            outputs > 0,
+            "outputs must survive a terminal queue commit failure"
+        );
+        assert!(app.generation().run_job("job").await.is_err());
+        assert_eq!(factory.generated_requests().len(), 1);
+    });
+}

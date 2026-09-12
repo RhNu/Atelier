@@ -5,9 +5,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use async_trait::async_trait;
 use atelier_jobs::{
     ActiveJobBatchSnapshot, BatchId, BatchStatus, GenerationBatchHistoryQuery,
-    GenerationBatchHistoryRecord, GenerationBatchHistoryStatus, JobBatch, JobId, JobKind,
-    JobPayloadRef, JobQueueError, JobQueueRepository, JobQueueSnapshot, JobRecord, JobResult,
-    JobStatus, QueueDelay, RetryPolicy, RunHistoryKind, RunHistoryQuery, RunHistoryRecord,
+    GenerationBatchHistoryRecord, GenerationBatchHistoryStatus, GenerationStore, JobBatch, JobId,
+    JobKind, JobPayloadRef, JobQueueError, JobQueueSnapshot, JobRecord, JobResult, JobStatus,
+    QueueDelay, RetryPolicy, RunHistoryKind, RunHistoryQuery, RunHistoryRecord,
     RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState,
 };
 use rusqlite::{OptionalExtension, params};
@@ -21,7 +21,7 @@ mod run_history;
 mod scalars;
 mod snapshot;
 
-pub use queue::DatabaseJobQueueRepository;
+pub use queue::DatabaseGenerationStore;
 pub use run_history::DatabaseRunHistoryRepository;
 use scalars::{
     batch_status_as_str, batch_status_from_str, duration_to_ms,

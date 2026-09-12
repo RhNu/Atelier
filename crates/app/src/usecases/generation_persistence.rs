@@ -1,5 +1,6 @@
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::QueueDirectiveDto;
+use atelier_jobs::GenerationStore;
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
@@ -22,7 +23,8 @@ where
         let durable_snapshot = (!matches!(directive, QueueDirectiveDto::Idle)).then_some(snapshot);
         self.app
             .queue_repository
-            .commit_queue_and_history(durable_snapshot, history)
+            .commit(durable_snapshot, history)
+            .await
             .map_err(|error| AppError::new("job_queue", error.to_string()))
     }
 
@@ -52,7 +54,8 @@ where
             generation_history_records_from_queue_snapshot(&self.app.run_history, snapshot).await?;
         self.app
             .queue_repository
-            .commit_queue_and_history(Some(snapshot), history)
+            .commit(Some(snapshot), history)
+            .await
             .map_err(|error| AppError::new("job_queue", error.to_string()))
     }
 }

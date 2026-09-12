@@ -6,12 +6,15 @@ use crate::{
 };
 
 #[async_trait]
-pub trait JobQueueRepository: Send + Sync {
-    async fn load_queue_snapshot(&self) -> JobResult<Option<JobQueueSnapshot>>;
+pub trait GenerationStore: Send + Sync {
+    async fn load(&self) -> JobResult<Option<JobQueueSnapshot>>;
 
-    async fn save_queue_snapshot(&self, snapshot: &JobQueueSnapshot) -> JobResult<()>;
-
-    async fn clear_queue_snapshot(&self) -> JobResult<()>;
+    /// Commits queue state and derived history atomically. None clears the active queue.
+    async fn commit(
+        &self,
+        snapshot: Option<&JobQueueSnapshot>,
+        history: Vec<RunHistoryRecord>,
+    ) -> JobResult<()>;
 }
 
 #[async_trait]

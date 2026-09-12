@@ -1,9 +1,8 @@
 use super::{
     AppError, AppResult, DirectorToolResultDto, NovelAiClientFactory, RunDirectorTool,
     RunDirectorToolRequest, RunDirectorToolRequestDto, RunHistoryKind, RunHistoryRecord,
-    RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState, SecretStore,
-    SecretsErrorKind, WorkspaceSession, director_tool_to_domain, gallery_item_to_dto,
-    resource_ref_to_dto, resource_variant_kind_as_str, unix_timestamp_ms, visual_asset_role_as_str,
+    RunHistoryRepository, RunHistoryStatus, SecretStore, SecretsErrorKind, WorkspaceSession,
+    director_tool_to_domain, gallery_item_to_dto, resource_ref_to_dto, unix_timestamp_ms,
 };
 
 pub struct DirectorUseCases<'a, S, F, E> {
@@ -59,6 +58,8 @@ where
                 strict_mode: request.strict_mode,
             },
         };
+        self.upsert_director_history(&run_id, title.clone(), RunHistoryStatus::Running, None)
+            .await?;
         let mut kernel = self.app.kernel.lock().await;
         let result = match kernel.run_director_tool(work).await {
             Ok(result) => result,
@@ -78,30 +79,6 @@ where
         drop(kernel);
         self.upsert_director_history(&run_id, title, RunHistoryStatus::Succeeded, None)
             .await?;
-        for asset in &result.item.assets {
-            self.app
-                .run_history
-                .upsert_run_output(RunOutputRecord {
-                    run_id: run_id.clone(),
-                    sample_index: None,
-                    artifact_id: result.artifact_id.as_str().to_owned(),
-                    item_id: Some(result.item.id.as_str().to_owned()),
-                    resource_id: Some(asset.resource.id.as_str().to_owned()),
-                    variant_id: asset
-                        .resource
-                        .variant_id
-                        .as_ref()
-                        .map(|id| id.as_str().to_owned()),
-                    asset_role: visual_asset_role_as_str(asset.role).to_owned(),
-                    variant_kind: asset
-                        .variant_kind
-                        .map(resource_variant_kind_as_str)
-                        .map(str::to_owned),
-                    state: RunOutputState::Available,
-                })
-                .await
-                .map_err(|error| AppError::new("run_history", error.to_string()))?;
-        }
         Ok(DirectorToolResultDto {
             item_id: result.item.id.as_str().to_owned(),
             artifact_id: result.artifact_id.as_str().to_owned(),
@@ -141,7 +118,7 @@ where
                 last_error,
                 created_at_ms: existing.as_ref().map_or(now, |record| record.created_at_ms),
                 updated_at_ms: now,
-                completed_at_ms: Some(now),
+                completed_at_ms: (!matches!(status, RunHistoryStatus::Running)).then_some(now),
                 recoverable: false,
             })
             .await
