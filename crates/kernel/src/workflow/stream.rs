@@ -34,7 +34,7 @@ pub async fn run_stream_generation<P>(
 where
     P: GenerationPayloadStore + KernelClock + KernelEventSink + KernelGenerationPorts,
 {
-    let stream_result = match runtime.ports_ref().generate_stream(request).await {
+    let stream_result = match runtime.ports().generate_stream(request).await {
         Ok(stream) => stream,
         Err(error) => return handle_novelai_failure(runtime, batch_id, job_id, error).await,
     };
@@ -83,7 +83,7 @@ where
             }
         };
         let metadata = runtime
-            .ports_ref()
+            .ports()
             .inspect_generated_image_metadata(&bytes, None);
         if let Err(error) = persist_sample(
             runtime,

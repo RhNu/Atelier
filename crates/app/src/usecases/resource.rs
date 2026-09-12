@@ -1,3 +1,4 @@
+use crate::ports::{AppResourceCatalog, AppResourceReader};
 use atelier_adapter_image_codec::ImageCodec;
 use atelier_app_api::resource::{
     GetResourceImageRequestDto, ImageResourceKindDto, ImportImageResourceRequestDto,
@@ -14,18 +15,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::AppResult;
 use crate::mapping::{resource_ref_from_dto, resource_ref_to_dto};
-use crate::session::WorkspaceSession;
 
-pub struct ResourceUseCases<'a, S, F, E> {
-    pub(crate) app: &'a WorkspaceSession<S, F, E>,
+pub struct ResourceUseCases<'a> {
+    pub(crate) resource_reader: &'a AppResourceReader,
+    pub(crate) resources: &'a AppResourceCatalog,
 }
 
-impl<S, F, E> ResourceUseCases<'_, S, F, E>
-where
-    S: Send + Sync,
-    F: Send + Sync,
-    E: Send + Sync,
-{
+impl ResourceUseCases<'_> {
     pub async fn import_image(
         &self,
         request: ImportImageResourceRequestDto,
@@ -38,7 +34,6 @@ where
             unix_timestamp_nanos()
         ));
         let resource = self
-            .app
             .resources
             .register_resource(RegisterResourceRequest {
                 resource_id,
@@ -65,7 +60,7 @@ where
                 resource_ids.insert(resource.id);
             }
         }
-        let catalog = &self.app.resources;
+        let catalog = &self.resources;
         let owner = import_staging_owner();
         let links = catalog.list_links_by_owner(&owner).await?;
         for link in links
@@ -92,7 +87,7 @@ where
     pub async fn release_all_imported_images(
         &self,
     ) -> AppResult<ReleaseImportedImageResourcesResponseDto> {
-        let catalog = &self.app.resources;
+        let catalog = &self.resources;
         let owner = import_staging_owner();
         let links = catalog.list_links_by_owner(&owner).await?;
         for link in &links {
@@ -117,11 +112,7 @@ where
         request: GetResourceImageRequestDto,
     ) -> AppResult<ResourceImageDto> {
         let reference = resource_ref_from_dto(request.resource);
-        let content = self
-            .app
-            .resource_reader
-            .read_resource_bytes(&reference)
-            .await?;
+        let content = self.resource_reader.read_resource_bytes(&reference).await?;
         let mime_type = ImageCodec::probe(&content.bytes)
             .ok()
             .map(|info| info.mime_type);

@@ -1,15 +1,17 @@
-use super::{WorkspaceSession, WorkspaceStatusDto};
+use super::WorkspaceStatusDto;
+use atelier_workspace::WorkspaceRoot;
 
-pub struct WorkspaceUseCases<'a, S, F, E> {
-    pub(crate) app: &'a WorkspaceSession<S, F, E>,
+pub struct WorkspaceUseCases<'a> {
+    pub(crate) root: &'a WorkspaceRoot,
+    pub(crate) schema_version: &'a u32,
 }
 
-impl<S, F, E> WorkspaceUseCases<'_, S, F, E> {
+impl WorkspaceUseCases<'_> {
     #[must_use]
     pub fn status(&self) -> WorkspaceStatusDto {
         WorkspaceStatusDto {
-            root: self.app.root.as_path().to_path_buf(),
-            schema_version: self.app.schema_version,
+            root: self.root.as_path().to_path_buf(),
+            schema_version: *self.schema_version,
             locked: true,
         }
     }

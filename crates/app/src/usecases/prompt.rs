@@ -6,33 +6,36 @@ use super::{
     DeletePromptPresetResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
     ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkId, PromptChunkKey, PromptChunkPageDto,
     PromptPresetDto, PromptPresetId, PromptPresetPageDto, UpsertPromptChunkRequestDto,
-    UpsertPromptPresetRequestDto, WorkspaceSession, compiled_prompt_to_dto, image_model_to_domain,
+    UpsertPromptPresetRequestDto, compiled_prompt_to_dto, image_model_to_domain,
     prompt_chunk_to_dto, prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
     quality_preset_to_dto, upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain,
 };
+use crate::ports::AppResourceCatalog;
+use atelier_adapter_database::DatabasePromptResourceRepository;
+use atelier_prompt_resources::{PromptChunkService, PromptCompiler, PromptPresetService};
 use atelier_resource_catalog::{
     ResourceCatalogErrorKind, ResourceId, ResourceOwner, ResourceOwnerKind, ResourceRef,
     ResourceRelation,
 };
+use futures::lock::Mutex;
 
-pub struct PromptUseCases<'a, S, F, E> {
-    pub(crate) app: &'a WorkspaceSession<S, F, E>,
+pub struct PromptUseCases<'a> {
+    pub(crate) prompt_chunks: &'a PromptChunkService<DatabasePromptResourceRepository>,
+    pub(crate) prompt_compiler: &'a PromptCompiler<DatabasePromptResourceRepository>,
+    pub(crate) prompt_presets: &'a PromptPresetService<DatabasePromptResourceRepository>,
+    pub(crate) prompt_resource_write: &'a Mutex<()>,
+    pub(crate) resources: &'a AppResourceCatalog,
 }
 
-impl<S, F, E> PromptUseCases<'_, S, F, E>
-where
-    S: Send + Sync,
-    F: Send + Sync,
-    E: Send + Sync,
-{
+impl PromptUseCases<'_> {
     pub async fn upsert_chunk(
         &self,
         request: UpsertPromptChunkRequestDto,
     ) -> AppResult<PromptChunkDto> {
-        let _write_guard = self.app.prompt_resource_write.lock().await;
+        let _write_guard = self.prompt_resource_write.lock().await;
         let request = upsert_prompt_chunk_to_domain(request)?;
         let existing = if let Some(id) = &request.chunk_id {
-            self.app.prompt_chunks.get_chunk_by_id(id).await?
+            self.prompt_chunks.get_chunk_by_id(id).await?
         } else {
             None
         };
@@ -48,12 +51,11 @@ where
         });
         let pre_save_owner = existing_owner.as_ref().or(pending_owner.as_ref());
         if let (Some(preview), Some(owner)) = (&requested_preview, pre_save_owner) {
-            self.app
-                .resources
+            self.resources
                 .attach_owner(&preview.id, owner.clone(), ResourceRelation::Thumbnail)
                 .await?;
         }
-        let chunk = match self.app.prompt_chunks.upsert_chunk(request).await {
+        let chunk = match self.prompt_chunks.upsert_chunk(request).await {
             Ok(chunk) => chunk,
             Err(error) => {
                 if let (Some(preview), Some(owner)) = (requested_preview.as_ref(), pre_save_owner)
@@ -62,15 +64,15 @@ where
                         .and_then(|item| item.preview_thumb.as_ref())
                         .is_none_or(|previous| previous.id != preview.id)
                 {
-                    let _ = detach_prompt_preview(self.app, preview, owner).await;
-                    let _ = self.app.resources.cleanup_delete_pending().await;
+                    let _ = detach_prompt_preview(self.resources, preview, owner).await;
+                    let _ = self.resources.cleanup_delete_pending().await;
                 }
                 return Err(error.into());
             }
         };
         let owner = prompt_chunk_owner(&chunk.id);
         reconcile_prompt_preview(
-            self.app,
+            self.resources,
             existing
                 .as_ref()
                 .and_then(|item| item.preview_thumb.as_ref()),
@@ -85,14 +87,12 @@ where
     pub async fn get_chunk(&self, request: GetPromptChunkRequestDto) -> AppResult<PromptChunkDto> {
         let chunk = match (request.chunk_id, request.key) {
             (Some(id), None) => {
-                self.app
-                    .prompt_chunks
+                self.prompt_chunks
                     .get_chunk_by_id(&PromptChunkId::new(id))
                     .await?
             }
             (None, Some(key)) => {
-                self.app
-                    .prompt_chunks
+                self.prompt_chunks
                     .get_chunk_by_key(&PromptChunkKey::parse(&key)?)
                     .await?
             }
@@ -114,7 +114,6 @@ where
         request: ListPromptChunksRequestDto,
     ) -> AppResult<PromptChunkPageDto> {
         let chunks = self
-            .app
             .prompt_chunks
             .list_chunks(request.model.map(image_model_to_domain))
             .await?;
@@ -133,15 +132,15 @@ where
         &self,
         request: DeletePromptChunkRequestDto,
     ) -> AppResult<DeletePromptChunkResponseDto> {
-        let _write_guard = self.app.prompt_resource_write.lock().await;
+        let _write_guard = self.prompt_resource_write.lock().await;
         let id = PromptChunkId::new(request.chunk_id);
-        let existing = self.app.prompt_chunks.get_chunk_by_id(&id).await?;
-        let result = self.app.prompt_chunks.delete_chunk(&id).await?;
+        let existing = self.prompt_chunks.get_chunk_by_id(&id).await?;
+        let result = self.prompt_chunks.delete_chunk(&id).await?;
         if result.deleted
             && let Some(preview) = existing.and_then(|item| item.preview_thumb)
         {
-            detach_prompt_preview(self.app, &preview, &prompt_chunk_owner(&id)).await?;
-            self.app.resources.cleanup_delete_pending().await?;
+            detach_prompt_preview(self.resources, &preview, &prompt_chunk_owner(&id)).await?;
+            self.resources.cleanup_delete_pending().await?;
         }
         Ok(DeletePromptChunkResponseDto {
             deleted: result.deleted,
@@ -152,10 +151,10 @@ where
         &self,
         request: UpsertPromptPresetRequestDto,
     ) -> AppResult<PromptPresetDto> {
-        let _write_guard = self.app.prompt_resource_write.lock().await;
+        let _write_guard = self.prompt_resource_write.lock().await;
         let request = upsert_prompt_preset_to_domain(request);
         let existing = if let Some(id) = &request.preset_id {
-            self.app.prompt_presets.get_preset_by_id(id).await?
+            self.prompt_presets.get_preset_by_id(id).await?
         } else {
             None
         };
@@ -171,12 +170,11 @@ where
         });
         let pre_save_owner = existing_owner.as_ref().or(pending_owner.as_ref());
         if let (Some(preview), Some(owner)) = (&requested_preview, pre_save_owner) {
-            self.app
-                .resources
+            self.resources
                 .attach_owner(&preview.id, owner.clone(), ResourceRelation::Thumbnail)
                 .await?;
         }
-        let preset = match self.app.prompt_presets.upsert_preset(request).await {
+        let preset = match self.prompt_presets.upsert_preset(request).await {
             Ok(preset) => preset,
             Err(error) => {
                 if let (Some(preview), Some(owner)) = (requested_preview.as_ref(), pre_save_owner)
@@ -185,15 +183,15 @@ where
                         .and_then(|item| item.preview_thumb.as_ref())
                         .is_none_or(|previous| previous.id != preview.id)
                 {
-                    let _ = detach_prompt_preview(self.app, preview, owner).await;
-                    let _ = self.app.resources.cleanup_delete_pending().await;
+                    let _ = detach_prompt_preview(self.resources, preview, owner).await;
+                    let _ = self.resources.cleanup_delete_pending().await;
                 }
                 return Err(error.into());
             }
         };
         let owner = prompt_preset_owner(&preset.id);
         reconcile_prompt_preview(
-            self.app,
+            self.resources,
             existing
                 .as_ref()
                 .and_then(|item| item.preview_thumb.as_ref()),
@@ -210,7 +208,6 @@ where
         request: ListPromptPresetsRequestDto,
     ) -> AppResult<PromptPresetPageDto> {
         let presets = self
-            .app
             .prompt_presets
             .list_presets(
                 request.kind.map(prompt_preset_kind_to_domain),
@@ -235,15 +232,15 @@ where
         &self,
         request: DeletePromptPresetRequestDto,
     ) -> AppResult<DeletePromptPresetResponseDto> {
-        let _write_guard = self.app.prompt_resource_write.lock().await;
+        let _write_guard = self.prompt_resource_write.lock().await;
         let id = PromptPresetId::new(request.preset_id);
-        let existing = self.app.prompt_presets.get_preset_by_id(&id).await?;
-        let result = self.app.prompt_presets.delete_preset(&id).await?;
+        let existing = self.prompt_presets.get_preset_by_id(&id).await?;
+        let result = self.prompt_presets.delete_preset(&id).await?;
         if result.deleted
             && let Some(preview) = existing.and_then(|item| item.preview_thumb)
         {
-            detach_prompt_preview(self.app, &preview, &prompt_preset_owner(&id)).await?;
-            self.app.resources.cleanup_delete_pending().await?;
+            detach_prompt_preview(self.resources, &preview, &prompt_preset_owner(&id)).await?;
+            self.resources.cleanup_delete_pending().await?;
         }
         Ok(DeletePromptPresetResponseDto {
             deleted: result.deleted,
@@ -254,8 +251,7 @@ where
         &self,
         request: CompilePromptRequestDto,
     ) -> AppResult<CompiledPromptDto> {
-        self.app
-            .prompt_compiler
+        self.prompt_compiler
             .compile(CompilePromptRequest {
                 prompt: request.prompt,
                 model: image_model_to_domain(request.model),
@@ -277,7 +273,6 @@ where
             .collect::<Vec<_>>();
         let max_depth = request.max_depth;
         let compiled = self
-            .app
             .prompt_compiler
             .compile_generation_prompt(CompileGenerationPromptRequest {
                 model: image_model_to_domain(request.model),
@@ -385,51 +380,41 @@ fn pending_prompt_preview_owner(kind: &str, resource_id: &str) -> ResourceOwner 
     )
 }
 
-async fn reconcile_prompt_preview<S, F, E>(
-    app: &WorkspaceSession<S, F, E>,
+async fn reconcile_prompt_preview(
+    resources: &AppResourceCatalog,
     previous: Option<&ResourceRef>,
     current: Option<&ResourceRef>,
     owner: &ResourceOwner,
     pending_owner: Option<&ResourceOwner>,
-) -> AppResult<()>
-where
-    S: Send + Sync,
-    F: Send + Sync,
-    E: Send + Sync,
-{
+) -> AppResult<()> {
     if let Some(current) = current {
-        app.resources
+        resources
             .attach_owner(&current.id, owner.clone(), ResourceRelation::Thumbnail)
             .await?;
     }
     if let (Some(current), Some(pending_owner)) = (current, pending_owner) {
-        detach_prompt_preview(app, current, pending_owner).await?;
+        detach_prompt_preview(resources, current, pending_owner).await?;
     }
     if let Some(previous) = previous
         && current.is_none_or(|current| current.id != previous.id)
     {
-        detach_prompt_preview(app, previous, owner).await?;
+        detach_prompt_preview(resources, previous, owner).await?;
     }
     if let Some(current) = current {
-        release_import_staging_preview(app, &current.id).await?;
+        release_import_staging_preview(resources, &current.id).await?;
     }
-    app.resources.cleanup_delete_pending().await?;
+    resources.cleanup_delete_pending().await?;
     Ok(())
 }
 
-async fn release_import_staging_preview<S, F, E>(
-    app: &WorkspaceSession<S, F, E>,
+async fn release_import_staging_preview(
+    resources: &AppResourceCatalog,
     resource_id: &ResourceId,
-) -> AppResult<()>
-where
-    S: Send + Sync,
-    F: Send + Sync,
-    E: Send + Sync,
-{
+) -> AppResult<()> {
     let staging_owner = ResourceOwner::new(ResourceOwnerKind::ImportStaging, "user-image-inputs");
-    for link in app.resources.list_links_by_owner(&staging_owner).await? {
+    for link in resources.list_links_by_owner(&staging_owner).await? {
         if link.resource_id == *resource_id {
-            app.resources
+            resources
                 .detach_owner(&link.resource_id, &staging_owner, link.relation)
                 .await?;
         }
@@ -437,18 +422,12 @@ where
     Ok(())
 }
 
-async fn detach_prompt_preview<S, F, E>(
-    app: &WorkspaceSession<S, F, E>,
+async fn detach_prompt_preview(
+    resources: &AppResourceCatalog,
     preview: &ResourceRef,
     owner: &ResourceOwner,
-) -> AppResult<()>
-where
-    S: Send + Sync,
-    F: Send + Sync,
-    E: Send + Sync,
-{
-    match app
-        .resources
+) -> AppResult<()> {
+    match resources
         .detach_owner(&preview.id, owner, ResourceRelation::Thumbnail)
         .await
     {

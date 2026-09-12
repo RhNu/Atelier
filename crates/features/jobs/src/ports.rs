@@ -1,21 +1,9 @@
 use async_trait::async_trait;
 
 use crate::{
-    GenerationBatchHistoryQuery, GenerationBatchHistoryRecord, JobBatch, JobEvent,
-    JobQueueSnapshot, JobResult, RunHistoryQuery, RunHistoryRecord, RunOutputRecord,
+    GenerationBatchHistoryQuery, GenerationBatchHistoryRecord, JobQueueSnapshot, JobResult,
+    RunHistoryQuery, RunHistoryRecord, RunOutputRecord,
 };
-
-#[async_trait]
-pub trait JobRepository: Send + Sync {
-    async fn load_active_batch(&self) -> JobResult<Option<JobBatch>>;
-
-    async fn save_batch(&self, batch: &JobBatch) -> JobResult<()>;
-}
-
-#[async_trait]
-pub trait JobEventSink: Send + Sync {
-    async fn publish(&self, event: JobEvent) -> JobResult<()>;
-}
 
 #[async_trait]
 pub trait JobQueueRepository: Send + Sync {

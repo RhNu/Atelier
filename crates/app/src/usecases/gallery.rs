@@ -1,8 +1,10 @@
 use super::{
     AppError, AppResult, GalleryItemId, GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto,
-    WorkspaceSession, gallery_image_reference_to_dto, gallery_item_to_dto, gallery_page_to_dto,
+    gallery_image_reference_to_dto, gallery_item_to_dto, gallery_page_to_dto,
     gallery_query_to_domain, image_reference_target_to_domain, safety_override_to_domain,
 };
+use crate::ports::{AppArtifactService, AppGalleryService, AppResourceCatalog, AppResourceReader};
+use atelier_adapter_database::DatabaseGalleryIndex;
 use atelier_adapter_database::{GalleryHardDeletePlan, GalleryTransientOwner};
 use atelier_app_api::gallery::{
     DeleteGalleryItemsRequestDto, DeleteGalleryItemsResponseDto, GalleryItemDetailDto,
@@ -11,30 +13,31 @@ use atelier_app_api::gallery::{
 use atelier_artifacts::{ArtifactId, ArtifactSource};
 use atelier_gallery::{GalleryItem, GallerySafetyState};
 use atelier_safety::{SafetyScanInput, SafetyScanner};
+use futures::lock::Mutex;
+use std::sync::Arc;
 
-pub struct GalleryUseCases<'a, S, F, E> {
-    pub(crate) app: &'a WorkspaceSession<S, F, E>,
+pub struct GalleryUseCases<'a> {
+    pub(crate) artifacts: &'a AppArtifactService,
+    pub(crate) gallery: &'a AppGalleryService,
+    pub(crate) gallery_index: &'a DatabaseGalleryIndex,
+    pub(crate) gallery_safety_rescan: &'a Mutex<()>,
+    pub(crate) resource_reader: &'a AppResourceReader,
+    pub(crate) resources: &'a AppResourceCatalog,
+    pub(crate) safety_scanner: &'a Option<Arc<dyn SafetyScanner>>,
 }
 
-impl<S, F, E> GalleryUseCases<'_, S, F, E>
-where
-    S: Send + Sync,
-    F: Send + Sync,
-    E: Send + Sync,
-{
+impl GalleryUseCases<'_> {
     pub async fn query(&self, query: GalleryQueryDto) -> AppResult<GalleryPageDto> {
         let offset = query.offset;
         let limit = query.limit;
         let page_query = gallery_query_to_domain(&query)?;
         let total_query = gallery_query_to_domain(&query)?;
         let items = self
-            .app
             .gallery
             .query(page_query)
             .await
             .map_err(AppError::from)?;
         let total = self
-            .app
             .gallery
             .count(total_query)
             .await
@@ -48,7 +51,6 @@ where
     ) -> AppResult<GalleryItemDetailDto> {
         let item_id = GalleryItemId::new(&request.item_id);
         let item = self
-            .app
             .gallery
             .get_items(&[item_id])
             .await?
@@ -56,7 +58,6 @@ where
             .next()
             .ok_or_else(|| AppError::new("not_found", "gallery item does not exist"))?;
         let artifact = self
-            .app
             .artifacts
             .get_artifact(&ArtifactId::new(item.artifact_id.as_str()))
             .await
@@ -73,8 +74,7 @@ where
         item_id: &str,
         override_value: Option<GallerySafetyOverrideDto>,
     ) -> AppResult<atelier_app_api::gallery::GalleryItemDto> {
-        self.app
-            .gallery
+        self.gallery
             .set_safety_override(
                 &GalleryItemId::new(item_id),
                 override_value.map(safety_override_to_domain),
@@ -88,10 +88,9 @@ where
         &self,
         request: RescanGallerySafetyRequestDto,
     ) -> AppResult<RescanGallerySafetyResponseDto> {
-        let _rescan_guard = self.app.gallery_safety_rescan.lock().await;
+        let _rescan_guard = self.gallery_safety_rescan.lock().await;
         let item_ids = if request.item_ids.is_empty() {
-            self.app
-                .gallery_index
+            self.gallery_index
                 .pending_safety_item_ids(1_000)
                 .map_err(AppError::from)?
         } else {
@@ -101,14 +100,13 @@ where
                 .map(GalleryItemId::new)
                 .collect()
         };
-        let items = self.app.gallery.get_items(&item_ids).await?;
-        let scanner = self.app.safety_scanner.clone();
-        let reader = self.app.resource_reader.clone();
+        let items = self.gallery.get_items(&item_ids).await?;
+        let scanner = self.safety_scanner.clone();
+        let reader = self.resource_reader.clone();
         let now_ms = super::unix_timestamp_ms();
         let Some(scanner) = scanner else {
             for item in &items {
-                self.app
-                    .gallery
+                self.gallery
                     .set_safety_state(
                         &item.id,
                         GallerySafetyState::Unavailable {
@@ -139,7 +137,7 @@ where
                 GallerySafetyState::Unavailable { .. } => response.unavailable += 1,
                 GallerySafetyState::Unscanned => {}
             }
-            self.app.gallery.set_safety_state(&item.id, state).await?;
+            self.gallery.set_safety_state(&item.id, state).await?;
         }
         Ok(response)
     }
@@ -153,9 +151,9 @@ where
             .into_iter()
             .map(GalleryItemId::new)
             .collect::<Vec<_>>();
-        let existing_items = self.app.gallery.get_items(&item_ids).await?;
+        let existing_items = self.gallery.get_items(&item_ids).await?;
         if existing_items.is_empty() {
-            let cleanup = self.app.resources.cleanup_delete_pending().await?;
+            let cleanup = self.resources.cleanup_delete_pending().await?;
             return Ok(DeleteGalleryItemsResponseDto {
                 deleted: 0,
                 resources_released: cleanup.resources_deleted,
@@ -168,13 +166,12 @@ where
             .map(hard_delete_plan)
             .collect::<Vec<_>>();
         let deleted = self
-            .app
             .gallery_index
             .hard_delete(&plans)
             .await
             .map_err(AppError::from)?;
 
-        let cleanup = self.app.resources.cleanup_delete_pending().await?;
+        let cleanup = self.resources.cleanup_delete_pending().await?;
         Ok(DeleteGalleryItemsResponseDto {
             deleted,
             resources_released: cleanup.resources_deleted,
@@ -186,8 +183,7 @@ where
         &self,
         request: atelier_app_api::gallery::GalleryImageReferenceRequestDto,
     ) -> AppResult<atelier_app_api::gallery::GalleryImageReferenceDto> {
-        self.app
-            .gallery
+        self.gallery
             .image_reference_for(
                 &GalleryItemId::new(request.item_id),
                 image_reference_target_to_domain(request.target),

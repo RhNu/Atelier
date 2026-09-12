@@ -5,6 +5,7 @@
 
 ## 执行记录
 
+- 批次 2：Prompt/Gallery/Resource/Settings/Events/Workspace 六组用例改为注入具体服务引用，去除无关泛型；删除 JobRepository、JobEventSink、with_prompt、ports_ref；keyring native 构造改为无失败返回。四项 Rust 检查全部通过。
 - 批次 1：统一 `RuntimeDependencies` 构造；拆分 composition/runtime/session，移除 AppInner 与全部组合构造入口；内存仓库移入 test support，集成测试通过 runtime 打开会话；账户用例归 runtime。fmt、clippy-strict、workspace tests、line-budget 全部通过。以下检查记录保留原始基线，路径可能随实施迁移。
 
 ## 判断与范围

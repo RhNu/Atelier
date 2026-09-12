@@ -13,5 +13,5 @@ pub use model::{
     QueueCommand, QueueDelay, QueueDirective, RetryPolicy, RunHistoryKind, RunHistoryQuery,
     RunHistoryRecord, RunHistoryStatus, RunOutputRecord, RunOutputState, SubmitJob,
 };
-pub use ports::{JobEventSink, JobQueueRepository, JobRepository, RunHistoryRepository};
+pub use ports::{JobQueueRepository, RunHistoryRepository};
 pub use queue::JobQueue;

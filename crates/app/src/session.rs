@@ -74,23 +74,38 @@ impl<S, F, E> WorkspaceSession<S, F, E> {
     }
 
     #[must_use]
-    pub const fn workspace(&self) -> WorkspaceUseCases<'_, S, F, E> {
-        WorkspaceUseCases { app: self }
+    pub const fn workspace(&self) -> WorkspaceUseCases<'_> {
+        WorkspaceUseCases {
+            root: &self.root,
+            schema_version: &self.schema_version,
+        }
     }
 
     #[must_use]
-    pub const fn prompt(&self) -> PromptUseCases<'_, S, F, E> {
-        PromptUseCases { app: self }
+    pub const fn prompt(&self) -> PromptUseCases<'_> {
+        PromptUseCases {
+            prompt_chunks: &self.prompt_chunks,
+            prompt_compiler: &self.prompt_compiler,
+            prompt_presets: &self.prompt_presets,
+            prompt_resource_write: &self.prompt_resource_write,
+            resources: &self.resources,
+        }
     }
 
     #[must_use]
-    pub const fn resources(&self) -> ResourceUseCases<'_, S, F, E> {
-        ResourceUseCases { app: self }
+    pub const fn resources(&self) -> ResourceUseCases<'_> {
+        ResourceUseCases {
+            resource_reader: &self.resource_reader,
+            resources: &self.resources,
+        }
     }
 
     #[must_use]
-    pub const fn settings(&self) -> SettingsUseCases<'_, S, F, E> {
-        SettingsUseCases { app: self }
+    pub const fn settings(&self) -> SettingsUseCases<'_> {
+        SettingsUseCases {
+            settings: &self.settings,
+            settings_state: &self.settings_state,
+        }
     }
 
     #[must_use]
@@ -109,8 +124,16 @@ impl<S, F, E> WorkspaceSession<S, F, E> {
     }
 
     #[must_use]
-    pub const fn gallery(&self) -> GalleryUseCases<'_, S, F, E> {
-        GalleryUseCases { app: self }
+    pub const fn gallery(&self) -> GalleryUseCases<'_> {
+        GalleryUseCases {
+            artifacts: &self.artifacts,
+            gallery: &self.gallery,
+            gallery_index: &self.gallery_index,
+            gallery_safety_rescan: &self.gallery_safety_rescan,
+            resource_reader: &self.resource_reader,
+            resources: &self.resources,
+            safety_scanner: &self.safety_scanner,
+        }
     }
 
     #[must_use]
@@ -119,7 +142,9 @@ impl<S, F, E> WorkspaceSession<S, F, E> {
     }
 
     #[must_use]
-    pub const fn events(&self) -> EventsUseCases<'_, S, F, E> {
-        EventsUseCases { app: self }
+    pub const fn events(&self) -> EventsUseCases<'_> {
+        EventsUseCases {
+            events: &self.events,
+        }
     }
 }

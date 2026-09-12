@@ -54,15 +54,6 @@ impl GenerationWorkRequest {
     }
 
     #[must_use]
-    pub fn with_prompt(mut self, prompt: String) -> Self {
-        match &mut self {
-            Self::Image(request) => request.prompt = prompt,
-            Self::Stream(request) => request.base.prompt = prompt,
-        }
-        self
-    }
-
-    #[must_use]
     pub fn negative_prompt(&self) -> Option<&str> {
         match self {
             Self::Image(request) => request.negative_prompt.as_deref(),

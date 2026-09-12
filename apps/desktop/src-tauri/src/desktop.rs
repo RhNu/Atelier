@@ -418,7 +418,7 @@ pub fn build_desktop_state(
         ))
     });
     let mut dependencies = atelier_app::RuntimeDependencies::new(
-        KeyringSecretStore::native()?,
+        KeyringSecretStore::native(),
         ReqwestNovelAiClientFactory::default(),
         NovelAiEmbeddedVibeExtractor,
         global_settings,

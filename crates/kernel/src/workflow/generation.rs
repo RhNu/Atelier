@@ -34,7 +34,7 @@ where
 {
     let submitted_ref = submitted_payload_ref(job_id);
     let submitted = runtime
-        .ports_ref()
+        .ports()
         .get_submitted_payload(&submitted_ref)
         .await?
         .ok_or_else(|| KernelError::MissingSubmittedPayload(submitted_ref.clone()))?;
@@ -46,7 +46,7 @@ where
         })
         .await;
 
-    let compiled = match compile_generation_prompts(runtime.ports_ref(), &submitted.request).await {
+    let compiled = match compile_generation_prompts(runtime.ports(), &submitted.request).await {
         Ok(compiled) => compiled,
         Err(error) => {
             let error = KernelError::from(error);
@@ -80,7 +80,7 @@ where
 
     let prepared_ref = prepared_payload_ref(job_id);
     if let Err(error) = runtime
-        .ports_ref()
+        .ports()
         .save_prepared_payload(PreparedGenerationPayload {
             payload_ref: prepared_ref.clone(),
             submitted_payload_ref: submitted_ref,
@@ -210,7 +210,7 @@ where
     P: GenerationPayloadStore + KernelClock + KernelEventSink + KernelGenerationPorts,
 {
     let result = match runtime
-        .ports_ref()
+        .ports()
         .generate(plan.normalized_request.clone())
         .await
     {
@@ -282,7 +282,7 @@ where
         sample.sample_index
     ));
     let resource = runtime
-        .ports_ref()
+        .ports()
         .register_resource(RegisterResourceRequest {
             resource_id,
             kind: sample.kind,
@@ -299,7 +299,7 @@ where
         sample.sample_index
     ));
     let artifact = runtime
-        .ports_ref()
+        .ports()
         .register_artifact(RegisterArtifactRequest {
             id: artifact_id.clone(),
             kind: ArtifactKind::GeneratedImage,
@@ -327,8 +327,8 @@ where
             }],
         })
         .await?;
-    let attempted_at_ms = runtime.ports_ref().now_ms();
-    let safety = match runtime.ports_ref().score_image(resource.clone()).await {
+    let attempted_at_ms = runtime.ports().now_ms();
+    let safety = match runtime.ports().score_image(resource.clone()).await {
         Ok(Some(assessment)) => GallerySafetyState::Scanned(Box::new(assessment)),
         Ok(None) => GallerySafetyState::Unavailable {
             message: "automatic safety scanning is unavailable".to_owned(),
@@ -349,8 +349,8 @@ where
         }
     };
     let item = runtime
-        .ports_ref()
-        .index_gallery_item(artifact, runtime.ports_ref().now_ms(), safety)
+        .ports()
+        .index_gallery_item(artifact, runtime.ports().now_ms(), safety)
         .await?;
     runtime
         .emit(KernelEventKind::SamplePersisted {

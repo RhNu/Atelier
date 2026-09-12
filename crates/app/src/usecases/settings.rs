@@ -1,22 +1,19 @@
 use super::{
     AppError, AppResult, ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto,
-    WorkspaceSession, WorkspaceSettingsDto, workspace_settings_to_domain,
-    workspace_settings_to_dto,
+    WorkspaceSettingsDto, workspace_settings_to_domain, workspace_settings_to_dto,
 };
+use crate::ports::SharedWorkspaceSettings;
+use atelier_adapter_database::DatabaseSettingsRepository;
+use atelier_settings::WorkspaceSettingsService;
 
-pub struct SettingsUseCases<'a, S, F, E> {
-    pub(crate) app: &'a WorkspaceSession<S, F, E>,
+pub struct SettingsUseCases<'a> {
+    pub(crate) settings: &'a WorkspaceSettingsService<DatabaseSettingsRepository>,
+    pub(crate) settings_state: &'a SharedWorkspaceSettings,
 }
 
-impl<S, F, E> SettingsUseCases<'_, S, F, E>
-where
-    S: Send + Sync,
-    F: Send + Sync,
-    E: Send + Sync,
-{
+impl SettingsUseCases<'_> {
     pub async fn get(&self) -> AppResult<WorkspaceSettingsDto> {
-        self.app
-            .settings
+        self.settings
             .get_workspace_settings()
             .await
             .map(|settings| workspace_settings_to_dto(&settings))
@@ -28,25 +25,23 @@ where
         request: UpdateWorkspaceSettingsRequestDto,
     ) -> AppResult<WorkspaceSettingsDto> {
         let settings = workspace_settings_to_domain(&request.settings)?;
-        self.app
-            .settings
+        self.settings
             .update_workspace_settings(settings)
             .await
             .map(|settings| {
-                self.app.settings_state.replace(settings.clone());
+                self.settings_state.replace(settings.clone());
                 workspace_settings_to_dto(&settings)
             })
             .map_err(AppError::from)
     }
 
     pub async fn reset(&self) -> AppResult<ResetWorkspaceSettingsResponseDto> {
-        self.app
-            .settings
+        self.settings
             .reset_workspace_settings()
             .await
             .map(|settings| ResetWorkspaceSettingsResponseDto {
                 settings: {
-                    self.app.settings_state.replace(settings.clone());
+                    self.settings_state.replace(settings.clone());
                     workspace_settings_to_dto(&settings)
                 },
             })

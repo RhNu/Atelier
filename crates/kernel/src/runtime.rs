@@ -262,10 +262,6 @@ where
     pub(crate) const fn retry_policy(&self) -> RetryPolicy {
         self.queue.retry_policy()
     }
-
-    pub(crate) const fn ports_ref(&self) -> &P {
-        &self.ports
-    }
 }
 
 impl<P> KernelRuntime<P>

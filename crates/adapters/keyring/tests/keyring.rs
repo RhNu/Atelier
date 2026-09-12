@@ -53,7 +53,7 @@ fn keyring_secret_store_maps_backend_failures_to_secret_store_errors() {
 #[ignore = "touches the OS credential store"]
 fn native_keyring_smoke_round_trips_secret() {
     block_on(async {
-        let store = KeyringSecretStore::native().unwrap();
+        let store = KeyringSecretStore::native();
         let id = SecretRecordId::new("atelier-test-secret");
 
         store

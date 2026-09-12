@@ -54,11 +54,9 @@ pub struct KeyringSecretStore<B = NativeKeyringBackend> {
 
 impl KeyringSecretStore<NativeKeyringBackend> {
     /// Creates a secret store backed by the platform native credential store.
-    ///
-    /// # Errors
-    /// This currently never returns an error; the result type is retained for API compatibility.
-    pub const fn native() -> SecretsResult<Self> {
-        Ok(Self::with_backend(NativeKeyringBackend))
+    #[must_use]
+    pub const fn native() -> Self {
+        Self::with_backend(NativeKeyringBackend)
     }
 }
 

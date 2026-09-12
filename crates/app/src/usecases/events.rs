@@ -1,12 +1,13 @@
-use super::{AppEventDto, WorkspaceSession};
+use super::AppEventDto;
+use crate::events::AppEventHub;
 
-pub struct EventsUseCases<'a, S, F, E> {
-    pub(crate) app: &'a WorkspaceSession<S, F, E>,
+pub struct EventsUseCases<'a> {
+    pub(crate) events: &'a AppEventHub,
 }
 
-impl<S, F, E> EventsUseCases<'_, S, F, E> {
+impl EventsUseCases<'_> {
     #[must_use]
     pub fn events_since(&self, sequence: u64, limit: usize) -> Vec<AppEventDto> {
-        self.app.events.events_since(sequence, limit)
+        self.events.events_since(sequence, limit)
     }
 }
