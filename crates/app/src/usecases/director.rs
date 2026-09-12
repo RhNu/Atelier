@@ -1,10 +1,9 @@
 use super::{
-    AppError, AppResult, DirectorToolResultDto, ImageInputDto, NovelAiClientFactory,
-    RunDirectorTool, RunDirectorToolRequest, RunDirectorToolRequestDto, RunHistoryKind,
-    RunHistoryRecord, RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState,
-    SecretStore, SecretsErrorKind, WorkspaceSession, director_tool_to_domain, gallery_item_to_dto,
-    resource_ref_from_dto, resource_ref_to_dto, resource_variant_kind_as_str, unix_timestamp_ms,
-    visual_asset_role_as_str,
+    AppError, AppResult, DirectorToolResultDto, NovelAiClientFactory, RunDirectorTool,
+    RunDirectorToolRequest, RunDirectorToolRequestDto, RunHistoryKind, RunHistoryRecord,
+    RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState, SecretStore,
+    SecretsErrorKind, WorkspaceSession, director_tool_to_domain, gallery_item_to_dto,
+    resource_ref_to_dto, resource_variant_kind_as_str, unix_timestamp_ms, visual_asset_role_as_str,
 };
 
 pub struct DirectorUseCases<'a, S, F, E> {
@@ -34,7 +33,10 @@ where
             })?;
         let run_id = request.run_id.clone();
         let title = Some(format!("{:?}", request.tool).to_lowercase());
-        let image = match self.image_input_to_base64(request.image).await {
+        let image = match crate::input::ImageInputResolver::new(&self.app.resource_reader)
+            .resolve(request.image)
+            .await
+        {
             Ok(image) => image,
             Err(error) => {
                 self.upsert_director_history(
@@ -144,19 +146,5 @@ where
             })
             .await
             .map_err(|error| AppError::new("run_history", error.to_string()))
-    }
-
-    async fn image_input_to_base64(&self, input: ImageInputDto) -> AppResult<String> {
-        match input {
-            ImageInputDto::InlineBase64 { image_base64 } => Ok(image_base64),
-            ImageInputDto::ResourceRef { resource } => {
-                let reference = resource_ref_from_dto(resource);
-                self.app
-                    .resource_reader
-                    .read_resource_base64(&reference)
-                    .await
-                    .map_err(AppError::from)
-            }
-        }
     }
 }

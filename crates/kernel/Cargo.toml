@@ -15,7 +15,6 @@ atelier-director = { workspace = true }
 atelier-gallery = { workspace = true }
 atelier-generation = { workspace = true }
 atelier-jobs = { workspace = true }
-atelier-precise-reference = { workspace = true }
 atelier-prompt-resources = { workspace = true }
 atelier-resource-catalog = { workspace = true }
 atelier-safety = { workspace = true }

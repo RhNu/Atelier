@@ -2,15 +2,14 @@ use atelier_jobs::{
     BatchStatus, JobId, JobKind, JobPayloadRef, JobQueue, JobQueueSnapshot, JobStatus,
     QueueDirective, RetryPolicy, SubmitJob,
 };
-use atelier_precise_reference::PreciseReferenceInput;
 
 use crate::{
     EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
     GenerationPayloadStore, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
     ImportedVibeDocuments, KernelClock, KernelDirectorPorts, KernelError, KernelEvent,
-    KernelEventKind, KernelEventSink, KernelGenerationPorts, KernelPreciseReferencePorts,
-    KernelResult, KernelVibePorts, RanDirectorTool, RunDirectorTool, SubmitGenerationBatch,
-    SubmitGenerationBatchJob, SubmitGenerationWork, SubmittedGenerationPayload,
+    KernelEventKind, KernelEventSink, KernelGenerationPorts, KernelResult, KernelVibePorts,
+    RanDirectorTool, RunDirectorTool, SubmitGenerationBatch, SubmitGenerationBatchJob,
+    SubmitGenerationWork, SubmittedGenerationPayload,
 };
 
 pub trait GenerationTaskCancellation: Send + Sync {
@@ -331,23 +330,6 @@ where
         request: EnsureVibeEncoding,
     ) -> KernelResult<EnsuredVibeEncoding> {
         crate::workflow::vibe::ensure_vibe_encoding(self, request).await
-    }
-}
-
-impl<P> KernelRuntime<P>
-where
-    P: KernelPreciseReferencePorts,
-{
-    /// Resolves a resource-backed precise reference into a generation input.
-    ///
-    /// # Errors
-    /// Returns an error when the source resource cannot be resolved or is not a
-    /// valid precise-reference image.
-    pub async fn prepare_precise_reference(
-        &self,
-        input: PreciseReferenceInput,
-    ) -> KernelResult<atelier_generation::CharacterReference> {
-        crate::workflow::precise_reference::prepare_precise_reference(self, input).await
     }
 }
 

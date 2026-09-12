@@ -1,11 +1,9 @@
 mod support;
 
-use atelier_generation::CharacterReferenceType;
 use atelier_kernel::{
     EnsureVibeEncoding, ExportVibeDocument, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
     KernelRuntime,
 };
-use atelier_precise_reference::PreciseReferenceInput;
 use atelier_resource_catalog::{ResourceId, ResourceKind, ResourceRef};
 use atelier_vibe::{
     VibeEncodeSettings, VibeEncodingRecord, VibeExportFormat, VibeId, VibeModel, VibeSourceIdentity,
@@ -172,37 +170,6 @@ fn exports_managed_vibe_from_document_resource() {
     assert_eq!(exported.document.file_extension, "naiv4vibe");
     assert!(exported.document.content.contains("novelai-vibe-transfer"));
     assert!(exported.document.content.contains("Style A"));
-}
-
-#[test]
-fn prepare_precise_reference_resolves_resource_payload() {
-    let source = ResourceRef::base(ResourceId::new("reference-image"));
-    let ports = MemoryKernelPorts::default().with_precise_reference_image(
-        &source,
-        ResourceKind::ReferenceImage,
-        "data:image/png;base64,AQID",
-    );
-    let runtime = KernelRuntime::new(ports);
-
-    let reference = block_on(runtime.prepare_precise_reference(PreciseReferenceInput {
-        source,
-        reference_type: CharacterReferenceType::CharacterAndStyle,
-        fidelity: 0.35,
-        strength: 0.75,
-    }))
-    .expect("precise reference should prepare");
-
-    assert_eq!(reference.image, "data:image/png;base64,AQID");
-    assert_eq!(
-        reference.reference_type,
-        CharacterReferenceType::CharacterAndStyle
-    );
-    assert_float_eq(reference.fidelity, 0.35);
-    assert_float_eq(reference.strength, 0.75);
-}
-
-fn assert_float_eq(actual: f32, expected: f32) {
-    assert!((actual - expected).abs() < f32::EPSILON);
 }
 
 fn official_vibe(name: &str) -> String {

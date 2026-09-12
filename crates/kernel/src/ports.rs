@@ -4,7 +4,6 @@ use atelier_director::NovelAiDirectorClient;
 use atelier_gallery::{GalleryItem, GalleryResult, GallerySafetyState};
 use atelier_generation::{GeneratedImageMetadataInspector, NovelAiGenerationClient};
 use atelier_jobs::JobPayloadRef;
-use atelier_precise_reference::{PreciseReferenceImage, PreciseReferenceResult};
 use atelier_prompt_resources::{CompilePromptRequest, CompiledPrompt, PromptResourceResult};
 use atelier_resource_catalog::{RegisterResourceRequest, ResourceRef, ResourceResult};
 use atelier_safety::{SafetyAssessment, SafetyResult};
@@ -111,12 +110,4 @@ pub trait KernelVibePorts:
         &self,
         reference: &ResourceRef,
     ) -> atelier_vibe::VibeDomainResult<String>;
-}
-
-#[async_trait]
-pub trait KernelPreciseReferencePorts: Send + Sync {
-    async fn read_precise_reference_image(
-        &self,
-        source: &ResourceRef,
-    ) -> PreciseReferenceResult<PreciseReferenceImage>;
 }

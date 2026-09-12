@@ -22,7 +22,6 @@ use atelier_app_api::prompt::{
     ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkPageDto, PromptPresetDto,
     PromptPresetPageDto, UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto,
 };
-use atelier_app_api::resource::ImageInputDto;
 use atelier_app_api::settings::{
     ResetWorkspaceSettingsResponseDto, UpdateWorkspaceSettingsRequestDto, WorkspaceSettingsDto,
 };
@@ -125,7 +124,7 @@ fn characters_to_domain(value: Vec<CharacterDto>) -> Vec<Character> {
         .collect()
 }
 
-const fn character_reference_type_to_domain(
+pub const fn character_reference_type_to_domain(
     value: CharacterReferenceTypeDto,
 ) -> CharacterReferenceType {
     match value {

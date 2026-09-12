@@ -65,6 +65,8 @@ mod director_safety_history;
 mod generation_outputs;
 #[path = "app_integration/queue_recovery.rs"]
 mod queue_recovery;
+#[path = "app_integration/reference_inputs.rs"]
+mod reference_inputs;
 
 fn submit_request(batch_id: &str, job_id: &str, prompt: &str) -> SubmitGenerationRequestDto {
     SubmitGenerationRequestDto {

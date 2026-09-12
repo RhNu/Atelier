@@ -7,18 +7,17 @@ use super::{
     GenerateImageRequest, GenerateImageRequestDto, GenerateImageStreamRequest,
     GenerateImageStreamRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
     GenerationHistoryPosition, GenerationHistoryUpdate, GenerationStatusDto, GenerationWorkRequest,
-    GenerationWorkRequestDto, ImageInputDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId,
+    GenerationWorkRequestDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId,
     NovelAiClientFactory, PromptPresetId, QueueDirectiveDto, RunHistoryRecord,
     RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState, SecretStore,
     SecretsErrorKind, SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationBatchJobDto,
     SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, VibeReference, VibeTransferConfig,
-    VibeTransferConfigDto, WorkspaceSession, character_reference_type_to_domain,
-    characters_to_domain, generation_status_to_dto, generation_work_title, image_format_to_domain,
-    image_model_to_domain, noise_schedule_to_domain, plan_context_to_domain,
-    quality_preset_to_domain, quality_preset_to_dto, queue_directive_to_dto, resource_ref_from_dto,
-    resource_variant_kind_as_str, run_history_status_from_job_status, sampler_to_domain,
-    stream_mode_to_domain, uc_preset_to_domain, upsert_generation_history_record,
-    visual_asset_role_as_str,
+    VibeTransferConfigDto, WorkspaceSession, characters_to_domain, generation_status_to_dto,
+    generation_work_title, image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
+    plan_context_to_domain, quality_preset_to_domain, quality_preset_to_dto,
+    queue_directive_to_dto, resource_ref_from_dto, resource_variant_kind_as_str,
+    run_history_status_from_job_status, sampler_to_domain, stream_mode_to_domain,
+    uc_preset_to_domain, upsert_generation_history_record, visual_asset_role_as_str,
 };
 pub struct GenerationUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -426,14 +425,16 @@ where
     async fn i2i_to_domain(&self, value: Img2ImgRequestDto) -> AppResult<Img2ImgRequest> {
         let inpaint = match value.inpaint {
             Some(inpaint) => Some(atelier_generation::InpaintRequest {
-                region_to_replace: self
-                    .image_input_to_base64(inpaint.region_to_replace)
+                region_to_replace: crate::input::ImageInputResolver::new(&self.app.resource_reader)
+                    .resolve(inpaint.region_to_replace)
                     .await?,
             }),
             None => None,
         };
         Ok(Img2ImgRequest {
-            image: self.image_input_to_base64(value.image).await?,
+            image: crate::input::ImageInputResolver::new(&self.app.resource_reader)
+                .resolve(value.image)
+                .await?,
             strength: value.strength,
             noise: value.noise,
             inpaint,
@@ -449,35 +450,13 @@ where
         };
         let mut resolved = Vec::with_capacity(references.len());
         for reference in references {
-            resolved.push(self.character_reference_to_domain(reference).await?);
+            resolved.push(
+                crate::input::ImageInputResolver::new(&self.app.resource_reader)
+                    .reference(reference)
+                    .await?,
+            );
         }
         Ok(Some(resolved))
-    }
-
-    async fn character_reference_to_domain(
-        &self,
-        value: CharacterReferenceDto,
-    ) -> AppResult<CharacterReference> {
-        Ok(CharacterReference {
-            image: self.image_input_to_base64(value.image).await?,
-            reference_type: character_reference_type_to_domain(value.reference_type),
-            fidelity: value.fidelity,
-            strength: value.strength,
-        })
-    }
-
-    async fn image_input_to_base64(&self, input: ImageInputDto) -> AppResult<String> {
-        match input {
-            ImageInputDto::InlineBase64 { image_base64 } => Ok(image_base64),
-            ImageInputDto::ResourceRef { resource } => {
-                let reference = resource_ref_from_dto(resource);
-                self.app
-                    .resource_reader
-                    .read_resource_base64(&reference)
-                    .await
-                    .map_err(AppError::from)
-            }
-        }
     }
 
     async fn upsert_generation_history(

@@ -3,7 +3,6 @@ use atelier_director::DirectorClientError;
 use atelier_gallery::GalleryError;
 use atelier_generation::{GenerationClientError, GenerationError};
 use atelier_jobs::{JobPayloadRef, JobQueueError};
-use atelier_precise_reference::PreciseReferenceError;
 use atelier_prompt_resources::PromptResourceError;
 use atelier_resource_catalog::ResourceCatalogError;
 use atelier_safety::SafetyError;
@@ -30,8 +29,6 @@ pub enum KernelError {
     Safety(#[from] SafetyError),
     #[error("vibe workflow failed: {0}")]
     Vibe(#[from] VibeError),
-    #[error("precise reference workflow failed: {0}")]
-    PreciseReference(#[from] PreciseReferenceError),
     #[error("generation client failed: {0}")]
     GenerationClient(#[from] GenerationClientError),
     #[error("director client failed: {0}")]

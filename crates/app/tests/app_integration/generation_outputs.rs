@@ -521,6 +521,17 @@ fn resource_backed_generation_inputs_are_resolved_before_novelai_submission() {
                 job_id: "job-1".to_owned(),
                 work: GenerationWorkRequestDto::Image(GenerateImageRequestDto {
                     prompt: "1girl".to_owned(),
+                    character_references: Some(vec![
+                        atelier_app_api::generation::CharacterReferenceDto {
+                            image: ImageInputDto::ResourceRef {
+                                resource: source.clone(),
+                            },
+                            reference_type:
+                                atelier_app_api::generation::CharacterReferenceTypeDto::Style,
+                            fidelity: 0.4,
+                            strength: 0.6,
+                        },
+                    ]),
                     img2img: Some(Img2ImgRequestDto {
                         image: ImageInputDto::ResourceRef {
                             resource: source.clone(),
@@ -540,6 +551,10 @@ fn resource_backed_generation_inputs_are_resolved_before_novelai_submission() {
         let generated = factory.generated_requests();
         assert_eq!(generated.len(), 1);
         assert_eq!(generated[0].img2img.as_ref().unwrap().image, "AQID");
+        assert_eq!(
+            generated[0].character_references.as_ref().unwrap()[0].image,
+            "AQID"
+        );
     });
 }
 

@@ -5,6 +5,7 @@ mod composition;
 mod dependencies;
 mod error;
 mod events;
+mod input;
 mod mapping;
 mod ports;
 mod runtime;

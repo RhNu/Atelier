@@ -766,7 +766,6 @@ dependencies = [
  "atelier-generation",
  "atelier-image-analysis",
  "atelier-jobs",
- "atelier-precise-reference",
  "atelier-prompt-resources",
  "atelier-resource-catalog",
  "atelier-safety",

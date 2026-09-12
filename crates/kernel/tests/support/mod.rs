@@ -4,7 +4,6 @@
 mod artifact_gallery;
 mod director;
 mod generation;
-mod precise_reference;
 mod vibe;
 
 use std::collections::{BTreeMap, HashSet, VecDeque};
@@ -22,8 +21,7 @@ use atelier_kernel::{
     KernelClock, KernelEvent, KernelEventSink, PreparedGenerationPayload,
     SubmittedGenerationPayload,
 };
-use atelier_precise_reference::PreciseReferenceImage;
-use atelier_resource_catalog::{ResourceKind, ResourceRef};
+use atelier_resource_catalog::ResourceKind;
 use atelier_vibe::{VibeDocumentEntry, VibeEncodingRecord};
 
 #[derive(Clone, Default)]
@@ -48,7 +46,6 @@ struct State {
     stream_pending: bool,
     stream_cancelled: bool,
     resources: BTreeMap<String, RegisteredResource>,
-    precise_reference_images: BTreeMap<String, PreciseReferenceImage>,
     artifacts: BTreeMap<String, ArtifactRecord>,
     gallery_items: BTreeMap<String, GalleryItem>,
     vibe_cache: BTreeMap<String, VibeEncodingRecord>,
@@ -134,22 +131,6 @@ impl MemoryKernelPorts {
     pub fn with_cached_vibe_encoding(self, record: VibeEncodingRecord) -> Self {
         let key = record.settings.cache_key(&record.source);
         self.state.lock().unwrap().vibe_cache.insert(key, record);
-        self
-    }
-
-    pub fn with_precise_reference_image(
-        self,
-        reference: &ResourceRef,
-        kind: ResourceKind,
-        payload: &str,
-    ) -> Self {
-        self.state.lock().unwrap().precise_reference_images.insert(
-            reference.id.as_str().to_owned(),
-            PreciseReferenceImage {
-                kind,
-                payload: payload.to_owned(),
-            },
-        );
         self
     }
 

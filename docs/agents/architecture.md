@@ -140,12 +140,13 @@ Feature crates are the default owner for domain concepts:
   production-parity tooling consume the same immutable policy version. It consumes
   `image-analysis` rather than binding its ports to a specific tagger.
 - `secrets`: API key registry, active key semantics, secret resolver, subscription probe.
-- `precise-reference`: precise reference input processing and image reader port.
+- `precise-reference`: pure validation of resolved reference inputs. The app image input resolver
+  reads resources once and shares resolution across generation and Director use cases.
 - `settings`: user-level application preferences and workspace-local NovelAI generation/image defaults, with separate repository ports for each persistence scope.
 
 ### `kernel`
 
-`kernel` combines feature services and ports into explicit workflows. The current runtime exposes generation, streaming, Vibe, and precise-reference workflows. It emits events and records failure details, but keeps storage and external services behind ports.
+`kernel` combines feature services and ports into explicit workflows. The current runtime exposes generation, streaming, Vibe, and Director workflows. It emits events and records failure details, but keeps storage and external services behind ports.
 
 ### Adapters
 

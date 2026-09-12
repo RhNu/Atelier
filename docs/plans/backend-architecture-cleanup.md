@@ -5,6 +5,8 @@
 
 ## 执行记录
 
+- 批次 3：图片输入统一经 ImageInputResolver；reference feature 改为纯校验，删除旧 reader/service/kernel workflow 与双重读取；增加生产入口的空输入、非图片资源及正常引用回归。四项 Rust 检查全部通过。
+- 实施核对：旧 `apply_prompt_presets` 在没有 preset 时直接返回，故旧持久请求可能是原始或已展开文本。请求准备批次必须显式保留旧格式执行语义，不能将所有旧 payload 无条件解释为已编译。
 - 批次 2：Prompt/Gallery/Resource/Settings/Events/Workspace 六组用例改为注入具体服务引用，去除无关泛型；删除 JobRepository、JobEventSink、with_prompt、ports_ref；keyring native 构造改为无失败返回。四项 Rust 检查全部通过。
 - 批次 1：统一 `RuntimeDependencies` 构造；拆分 composition/runtime/session，移除 AppInner 与全部组合构造入口；内存仓库移入 test support，集成测试通过 runtime 打开会话；账户用例归 runtime。fmt、clippy-strict、workspace tests、line-budget 全部通过。以下检查记录保留原始基线，路径可能随实施迁移。
 
