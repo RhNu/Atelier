@@ -29,7 +29,7 @@ where
     E: EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
 {
     pub async fn get_draft(&self) -> AppResult<Option<GenerationDraftDto>> {
-        let draft = self.app.inner.generation_drafts.load().await?;
+        let draft = self.app.generation_drafts.load().await?;
         Ok(draft.as_ref().map(generation_draft_to_dto))
     }
 
@@ -37,9 +37,9 @@ where
         &self,
         request: SaveGenerationDraftRequestDto,
     ) -> AppResult<GenerationDraftDto> {
-        let _write_guard = self.app.inner.generation_draft_write.lock().await;
+        let _write_guard = self.app.generation_draft_write.lock().await;
         let draft = generation_draft_to_domain(request.draft);
-        let previous = self.app.inner.generation_drafts.load().await?;
+        let previous = self.app.generation_drafts.load().await?;
         let old_links = previous
             .as_ref()
             .map(draft_resource_links)
@@ -49,7 +49,7 @@ where
         let mut attached = Vec::new();
 
         {
-            let catalog = &self.app.inner.resources;
+            let catalog = &self.app.resources;
             for (key, link) in &new_links {
                 if !old_links.contains_key(key) {
                     catalog
@@ -60,10 +60,10 @@ where
             }
         }
 
-        let saved = match self.app.inner.generation_drafts.save(draft.clone()).await {
+        let saved = match self.app.generation_drafts.save(draft.clone()).await {
             Ok(value) => value,
             Err(error) => {
-                let catalog = &self.app.inner.resources;
+                let catalog = &self.app.resources;
                 for link in &attached {
                     let _ = catalog
                         .detach_owner(&link.resource_id, &owner, link.relation)
@@ -75,7 +75,7 @@ where
         };
 
         {
-            let catalog = &self.app.inner.resources;
+            let catalog = &self.app.resources;
             for (key, link) in &old_links {
                 if !new_links.contains_key(key) {
                     catalog
@@ -91,10 +91,10 @@ where
     }
 
     pub async fn clear_draft(&self) -> AppResult<()> {
-        let _write_guard = self.app.inner.generation_draft_write.lock().await;
-        self.app.inner.generation_drafts.clear().await?;
+        let _write_guard = self.app.generation_draft_write.lock().await;
+        self.app.generation_drafts.clear().await?;
         let owner = generation_draft_owner();
-        let catalog = &self.app.inner.resources;
+        let catalog = &self.app.resources;
         for link in catalog.list_links_by_owner(&owner).await? {
             catalog
                 .detach_owner(&link.resource_id, &owner, link.relation)
@@ -109,11 +109,11 @@ where
         target: LexiconDraftTargetDto,
         entities: &[ResolvedLexiconEntity],
     ) -> AppResult<GenerationDraftDto> {
-        let _write_guard = self.app.inner.generation_draft_write.lock().await;
-        let mut draft = if let Some(draft) = self.app.inner.generation_drafts.load().await? {
+        let _write_guard = self.app.generation_draft_write.lock().await;
+        let mut draft = if let Some(draft) = self.app.generation_drafts.load().await? {
             draft
         } else {
-            let settings = self.app.inner.settings.get_workspace_settings().await?;
+            let settings = self.app.settings.get_workspace_settings().await?;
             default_draft(&settings)
         };
         let current_model = draft.model;
@@ -132,7 +132,7 @@ where
             LexiconDraftTargetDto::Negative => &mut state.negative_prompt,
         };
         append_canonical_tags(prompt, entities);
-        let saved = self.app.inner.generation_drafts.save(draft).await?;
+        let saved = self.app.generation_drafts.save(draft).await?;
         Ok(generation_draft_to_dto(&saved))
     }
 }

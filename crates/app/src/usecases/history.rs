@@ -32,12 +32,12 @@ use projection::{
     aggregate_generation_batch, generation_history_request_to_dto, preferred_run_outputs,
 };
 
-use crate::app::WorkspaceSession;
 use crate::mapping::{
     generation_history_batch_to_dto, generation_history_page_to_dto,
     generation_history_query_to_domain, queue_directive_to_dto, run_history_item_to_dto,
     run_history_page_to_dto, run_history_query_to_domain, run_output_to_dto,
 };
+use crate::session::WorkspaceSession;
 use crate::{AppError, AppResult};
 
 pub struct HistoryUseCases<'a, S, F, E> {
@@ -54,14 +54,12 @@ where
         let domain_query = run_history_query_to_domain(&query);
         let records = self
             .app
-            .inner
             .run_history
             .query_run_history(domain_query.clone())
             .await
             .map_err(|error| AppError::new("run_history", error.to_string()))?;
         let total = self
             .app
-            .inner
             .run_history
             .count_run_history(domain_query)
             .await
@@ -70,7 +68,6 @@ where
         for record in records {
             let outputs = self
                 .app
-                .inner
                 .run_history
                 .list_run_outputs(&record.run_id)
                 .await
@@ -92,14 +89,12 @@ where
         let domain_query = generation_history_query_to_domain(&query);
         let records = self
             .app
-            .inner
             .run_history
             .query_generation_batches(domain_query)
             .await
             .map_err(history_error)?;
         let total = self
             .app
-            .inner
             .run_history
             .count_generation_batches(generation_history_query_to_domain(&query))
             .await
@@ -142,7 +137,6 @@ where
         for (fallback_index, record) in records.iter().enumerate() {
             let outputs = self
                 .app
-                .inner
                 .run_history
                 .list_run_outputs(&record.run_id)
                 .await
@@ -178,7 +172,6 @@ where
     ) -> AppResult<DeleteRunHistoryItemsResponseDto> {
         let deleted = self
             .app
-            .inner
             .run_history
             .delete_run_history_items(&request.run_ids)
             .await
@@ -192,7 +185,6 @@ where
     ) -> AppResult<DeleteGenerationHistoryBatchesResponseDto> {
         let deleted_requests = self
             .app
-            .inner
             .run_history
             .delete_generation_batches(&request.batch_ids)
             .await
@@ -205,7 +197,6 @@ where
         request: RerunGenerationHistoryItemRequestDto,
     ) -> AppResult<RerunGenerationHistoryItemResponseDto> {
         self.app
-            .inner
             .api_keys
             .resolve_active_secret()
             .await
@@ -218,7 +209,6 @@ where
             })?;
         let source = self
             .app
-            .inner
             .run_history
             .get_run_history(&request.run_id)
             .await
@@ -236,7 +226,7 @@ where
             .clone()
             .ok_or_else(|| AppError::new("history_not_found", "history item has no payload"))?;
         let submitted = {
-            let kernel = self.app.inner.kernel.lock().await;
+            let kernel = self.app.kernel.lock().await;
             kernel
                 .ports()
                 .get_submitted_payload(&JobPayloadRef::new(payload_ref))
@@ -244,7 +234,7 @@ where
         }
         .ok_or_else(|| AppError::new("history_not_found", "submitted payload does not exist"))?;
         let title = submitted.request.prompt().to_owned();
-        let mut kernel = self.app.inner.kernel.lock().await;
+        let mut kernel = self.app.kernel.lock().await;
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .submit_generation_work(SubmitGenerationWork {
@@ -261,7 +251,6 @@ where
         if let Err(error) = persist_result {
             let _ = self
                 .app
-                .inner
                 .kernel
                 .lock()
                 .await
@@ -269,7 +258,7 @@ where
             return Err(error);
         }
         let record = upsert_generation_history_record(
-            &self.app.inner.run_history,
+            &self.app.run_history,
             &request.batch_id,
             &request.job_id,
             GenerationHistoryUpdate {
@@ -320,7 +309,7 @@ where
                 request: payload.request,
             })
             .collect();
-        let mut kernel = self.app.inner.kernel.lock().await;
+        let mut kernel = self.app.kernel.lock().await;
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .submit_generation_batch(SubmitGenerationBatch {
@@ -335,7 +324,6 @@ where
         if let Err(error) = self.persist_queue_snapshot(&directive, &snapshot).await {
             let _ = self
                 .app
-                .inner
                 .kernel
                 .lock()
                 .await
@@ -372,7 +360,7 @@ where
         }
         for job_id in &request.job_ids {
             ensure_generation_history_target_is_new(
-                &self.app.inner.run_history,
+                &self.app.run_history,
                 &request.batch_id,
                 job_id,
             )
@@ -385,7 +373,7 @@ where
         &self,
         sources: &[RunHistoryRecord],
     ) -> AppResult<Vec<SubmittedGenerationPayload>> {
-        let kernel = self.app.inner.kernel.lock().await;
+        let kernel = self.app.kernel.lock().await;
         let mut payloads = Vec::with_capacity(sources.len());
         for source in sources {
             let payload_ref = source.submitted_payload_ref.clone().ok_or_else(|| {
@@ -418,7 +406,7 @@ where
         {
             records.push(
                 upsert_generation_history_record(
-                    &self.app.inner.run_history,
+                    &self.app.run_history,
                     &request.batch_id,
                     job_id,
                     GenerationHistoryUpdate {
@@ -446,7 +434,6 @@ where
         for record in records {
             let run_outputs = self
                 .app
-                .inner
                 .run_history
                 .list_run_outputs(&record.run_id)
                 .await
@@ -459,7 +446,6 @@ where
     async fn generation_batch_records(&self, batch_id: &str) -> AppResult<Vec<RunHistoryRecord>> {
         let records = self
             .app
-            .inner
             .run_history
             .list_run_history_by_batch(batch_id)
             .await
@@ -475,7 +461,6 @@ where
 
     async fn ensure_active_api_key(&self) -> AppResult<()> {
         self.app
-            .inner
             .api_keys
             .resolve_active_secret()
             .await
@@ -495,11 +480,9 @@ where
         snapshot: &JobQueueSnapshot,
     ) -> AppResult<()> {
         let history =
-            generation_history_records_from_queue_snapshot(&self.app.inner.run_history, snapshot)
-                .await?;
+            generation_history_records_from_queue_snapshot(&self.app.run_history, snapshot).await?;
         let durable_snapshot = (!matches!(directive, QueueDirectiveDto::Idle)).then_some(snapshot);
         self.app
-            .inner
             .queue_repository
             .commit_queue_and_history(durable_snapshot, history)
             .map_err(|error| AppError::new("job_queue", error.to_string()))
@@ -516,7 +499,7 @@ where
             ));
         }
         ensure_generation_history_target_is_new(
-            &self.app.inner.run_history,
+            &self.app.run_history,
             &request.batch_id,
             &request.job_id,
         )

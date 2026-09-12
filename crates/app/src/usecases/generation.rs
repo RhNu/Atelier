@@ -49,7 +49,6 @@ where
         request: SubmitGenerationBatchRequestDto,
     ) -> AppResult<QueueDirectiveDto> {
         self.app
-            .inner
             .api_keys
             .resolve_active_secret()
             .await
@@ -62,7 +61,7 @@ where
             })?;
         let batch_id = request.batch_id.clone();
         ensure_generation_batch_target_is_new(
-            &self.app.inner.run_history,
+            &self.app.run_history,
             &batch_id,
             request.jobs.iter().map(|job| job.job_id.as_str()),
         )
@@ -83,7 +82,7 @@ where
             })
             .collect::<Vec<_>>();
         let work = self.submit_batch_request_to_domain(request).await?;
-        let mut kernel = self.app.inner.kernel.lock().await;
+        let mut kernel = self.app.kernel.lock().await;
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .submit_generation_batch(work)
@@ -126,7 +125,7 @@ where
         job_id: &str,
         cancellation: &dyn atelier_kernel::GenerationTaskCancellation,
     ) -> AppResult<QueueDirectiveDto> {
-        let mut kernel = self.app.inner.kernel.lock().await;
+        let mut kernel = self.app.kernel.lock().await;
         let previous_snapshot = kernel.queue_snapshot();
         let result = kernel
             .run_scheduled_generation_job_cancellable(&JobId::new(job_id), cancellation)
@@ -159,7 +158,7 @@ where
     }
 
     pub async fn pause(&self) -> AppResult<QueueDirectiveDto> {
-        let mut kernel = self.app.inner.kernel.lock().await;
+        let mut kernel = self.app.kernel.lock().await;
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .pause()
@@ -173,7 +172,7 @@ where
     }
 
     pub async fn resume(&self) -> AppResult<QueueDirectiveDto> {
-        let mut kernel = self.app.inner.kernel.lock().await;
+        let mut kernel = self.app.kernel.lock().await;
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .resume()
@@ -187,7 +186,7 @@ where
     }
 
     pub async fn stop(&self) -> AppResult<QueueDirectiveDto> {
-        let mut kernel = self.app.inner.kernel.lock().await;
+        let mut kernel = self.app.kernel.lock().await;
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .stop()
@@ -201,7 +200,7 @@ where
     }
 
     pub async fn delay_elapsed(&self) -> AppResult<QueueDirectiveDto> {
-        let mut kernel = self.app.inner.kernel.lock().await;
+        let mut kernel = self.app.kernel.lock().await;
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .delay_elapsed()
@@ -215,17 +214,9 @@ where
     }
 
     pub async fn status(&self, job_id: Option<&str>) -> AppResult<GenerationStatusDto> {
-        let snapshot = self
-            .app
-            .inner
-            .kernel
-            .lock()
-            .await
-            .queue_snapshot()
-            .active_batch;
+        let snapshot = self.app.kernel.lock().await.queue_snapshot().active_batch;
         let history = if let Some(active) = &snapshot {
             self.app
-                .inner
                 .run_history
                 .list_run_history_by_batch(active.batch.batch_id.as_str())
                 .await
@@ -348,7 +339,6 @@ where
         let character_inputs = value.characters.clone().unwrap_or_default();
         let compiled = self
             .app
-            .inner
             .prompt_compiler
             .compile_generation_prompt(CompileGenerationPromptRequest {
                 model: image_model_to_domain(value.model),
@@ -408,7 +398,6 @@ where
             let reference = resource_ref_from_dto(item.encoding);
             let vibe_data_cache = self
                 .app
-                .inner
                 .resource_reader
                 .read_resource_base64(&reference)
                 .await
@@ -483,7 +472,6 @@ where
             ImageInputDto::ResourceRef { resource } => {
                 let reference = resource_ref_from_dto(resource);
                 self.app
-                    .inner
                     .resource_reader
                     .read_resource_base64(&reference)
                     .await
@@ -498,8 +486,7 @@ where
         job_id: &str,
         update: GenerationHistoryUpdate,
     ) -> AppResult<RunHistoryRecord> {
-        upsert_generation_history_record(&self.app.inner.run_history, batch_id, job_id, update)
-            .await
+        upsert_generation_history_record(&self.app.run_history, batch_id, job_id, update).await
     }
 
     async fn update_generation_history_status(
@@ -510,7 +497,6 @@ where
     ) -> AppResult<()> {
         let Some(existing) = self
             .app
-            .inner
             .run_history
             .get_run_history(job_id)
             .await
@@ -538,7 +524,6 @@ where
         loop {
             let items = self
                 .app
-                .inner
                 .gallery
                 .query(GalleryQuery {
                     offset,
@@ -563,7 +548,6 @@ where
                 }
                 for asset in &item.assets {
                     self.app
-                        .inner
                         .run_history
                         .upsert_run_output(RunOutputRecord {
                             run_id: job_id.to_owned(),

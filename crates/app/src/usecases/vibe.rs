@@ -25,7 +25,7 @@ where
         &self,
         request: ImportVibeDocumentRequestDto,
     ) -> AppResult<ImportedVibeDocumentsDto> {
-        let kernel = self.app.inner.kernel.lock().await;
+        let kernel = self.app.kernel.lock().await;
         kernel
             .import_vibe_document(ImportVibeDocument {
                 file_name: request.file_name,
@@ -41,7 +41,7 @@ where
         request: ImportEmbeddedPngVibeDocumentRequestDto,
     ) -> AppResult<ImportedVibeDocumentsDto> {
         let png_bytes = STANDARD.decode(request.png_bytes_base64)?;
-        let kernel = self.app.inner.kernel.lock().await;
+        let kernel = self.app.kernel.lock().await;
         kernel
             .import_embedded_png_vibe_document(ImportEmbeddedPngVibeDocument {
                 file_name: request.file_name,
@@ -56,7 +56,7 @@ where
         &self,
         request: ExportVibeDocumentRequestDto,
     ) -> AppResult<ExportedVibeDocumentDto> {
-        let kernel = self.app.inner.kernel.lock().await;
+        let kernel = self.app.kernel.lock().await;
         kernel
             .export_vibe_document(ExportVibeDocument {
                 vibe_ids: request.vibe_ids.into_iter().map(VibeId::new).collect(),
@@ -72,7 +72,7 @@ where
         request: ListVibeDocumentsRequestDto,
     ) -> AppResult<VibeDocumentPageDto> {
         let (entries, total) = {
-            let kernel = self.app.inner.kernel.lock().await;
+            let kernel = self.app.kernel.lock().await;
             let entries = if let Some(model) = request.model {
                 let model = vibe_model_to_domain(model);
                 let all = kernel
@@ -130,7 +130,7 @@ where
             ));
         }
         let entry = {
-            let kernel = self.app.inner.kernel.lock().await;
+            let kernel = self.app.kernel.lock().await;
             let entry = kernel
                 .ports()
                 .rename_document(
@@ -151,7 +151,7 @@ where
         request: SetVibeDocumentHiddenRequestDto,
     ) -> AppResult<VibeDocumentEntryDto> {
         let entry = {
-            let kernel = self.app.inner.kernel.lock().await;
+            let kernel = self.app.kernel.lock().await;
             let entry = kernel
                 .ports()
                 .set_document_hidden(
@@ -172,7 +172,7 @@ where
         request: GetVibeDocumentRequestDto,
     ) -> AppResult<VibeDocumentEntryDto> {
         let entry = {
-            let kernel = self.app.inner.kernel.lock().await;
+            let kernel = self.app.kernel.lock().await;
             let entry = kernel
                 .ports()
                 .get_document(&VibeId::new(request.vibe_id))
@@ -192,7 +192,7 @@ where
             vibe_model_to_domain(request.model),
             request.information_extracted,
         )?;
-        let kernel = self.app.inner.kernel.lock().await;
+        let kernel = self.app.kernel.lock().await;
         kernel
             .ensure_vibe_encoding(EnsureVibeEncoding {
                 vibe_id: VibeId::new(request.vibe_id),

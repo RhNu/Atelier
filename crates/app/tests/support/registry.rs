@@ -7,12 +7,12 @@ use async_trait::async_trait;
 use atelier_secrets::{ApiKeyId, ApiKeyRecord, ApiKeyRegistryStore, SecretsError, SecretsResult};
 
 #[derive(Clone, Default)]
-pub struct TransientApiKeyRegistryStore {
+pub struct MemoryApiKeyRegistry {
     records: Arc<Mutex<BTreeMap<ApiKeyId, ApiKeyRecord>>>,
 }
 
 #[async_trait]
-impl ApiKeyRegistryStore for TransientApiKeyRegistryStore {
+impl ApiKeyRegistryStore for MemoryApiKeyRegistry {
     async fn insert_api_key_record(&self, record: ApiKeyRecord) -> SecretsResult<()> {
         let mut records = self.lock_records()?;
         if records.contains_key(&record.id) {
@@ -69,7 +69,7 @@ impl ApiKeyRegistryStore for TransientApiKeyRegistryStore {
     }
 }
 
-impl TransientApiKeyRegistryStore {
+impl MemoryApiKeyRegistry {
     fn lock_records(
         &self,
     ) -> SecretsResult<std::sync::MutexGuard<'_, BTreeMap<ApiKeyId, ApiKeyRecord>>> {

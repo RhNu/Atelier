@@ -6,7 +6,7 @@ fn gallery_resource_reads_do_not_wait_for_active_generation() {
         let temp = tempfile::tempdir().unwrap();
         let (factory, gate) = RecordingFactory::with_blocked_generation(valid_png_bytes(2, 1));
         let app = Arc::new(
-            WorkspaceSession::open_workspace_with_dependencies(
+            TestApp::open(
                 temp.path().to_path_buf(),
                 MemorySecretStore::default(),
                 factory,
@@ -72,13 +72,9 @@ fn open_workspace_and_generation_are_explicitly_driven() {
         let temp = tempfile::tempdir().unwrap();
         let secrets = MemorySecretStore::default();
         let factory = RecordingFactory::default();
-        let app = WorkspaceSession::open_workspace_with_dependencies(
-            temp.path().to_path_buf(),
-            secrets,
-            factory.clone(),
-        )
-        .await
-        .unwrap();
+        let app = TestApp::open(temp.path().to_path_buf(), secrets, factory.clone())
+            .await
+            .unwrap();
 
         let missing_key = app
             .generation()
@@ -146,13 +142,9 @@ fn valid_generated_images_get_best_effort_gallery_variants() {
         let temp = tempfile::tempdir().unwrap();
         let secrets = MemorySecretStore::default();
         let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
-        let app = WorkspaceSession::open_workspace_with_dependencies(
-            temp.path().to_path_buf(),
-            secrets,
-            factory,
-        )
-        .await
-        .unwrap();
+        let app = TestApp::open(temp.path().to_path_buf(), secrets, factory)
+            .await
+            .unwrap();
 
         app.account()
             .create_api_key(CreateApiKeyRequestDto {
@@ -221,13 +213,9 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
         let temp = tempfile::tempdir().unwrap();
         let secrets = MemorySecretStore::default();
         let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
-        let app = WorkspaceSession::open_workspace_with_dependencies(
-            temp.path().to_path_buf(),
-            secrets,
-            factory.clone(),
-        )
-        .await
-        .unwrap();
+        let app = TestApp::open(temp.path().to_path_buf(), secrets, factory.clone())
+            .await
+            .unwrap();
 
         app.account()
             .create_api_key(CreateApiKeyRequestDto {
@@ -330,7 +318,7 @@ fn generation_submit_applies_prompt_presets_before_queueing_work() {
 fn generation_estimate_applies_character_prompt_presets() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
-        let app = WorkspaceSession::open_workspace_with_dependencies(
+        let app = TestApp::open(
             temp.path().to_path_buf(),
             MemorySecretStore::default(),
             RecordingFactory::default(),
@@ -499,7 +487,7 @@ fn resource_backed_generation_inputs_are_resolved_before_novelai_submission() {
     block_on(async {
         let temp = tempfile::tempdir().unwrap();
         let factory = RecordingFactory::with_image_bytes(valid_png_bytes(2, 1));
-        let app = WorkspaceSession::open_workspace_with_dependencies(
+        let app = TestApp::open(
             temp.path().to_path_buf(),
             MemorySecretStore::default(),
             factory.clone(),

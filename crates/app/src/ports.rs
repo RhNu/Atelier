@@ -49,10 +49,8 @@ use atelier_vibe::{
 };
 
 mod external;
-mod transient_api_keys;
 
 use crate::events::AppEventHub;
-pub use transient_api_keys::TransientApiKeyRegistryStore;
 
 pub type AppApiKeyService<S, F> = ApiKeyRegistryService<
     Arc<dyn ApiKeyRegistryStore>,

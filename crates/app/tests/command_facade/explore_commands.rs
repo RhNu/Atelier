@@ -11,8 +11,9 @@ const POST_ID: &str = "00000000-0000-0000-0000-000000000001";
 fn public_explore_needs_neither_workspace_nor_secrets_and_binds_cursors() {
     block_on(async {
         let source = Arc::new(FakeExplore(Mutex::new(Vec::new())));
-        let host = AtelierRuntime::with_dependencies(NoSecretAccess, RecordingFactory::default())
-            .with_novelai_explore_source(source.clone());
+        let mut dependencies = support::dependencies(NoSecretAccess, RecordingFactory::default());
+        dependencies.novelai_explore = Some(source.clone());
+        let host = AtelierRuntime::new(dependencies);
         assert_eq!(host.list_explore_sources().len(), 2);
         let query = ExploreQueryDto::NovelaiExploreGallery(NovelAiExploreQueryDto {
             tags: vec!["blue sky".into()],

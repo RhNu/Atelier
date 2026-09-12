@@ -196,6 +196,12 @@ NovelAI adapter resolves the active key through the shared application registry.
 replacement workspace builds the candidate session and persists its recent-workspace state before
 publishing it.
 
+Runtime construction uses one explicit `RuntimeDependencies` value. Global settings and API key
+metadata storage are required dependencies; in-memory persistence belongs in test support. Optional
+capabilities are configured before constructing the runtime. `composition` opens sessions using
+shared application services, `runtime` owns their lifecycle, and `session` holds workspace state.
+Account use cases are accessed through the runtime, not through an independently initialized session.
+
 ## Resource Rule
 
 Workspace-owned durable binary or semi-structured creative resources must go through

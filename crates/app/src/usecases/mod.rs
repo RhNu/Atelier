@@ -70,7 +70,6 @@ pub use history::{
 };
 pub use resource::ResourceUseCases;
 
-use crate::app::WorkspaceSession;
 use crate::mapping::{
     api_key_record_to_dto, compiled_prompt_to_dto, create_api_key_to_domain, ensured_vibe_to_dto,
     exported_vibe_to_dto, gallery_image_reference_to_dto, gallery_item_to_dto, gallery_page_to_dto,
@@ -84,6 +83,7 @@ use crate::mapping::{
     upsert_prompt_preset_to_domain, vibe_entry_to_dto, vibe_format_to_domain, vibe_model_to_domain,
     workspace_settings_to_domain, workspace_settings_to_dto,
 };
+use crate::session::WorkspaceSession;
 use crate::{AppError, AppResult};
 
 mod account;

@@ -14,6 +14,10 @@ where
     S: SecretStore + Clone + Send + Sync,
     F: NovelAiClientFactory + Clone + Send + Sync,
 {
+    /// Creates account metadata and stores its secret.
+    ///
+    /// # Errors
+    /// Returns an error when account validation, storage, or the required subscription probe fails.
     pub async fn create_api_key(
         &self,
         request: CreateApiKeyRequestDto,
@@ -25,6 +29,10 @@ where
             .map_err(AppError::from)
     }
 
+    /// Updates account metadata and optionally its secret.
+    ///
+    /// # Errors
+    /// Returns an error when account validation, storage, or the required subscription probe fails.
     pub async fn update_api_key(
         &self,
         request: UpdateApiKeyRequestDto,
@@ -40,6 +48,10 @@ where
             .map_err(AppError::from)
     }
 
+    /// Deletes account metadata and its secret.
+    ///
+    /// # Errors
+    /// Returns an error when account validation, storage, or the required subscription probe fails.
     pub async fn delete_api_key(&self, id: &str) -> AppResult<bool> {
         self.api_keys
             .delete_api_key(&ApiKeyId::new(id))
@@ -47,6 +59,10 @@ where
             .map_err(AppError::from)
     }
 
+    /// Lists account metadata without secret values.
+    ///
+    /// # Errors
+    /// Returns an error when account validation, storage, or the required subscription probe fails.
     pub async fn list_api_keys(&self) -> AppResult<Vec<ApiKeyRecordDto>> {
         self.api_keys
             .list_api_keys()
@@ -55,6 +71,10 @@ where
             .map_err(AppError::from)
     }
 
+    /// Selects the application-wide active account.
+    ///
+    /// # Errors
+    /// Returns an error when account validation, storage, or the required subscription probe fails.
     pub async fn set_active_api_key(&self, id: &str) -> AppResult<()> {
         self.api_keys
             .set_active_api_key(&ApiKeyId::new(id))
@@ -62,6 +82,10 @@ where
             .map_err(AppError::from)
     }
 
+    /// Loads subscription status for an account.
+    ///
+    /// # Errors
+    /// Returns an error when account validation, storage, or the required subscription probe fails.
     pub async fn probe_key(&self, id: &str) -> AppResult<SubscriptionSummaryDto> {
         self.api_keys
             .probe_key(&ApiKeyId::new(id))
@@ -70,6 +94,10 @@ where
             .map_err(AppError::from)
     }
 
+    /// Loads subscription status for the active account.
+    ///
+    /// # Errors
+    /// Returns an error when account validation, storage, or the required subscription probe fails.
     pub async fn probe_active(&self) -> AppResult<SubscriptionSummaryDto> {
         let active = self
             .api_keys

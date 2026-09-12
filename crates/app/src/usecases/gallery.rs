@@ -29,14 +29,12 @@ where
         let total_query = gallery_query_to_domain(&query)?;
         let items = self
             .app
-            .inner
             .gallery
             .query(page_query)
             .await
             .map_err(AppError::from)?;
         let total = self
             .app
-            .inner
             .gallery
             .count(total_query)
             .await
@@ -51,7 +49,6 @@ where
         let item_id = GalleryItemId::new(&request.item_id);
         let item = self
             .app
-            .inner
             .gallery
             .get_items(&[item_id])
             .await?
@@ -60,7 +57,6 @@ where
             .ok_or_else(|| AppError::new("not_found", "gallery item does not exist"))?;
         let artifact = self
             .app
-            .inner
             .artifacts
             .get_artifact(&ArtifactId::new(item.artifact_id.as_str()))
             .await
@@ -78,7 +74,6 @@ where
         override_value: Option<GallerySafetyOverrideDto>,
     ) -> AppResult<atelier_app_api::gallery::GalleryItemDto> {
         self.app
-            .inner
             .gallery
             .set_safety_override(
                 &GalleryItemId::new(item_id),
@@ -93,10 +88,9 @@ where
         &self,
         request: RescanGallerySafetyRequestDto,
     ) -> AppResult<RescanGallerySafetyResponseDto> {
-        let _rescan_guard = self.app.inner.gallery_safety_rescan.lock().await;
+        let _rescan_guard = self.app.gallery_safety_rescan.lock().await;
         let item_ids = if request.item_ids.is_empty() {
             self.app
-                .inner
                 .gallery_index
                 .pending_safety_item_ids(1_000)
                 .map_err(AppError::from)?
@@ -107,14 +101,13 @@ where
                 .map(GalleryItemId::new)
                 .collect()
         };
-        let items = self.app.inner.gallery.get_items(&item_ids).await?;
-        let scanner = self.app.inner.safety_scanner.clone();
-        let reader = self.app.inner.resource_reader.clone();
+        let items = self.app.gallery.get_items(&item_ids).await?;
+        let scanner = self.app.safety_scanner.clone();
+        let reader = self.app.resource_reader.clone();
         let now_ms = super::unix_timestamp_ms();
         let Some(scanner) = scanner else {
             for item in &items {
                 self.app
-                    .inner
                     .gallery
                     .set_safety_state(
                         &item.id,
@@ -146,11 +139,7 @@ where
                 GallerySafetyState::Unavailable { .. } => response.unavailable += 1,
                 GallerySafetyState::Unscanned => {}
             }
-            self.app
-                .inner
-                .gallery
-                .set_safety_state(&item.id, state)
-                .await?;
+            self.app.gallery.set_safety_state(&item.id, state).await?;
         }
         Ok(response)
     }
@@ -164,9 +153,9 @@ where
             .into_iter()
             .map(GalleryItemId::new)
             .collect::<Vec<_>>();
-        let existing_items = self.app.inner.gallery.get_items(&item_ids).await?;
+        let existing_items = self.app.gallery.get_items(&item_ids).await?;
         if existing_items.is_empty() {
-            let cleanup = self.app.inner.resources.cleanup_delete_pending().await?;
+            let cleanup = self.app.resources.cleanup_delete_pending().await?;
             return Ok(DeleteGalleryItemsResponseDto {
                 deleted: 0,
                 resources_released: cleanup.resources_deleted,
@@ -180,13 +169,12 @@ where
             .collect::<Vec<_>>();
         let deleted = self
             .app
-            .inner
             .gallery_index
             .hard_delete(&plans)
             .await
             .map_err(AppError::from)?;
 
-        let cleanup = self.app.inner.resources.cleanup_delete_pending().await?;
+        let cleanup = self.app.resources.cleanup_delete_pending().await?;
         Ok(DeleteGalleryItemsResponseDto {
             deleted,
             resources_released: cleanup.resources_deleted,
@@ -199,7 +187,6 @@ where
         request: atelier_app_api::gallery::GalleryImageReferenceRequestDto,
     ) -> AppResult<atelier_app_api::gallery::GalleryImageReferenceDto> {
         self.app
-            .inner
             .gallery
             .image_reference_for(
                 &GalleryItemId::new(request.item_id),

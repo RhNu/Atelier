@@ -22,7 +22,6 @@ where
         request: RunDirectorToolRequestDto,
     ) -> AppResult<DirectorToolResultDto> {
         self.app
-            .inner
             .api_keys
             .resolve_active_secret()
             .await
@@ -58,7 +57,7 @@ where
                 strict_mode: request.strict_mode,
             },
         };
-        let mut kernel = self.app.inner.kernel.lock().await;
+        let mut kernel = self.app.kernel.lock().await;
         let result = match kernel.run_director_tool(work).await {
             Ok(result) => result,
             Err(error) => {
@@ -79,7 +78,6 @@ where
             .await?;
         for asset in &result.item.assets {
             self.app
-                .inner
                 .run_history
                 .upsert_run_output(RunOutputRecord {
                     run_id: run_id.clone(),
@@ -120,13 +118,11 @@ where
         let now = unix_timestamp_ms();
         let existing = self
             .app
-            .inner
             .run_history
             .get_run_history(run_id)
             .await
             .map_err(|error| AppError::new("run_history", error.to_string()))?;
         self.app
-            .inner
             .run_history
             .upsert_run_history(RunHistoryRecord {
                 run_id: run_id.to_owned(),
@@ -156,7 +152,6 @@ where
             ImageInputDto::ResourceRef { resource } => {
                 let reference = resource_ref_from_dto(resource);
                 self.app
-                    .inner
                     .resource_reader
                     .read_resource_base64(&reference)
                     .await

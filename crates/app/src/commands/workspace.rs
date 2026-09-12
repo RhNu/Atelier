@@ -24,7 +24,7 @@ where
         request: OpenWorkspaceRequestDto,
     ) -> CommandResult<WorkspaceStatusDto> {
         if let Some(session) = self.current_session_optional()?
-            && session.inner.root.as_path() == request.root.as_path()
+            && session.root.as_path() == request.root.as_path()
         {
             self.global_settings
                 .record_last_workspace(request.root)
@@ -65,7 +65,7 @@ where
         };
 
         if let Some(session) = self.current_session_optional()?
-            && session.inner.root.as_path() == root.as_path()
+            && session.root.as_path() == root.as_path()
         {
             return Ok(AppBootstrapDto {
                 global_settings: global_settings_to_dto(&settings),

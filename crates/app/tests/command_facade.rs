@@ -2,10 +2,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use atelier_adapter_novelai::{
-    NovelAiBridgeError, NovelAiClientFactory, NovelAiEmbeddedVibeExtractor,
-};
+use atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
 use atelier_app::AtelierRuntime;
+mod support;
 use atelier_app::GenerationWorkerCancel;
 use atelier_app_api::account::{
     CreateApiKeyRequestDto, ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto,
@@ -85,21 +84,25 @@ fn test_host() -> AtelierRuntime<MemorySecretStore, RecordingFactory> {
 fn test_host_with_factory(
     factory: RecordingFactory,
 ) -> AtelierRuntime<MemorySecretStore, RecordingFactory> {
-    AtelierRuntime::with_dependencies(MemorySecretStore::default(), factory)
+    AtelierRuntime::new(support::dependencies(MemorySecretStore::default(), factory))
 }
 
 fn test_host_with_global_settings(
     settings: GlobalSettings,
 ) -> AtelierRuntime<MemorySecretStore, RecordingFactory> {
-    AtelierRuntime::with_global_settings_dependencies_extractor_and_safety_scanner(
+    AtelierRuntime::new(test_dependencies(settings))
+}
+
+fn test_dependencies(
+    settings: GlobalSettings,
+) -> atelier_app::RuntimeDependencies<MemorySecretStore, RecordingFactory> {
+    let mut dependencies =
+        support::dependencies(MemorySecretStore::default(), RecordingFactory::default());
+    dependencies.global_settings =
         GlobalSettingsService::new(Arc::new(MemoryGlobalSettingsRepository {
             settings: Mutex::new(settings),
-        })),
-        MemorySecretStore::default(),
-        RecordingFactory::default(),
-        NovelAiEmbeddedVibeExtractor,
-        None,
-    )
+        }));
+    dependencies
 }
 
 async fn open_workspace(

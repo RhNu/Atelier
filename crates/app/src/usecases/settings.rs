@@ -16,7 +16,6 @@ where
 {
     pub async fn get(&self) -> AppResult<WorkspaceSettingsDto> {
         self.app
-            .inner
             .settings
             .get_workspace_settings()
             .await
@@ -30,12 +29,11 @@ where
     ) -> AppResult<WorkspaceSettingsDto> {
         let settings = workspace_settings_to_domain(&request.settings)?;
         self.app
-            .inner
             .settings
             .update_workspace_settings(settings)
             .await
             .map(|settings| {
-                self.app.inner.settings_state.replace(settings.clone());
+                self.app.settings_state.replace(settings.clone());
                 workspace_settings_to_dto(&settings)
             })
             .map_err(AppError::from)
@@ -43,13 +41,12 @@ where
 
     pub async fn reset(&self) -> AppResult<ResetWorkspaceSettingsResponseDto> {
         self.app
-            .inner
             .settings
             .reset_workspace_settings()
             .await
             .map(|settings| ResetWorkspaceSettingsResponseDto {
                 settings: {
-                    self.app.inner.settings_state.replace(settings.clone());
+                    self.app.settings_state.replace(settings.clone());
                     workspace_settings_to_dto(&settings)
                 },
             })

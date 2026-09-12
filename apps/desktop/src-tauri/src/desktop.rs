@@ -417,27 +417,27 @@ pub fn build_desktop_state(
             initial_settings.safety.wd_auto_review_enabled,
         ))
     });
-    let mut runtime =
-        AtelierRuntime::with_global_settings_dependencies_extractor_safety_and_lexicon(
-            global_settings,
-            KeyringSecretStore::native()?,
-            ReqwestNovelAiClientFactory::default(),
-            NovelAiEmbeddedVibeExtractor,
-            safety_pipeline
-                .clone()
-                .map(|pipeline| pipeline as Arc<dyn atelier_safety::SafetyScanner>),
-            lexicon,
-        )
-        .with_downloadable_resources(downloadable_resources)
-        .with_api_key_registry(Arc::new(application_api_key_registry(&system)))
-        .with_danbooru_client(Arc::new(ReqwestDanbooruClient::new()?))
-        .with_novelai_explore_source(Arc::new(NovelAiExploreClient::new()?));
-    if let Some(analysis) = image_analysis {
-        runtime = runtime.with_image_analysis(
-            analysis,
-            safety_pipeline.expect("image analysis and safety pipeline are initialized together"),
-        );
-    }
+    let mut dependencies = atelier_app::RuntimeDependencies::new(
+        KeyringSecretStore::native()?,
+        ReqwestNovelAiClientFactory::default(),
+        NovelAiEmbeddedVibeExtractor,
+        global_settings,
+        Arc::new(application_api_key_registry(&system)),
+    );
+    dependencies.safety_scanner = safety_pipeline
+        .clone()
+        .map(|value| value as Arc<dyn atelier_safety::SafetyScanner>);
+    dependencies.lexicon = lexicon;
+    dependencies.downloadable_resources = Some(downloadable_resources);
+    dependencies.danbooru = Arc::new(ReqwestDanbooruClient::new()?);
+    dependencies.novelai_explore = Some(Arc::new(NovelAiExploreClient::new()?));
+    dependencies.image_analysis =
+        image_analysis.map(|sessions| atelier_app::ImageAnalysisDependencies {
+            sessions,
+            policy: safety_pipeline
+                .expect("image analysis and safety pipeline are initialized together"),
+        });
+    let runtime = AtelierRuntime::new(dependencies);
     let host = Arc::new(runtime);
     subscribe_window_events(
         &host,

@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use atelier_adapter_database::{DatabaseConnection, DatabaseResourceCatalogRepository};
 use atelier_adapter_novelai::{NovelAiBridgeError, NovelAiClientFactory};
 use atelier_adapter_storage_fs::workspace_database_path;
-use atelier_app::WorkspaceSession;
+use atelier_app::{AtelierRuntime, WorkspaceSession};
+#[path = "support/session.rs"]
+mod session;
+mod support;
 use atelier_app_api::account::CreateApiKeyRequestDto;
 use atelier_app_api::director::{DirectorToolDto, RunDirectorToolRequestDto};
 use atelier_app_api::gallery::{
@@ -51,6 +54,10 @@ use atelier_workspace::WorkspaceRoot;
 use base64::Engine;
 use futures_executor::block_on;
 use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
+struct TestApp {
+    runtime: AtelierRuntime<MemorySecretStore, RecordingFactory>,
+    session: Arc<WorkspaceSession<MemorySecretStore, RecordingFactory>>,
+}
 
 #[path = "app_integration/director_safety_history.rs"]
 mod director_safety_history;
@@ -113,11 +120,8 @@ fn submit_batch_request(
     }
 }
 
-async fn test_app_with_image(
-    temp: &tempfile::TempDir,
-    image_bytes: Vec<u8>,
-) -> WorkspaceSession<MemorySecretStore, RecordingFactory> {
-    let app = WorkspaceSession::open_workspace_with_dependencies(
+async fn test_app_with_image(temp: &tempfile::TempDir, image_bytes: Vec<u8>) -> TestApp {
+    let app = TestApp::open(
         temp.path().to_path_buf(),
         MemorySecretStore::default(),
         RecordingFactory::with_image_bytes(image_bytes),

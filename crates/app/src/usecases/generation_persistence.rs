@@ -18,11 +18,9 @@ where
         snapshot: &atelier_jobs::JobQueueSnapshot,
     ) -> AppResult<()> {
         let history =
-            generation_history_records_from_queue_snapshot(&self.app.inner.run_history, snapshot)
-                .await?;
+            generation_history_records_from_queue_snapshot(&self.app.run_history, snapshot).await?;
         let durable_snapshot = (!matches!(directive, QueueDirectiveDto::Idle)).then_some(snapshot);
         self.app
-            .inner
             .queue_repository
             .commit_queue_and_history(durable_snapshot, history)
             .map_err(|error| AppError::new("job_queue", error.to_string()))
@@ -37,7 +35,6 @@ where
         if let Err(error) = self.persist_queue_snapshot(directive, snapshot).await {
             let _ = self
                 .app
-                .inner
                 .kernel
                 .lock()
                 .await
@@ -52,10 +49,8 @@ where
         snapshot: &atelier_jobs::JobQueueSnapshot,
     ) -> AppResult<()> {
         let history =
-            generation_history_records_from_queue_snapshot(&self.app.inner.run_history, snapshot)
-                .await?;
+            generation_history_records_from_queue_snapshot(&self.app.run_history, snapshot).await?;
         self.app
-            .inner
             .queue_repository
             .commit_queue_and_history(Some(snapshot), history)
             .map_err(|error| AppError::new("job_queue", error.to_string()))

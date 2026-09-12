@@ -13,8 +13,8 @@ use base64::engine::general_purpose::STANDARD;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::AppResult;
-use crate::app::WorkspaceSession;
 use crate::mapping::{resource_ref_from_dto, resource_ref_to_dto};
+use crate::session::WorkspaceSession;
 
 pub struct ResourceUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -39,7 +39,6 @@ where
         ));
         let resource = self
             .app
-            .inner
             .resources
             .register_resource(RegisterResourceRequest {
                 resource_id,
@@ -66,7 +65,7 @@ where
                 resource_ids.insert(resource.id);
             }
         }
-        let catalog = &self.app.inner.resources;
+        let catalog = &self.app.resources;
         let owner = import_staging_owner();
         let links = catalog.list_links_by_owner(&owner).await?;
         for link in links
@@ -93,7 +92,7 @@ where
     pub async fn release_all_imported_images(
         &self,
     ) -> AppResult<ReleaseImportedImageResourcesResponseDto> {
-        let catalog = &self.app.inner.resources;
+        let catalog = &self.app.resources;
         let owner = import_staging_owner();
         let links = catalog.list_links_by_owner(&owner).await?;
         for link in &links {
@@ -120,7 +119,6 @@ where
         let reference = resource_ref_from_dto(request.resource);
         let content = self
             .app
-            .inner
             .resource_reader
             .read_resource_bytes(&reference)
             .await?;

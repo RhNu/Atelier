@@ -31,7 +31,6 @@ where
         let character_inputs = request.compile.characters;
         let compiled = self
             .app
-            .inner
             .prompt_compiler
             .compile_generation_prompt(CompileGenerationPromptRequest {
                 model,

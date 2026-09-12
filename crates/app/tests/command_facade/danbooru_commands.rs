@@ -15,8 +15,7 @@ use super::*;
 #[test]
 fn verified_account_is_shared_with_search_and_can_be_deleted() {
     block_on(async {
-        let host = test_host_with_global_settings(GlobalSettings::default())
-            .with_danbooru_client(Arc::new(FakeDanbooruClient::verified()));
+        let host = host_with_client(FakeDanbooruClient::verified());
 
         let saved = host
             .save_danbooru_account(SaveDanbooruAccountRequestDto {
@@ -59,9 +58,12 @@ fn verified_account_is_shared_with_search_and_can_be_deleted() {
 #[test]
 fn invalid_credentials_do_not_replace_anonymous_configuration() {
     block_on(async {
-        let host = test_host_with_global_settings(GlobalSettings::default()).with_danbooru_client(
-            Arc::new(FakeDanbooruClient::failing(DanbooruErrorKind::Unauthorized)),
-        );
+        let host = AtelierRuntime::new({
+            let mut dependencies = test_dependencies(GlobalSettings::default());
+            dependencies.danbooru =
+                Arc::new(FakeDanbooruClient::failing(DanbooruErrorKind::Unauthorized));
+            dependencies
+        });
 
         let error = host
             .save_danbooru_account(SaveDanbooruAccountRequestDto {
@@ -81,9 +83,12 @@ fn invalid_credentials_do_not_replace_anonymous_configuration() {
 #[test]
 fn transient_probe_failure_saves_an_unverified_configuration() {
     block_on(async {
-        let host = test_host_with_global_settings(GlobalSettings::default()).with_danbooru_client(
-            Arc::new(FakeDanbooruClient::failing(DanbooruErrorKind::Unavailable)),
-        );
+        let host = AtelierRuntime::new({
+            let mut dependencies = test_dependencies(GlobalSettings::default());
+            dependencies.danbooru =
+                Arc::new(FakeDanbooruClient::failing(DanbooruErrorKind::Unavailable));
+            dependencies
+        });
 
         let saved = host
             .save_danbooru_account(SaveDanbooruAccountRequestDto {
@@ -284,16 +289,13 @@ fn test_host_with_secret_store(
     store: PartiallyFailingSecretStore,
     settings: GlobalSettings,
 ) -> AtelierRuntime<PartiallyFailingSecretStore, RecordingFactory> {
-    AtelierRuntime::with_global_settings_dependencies_extractor_and_safety_scanner(
+    let mut dependencies = support::dependencies(store, RecordingFactory::default());
+    dependencies.global_settings =
         GlobalSettingsService::new(Arc::new(MemoryGlobalSettingsRepository {
             settings: Mutex::new(settings),
-        })),
-        store,
-        RecordingFactory::default(),
-        NovelAiEmbeddedVibeExtractor,
-        None,
-    )
-    .with_danbooru_client(Arc::new(FakeDanbooruClient::verified()))
+        }));
+    dependencies.danbooru = Arc::new(FakeDanbooruClient::verified());
+    AtelierRuntime::new(dependencies)
 }
 
 fn post() -> DanbooruPost {
@@ -316,4 +318,12 @@ fn post() -> DanbooruPost {
         general_tags: vec!["blue_eyes".to_owned()],
         meta_tags: Vec::new(),
     }
+}
+
+fn host_with_client(
+    client: FakeDanbooruClient,
+) -> AtelierRuntime<MemorySecretStore, RecordingFactory> {
+    let mut dependencies = test_dependencies(GlobalSettings::default());
+    dependencies.danbooru = Arc::new(client);
+    AtelierRuntime::new(dependencies)
 }
