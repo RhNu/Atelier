@@ -431,3 +431,6 @@ impl SubscriptionClient for RecordingClient {
         })
     }
 }
+
+#[path = "command_facade/worker_session.rs"]
+mod worker_session;

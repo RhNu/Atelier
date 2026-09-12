@@ -18,8 +18,11 @@ pub struct AppEventHub {
 
 impl AppEventHub {
     pub fn push_kernel_event(&self, event: KernelEvent) {
-        let event = kernel_event_to_dto(event);
+        let mut event = kernel_event_to_dto(event);
         if let Ok(mut events) = self.events.lock() {
+            event.sequence = events
+                .last()
+                .map_or(1, |last| last.sequence.saturating_add(1));
             events.push(event.clone());
             let overflow = events.len().saturating_sub(MAX_RETAINED_EVENTS);
             if overflow > 0 {

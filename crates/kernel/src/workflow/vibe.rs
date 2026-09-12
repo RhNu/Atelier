@@ -10,13 +10,13 @@ use atelier_vibe::{
 use crate::{
     EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
     ImportEmbeddedPngVibeDocument, ImportVibeDocument, ImportedVibeDocuments, KernelResult,
-    KernelRuntime, KernelVibePorts,
+    KernelVibePorts, WorkflowContext,
 };
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 
 pub async fn import_vibe_document<P>(
-    runtime: &KernelRuntime<P>,
+    runtime: &WorkflowContext<P>,
     request: ImportVibeDocument,
 ) -> KernelResult<ImportedVibeDocuments>
 where
@@ -119,7 +119,7 @@ where
 }
 
 pub async fn import_embedded_png_vibe_document<P>(
-    runtime: &KernelRuntime<P>,
+    runtime: &WorkflowContext<P>,
     request: ImportEmbeddedPngVibeDocument,
 ) -> KernelResult<ImportedVibeDocuments>
 where
@@ -146,7 +146,7 @@ where
 }
 
 pub async fn export_vibe_document<P>(
-    runtime: &KernelRuntime<P>,
+    runtime: &WorkflowContext<P>,
     request: ExportVibeDocument,
 ) -> KernelResult<ExportedVibeDocument>
 where
@@ -174,7 +174,7 @@ where
 }
 
 pub async fn ensure_vibe_encoding<P>(
-    runtime: &KernelRuntime<P>,
+    runtime: &WorkflowContext<P>,
     request: EnsureVibeEncoding,
 ) -> KernelResult<EnsuredVibeEncoding>
 where
@@ -244,7 +244,7 @@ fn decode_image_payload(payload: &str) -> Result<Vec<u8>, VibeError> {
 }
 
 async fn register_vibe_resource<P>(
-    runtime: &KernelRuntime<P>,
+    runtime: &WorkflowContext<P>,
     resource_id: ResourceId,
     kind: ResourceKind,
     lifecycle: ResourceLifecycle,

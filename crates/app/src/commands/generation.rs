@@ -152,19 +152,6 @@ where
         )
     }
 
-    pub(crate) async fn run_generation_job_cancellable(
-        &self,
-        request: RunGenerationJobRequestDto,
-        cancellation: &dyn atelier_kernel::GenerationTaskCancellation,
-    ) -> CommandResult<QueueDirectiveDto> {
-        Self::command_result(
-            self.current_session()?
-                .generation()
-                .run_job_cancellable(&request.job_id, cancellation)
-                .await,
-        )
-    }
-
     /// Pauses the active generation queue.
     ///
     /// # Errors

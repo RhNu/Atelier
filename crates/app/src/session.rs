@@ -51,6 +51,8 @@ pub struct WorkspaceSession<
     pub(crate) safety_scanner: Option<Arc<dyn SafetyScanner>>,
     pub(crate) queue_repository: DatabaseGenerationStore,
     pub(crate) run_history: DatabaseRunHistoryRepository,
+    pub(crate) queue: atelier_kernel::QueueView,
+    pub(crate) workflows: atelier_kernel::WorkflowContext<AppKernelPorts<S, F, E>>,
     pub(crate) kernel: Mutex<KernelRuntime<AppKernelPorts<S, F, E>>>,
     pub(crate) events: AppEventHub,
 }

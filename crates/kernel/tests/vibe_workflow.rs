@@ -31,7 +31,7 @@ fn ensure_vibe_encoding_reuses_cached_bucket_without_calling_novelai() {
     let ports = MemoryKernelPorts::default().with_cached_vibe_encoding(cached.clone());
     let runtime = KernelRuntime::new(ports.clone());
 
-    let ensured = block_on(runtime.ensure_vibe_encoding(EnsureVibeEncoding {
+    let ensured = block_on(runtime.context().ensure_vibe_encoding(EnsureVibeEncoding {
         vibe_id: VibeId::new("vibe-1"),
         source,
         image: "data:image/png;base64,AQID".to_owned(),
@@ -51,7 +51,7 @@ fn ensure_vibe_encoding_encodes_and_registers_cache_miss() {
     let ports = MemoryKernelPorts::default().with_encoded_vibe_payload("encoded-vibe");
     let runtime = KernelRuntime::new(ports.clone());
 
-    let ensured = block_on(runtime.ensure_vibe_encoding(EnsureVibeEncoding {
+    let ensured = block_on(runtime.context().ensure_vibe_encoding(EnsureVibeEncoding {
         vibe_id: VibeId::new("vibe-1"),
         source: source.clone(),
         image: "data:image/png;base64,AQID".to_owned(),
@@ -74,14 +74,14 @@ fn ensure_vibe_encoding_uses_normalized_value_and_source_scoped_resource_id() {
     let ports = MemoryKernelPorts::default();
     let runtime = KernelRuntime::new(ports.clone());
 
-    let first = block_on(runtime.ensure_vibe_encoding(EnsureVibeEncoding {
+    let first = block_on(runtime.context().ensure_vibe_encoding(EnsureVibeEncoding {
         vibe_id: VibeId::new("vibe-1"),
         source: VibeSourceIdentity::new_sha256("source-a"),
         image: "data:image/png;base64,AQID".to_owned(),
         settings: settings.clone(),
     }))
     .expect("first source should encode");
-    let second = block_on(runtime.ensure_vibe_encoding(EnsureVibeEncoding {
+    let second = block_on(runtime.context().ensure_vibe_encoding(EnsureVibeEncoding {
         vibe_id: VibeId::new("vibe-1"),
         source: VibeSourceIdentity::new_sha256("source-b"),
         image: "data:image/png;base64,BAUG".to_owned(),
@@ -101,7 +101,7 @@ fn imports_embedded_png_vibe_document_through_extractor_and_resources() {
     let ports = MemoryKernelPorts::default().with_embedded_vibe_document(&official_vibe("Style A"));
     let runtime = KernelRuntime::new(ports.clone());
 
-    let imported = block_on(runtime.import_embedded_png_vibe_document(
+    let imported = block_on(runtime.context().import_embedded_png_vibe_document(
         ImportEmbeddedPngVibeDocument {
             file_name: "image.png".to_owned(),
             png_bytes: vec![137, 80, 78, 71],
@@ -128,7 +128,7 @@ fn imports_image_vibe_source_and_preview_as_decoded_image_bytes() {
     let ports = MemoryKernelPorts::default();
     let runtime = KernelRuntime::new(ports.clone());
 
-    let imported = block_on(runtime.import_vibe_document(ImportVibeDocument {
+    let imported = block_on(runtime.context().import_vibe_document(ImportVibeDocument {
         file_name: "style.naiv4vibe".to_owned(),
         content: official_image_vibe("Image Style"),
     }))
@@ -155,13 +155,13 @@ fn imports_image_vibe_source_and_preview_as_decoded_image_bytes() {
 fn exports_managed_vibe_from_document_resource() {
     let ports = MemoryKernelPorts::default();
     let runtime = KernelRuntime::new(ports);
-    let imported = block_on(runtime.import_vibe_document(ImportVibeDocument {
+    let imported = block_on(runtime.context().import_vibe_document(ImportVibeDocument {
         file_name: "style.naiv4vibe".to_owned(),
         content: official_vibe("Style A"),
     }))
     .expect("official vibe should import");
 
-    let exported = block_on(runtime.export_vibe_document(ExportVibeDocument {
+    let exported = block_on(runtime.context().export_vibe_document(ExportVibeDocument {
         vibe_ids: vec![imported.entries[0].summary.document_id.clone()],
         format: VibeExportFormat::Naiv4vibe,
     }))

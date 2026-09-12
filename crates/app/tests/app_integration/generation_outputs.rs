@@ -51,6 +51,17 @@ fn gallery_resource_reads_do_not_wait_for_active_generation() {
                     .resources()
                     .get_image(GetResourceImageRequestDto { resource: imported }),
             );
+            let status = block_on(resource_app.generation().status(Some("job-1"))).unwrap();
+            assert_eq!(status.job_status.as_deref(), Some("running"));
+            block_on(resource_app.vibe().list_documents(
+                atelier_app_api::vibe::ListVibeDocumentsRequestDto {
+                    offset: 0,
+                    limit: 10,
+                    include_hidden: false,
+                    model: None,
+                },
+            ))
+            .unwrap();
             result_sender.send(result).unwrap();
         });
         let read_result = result_receiver.recv_timeout(std::time::Duration::from_secs(1));

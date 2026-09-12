@@ -33,14 +33,10 @@ where
         directive: &QueueDirectiveDto,
         snapshot: &atelier_jobs::JobQueueSnapshot,
         previous_snapshot: atelier_jobs::JobQueueSnapshot,
+        kernel: &mut atelier_kernel::KernelRuntime<crate::ports::AppKernelPorts<S, F, E>>,
     ) -> AppResult<()> {
         if let Err(error) = self.persist_queue_snapshot(directive, snapshot).await {
-            let _ = self
-                .app
-                .kernel
-                .lock()
-                .await
-                .restore_queue_snapshot(previous_snapshot);
+            kernel.restore_queue_snapshot(previous_snapshot)?;
             return Err(error);
         }
         Ok(())

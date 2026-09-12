@@ -288,3 +288,13 @@ writes the active queue and projected history through the database transaction g
 After external execution, a failed terminal commit leaves the in-memory terminal state intact;
 it must not restore an executable pre-request snapshot. Files, remote generation and SQLite
 remain separate failure boundaries, and restart recovery remains explicitly paused.
+
+### Execution ownership
+
+`WorkflowContext` shares ports and event identity without owning a queue; Director and Vibe
+use it directly. `QueueView` reads the actual queue through a short state lock, independently
+of the generation execution mutex. Generation mutation keeps an exclusive execution borrow
+through durable commit or rollback. This deliberately serializes queue writes while allowing
+unrelated workflows and status reads to proceed; pause/stop control retains its existing
+host coordination semantics. Worker loops pin the starting workspace session and stop on
+replacement, including after waits. App event cursors are assigned when events enter the hub.

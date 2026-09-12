@@ -9,12 +9,12 @@ use atelier_resource_catalog::{
 };
 
 use crate::{
-    KernelClock, KernelEventKind, KernelEventSink, KernelOutputPorts, KernelResult, KernelRuntime,
-    RanDirectorTool, RunDirectorTool,
+    KernelClock, KernelEventKind, KernelEventSink, KernelOutputPorts, KernelResult,
+    RanDirectorTool, RunDirectorTool, WorkflowContext,
 };
 
 pub async fn run_director_tool<P>(
-    runtime: &mut KernelRuntime<P>,
+    runtime: &WorkflowContext<P>,
     request: RunDirectorTool,
 ) -> KernelResult<RanDirectorTool>
 where

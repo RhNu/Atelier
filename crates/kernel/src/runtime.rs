@@ -1,15 +1,15 @@
+// Mutable execution borrows prevent overlapping workflows; QueueView exposes reads only.
+#![allow(clippy::needless_pass_by_ref_mut)]
+
 use atelier_jobs::{
     BatchStatus, JobId, JobKind, JobPayloadRef, JobQueue, JobQueueSnapshot, JobStatus,
     QueueDirective, RetryPolicy, SubmitJob,
 };
 
 use crate::{
-    EnsureVibeEncoding, EnsuredVibeEncoding, ExportVibeDocument, ExportedVibeDocument,
-    GenerationPayloadStore, ImportEmbeddedPngVibeDocument, ImportVibeDocument,
-    ImportedVibeDocuments, KernelClock, KernelError, KernelEvent, KernelEventKind, KernelEventSink,
-    KernelGenerationPorts, KernelOutputPorts, KernelResult, KernelVibePorts, RanDirectorTool,
-    RunDirectorTool, SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationWork,
-    SubmittedGenerationPayload,
+    GenerationPayloadStore, KernelClock, KernelError, KernelEventKind, KernelEventSink,
+    KernelGenerationPorts, KernelResult, SubmitGenerationBatch, SubmitGenerationBatchJob,
+    SubmitGenerationWork, SubmittedGenerationPayload,
 };
 
 pub trait GenerationTaskCancellation: Send + Sync {
@@ -24,11 +24,10 @@ impl GenerationTaskCancellation for NeverCancel {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct KernelRuntime<P> {
-    queue: JobQueue,
-    ports: P,
-    next_event_sequence: u64,
+    queue: crate::QueueView,
+    context: crate::WorkflowContext<P>,
 }
 
 impl<P> KernelRuntime<P> {
@@ -38,11 +37,10 @@ impl<P> KernelRuntime<P> {
     }
 
     #[must_use]
-    pub const fn with_retry_policy(ports: P, retry_policy: RetryPolicy) -> Self {
+    pub fn with_retry_policy(ports: P, retry_policy: RetryPolicy) -> Self {
         Self {
-            queue: JobQueue::new(retry_policy),
-            ports,
-            next_event_sequence: 0,
+            queue: crate::QueueView::new(JobQueue::new(retry_policy)),
+            context: crate::WorkflowContext::new(ports),
         }
     }
 
@@ -58,15 +56,14 @@ impl<P> KernelRuntime<P> {
         let mut queue = JobQueue::from_snapshot(snapshot)?;
         queue.recover_after_restart()?;
         Ok(Self {
-            queue,
-            ports,
-            next_event_sequence: 0,
+            queue: crate::QueueView::new(queue),
+            context: crate::WorkflowContext::new(ports),
         })
     }
 
     #[must_use]
     pub fn queue_snapshot(&self) -> JobQueueSnapshot {
-        self.queue.snapshot()
+        self.queue.lock().snapshot()
     }
 
     /// Replaces the in-memory queue with a previously captured snapshot.
@@ -78,23 +75,33 @@ impl<P> KernelRuntime<P> {
     /// # Errors
     /// Returns an error when the supplied snapshot is internally inconsistent.
     pub fn restore_queue_snapshot(&mut self, snapshot: JobQueueSnapshot) -> KernelResult<()> {
-        self.queue = JobQueue::from_snapshot(snapshot)?;
+        *self.queue.lock() = JobQueue::from_snapshot(snapshot)?;
         Ok(())
     }
 
     #[must_use]
-    pub const fn ports(&self) -> &P {
-        &self.ports
+    pub fn ports(&self) -> &P {
+        self.context.ports()
+    }
+
+    #[must_use]
+    pub const fn context(&self) -> &crate::WorkflowContext<P> {
+        &self.context
+    }
+
+    #[must_use]
+    pub fn queue_view(&self) -> crate::QueueView {
+        self.queue.clone()
     }
 
     #[must_use]
     pub fn batch_status(&self) -> Option<BatchStatus> {
-        self.queue.batch_status()
+        self.queue.lock().batch_status()
     }
 
     #[must_use]
     pub fn job_status(&self, job_id: &JobId) -> Option<JobStatus> {
-        self.queue.job_status(job_id)
+        self.queue.lock().job_status(job_id)
     }
 
     /// Requests a pause without cancelling a running job.
@@ -102,7 +109,7 @@ impl<P> KernelRuntime<P> {
     /// # Errors
     /// Returns an error when the active queue cannot be paused.
     pub fn pause(&mut self) -> KernelResult<QueueDirective> {
-        self.queue.pause().map_err(KernelError::from)
+        self.queue.lock().pause().map_err(KernelError::from)
     }
 
     /// Resumes a paused batch.
@@ -110,7 +117,7 @@ impl<P> KernelRuntime<P> {
     /// # Errors
     /// Returns an error when no paused batch can be resumed.
     pub fn resume(&mut self) -> KernelResult<QueueDirective> {
-        self.queue.resume().map_err(KernelError::from)
+        self.queue.lock().resume().map_err(KernelError::from)
     }
 
     /// Requests a graceful stop for the active batch.
@@ -118,7 +125,7 @@ impl<P> KernelRuntime<P> {
     /// # Errors
     /// Returns an error when there is no stoppable active batch.
     pub fn stop(&mut self) -> KernelResult<QueueDirective> {
-        self.queue.stop().map_err(KernelError::from)
+        self.queue.lock().stop().map_err(KernelError::from)
     }
 
     /// Tells the queue that the current delay elapsed.
@@ -126,22 +133,13 @@ impl<P> KernelRuntime<P> {
     /// # Errors
     /// Returns an error when the active queue is not waiting on a delay.
     pub fn delay_elapsed(&mut self) -> KernelResult<QueueDirective> {
-        self.queue.delay_elapsed().map_err(KernelError::from)
+        self.queue.lock().delay_elapsed().map_err(KernelError::from)
     }
 }
 
-impl<P> KernelRuntime<P>
-where
-    P: KernelEventSink,
-{
-    pub(crate) async fn emit(&mut self, kind: KernelEventKind) {
-        self.next_event_sequence += 1;
-        self.ports
-            .emit(KernelEvent {
-                sequence: self.next_event_sequence,
-                kind,
-            })
-            .await;
+impl<P: KernelEventSink> KernelRuntime<P> {
+    pub(crate) async fn emit(&self, kind: KernelEventKind) {
+        self.context.emit(kind).await;
     }
 }
 
@@ -196,10 +194,13 @@ where
                 payload_ref,
             });
         }
-        let mut candidate_queue = self.queue.clone();
+        let mut candidate_queue = self.queue.lock().clone();
         let directive = candidate_queue.submit_batch(batch.batch_id.clone(), jobs)?;
-        self.ports.save_submitted_payloads(payloads).await?;
-        self.queue = candidate_queue;
+        self.context
+            .ports()
+            .save_submitted_payloads(payloads)
+            .await?;
+        *self.queue.lock() = candidate_queue;
         self.emit(KernelEventKind::BatchSubmitted {
             batch_id: batch.batch_id,
         })
@@ -233,7 +234,10 @@ where
     }
 
     pub(crate) fn mark_preparing(&mut self, job_id: &JobId) -> KernelResult<QueueDirective> {
-        self.queue.mark_preparing(job_id).map_err(KernelError::from)
+        self.queue
+            .lock()
+            .mark_preparing(job_id)
+            .map_err(KernelError::from)
     }
 
     pub(crate) fn mark_running(
@@ -242,12 +246,16 @@ where
         payload_ref: JobPayloadRef,
     ) -> KernelResult<QueueDirective> {
         self.queue
+            .lock()
             .mark_running(job_id, payload_ref)
             .map_err(KernelError::from)
     }
 
     pub(crate) fn mark_succeeded(&mut self, job_id: &JobId) -> KernelResult<QueueDirective> {
-        self.queue.mark_succeeded(job_id).map_err(KernelError::from)
+        self.queue
+            .lock()
+            .mark_succeeded(job_id)
+            .map_err(KernelError::from)
     }
 
     pub(crate) fn mark_failed(
@@ -256,82 +264,13 @@ where
         impact: atelier_jobs::JobFailureImpact,
     ) -> KernelResult<QueueDirective> {
         self.queue
+            .lock()
             .mark_failed(job_id, impact)
             .map_err(KernelError::from)
     }
 
-    pub(crate) const fn retry_policy(&self) -> RetryPolicy {
-        self.queue.retry_policy()
-    }
-}
-
-impl<P> KernelRuntime<P>
-where
-    P: KernelClock + KernelOutputPorts + atelier_director::NovelAiDirectorClient + KernelEventSink,
-{
-    /// Runs one Director tool request and indexes the produced image.
-    ///
-    /// # Errors
-    /// Returns an error when the Director client fails or persistence/indexing
-    /// cannot complete.
-    pub async fn run_director_tool(
-        &mut self,
-        request: RunDirectorTool,
-    ) -> KernelResult<RanDirectorTool> {
-        crate::workflow::director::run_director_tool(self, request).await
-    }
-}
-
-impl<P> KernelRuntime<P>
-where
-    P: KernelVibePorts,
-{
-    /// Imports official Vibe JSON and registers its document resources.
-    ///
-    /// # Errors
-    /// Returns an error when the document is invalid, resource registration
-    /// fails, or repository persistence fails.
-    pub async fn import_vibe_document(
-        &self,
-        request: ImportVibeDocument,
-    ) -> KernelResult<ImportedVibeDocuments> {
-        crate::workflow::vibe::import_vibe_document(self, request).await
-    }
-
-    /// Extracts an embedded Vibe document from PNG bytes and imports it.
-    ///
-    /// # Errors
-    /// Returns an error when extraction, import, resource registration, or
-    /// repository persistence fails.
-    pub async fn import_embedded_png_vibe_document(
-        &self,
-        request: ImportEmbeddedPngVibeDocument,
-    ) -> KernelResult<ImportedVibeDocuments> {
-        crate::workflow::vibe::import_embedded_png_vibe_document(self, request).await
-    }
-
-    /// Exports one or more managed Vibes as official JSON.
-    ///
-    /// # Errors
-    /// Returns an error when a Vibe cannot be found, its document resource
-    /// cannot be read, or the requested format is invalid for the selection.
-    pub async fn export_vibe_document(
-        &self,
-        request: ExportVibeDocument,
-    ) -> KernelResult<ExportedVibeDocument> {
-        crate::workflow::vibe::export_vibe_document(self, request).await
-    }
-
-    /// Ensures a model/settings-specific Vibe encoding exists for a source image.
-    ///
-    /// # Errors
-    /// Returns an error when cache lookup, `NovelAI` encoding, resource
-    /// registration, or cache persistence fails.
-    pub async fn ensure_vibe_encoding(
-        &self,
-        request: EnsureVibeEncoding,
-    ) -> KernelResult<EnsuredVibeEncoding> {
-        crate::workflow::vibe::ensure_vibe_encoding(self, request).await
+    pub(crate) fn retry_policy(&self) -> RetryPolicy {
+        self.queue.lock().retry_policy()
     }
 }
 

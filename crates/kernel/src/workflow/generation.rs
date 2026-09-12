@@ -1,3 +1,6 @@
+// Mutable execution borrows prevent overlapping workflows; QueueView exposes reads only.
+#![allow(clippy::needless_pass_by_ref_mut)]
+
 use atelier_artifacts::{
     ArtifactId, ArtifactKind, ArtifactMetadata, ArtifactReplayManifest, ArtifactSource,
     EmbeddedMetadataStatus, EmbeddedMetadataWarning, RegisterArtifactRequest, VisualAssetRef,

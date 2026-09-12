@@ -248,15 +248,9 @@ where
             .await
             .map(queue_directive_to_dto)?;
         let snapshot = kernel.queue_snapshot();
-        drop(kernel);
         let persist_result = self.persist_queue_snapshot(&directive, &snapshot).await;
         if let Err(error) = persist_result {
-            let _ = self
-                .app
-                .kernel
-                .lock()
-                .await
-                .restore_queue_snapshot(previous_snapshot);
+            let _ = kernel.restore_queue_snapshot(previous_snapshot);
             return Err(error);
         }
         let record = upsert_generation_history_record(
@@ -275,6 +269,7 @@ where
             },
         )
         .await?;
+        drop(kernel);
         Ok(RerunGenerationHistoryItemResponseDto {
             directive,
             item: run_history_item_to_dto(record, Vec::new()),
@@ -323,14 +318,8 @@ where
             .await
             .map(queue_directive_to_dto)?;
         let snapshot = kernel.queue_snapshot();
-        drop(kernel);
         if let Err(error) = self.persist_queue_snapshot(&directive, &snapshot).await {
-            let _ = self
-                .app
-                .kernel
-                .lock()
-                .await
-                .restore_queue_snapshot(previous_snapshot);
+            let _ = kernel.restore_queue_snapshot(previous_snapshot);
             return Err(error);
         }
 
@@ -338,6 +327,7 @@ where
             .record_generation_batch_rerun(&request, &sources)
             .await?;
         let aggregate = aggregate_generation_batch(&request.batch_id, &rerun_records);
+        drop(kernel);
         Ok(RerunGenerationHistoryBatchResponseDto {
             directive,
             batch: generation_history_batch_to_dto(aggregate, 0, 0, Vec::new()),

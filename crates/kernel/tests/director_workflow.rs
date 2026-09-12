@@ -11,9 +11,10 @@ use support::MemoryKernelPorts;
 fn director_tool_result_is_persisted_and_indexed() {
     block_on(async {
         let ports = MemoryKernelPorts::default().with_director_output(vec![4, 5, 6], Some(7));
-        let mut runtime = KernelRuntime::new(ports.clone());
+        let runtime = KernelRuntime::new(ports.clone());
 
         let result = runtime
+            .context()
             .run_director_tool(RunDirectorTool {
                 run_id: "director-1".to_owned(),
                 request: RunDirectorToolRequest {
@@ -65,9 +66,10 @@ fn director_safety_failure_is_reported_without_blocking_gallery_indexing() {
         let ports = MemoryKernelPorts::default()
             .with_director_output(vec![4, 5, 6], Some(7))
             .failing_safety();
-        let mut runtime = KernelRuntime::new(ports.clone());
+        let runtime = KernelRuntime::new(ports.clone());
 
         let result = runtime
+            .context()
             .run_director_tool(RunDirectorTool {
                 run_id: "director-1".to_owned(),
                 request: RunDirectorToolRequest {

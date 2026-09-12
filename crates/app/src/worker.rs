@@ -4,7 +4,7 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 
-use atelier_app_api::generation::{QueueDelayDto, QueueDirectiveDto, RunGenerationJobRequestDto};
+use atelier_app_api::generation::{QueueDelayDto, QueueDirectiveDto};
 use futures_timer::Delay;
 
 use crate::commands::{AtelierRuntime, CommandResult};
@@ -60,24 +60,37 @@ where
         mut directive: QueueDirectiveDto,
         cancel: GenerationWorkerCancel,
     ) -> CommandResult<QueueDirectiveDto> {
+        let session = self.current_session()?;
         loop {
+            if !self
+                .current_session_optional()?
+                .is_some_and(|current| Arc::ptr_eq(&current, &session))
+            {
+                return Ok(QueueDirectiveDto::Idle);
+            }
             if cancel.is_cancelled() {
                 return Ok(directive);
             }
             match directive {
                 QueueDirectiveDto::StartJob { job_id } => {
-                    directive = self
-                        .run_generation_job_cancellable(
-                            RunGenerationJobRequestDto { job_id },
-                            &cancel,
-                        )
-                        .await?;
+                    directive = Self::command_result(
+                        session
+                            .generation()
+                            .run_job_cancellable(&job_id, &cancel)
+                            .await,
+                    )?;
                 }
                 QueueDirectiveDto::Wait { delay } => {
                     if !wait_for_queue_delay(delay, &cancel).await {
                         return Ok(QueueDirectiveDto::Wait { delay });
                     }
-                    directive = self.generation_delay_elapsed().await?;
+                    if !self
+                        .current_session_optional()?
+                        .is_some_and(|current| Arc::ptr_eq(&current, &session))
+                    {
+                        return Ok(QueueDirectiveDto::Idle);
+                    }
+                    directive = Self::command_result(session.generation().delay_elapsed().await)?;
                 }
                 QueueDirectiveDto::Paused | QueueDirectiveDto::Idle => return Ok(directive),
             }

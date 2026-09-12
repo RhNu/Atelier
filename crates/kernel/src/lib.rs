@@ -21,3 +21,9 @@ pub use ports::{
     KernelVibePorts,
 };
 pub use runtime::{GenerationTaskCancellation, KernelRuntime};
+
+mod context;
+pub use context::WorkflowContext;
+
+mod queue_view;
+pub use queue_view::QueueView;

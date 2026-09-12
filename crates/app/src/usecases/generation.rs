@@ -87,8 +87,7 @@ where
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
-        drop(kernel);
-        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot, &mut kernel)
             .await?;
         for (job_id, title, position) in history_positions {
             self.upsert_generation_history(
@@ -104,6 +103,7 @@ where
             )
             .await?;
         }
+        drop(kernel);
         Ok(directive)
     }
 
@@ -128,7 +128,6 @@ where
             .await;
         let snapshot = kernel.queue_snapshot();
         let job_status = kernel.job_status(&JobId::new(job_id));
-        drop(kernel);
 
         let directive = match result {
             Ok(directive) => queue_directive_to_dto(directive),
@@ -148,6 +147,7 @@ where
         );
         self.update_generation_history_status(job_id, status, None)
             .await?;
+        drop(kernel);
         Ok(directive)
     }
 
@@ -159,9 +159,9 @@ where
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
-        drop(kernel);
-        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot, &mut kernel)
             .await?;
+        drop(kernel);
         Ok(directive)
     }
 
@@ -173,9 +173,9 @@ where
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
-        drop(kernel);
-        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot, &mut kernel)
             .await?;
+        drop(kernel);
         Ok(directive)
     }
 
@@ -187,9 +187,9 @@ where
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
-        drop(kernel);
-        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot, &mut kernel)
             .await?;
+        drop(kernel);
         Ok(directive)
     }
 
@@ -201,14 +201,14 @@ where
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
-        drop(kernel);
-        self.persist_or_restore(&directive, &snapshot, previous_snapshot)
+        self.persist_or_restore(&directive, &snapshot, previous_snapshot, &mut kernel)
             .await?;
+        drop(kernel);
         Ok(directive)
     }
 
     pub async fn status(&self, job_id: Option<&str>) -> AppResult<GenerationStatusDto> {
-        let snapshot = self.app.kernel.lock().await.queue_snapshot().active_batch;
+        let snapshot = self.app.queue.snapshot().active_batch;
         let history = if let Some(active) = &snapshot {
             self.app
                 .run_history

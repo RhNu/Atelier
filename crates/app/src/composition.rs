@@ -135,6 +135,8 @@ where
             safety_scanner,
             queue_repository,
             run_history,
+            queue: kernel.queue_view(),
+            workflows: kernel.context().clone(),
             kernel: Mutex::new(kernel),
             events,
         })

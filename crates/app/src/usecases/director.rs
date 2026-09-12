@@ -60,11 +60,10 @@ where
         };
         self.upsert_director_history(&run_id, title.clone(), RunHistoryStatus::Running, None)
             .await?;
-        let mut kernel = self.app.kernel.lock().await;
+        let kernel = &self.app.workflows;
         let result = match kernel.run_director_tool(work).await {
             Ok(result) => result,
             Err(error) => {
-                drop(kernel);
                 let app_error = AppError::from(error);
                 self.upsert_director_history(
                     &run_id,
@@ -76,7 +75,6 @@ where
                 return Err(app_error);
             }
         };
-        drop(kernel);
         self.upsert_director_history(&run_id, title, RunHistoryStatus::Succeeded, None)
             .await?;
         Ok(DirectorToolResultDto {
