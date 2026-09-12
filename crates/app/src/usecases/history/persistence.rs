@@ -37,7 +37,7 @@ pub(super) async fn ensure_generation_history_target_is_new(
     Ok(())
 }
 
-pub async fn upsert_generation_history_record(
+pub async fn project_generation_history(
     repository: &DatabaseRunHistoryRepository,
     batch_id: &str,
     job_id: &str,
@@ -81,10 +81,6 @@ pub async fn upsert_generation_history_record(
         completed_at_ms: status_is_terminal(update.status).then_some(now),
         recoverable: update.status == RunHistoryStatus::Paused,
     };
-    repository
-        .upsert_run_history(record.clone())
-        .await
-        .map_err(|error| AppError::new("run_history", error.to_string()))?;
     Ok(record)
 }
 

@@ -12,10 +12,10 @@ use super::{
     SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, VibeReference, VibeTransferConfig,
     VibeTransferConfigDto, WorkspaceSession, characters_to_domain, generation_status_to_dto,
     generation_work_title, image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
-    plan_context_to_domain, quality_preset_to_domain, quality_preset_to_dto,
-    queue_directive_to_dto, resource_ref_from_dto, run_history_status_from_job_status,
-    sampler_to_domain, stream_mode_to_domain, uc_preset_to_domain,
-    upsert_generation_history_record,
+    plan_context_to_domain, project_generation_history, quality_preset_to_domain,
+    quality_preset_to_dto, queue_directive_to_dto, resource_ref_from_dto,
+    run_history_status_from_job_status, sampler_to_domain, stream_mode_to_domain,
+    uc_preset_to_domain,
 };
 pub struct GenerationUseCases<'a, S, F, E> {
     pub(crate) app: &'a WorkspaceSession<S, F, E>,
@@ -79,7 +79,31 @@ where
             })
             .collect::<Vec<_>>();
         let work = self.submit_batch_request_to_domain(request).await?;
+        let mut records = Vec::new();
+        for (job_id, title, position) in history_positions {
+            records.push(
+                project_generation_history(
+                    &self.app.run_history,
+                    &batch_id,
+                    &job_id,
+                    GenerationHistoryUpdate {
+                        status: RunHistoryStatus::Queued,
+                        title,
+                        origin_run_id: None,
+                        last_error: None,
+                        position: Some(position),
+                    },
+                )
+                .await?,
+            );
+        }
         let mut kernel = self.app.kernel.lock().await;
+        ensure_generation_batch_target_is_new(
+            &self.app.run_history,
+            &batch_id,
+            records.iter().map(|record| record.run_id.as_str()),
+        )
+        .await?;
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .submit_generation_batch(work)
@@ -87,22 +111,8 @@ where
             .map(queue_directive_to_dto)
             .map_err(AppError::from)?;
         let snapshot = kernel.queue_snapshot();
-        self.persist_or_restore(&directive, &snapshot, previous_snapshot, &mut kernel)
+        self.commit_submission(&snapshot, records, previous_snapshot, &mut kernel)
             .await?;
-        for (job_id, title, position) in history_positions {
-            self.upsert_generation_history(
-                &batch_id,
-                &job_id,
-                GenerationHistoryUpdate {
-                    status: RunHistoryStatus::Queued,
-                    title,
-                    origin_run_id: None,
-                    last_error: None,
-                    position: Some(position),
-                },
-            )
-            .await?;
-        }
         drop(kernel);
         Ok(directive)
     }
@@ -452,7 +462,14 @@ where
         job_id: &str,
         update: GenerationHistoryUpdate,
     ) -> AppResult<RunHistoryRecord> {
-        upsert_generation_history_record(&self.app.run_history, batch_id, job_id, update).await
+        let record =
+            project_generation_history(&self.app.run_history, batch_id, job_id, update).await?;
+        self.app
+            .run_history
+            .upsert_run_history(record.clone())
+            .await
+            .map_err(|error| AppError::new("run_history", error.to_string()))?;
+        Ok(record)
     }
 
     async fn update_generation_history_status(

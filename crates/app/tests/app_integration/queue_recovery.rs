@@ -112,3 +112,39 @@ fn failed_terminal_commit_keeps_outputs_and_does_not_reissue_generation() {
         assert_eq!(factory.generated_requests().len(), 1);
     });
 }
+
+#[test]
+fn submission_metadata_failure_rolls_back_queue_and_history_together() {
+    block_on(async {
+        let temp = tempfile::tempdir().unwrap();
+        let app = test_app_with_image(&temp, valid_png_bytes(2, 1)).await;
+        let connection = rusqlite::Connection::open(workspace_database_path(&WorkspaceRoot::new(
+            temp.path().to_path_buf(),
+        )))
+        .unwrap();
+        connection.execute_batch("CREATE TRIGGER reject_history_title BEFORE INSERT ON run_history WHEN NEW.title IS NOT NULL BEGIN SELECT RAISE(ABORT, 'metadata failure'); END;").unwrap();
+        assert!(
+            app.generation()
+                .submit(submit_request("batch", "job", "1girl"))
+                .await
+                .is_err()
+        );
+        assert!(
+            app.generation()
+                .status(None)
+                .await
+                .unwrap()
+                .batch_id
+                .is_none()
+        );
+        let rows: i64 = connection.query_row("SELECT (SELECT COUNT(*) FROM generation_queue_state) + (SELECT COUNT(*) FROM run_history)", [], |row| row.get(0)).unwrap();
+        assert_eq!(rows, 0);
+        connection
+            .execute_batch("DROP TRIGGER reject_history_title;")
+            .unwrap();
+        app.generation()
+            .submit(submit_request("batch", "job", "1girl"))
+            .await
+            .unwrap();
+    });
+}

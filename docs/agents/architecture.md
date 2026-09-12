@@ -298,3 +298,7 @@ through durable commit or rollback. This deliberately serializes queue writes wh
 unrelated workflows and status reads to proceed; pause/stop control retains its existing
 host coordination semantics. Worker loops pin the starting workspace session and stop on
 replacement, including after waits. App event cursors are assigned when events enter the hub.
+
+Initial history metadata (title, sample count, position and replay origin) is projected before
+submission and committed with queue state. Submission and replay recheck target uniqueness
+under the generation mutation lock; no separate post-submit metadata write is required.

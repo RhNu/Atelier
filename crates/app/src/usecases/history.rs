@@ -1,5 +1,4 @@
 use atelier_adapter_novelai::NovelAiClientFactory;
-use atelier_app_api::generation::QueueDirectiveDto;
 use atelier_app_api::history::{
     DeleteGenerationHistoryBatchesRequestDto, DeleteGenerationHistoryBatchesResponseDto,
     DeleteRunHistoryItemsRequestDto, DeleteRunHistoryItemsResponseDto,
@@ -8,10 +7,9 @@ use atelier_app_api::history::{
     RerunGenerationHistoryBatchResponseDto, RerunGenerationHistoryItemRequestDto,
     RerunGenerationHistoryItemResponseDto, RunHistoryPageDto, RunHistoryQueryDto,
 };
-use atelier_jobs::GenerationStore;
 use atelier_jobs::{
-    BatchId, JobId, JobPayloadRef, JobQueueSnapshot, RunHistoryKind, RunHistoryRecord,
-    RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState,
+    BatchId, JobId, JobPayloadRef, RunHistoryKind, RunHistoryRecord, RunHistoryRepository,
+    RunHistoryStatus, RunOutputRecord, RunOutputState,
 };
 use atelier_kernel::{
     GenerationPayloadStore, SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationWork,
@@ -25,7 +23,7 @@ mod projection;
 
 pub use persistence::{
     GenerationHistoryPosition, GenerationHistoryUpdate,
-    generation_history_records_from_queue_snapshot, upsert_generation_history_record,
+    generation_history_records_from_queue_snapshot, project_generation_history,
 };
 
 use persistence::ensure_generation_history_target_is_new;
@@ -235,25 +233,7 @@ where
         }
         .ok_or_else(|| AppError::new("history_not_found", "submitted payload does not exist"))?;
         let title = submitted.request.prompt().to_owned();
-        let mut kernel = self.app.kernel.lock().await;
-        let previous_snapshot = kernel.queue_snapshot();
-        let directive = kernel
-            .submit_generation_work(SubmitGenerationWork {
-                compiled_prompt: submitted.compiled_prompt,
-                batch_id: BatchId::new(request.batch_id.clone()),
-                job_id: JobId::new(request.job_id.clone()),
-                request: submitted.request,
-                context: submitted.context,
-            })
-            .await
-            .map(queue_directive_to_dto)?;
-        let snapshot = kernel.queue_snapshot();
-        let persist_result = self.persist_queue_snapshot(&directive, &snapshot).await;
-        if let Err(error) = persist_result {
-            let _ = kernel.restore_queue_snapshot(previous_snapshot);
-            return Err(error);
-        }
-        let record = upsert_generation_history_record(
+        let record = project_generation_history(
             &self.app.run_history,
             &request.batch_id,
             &request.job_id,
@@ -269,6 +249,34 @@ where
             },
         )
         .await?;
+        let mut kernel = self.app.kernel.lock().await;
+        ensure_generation_history_target_is_new(
+            &self.app.run_history,
+            &request.batch_id,
+            &request.job_id,
+        )
+        .await?;
+        let previous_snapshot = kernel.queue_snapshot();
+        let directive = kernel
+            .submit_generation_work(SubmitGenerationWork {
+                compiled_prompt: submitted.compiled_prompt,
+                batch_id: BatchId::new(request.batch_id.clone()),
+                job_id: JobId::new(request.job_id.clone()),
+                request: submitted.request,
+                context: submitted.context,
+            })
+            .await
+            .map(queue_directive_to_dto)?;
+        let snapshot = kernel.queue_snapshot();
+        self.app
+            .generation()
+            .commit_submission(
+                &snapshot,
+                vec![record.clone()],
+                previous_snapshot,
+                &mut kernel,
+            )
+            .await?;
         drop(kernel);
         Ok(RerunGenerationHistoryItemResponseDto {
             directive,
@@ -307,7 +315,10 @@ where
                 request: payload.request,
             })
             .collect();
+        let rerun_records = self.project_batch_rerun(&request, &sources).await?;
         let mut kernel = self.app.kernel.lock().await;
+        self.validate_generation_batch_rerun(&request, &sources)
+            .await?;
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .submit_generation_batch(SubmitGenerationBatch {
@@ -318,13 +329,14 @@ where
             .await
             .map(queue_directive_to_dto)?;
         let snapshot = kernel.queue_snapshot();
-        if let Err(error) = self.persist_queue_snapshot(&directive, &snapshot).await {
-            let _ = kernel.restore_queue_snapshot(previous_snapshot);
-            return Err(error);
-        }
-
-        let rerun_records = self
-            .record_generation_batch_rerun(&request, &sources)
+        self.app
+            .generation()
+            .commit_submission(
+                &snapshot,
+                rerun_records.clone(),
+                previous_snapshot,
+                &mut kernel,
+            )
             .await?;
         let aggregate = aggregate_generation_batch(&request.batch_id, &rerun_records);
         drop(kernel);
@@ -388,7 +400,7 @@ where
         Ok(payloads)
     }
 
-    async fn record_generation_batch_rerun(
+    async fn project_batch_rerun(
         &self,
         request: &RerunGenerationHistoryBatchRequestDto,
         sources: &[RunHistoryRecord],
@@ -398,7 +410,7 @@ where
             sources.iter().zip(request.job_ids.iter()).enumerate()
         {
             records.push(
-                upsert_generation_history_record(
+                project_generation_history(
                     &self.app.run_history,
                     &request.batch_id,
                     job_id,
@@ -465,21 +477,6 @@ where
                     AppError::from(error)
                 }
             })
-    }
-
-    async fn persist_queue_snapshot(
-        &self,
-        directive: &QueueDirectiveDto,
-        snapshot: &JobQueueSnapshot,
-    ) -> AppResult<()> {
-        let history =
-            generation_history_records_from_queue_snapshot(&self.app.run_history, snapshot).await?;
-        let durable_snapshot = (!matches!(directive, QueueDirectiveDto::Idle)).then_some(snapshot);
-        self.app
-            .queue_repository
-            .commit(durable_snapshot, history)
-            .await
-            .map_err(|error| AppError::new("job_queue", error.to_string()))
     }
 
     async fn ensure_rerun_target_is_new(

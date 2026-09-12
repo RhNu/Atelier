@@ -5,6 +5,8 @@
 
 ## 执行记录
 
+- 批次 7：新提交、单项重放与批量重放先投影完整历史，再复用 commit_submission 原子提交；目标唯一性在生成锁内复核。新增 metadata 写入失败导致队列/历史一起回滚的生产入口测试。
+
 - 批次 6：WorkflowContext 共享实际服务，Vibe/Director 不再持有生成锁；QueueView 独立提供短锁状态读取。生成变更锁覆盖状态与持久化，保持单队列串行写语义；worker 固定 session 并检查替换身份。新增阻塞网络下状态/Vibe 读取及旧 worker 不推进新 workspace 回归。
 
 - 批次 5：共享 KernelOutputPorts，按输出事实直接记录 generation/Director 历史，移除 Gallery 全量反查；GenerationStore 端口定义队列/历史原子 commit，删除 split save/clear；已发生生成后的持久化失败保留终态，加入故障注入回归。

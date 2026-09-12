@@ -13,6 +13,25 @@ where
     F: NovelAiClientFactory + Clone + Send + Sync,
     E: EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
 {
+    pub(crate) async fn commit_submission(
+        &self,
+        snapshot: &atelier_jobs::JobQueueSnapshot,
+        records: Vec<atelier_jobs::RunHistoryRecord>,
+        previous: atelier_jobs::JobQueueSnapshot,
+        kernel: &mut atelier_kernel::KernelRuntime<crate::ports::AppKernelPorts<S, F, E>>,
+    ) -> AppResult<()> {
+        if let Err(error) = self
+            .app
+            .queue_repository
+            .commit(Some(snapshot), records)
+            .await
+        {
+            kernel.restore_queue_snapshot(previous)?;
+            return Err(AppError::new("job_queue", error.to_string()));
+        }
+        Ok(())
+    }
+
     pub(crate) async fn persist_queue_snapshot(
         &self,
         directive: &QueueDirectiveDto,
