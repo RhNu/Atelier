@@ -8,6 +8,7 @@ mod events;
 mod input;
 mod mapping;
 mod ports;
+mod prompt_preparation;
 mod runtime;
 mod session;
 mod usecases;

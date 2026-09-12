@@ -63,6 +63,8 @@ struct TestApp {
 mod director_safety_history;
 #[path = "app_integration/generation_outputs.rs"]
 mod generation_outputs;
+#[path = "app_integration/prompt_snapshot.rs"]
+mod prompt_snapshot;
 #[path = "app_integration/queue_recovery.rs"]
 mod queue_recovery;
 #[path = "app_integration/reference_inputs.rs"]

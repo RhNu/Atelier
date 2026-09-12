@@ -6,11 +6,10 @@ use atelier_artifacts::{
 use atelier_gallery::GallerySafetyState;
 use atelier_generation::{
     GenerateImageStreamRequest, GeneratedImageMetadata, GeneratedImageMetadataWarning,
-    GenerationClientError, GenerationOutputMode, GenerationRequestPlan, ImageModel,
-    plan_generation_request, plan_generation_stream_request,
+    GenerationClientError, GenerationOutputMode, GenerationRequestPlan, plan_generation_request,
+    plan_generation_stream_request,
 };
 use atelier_jobs::{JobFailureImpact, JobId, QueueDelay, QueueDirective, RetryPolicy};
-use atelier_prompt_resources::{CompilePromptRequest, PromptResourceResult};
 use atelier_resource_catalog::{
     BlobWriteIntent, RegisterResourceRequest, ResourceId, ResourceKind, ResourceLifecycle,
     ResourceOwner, ResourceOwnerKind, ResourceRelation, ResourceVariantKind,
@@ -18,9 +17,8 @@ use atelier_resource_catalog::{
 
 use crate::runtime::{prepared_payload_ref, submitted_payload_ref};
 use crate::{
-    CompiledGenerationCharacterPrompts, CompiledGenerationPrompts, GenerationPayloadStore,
-    GenerationWorkRequest, KernelClock, KernelError, KernelEventKind, KernelEventSink,
-    KernelFailureDetail, KernelGenerationPorts, KernelResult, KernelRuntime,
+    GenerationPayloadStore, GenerationWorkRequest, KernelClock, KernelError, KernelEventKind,
+    KernelEventSink, KernelFailureDetail, KernelGenerationPorts, KernelResult, KernelRuntime,
     PreparedGenerationPayload,
 };
 
@@ -46,23 +44,25 @@ where
         })
         .await;
 
-    let compiled = match compile_generation_prompts(runtime.ports(), &submitted.request).await {
-        Ok(compiled) => compiled,
-        Err(error) => {
-            let error = KernelError::from(error);
-            fail_job(runtime, &submitted.batch_id, job_id, &error.to_string()).await?;
-            return Err(error);
-        }
+    let (request, compiled_prompt) = match &submitted.compiled_prompt {
+        Some(prompt) => (submitted.request.clone(), prompt.clone()),
+        None => match super::legacy_prompt::resolve(runtime.ports(), &submitted.request).await {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                let error = KernelError::from(error);
+                fail_job(runtime, &submitted.batch_id, job_id, &error.to_string()).await?;
+                return Err(error);
+            }
+        },
     };
     runtime
         .emit(KernelEventKind::PromptCompiled {
             batch_id: submitted.batch_id.clone(),
             job_id: job_id.clone(),
-            expanded_prompt: compiled.prompt.expanded_prompt.clone(),
+            expanded_prompt: compiled_prompt.expanded_prompt.clone(),
         })
         .await;
 
-    let request = submitted.request.clone().with_compiled_prompts(&compiled);
     let plan = match plan_request(request.clone(), submitted.context) {
         Ok(plan) => plan,
         Err(error) => {
@@ -87,7 +87,7 @@ where
             batch_id: submitted.batch_id.clone(),
             job_id: job_id.clone(),
             request,
-            compiled_prompt: compiled.prompt.clone(),
+            compiled_prompt: compiled_prompt.clone(),
             plan: plan.clone(),
         })
         .await
@@ -104,7 +104,7 @@ where
                 &submitted.batch_id,
                 job_id,
                 &prepared_ref,
-                &compiled.prompt.expanded_prompt,
+                &compiled_prompt.expanded_prompt,
                 &plan,
             )
             .await
@@ -119,7 +119,7 @@ where
                 &submitted.batch_id,
                 job_id,
                 &prepared_ref,
-                &compiled.prompt.expanded_prompt,
+                &compiled_prompt.expanded_prompt,
                 &plan,
                 request,
                 cancellation,
@@ -127,61 +127,6 @@ where
             .await
         }
     }
-}
-
-async fn compile_generation_prompts<P>(
-    ports: &P,
-    request: &GenerationWorkRequest,
-) -> PromptResourceResult<CompiledGenerationPrompts>
-where
-    P: KernelGenerationPorts,
-{
-    let model = request.model();
-    let prompt = ports
-        .compile_prompt(CompilePromptRequest::new(request.prompt(), model))
-        .await?;
-    let negative_prompt = compile_optional_prompt(ports, request.negative_prompt(), model).await?;
-    let mut characters = Vec::new();
-    if let Some(request_characters) = request.characters() {
-        characters.reserve(request_characters.len());
-        for character in request_characters {
-            characters.push(CompiledGenerationCharacterPrompts {
-                prompt: compile_optional_prompt(ports, Some(character.prompt.as_str()), model)
-                    .await?,
-                negative_prompt: compile_optional_prompt(
-                    ports,
-                    character.negative_prompt.as_deref(),
-                    model,
-                )
-                .await?,
-            });
-        }
-    }
-    Ok(CompiledGenerationPrompts {
-        prompt,
-        negative_prompt,
-        characters,
-    })
-}
-
-async fn compile_optional_prompt<P>(
-    ports: &P,
-    prompt: Option<&str>,
-    model: ImageModel,
-) -> PromptResourceResult<Option<atelier_prompt_resources::CompiledPrompt>>
-where
-    P: KernelGenerationPorts,
-{
-    let Some(prompt) = prompt else {
-        return Ok(None);
-    };
-    if prompt.trim().is_empty() {
-        return Ok(None);
-    }
-    ports
-        .compile_prompt(CompilePromptRequest::new(prompt, model))
-        .await
-        .map(Some)
 }
 
 fn plan_request(

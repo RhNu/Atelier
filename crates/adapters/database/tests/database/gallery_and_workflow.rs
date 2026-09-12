@@ -323,6 +323,7 @@ fn generation_workflow_can_use_database_backed_payload_resource_artifact_and_gal
 
         runtime
             .submit_generation_work(SubmitGenerationWork {
+                compiled_prompt: None,
                 batch_id: BatchId::new("batch-db"),
                 job_id: job_id.clone(),
                 request: GenerationWorkRequest::Image(GenerateImageRequest {

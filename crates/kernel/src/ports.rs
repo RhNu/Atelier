@@ -47,7 +47,7 @@ pub trait GenerationPayloadStore: Send + Sync {
 pub trait KernelGenerationPorts:
     NovelAiGenerationClient + GeneratedImageMetadataInspector + Send + Sync
 {
-    async fn compile_prompt(
+    async fn compile_legacy_prompt(
         &self,
         request: CompilePromptRequest,
     ) -> PromptResourceResult<CompiledPrompt>;

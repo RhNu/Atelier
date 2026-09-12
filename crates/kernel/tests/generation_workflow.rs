@@ -230,6 +230,7 @@ fn generation_workflow_compiles_negative_and_character_prompt_scopes() {
 
         runtime
             .submit_generation_work(SubmitGenerationWork {
+                compiled_prompt: None,
                 batch_id: BatchId::new("batch-compile-scopes"),
                 job_id: job_id.clone(),
                 request: GenerationWorkRequest::Image(GenerateImageRequest {
@@ -591,6 +592,7 @@ fn active_stream_cancellation_invokes_the_stream_cancel_hook() {
 
 fn image_work(batch_id: &str, job_id: JobId, prompt: &str) -> SubmitGenerationWork {
     SubmitGenerationWork {
+        compiled_prompt: None,
         batch_id: BatchId::new(batch_id),
         job_id,
         request: GenerationWorkRequest::Image(GenerateImageRequest {
@@ -604,6 +606,7 @@ fn image_work(batch_id: &str, job_id: JobId, prompt: &str) -> SubmitGenerationWo
 
 fn stream_work(batch_id: &str, job_id: JobId, prompt: &str) -> SubmitGenerationWork {
     SubmitGenerationWork {
+        compiled_prompt: None,
         batch_id: BatchId::new(batch_id),
         job_id,
         request: GenerationWorkRequest::Stream(GenerateImageStreamRequest {

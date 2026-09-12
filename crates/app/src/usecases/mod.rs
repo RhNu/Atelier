@@ -9,10 +9,10 @@ use atelier_app_api::event::AppEventDto;
 use atelier_app_api::gallery::{GalleryPageDto, GalleryQueryDto, GallerySafetyOverrideDto};
 use atelier_app_api::generation::{
     AnlasEstimateStatusDto, CharacterDto, CharacterReferenceDto, CharacterReferenceTypeDto,
-    GenerateImageRequestDto, GenerateImageStreamRequestDto, GenerationAnlasEstimateDto,
-    GenerationEstimateRequestDto, GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto,
-    QueueDirectiveDto, SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto,
-    SubmitGenerationRequestDto, UcPresetDto, VibeTransferConfigDto,
+    GenerateImageRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
+    GenerationStatusDto, GenerationWorkRequestDto, Img2ImgRequestDto, QueueDirectiveDto,
+    SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
+    UcPresetDto, VibeTransferConfigDto,
 };
 use atelier_app_api::prompt::{
     CompileGenerationPromptRequestDto, CompilePromptRequestDto,
@@ -50,8 +50,7 @@ use atelier_kernel::{
     ImportVibeDocument, RunDirectorTool, SubmitGenerationBatch, SubmitGenerationBatchJob,
 };
 use atelier_prompt_resources::{
-    CompileCharacterPromptRequest, CompileGenerationPromptRequest, CompilePromptRequest,
-    PromptChunkId, PromptChunkKey, PromptPresetId,
+    CompilePromptRequest, PromptChunkId, PromptChunkKey, PromptPresetId,
 };
 use atelier_resource_catalog::ResourceVariantKind;
 use atelier_secrets::{ApiKeyId, SecretStore, SecretValue, SecretsErrorKind};

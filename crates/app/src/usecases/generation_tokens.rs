@@ -6,9 +6,6 @@ use atelier_app_api::generation::{
 use atelier_generation::{
     Character, CharacterPosition, GenerateImageRequest, PromptTokenCount, count_prompt_tokens,
 };
-use atelier_prompt_resources::{
-    CompileCharacterPromptRequest, CompileGenerationPromptRequest, PromptPresetId,
-};
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 
@@ -28,27 +25,11 @@ where
         request: CountPromptTokensRequestDto,
     ) -> AppResult<PromptTokenUsageDto> {
         let model = image_model_to_domain(request.compile.model);
-        let character_inputs = request.compile.characters;
+        let character_inputs = request.compile.characters.clone();
         let compiled = self
             .app
             .prompt_compiler
-            .compile_generation_prompt(CompileGenerationPromptRequest {
-                model,
-                main_preset_id: request.compile.main_preset_id.map(PromptPresetId::new),
-                prompt: request.compile.prompt,
-                negative_prompt: request.compile.negative_prompt.unwrap_or_default(),
-                characters: character_inputs
-                    .iter()
-                    .enumerate()
-                    .map(|(index, character)| CompileCharacterPromptRequest {
-                        character_index: u32::try_from(index).unwrap_or(u32::MAX),
-                        preset_id: character.preset_id.clone().map(PromptPresetId::new),
-                        prompt: character.prompt.clone(),
-                        negative_prompt: character.negative_prompt.clone().unwrap_or_default(),
-                    })
-                    .collect(),
-                max_depth: request.compile.max_depth,
-            })
+            .compile_generation_prompt(crate::prompt_preparation::compile_request(request.compile))
             .await?;
         let quality = compiled
             .quality_override

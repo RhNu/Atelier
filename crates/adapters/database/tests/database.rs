@@ -335,7 +335,7 @@ impl GeneratedImageMetadataInspector for DatabaseWorkflowPorts {
 
 #[async_trait]
 impl KernelGenerationPorts for DatabaseWorkflowPorts {
-    async fn compile_prompt(
+    async fn compile_legacy_prompt(
         &self,
         request: CompilePromptRequest,
     ) -> PromptResourceResult<CompiledPrompt> {

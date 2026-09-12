@@ -18,19 +18,6 @@ pub enum GenerationWorkRequest {
     Stream(GenerateImageStreamRequest),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CompiledGenerationCharacterPrompts {
-    pub prompt: Option<CompiledPrompt>,
-    pub negative_prompt: Option<CompiledPrompt>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CompiledGenerationPrompts {
-    pub prompt: CompiledPrompt,
-    pub negative_prompt: Option<CompiledPrompt>,
-    pub characters: Vec<CompiledGenerationCharacterPrompts>,
-}
-
 impl GenerationWorkRequest {
     /// Returns the model the request targets.
     ///
@@ -68,39 +55,12 @@ impl GenerationWorkRequest {
             Self::Stream(request) => request.base.characters.as_deref(),
         }
     }
-
-    #[must_use]
-    pub fn with_compiled_prompts(mut self, compiled: &CompiledGenerationPrompts) -> Self {
-        match &mut self {
-            Self::Image(request) => apply_compiled_prompts(request, compiled),
-            Self::Stream(request) => apply_compiled_prompts(&mut request.base, compiled),
-        }
-        self
-    }
-}
-
-fn apply_compiled_prompts(
-    request: &mut GenerateImageRequest,
-    compiled: &CompiledGenerationPrompts,
-) {
-    request.prompt.clone_from(&compiled.prompt.expanded_prompt);
-    if let Some(negative_prompt) = &compiled.negative_prompt {
-        request.negative_prompt = Some(negative_prompt.expanded_prompt.clone());
-    }
-    if let Some(characters) = &mut request.characters {
-        for (character, compiled_character) in characters.iter_mut().zip(&compiled.characters) {
-            if let Some(prompt) = &compiled_character.prompt {
-                character.prompt.clone_from(&prompt.expanded_prompt);
-            }
-            if let Some(negative_prompt) = &compiled_character.negative_prompt {
-                character.negative_prompt = Some(negative_prompt.expanded_prompt.clone());
-            }
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SubmitGenerationWork {
+    /// None identifies a legacy request whose prompt still needs compilation.
+    pub compiled_prompt: Option<CompiledPrompt>,
     pub batch_id: BatchId,
     pub job_id: JobId,
     pub request: GenerationWorkRequest,
@@ -109,6 +69,8 @@ pub struct SubmitGenerationWork {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SubmitGenerationBatchJob {
+    /// None identifies a legacy request whose prompt still needs compilation.
+    pub compiled_prompt: Option<CompiledPrompt>,
     pub job_id: JobId,
     pub request: GenerationWorkRequest,
 }
@@ -122,6 +84,8 @@ pub struct SubmitGenerationBatch {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SubmittedGenerationPayload {
+    /// None identifies a legacy request whose prompt still needs compilation.
+    pub compiled_prompt: Option<CompiledPrompt>,
     pub payload_ref: JobPayloadRef,
     pub batch_id: BatchId,
     pub job_id: JobId,

@@ -150,6 +150,7 @@ fn generation_payload_store_keeps_submitted_payload_when_prepared_payload_shares
         let plan =
             plan_generation_request(request.clone(), GenerationPlanContext::default()).unwrap();
         let submitted = SubmittedGenerationPayload {
+            compiled_prompt: None,
             payload_ref: JobPayloadRef::new("generation-submitted:job-1"),
             batch_id: BatchId::new("batch-1"),
             job_id: JobId::new("job-1"),

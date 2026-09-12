@@ -267,3 +267,13 @@ When adding an adapter dependency, answer:
 - Are external library types kept out of feature crates, `kernel`, and `app-api`? The single
   exception is `novelai-bridge` model capability types in `features/generation`; see
   [`novelai-bridge` in `features/generation`](#novelai-bridge-in-featuresgeneration).
+
+### Submitted prompt snapshots
+
+App preview, token counting, estimates and submission share the generation prompt mapping.
+New submissions compile main, negative and character prompts before queueing and persist the
+resolved request with its main prompt trace. Execution and replay consume that snapshot without
+interpreting function-like output again. Submitted payload JSON version 4 requires the compiled
+snapshot; version 3 remains the legacy input format and compiles through kernel's isolated
+`legacy_prompt` module. Prepared payload JSON and database schema versions are unchanged.
+Unknown versions and inconsistent version/snapshot combinations are rejected.

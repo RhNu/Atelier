@@ -87,7 +87,7 @@ impl GenerationPayloadStore for MemoryKernelPorts {
 
 #[async_trait]
 impl KernelGenerationPorts for MemoryKernelPorts {
-    async fn compile_prompt(
+    async fn compile_legacy_prompt(
         &self,
         request: CompilePromptRequest,
     ) -> PromptResourceResult<CompiledPrompt> {

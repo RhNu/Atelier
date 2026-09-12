@@ -3,14 +3,13 @@ use super::generation_support::{
 };
 use super::{
     AppError, AppResult, ArtifactSource, BatchId, CharacterReference, CharacterReferenceDto,
-    CompileCharacterPromptRequest, CompileGenerationPromptRequest, GalleryQuery, GallerySourceKind,
-    GenerateImageRequest, GenerateImageRequestDto, GenerateImageStreamRequest,
-    GenerateImageStreamRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
+    GalleryQuery, GallerySourceKind, GenerateImageRequest, GenerateImageRequestDto,
+    GenerateImageStreamRequest, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
     GenerationHistoryPosition, GenerationHistoryUpdate, GenerationStatusDto, GenerationWorkRequest,
     GenerationWorkRequestDto, ImageSize, Img2ImgRequest, Img2ImgRequestDto, JobId,
-    NovelAiClientFactory, PromptPresetId, QueueDirectiveDto, RunHistoryRecord,
-    RunHistoryRepository, RunHistoryStatus, RunOutputRecord, RunOutputState, SecretStore,
-    SecretsErrorKind, SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationBatchJobDto,
+    NovelAiClientFactory, QueueDirectiveDto, RunHistoryRecord, RunHistoryRepository,
+    RunHistoryStatus, RunOutputRecord, RunOutputState, SecretStore, SecretsErrorKind,
+    SubmitGenerationBatch, SubmitGenerationBatchJob, SubmitGenerationBatchJobDto,
     SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, VibeReference, VibeTransferConfig,
     VibeTransferConfigDto, WorkspaceSession, characters_to_domain, generation_status_to_dto,
     generation_work_title, image_format_to_domain, image_model_to_domain, noise_schedule_to_domain,
@@ -235,7 +234,7 @@ where
         request: GenerationEstimateRequestDto,
     ) -> AppResult<GenerationAnlasEstimateDto> {
         let request = GenerationEstimateRequestDto {
-            request: self.apply_prompt_presets(request.request).await?,
+            request: self.prepare_prompt(request.request).await?.0,
             context: request.context,
         };
         estimate_generation_anlas(&request)
@@ -247,9 +246,11 @@ where
     ) -> AppResult<SubmitGenerationBatch> {
         let mut jobs = Vec::with_capacity(request.jobs.len());
         for job in request.jobs {
+            let (work, compiled_prompt) = self.work_request_to_domain(job.work).await?;
             jobs.push(SubmitGenerationBatchJob {
+                compiled_prompt: Some(compiled_prompt),
                 job_id: JobId::new(job.job_id),
-                request: self.work_request_to_domain(job.work).await?,
+                request: work,
             });
         }
         Ok(SubmitGenerationBatch {
@@ -261,33 +262,36 @@ where
 
     async fn work_request_to_domain(
         &self,
-        value: GenerationWorkRequestDto,
-    ) -> AppResult<GenerationWorkRequest> {
-        match value {
-            GenerationWorkRequestDto::Image(request) => Ok(GenerationWorkRequest::Image(
-                self.generate_request_to_domain(request).await?,
-            )),
-            GenerationWorkRequestDto::Stream(request) => Ok(GenerationWorkRequest::Stream(
-                self.stream_request_to_domain(request).await?,
-            )),
+        request: GenerationWorkRequestDto,
+    ) -> AppResult<(
+        GenerationWorkRequest,
+        atelier_prompt_resources::CompiledPrompt,
+    )> {
+        match request {
+            GenerationWorkRequestDto::Image(request) => {
+                let (request, prompt) = self.prepare_prompt(request).await?;
+                Ok((
+                    GenerationWorkRequest::Image(self.generate_request_to_domain(request).await?),
+                    prompt,
+                ))
+            }
+            GenerationWorkRequestDto::Stream(request) => {
+                let (base, prompt) = self.prepare_prompt(request.base).await?;
+                Ok((
+                    GenerationWorkRequest::Stream(GenerateImageStreamRequest {
+                        base: self.generate_request_to_domain(base).await?,
+                        stream: stream_mode_to_domain(request.stream),
+                    }),
+                    prompt,
+                ))
+            }
         }
-    }
-
-    async fn stream_request_to_domain(
-        &self,
-        value: GenerateImageStreamRequestDto,
-    ) -> AppResult<GenerateImageStreamRequest> {
-        Ok(GenerateImageStreamRequest {
-            base: self.generate_request_to_domain(value.base).await?,
-            stream: stream_mode_to_domain(value.stream),
-        })
     }
 
     async fn generate_request_to_domain(
         &self,
         value: GenerateImageRequestDto,
     ) -> AppResult<GenerateImageRequest> {
-        let value = self.apply_prompt_presets(value).await?;
         Ok(GenerateImageRequest {
             prompt: value.prompt,
             furry_mode: value.furry_mode,
@@ -322,42 +326,29 @@ where
         })
     }
 
-    async fn apply_prompt_presets(
+    async fn prepare_prompt(
         &self,
         mut value: GenerateImageRequestDto,
-    ) -> AppResult<GenerateImageRequestDto> {
-        let has_character_presets = value.characters.as_ref().is_some_and(|characters| {
-            characters
-                .iter()
-                .any(|character| character.preset_id.is_some())
-        });
-        if value.main_preset_id.is_none() && !has_character_presets {
-            return Ok(value);
-        }
-
-        let character_inputs = value.characters.clone().unwrap_or_default();
+    ) -> AppResult<(
+        GenerateImageRequestDto,
+        atelier_prompt_resources::CompiledPrompt,
+    )> {
         let compiled = self
             .app
             .prompt_compiler
-            .compile_generation_prompt(CompileGenerationPromptRequest {
-                model: image_model_to_domain(value.model),
-                main_preset_id: value.main_preset_id.take().map(PromptPresetId::new),
-                prompt: value.prompt.clone(),
-                negative_prompt: value.negative_prompt.clone().unwrap_or_default(),
-                characters: character_inputs
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, character)| CompileCharacterPromptRequest {
-                        character_index: u32::try_from(index).unwrap_or(u32::MAX),
-                        preset_id: character.preset_id.map(PromptPresetId::new),
-                        prompt: character.prompt,
-                        negative_prompt: character.negative_prompt.unwrap_or_default(),
-                    })
-                    .collect(),
-                max_depth: 16,
-            })
+            .compile_generation_prompt(crate::prompt_preparation::compile_request(
+                crate::prompt_preparation::generation_prompt(&value),
+            ))
             .await?;
-
+        let snapshot = atelier_prompt_resources::CompiledPrompt {
+            expanded_prompt: compiled.prompt.clone(),
+            trace: compiled
+                .trace
+                .main_prompt
+                .clone()
+                .ok_or_else(|| AppError::new("prompt_compile", "missing main prompt trace"))?,
+        };
+        value.main_preset_id = None;
         value.prompt = compiled.prompt;
         value.negative_prompt =
             (!compiled.negative_prompt.trim().is_empty()).then_some(compiled.negative_prompt);
@@ -382,7 +373,7 @@ where
                 character.preset_id = None;
             }
         }
-        Ok(value)
+        Ok((value, snapshot))
     }
 
     async fn optional_vibe_transfer_to_domain(

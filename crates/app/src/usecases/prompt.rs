@@ -1,14 +1,14 @@
 use super::{
-    AppError, AppResult, CompileCharacterPromptRequest, CompileGenerationPromptRequest,
-    CompileGenerationPromptRequestDto, CompilePromptRequest, CompilePromptRequestDto,
-    CompiledGenerationCharacterPromptDto, CompiledGenerationPromptDto, CompiledPromptDto,
-    DeletePromptChunkRequestDto, DeletePromptChunkResponseDto, DeletePromptPresetRequestDto,
-    DeletePromptPresetResponseDto, GetPromptChunkRequestDto, ListPromptChunksRequestDto,
-    ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkId, PromptChunkKey, PromptChunkPageDto,
-    PromptPresetDto, PromptPresetId, PromptPresetPageDto, UpsertPromptChunkRequestDto,
-    UpsertPromptPresetRequestDto, compiled_prompt_to_dto, image_model_to_domain,
-    prompt_chunk_to_dto, prompt_preset_kind_to_domain, prompt_preset_to_dto, prompt_trace_to_dto,
-    quality_preset_to_dto, upsert_prompt_chunk_to_domain, upsert_prompt_preset_to_domain,
+    AppError, AppResult, CompileGenerationPromptRequestDto, CompilePromptRequest,
+    CompilePromptRequestDto, CompiledGenerationCharacterPromptDto, CompiledGenerationPromptDto,
+    CompiledPromptDto, DeletePromptChunkRequestDto, DeletePromptChunkResponseDto,
+    DeletePromptPresetRequestDto, DeletePromptPresetResponseDto, GetPromptChunkRequestDto,
+    ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptChunkDto, PromptChunkId,
+    PromptChunkKey, PromptChunkPageDto, PromptPresetDto, PromptPresetId, PromptPresetPageDto,
+    UpsertPromptChunkRequestDto, UpsertPromptPresetRequestDto, compiled_prompt_to_dto,
+    image_model_to_domain, prompt_chunk_to_dto, prompt_preset_kind_to_domain, prompt_preset_to_dto,
+    prompt_trace_to_dto, quality_preset_to_dto, upsert_prompt_chunk_to_domain,
+    upsert_prompt_preset_to_domain,
 };
 use crate::ports::AppResourceCatalog;
 use atelier_adapter_database::DatabasePromptResourceRepository;
@@ -272,26 +272,10 @@ impl PromptUseCases<'_> {
             .map(|character| character.enabled)
             .collect::<Vec<_>>();
         let max_depth = request.max_depth;
+        let model = request.model;
         let compiled = self
             .prompt_compiler
-            .compile_generation_prompt(CompileGenerationPromptRequest {
-                model: image_model_to_domain(request.model),
-                main_preset_id: request.main_preset_id.map(PromptPresetId::new),
-                prompt: request.prompt,
-                negative_prompt: request.negative_prompt.unwrap_or_default(),
-                characters: request
-                    .characters
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, character)| CompileCharacterPromptRequest {
-                        character_index: u32::try_from(index).unwrap_or(u32::MAX),
-                        preset_id: character.preset_id.map(PromptPresetId::new),
-                        prompt: character.prompt,
-                        negative_prompt: character.negative_prompt.unwrap_or_default(),
-                    })
-                    .collect(),
-                max_depth,
-            })
+            .compile_generation_prompt(crate::prompt_preparation::compile_request(request))
             .await?;
         let prompt_trace = compiled
             .trace
@@ -338,7 +322,7 @@ impl PromptUseCases<'_> {
                 let empty = self
                     .compile_preview(CompilePromptRequestDto {
                         prompt: String::new(),
-                        model: request.model,
+                        model,
                         max_depth,
                     })
                     .await?;

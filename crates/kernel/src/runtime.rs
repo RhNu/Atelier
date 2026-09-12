@@ -161,6 +161,7 @@ where
         self.submit_generation_batch(SubmitGenerationBatch {
             batch_id: work.batch_id,
             jobs: vec![SubmitGenerationBatchJob {
+                compiled_prompt: work.compiled_prompt,
                 job_id: work.job_id,
                 request: work.request,
             }],
@@ -182,6 +183,7 @@ where
         for job in batch.jobs {
             let payload_ref = submitted_payload_ref(&job.job_id);
             payloads.push(SubmittedGenerationPayload {
+                compiled_prompt: job.compiled_prompt,
                 payload_ref: payload_ref.clone(),
                 batch_id: batch.batch_id.clone(),
                 job_id: job.job_id.clone(),

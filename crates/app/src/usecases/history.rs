@@ -238,6 +238,7 @@ where
         let previous_snapshot = kernel.queue_snapshot();
         let directive = kernel
             .submit_generation_work(SubmitGenerationWork {
+                compiled_prompt: submitted.compiled_prompt,
                 batch_id: BatchId::new(request.batch_id.clone()),
                 job_id: JobId::new(request.job_id.clone()),
                 request: submitted.request,
@@ -305,6 +306,7 @@ where
             .iter()
             .zip(submitted)
             .map(|(job_id, payload)| SubmitGenerationBatchJob {
+                compiled_prompt: payload.compiled_prompt,
                 job_id: JobId::new(job_id.clone()),
                 request: payload.request,
             })
