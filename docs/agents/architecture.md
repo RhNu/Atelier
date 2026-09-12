@@ -311,3 +311,6 @@ lives in app feature modules. Desktop command modules group unchanged IPC names 
 Desktop worker scheduling and platform I/O implementations have separate modules. Download
 resource lifecycle and pre-0.5 cleanup are isolated from catalog/install coordination; the
 versioned cleanup remains supported rather than being treated as unused code.
+
+Unused generic pagination DTOs are removed from app-api and its type exporter; active feature
+response DTOs continue to own their pagination fields. Generated TypeScript remains the IPC contract.

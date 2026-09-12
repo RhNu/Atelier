@@ -179,8 +179,6 @@ export type { NovelAiExplorePostSummaryDto } from "./NovelAiExplorePostSummaryDt
 export type { NovelAiExploreQueryDto } from "./NovelAiExploreQueryDto";
 export type { NovelAiExploreSortDto } from "./NovelAiExploreSortDto";
 export type { OpenWorkspaceRequestDto } from "./OpenWorkspaceRequestDto";
-export type { PageInfoDto } from "./PageInfoDto";
-export type { PageQueryDto } from "./PageQueryDto";
 export type { ProbeApiKeyRequestDto } from "./ProbeApiKeyRequestDto";
 export type { PromptChunkDto } from "./PromptChunkDto";
 export type { PromptChunkPageDto } from "./PromptChunkPageDto";

@@ -69,7 +69,6 @@ use atelier_app_api::{
         RunHistoryItemDto, RunHistoryKindDto, RunHistoryOutputDto, RunHistoryPageDto,
         RunHistoryQueryDto, RunHistoryStatusDto,
     },
-    pagination::{PageInfoDto, PageQueryDto},
     prompt::{
         AppendLexiconEntitiesRequestDto, CompileGenerationCharacterPromptDto,
         CompileGenerationPromptRequestDto, CompilePromptRequestDto,
@@ -161,7 +160,6 @@ pub fn export_app_api_types(config: &AppApiTypeExportConfig) -> Result<(), Strin
     export_generation_types(&ts_config)?;
     export_history_types(&ts_config)?;
     export_downloadable_resource_types(&ts_config)?;
-    export_pagination_types(&ts_config)?;
     export_prompt_types(&ts_config)?;
     export_resource_types(&ts_config)?;
     export_settings_types(&ts_config)?;
@@ -347,10 +345,6 @@ fn export_downloadable_resource_types(config: &Config) -> Result<(), String> {
         DownloadableResourceGroupRequestDto,
         DownloadableResourceInstallProgressDto,
     )
-}
-
-fn export_pagination_types(config: &Config) -> Result<(), String> {
-    export_types!(config, PageQueryDto, PageInfoDto)
 }
 
 fn export_prompt_types(config: &Config) -> Result<(), String> {

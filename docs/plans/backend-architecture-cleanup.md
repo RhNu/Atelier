@@ -1,24 +1,31 @@
-# 后端架构整理计划
+# 后端架构整理：计划与实施记录
 
 日期：2026-09-12。检查基线：`470665350cc8323176cb49c9ce157c18159232f2`。
-状态：分批实施中。允许调整抽象结构；数据库兼容能力是需要保留的边界。
+状态：已完成，按 9 个批次提交并通过验收。以下保留基线审查；实际架构以执行记录和 architecture.md 为准。
 
 ## 执行记录
 
-- 批次 8：移除 usecases/mod 的集中依赖导入，mapping 各文件局部依赖；共享时钟与请求映射归位；Explore/Danbooru 从 command registry 移至 app 功能模块。desktop 拆分 worker/platform，Tauri commands 按功能分组；下载管理器拆分 lifecycle/legacy，保留 pre-0.5 升级行为。
+| 批次 | 提交 | 结果 |
+| --- | --- | --- |
+| 1 | `ae44b74` | 单一 RuntimeDependencies；composition/runtime/session 分离；移除 AppInner、组合构造入口和生产 transient registry。 |
+| 2 | `d514c82` | 六组用例缩窄依赖；删除 JobRepository、JobEventSink、with_prompt、ports_ref 等空置接口。 |
+| 3 | `969472a` | ImageInputResolver 统一图片读取；reference 纯校验进入生产路径；删除旧 reader/service/kernel workflow。 |
+| 4 | `40805ca` | 统一提示词准备；新提交保存 JSON v4 编译快照，v3 经 legacy_prompt 保留旧执行语义。 |
+| 5 | `9d0d829` | 共享 KernelOutputPorts；按输出事实记录历史；GenerationStore 定义队列/历史原子提交；外部执行后不回滚成可重发状态。 |
+| 6 | `6240425` | WorkflowContext 和 QueueView 分离执行依赖与状态；Vibe/Director 不占生成锁；worker 固定 session 并检查替换身份。 |
+| 7 | `b5431a8` | 新提交和重放统一投影完整历史后原子提交；锁内复核唯一性；元数据故障回滚队列与历史。 |
+| 8 | `fc3cd3b` | 局部化用例/mapping imports；Explore/Danbooru 功能归位；host worker/platform/commands 与下载 lifecycle/legacy 拆分。 |
+| 9 | 最终清理提交 | 删除无消费者的 PageQueryDto/PageInfoDto，并重新生成前端类型；保留有实际消费者的 DanbooruMediaVariantDto。 |
 
-- 批次 7：新提交、单项重放与批量重放先投影完整历史，再复用 commit_submission 原子提交；目标唯一性在生成锁内复核。新增 metadata 写入失败导致队列/历史一起回滚的生产入口测试。
+关键回归新增了：提示词跨资源编辑/重启冻结、函数形文本不重复解释、旧/新 payload 版本约束、reference 空输入/错误资源类型、终态持久化失败不重复生成、提交元数据故障原子回滚、阻塞网络下状态/Vibe 读取、旧 worker 不推进新工作区。
 
-- 批次 6：WorkflowContext 共享实际服务，Vibe/Director 不再持有生成锁；QueueView 独立提供短锁状态读取。生成变更锁覆盖状态与持久化，保持单队列串行写语义；worker 固定 session 并检查替换身份。新增阻塞网络下状态/Vibe 读取及旧 worker 不推进新 workspace 回归。
+实施后的边界：生成队列保留串行写入，执行借用覆盖状态变更与持久化；状态读取只占短锁，Vibe/Director 使用独立执行上下文。文件、远端生成和 SQLite 仍是不同的失败边界；重启恢复保持 paused，未承诺远端 exactly-once。
 
-- 批次 5：共享 KernelOutputPorts，按输出事实直接记录 generation/Director 历史，移除 Gallery 全量反查；GenerationStore 端口定义队列/历史原子 commit，删除 split save/clear；已发生生成后的持久化失败保留终态，加入故障注入回归。
+保留的兼容路径均有明确范围：旧 submitted JSON v3、现有数据库/settings 迁移和 pre-0.5 模型目录清理。旧 `apply_prompt_presets` 没选 preset 时不编译，因此旧请求不能一律标记为已编译。新请求采用显式 v4 快照，不靠文本语法猜测阶段。
 
-- 批次 4：统一提示词准备映射；新提交保存 JSON v4 编译快照，执行和 replay 不再重复编译；v3 经隔离的 legacy_prompt 保留旧语义。新增跨资源修改/重启冻结、函数形文本不重解释及格式拒绝回归。
+模块规模变化：desktop.rs 约 789 → 294 行；Tauri commands.rs 779 → 61 行；下载 manager.rs 734 → 558 行；usecases/mod.rs 收敛为 29 行模块注册与导出。line-budget 警告从 13 降为 9，无超限失败；剩余警告包含测试文件，不以机械拆行作为验收标准。
 
-- 批次 3：图片输入统一经 ImageInputResolver；reference feature 改为纯校验，删除旧 reader/service/kernel workflow 与双重读取；增加生产入口的空输入、非图片资源及正常引用回归。四项 Rust 检查全部通过。
-- 实施核对：旧 `apply_prompt_presets` 在没有 preset 时直接返回，故旧持久请求可能是原始或已展开文本。请求准备批次必须显式保留旧格式执行语义，不能将所有旧 payload 无条件解释为已编译。
-- 批次 2：Prompt/Gallery/Resource/Settings/Events/Workspace 六组用例改为注入具体服务引用，去除无关泛型；删除 JobRepository、JobEventSink、with_prompt、ports_ref；keyring native 构造改为无失败返回。四项 Rust 检查全部通过。
-- 批次 1：统一 `RuntimeDependencies` 构造；拆分 composition/runtime/session，移除 AppInner 与全部组合构造入口；内存仓库移入 test support，集成测试通过 runtime 打开会话；账户用例归 runtime。fmt、clippy-strict、workspace tests、line-budget 全部通过。以下检查记录保留原始基线，路径可能随实施迁移。
+以下发现与实施顺序是原始基线审查记录；其中旧路径与旧结构已按上表迁移。
 
 ## 判断与范围
 
@@ -32,7 +39,7 @@
 
 | 编号 | 证据与现状 | 建议及优先级 |
 | --- | --- | --- |
-| A1 | [app.rs](../../crates/app/src/app.rs) 有 5 个公开的 workspace 打开入口和 1 个内部入口。`open_workspace_with_dependencies_and_extractor_and_safety_scanner` 长 65 字符；[commands/mod.rs](../../crates/app/src/commands/mod.rs) 还有两种长 62 字符的构造入口，4 处重复完整运行时字段初始化。 | **先做**：用显式依赖对象和单一构建入口替代组合式构造函数。必需的持久设置与账户仓库明确注入；可选能力按职责成组。 |
+| A1 | `app.rs`（基线文件） 有 5 个公开的 workspace 打开入口和 1 个内部入口。`open_workspace_with_dependencies_and_extractor_and_safety_scanner` 长 65 字符；[commands/mod.rs](../../crates/app/src/commands/mod.rs) 还有两种长 62 字符的构造入口，4 处重复完整运行时字段初始化。 | **先做**：用显式依赖对象和单一构建入口替代组合式构造函数。必需的持久设置与账户仓库明确注入；可选能力按职责成组。 |
 | A2 | 生产启动走 `AtelierRuntime`，直接打开 `WorkspaceSession` 的便利入口仍创建 transient API key registry，并提供 `session.account()`。仓库内这些直接入口的调用集中在 integration tests；全局账户已在提交 `76d9a2e` 升级为 application scope。 | **先做**：统一生产与测试的装配路径。会话只持有对应用级服务的共享依赖；移除会话创建独立账户体系的便利 API。测试用内存仓库放在显式 test support 中。 |
 | A3 | `WorkspaceSession` 包裹单一 `AppInner<S,F,E>`；Prompt、Settings、Gallery 等 use case 都持有完整 session，并传递与自身无关的 `S,F,E`。`AppKernelPorts<S,F,E>` 同时负责网络、Vibe 仓库、图片处理、安全扫描、资源归属和事件。 | **高**：按用例所需服务收窄引用，逐步减少泛型传播。先收窄能力，再决定哪些运行时边界使用 `Arc<dyn Port>`，不要把所有领域服务统一改成动态分派。 |
 | A4 | [generation.rs](../../crates/app/src/usecases/generation.rs) 的 `apply_prompt_presets` 调用 `compile_generation_prompt`，已经展开主/负面/角色提示词；[kernel workflow](../../crates/kernel/src/workflow/generation.rs) 执行时又调用 `compile_generation_prompts`。两边还有不同的 compiled prompt 结构。 | **高**：建立单一编译入口和明确的输入阶段。重复编译本身已确认；转义语法、trace 丢失和重放差异是待回归验证的风险，不能直接断言所有请求会出错。 |
@@ -118,7 +125,7 @@ App 内建议逐功能聚合：`runtime`、`composition`、`session` 管生命�
 
 每个 Rust 实施批次按仓库规则运行 `cargo fmt --all -- --check`、`cargo clippy-strict`、`cargo test --workspace`、`cargo xtask line-budget`。涉及生成的 TS 或前端调用时，再运行 `pnpm fmt:check`、`pnpm lint`、`pnpm test`。按真实行为缺口补测试，不为简单 rename 镜像实现。
 
-本轮只修改计划文档。已运行 `cargo xtask line-budget`：通过，有 13 个超过 600 行的 warning（含测试文件），无超限失败。`desktop.rs` 789 行、Tauri `commands.rs` 779 行、download manager 734 行、app generation usecase 605 行，适合作为职责审查入口；行数本身不是架构合格标准。本轮未运行完整 fmt/clippy/test，不能据此宣称后端测试基线全绿。
+所有 Rust 批次均通过 `cargo fmt --all -- --check`、`cargo clippy-strict`、`cargo test --workspace`、`cargo xtask line-budget`。最终类型生成后还通过 `pnpm fmt:check`、`pnpm lint`、`pnpm test`、`pnpm build`。line-budget 保留 9 个超过 600 行的 warning，无超限失败；前端构建保留大 chunk 提示，不影响构建通过。
 
 ## 最终验收
 
