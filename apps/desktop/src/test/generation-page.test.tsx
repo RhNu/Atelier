@@ -378,6 +378,7 @@ function setup(options?: {
   characterPresets?: PromptPresetPageDto;
   developerMode?: boolean;
   convertFullWidthPunctuation?: boolean;
+  blurSensitiveImages?: boolean;
   model?: ImageModelDto;
   subscription?: SubscriptionSummaryDto;
 }) {
@@ -430,6 +431,9 @@ function setup(options?: {
       ...defaultGlobalSettings.frontend,
       developer_mode: options?.developerMode ?? false,
       convert_full_width_punctuation: options?.convertFullWidthPunctuation ?? false,
+      gallery: {
+        blur_sensitive_images: options?.blurSensitiveImages ?? false,
+      },
     },
   });
   if (options?.statusError) {
@@ -1607,6 +1611,21 @@ describe("GeneratePage", () => {
 });
 
 describe("GeneratePage queue and preview behavior", () => {
+  it("blurs generated previews and history thumbnails when NSFW blur is enabled", async () => {
+    const fixture = generationBatchFixture();
+    const { user } = setup({
+      history: fixture.page,
+      historyDetail: fixture.detail,
+      blurSensitiveImages: true,
+    });
+
+    expect(await screen.findByAltText("Batch output 1")).toHaveClass("blur-md");
+    await user.click(screen.getByRole("button", { name: "1girl" }));
+
+    expect(await screen.findByAltText("Request 1 sample 1")).toHaveClass("blur-md");
+    expect(screen.getByAltText("Generation sample 1")).toHaveClass("blur-md");
+  });
+
   it("updates queue controls, one stable sample slot, final preview, and batch history", async () => {
     const fixture = generationBatchFixture();
     const { user } = setup({

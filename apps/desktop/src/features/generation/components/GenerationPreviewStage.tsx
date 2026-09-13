@@ -37,6 +37,7 @@ import { GenerationResourceImage } from "./GenerationResourceImage";
 type GenerationPreviewStageProps = {
   batch: GenerationBatchView | null;
   selectedRequest: GenerationRequestUnit | null;
+  blurImages: boolean;
   focusedSampleIndex: number | null;
   focusMode: GenerationFocusMode;
   isViewingLive: boolean;
@@ -68,6 +69,7 @@ const CROPPED_PREVIEW_STYLE: CSSProperties = { objectFit: "cover" };
 export function GenerationPreviewStage({
   batch,
   selectedRequest,
+  blurImages,
   focusedSampleIndex,
   focusMode,
   isViewingLive,
@@ -122,11 +124,13 @@ export function GenerationPreviewStage({
       <RequestCursorStrip
         batch={batch}
         selectedRequest={selectedRequest}
+        blurImages={blurImages}
         onSelectRequest={onSelectRequest}
       />
       <RequestPreviewSurface
         selectedRequest={selectedRequest}
         focusedSample={focusedSample}
+        blurImages={blurImages}
         statusError={statusError}
         savePending={savePending}
         zipPending={zipPending}
@@ -146,6 +150,7 @@ export function GenerationPreviewStage({
         open={lightboxOpen}
         request={selectedRequest}
         sample={focusedSample}
+        blurImages={blurImages}
         onClose={closeLightbox}
       />
     </AppPanel>
@@ -241,8 +246,12 @@ function PreviewHeader({
 function RequestCursorStrip({
   batch,
   selectedRequest,
+  blurImages,
   onSelectRequest,
-}: Pick<GenerationPreviewStageProps, "batch" | "selectedRequest" | "onSelectRequest">) {
+}: Pick<
+  GenerationPreviewStageProps,
+  "batch" | "selectedRequest" | "blurImages" | "onSelectRequest"
+>) {
   const { t } = useTranslation("generation");
   const cursorRef = useRef<HTMLDivElement>(null);
   const selectedRequestIndex = batch?.requests.findIndex(
@@ -265,6 +274,7 @@ function RequestCursorStrip({
           key={request.jobId}
           request={request}
           selected={request.jobId === selectedRequest?.jobId}
+          blurImages={blurImages}
           onSelect={onSelectRequest}
         />
       )) ?? <p className="p-2 text-sm text-app-muted">{t("noRequests")}</p>}
@@ -275,6 +285,7 @@ function RequestCursorStrip({
 function RequestPreviewSurface({
   selectedRequest,
   focusedSample,
+  blurImages,
   statusError,
   savePending,
   zipPending,
@@ -292,6 +303,7 @@ function RequestPreviewSurface({
 }: Pick<
   GenerationPreviewStageProps,
   | "selectedRequest"
+  | "blurImages"
   | "statusError"
   | "savePending"
   | "zipPending"
@@ -371,10 +383,15 @@ function RequestPreviewSurface({
           <FocusedSample
             request={selectedRequest}
             sample={focusedSample}
+            blurImages={blurImages}
             onOpenLightbox={onOpenLightbox}
           />
         ) : selectedRequest ? (
-          <SampleGrid request={selectedRequest} onFocusSample={onFocusSample} />
+          <SampleGrid
+            request={selectedRequest}
+            blurImages={blurImages}
+            onFocusSample={onFocusSample}
+          />
         ) : (
           <PreviewEmptyState message={statusError ?? t("noActivePreview")} />
         )}
@@ -387,11 +404,13 @@ function SampleLightbox({
   open,
   request,
   sample,
+  blurImages,
   onClose,
 }: {
   open: boolean;
   request: GenerationRequestUnit | null;
   sample: GenerationSampleSlot | null;
+  blurImages: boolean;
   onClose: () => void;
 }) {
   const { t } = useTranslation("generation");
@@ -411,6 +430,7 @@ function SampleLightbox({
       {sample ? (
         <SampleVisual
           sample={sample}
+          blurImages={blurImages}
           alt={`Generation sample ${sample.sampleIndex + 1}`}
           className="max-h-[72svh] w-full bg-black/40"
         />
@@ -422,10 +442,12 @@ function SampleLightbox({
 function RequestCursorUnit({
   request,
   selected,
+  blurImages,
   onSelect,
 }: {
   request: GenerationRequestUnit;
   selected: boolean;
+  blurImages: boolean;
   onSelect: (jobId: string) => void;
 }) {
   const { t } = useTranslation("generation");
@@ -448,6 +470,7 @@ function RequestCursorUnit({
           <SampleVisual
             key={sample.sampleIndex}
             sample={sample}
+            blurImages={blurImages}
             alt={`Request ${request.requestIndex + 1} sample ${sample.sampleIndex + 1}`}
             className={requestCursorSampleClass(request.samples.length, index)}
             crop
@@ -466,9 +489,11 @@ function RequestCursorUnit({
 
 function SampleGrid({
   request,
+  blurImages,
   onFocusSample,
 }: {
   request: GenerationRequestUnit;
+  blurImages: boolean;
   onFocusSample: (jobId: string, sampleIndex: number) => void;
 }) {
   return (
@@ -478,6 +503,7 @@ function SampleGrid({
           key={sample.sampleIndex}
           request={request}
           sample={sample}
+          blurImages={blurImages}
           onFocusSample={onFocusSample}
         />
       ))}
@@ -488,10 +514,12 @@ function SampleGrid({
 function SampleGridButton({
   request,
   sample,
+  blurImages,
   onFocusSample,
 }: {
   request: GenerationRequestUnit;
   sample: GenerationSampleSlot;
+  blurImages: boolean;
   onFocusSample: (jobId: string, sampleIndex: number) => void;
 }) {
   const { t } = useTranslation("generation");
@@ -508,6 +536,7 @@ function SampleGridButton({
     >
       <SampleVisual
         sample={sample}
+        blurImages={blurImages}
         alt={`Generation sample ${sample.sampleIndex + 1}`}
         className="h-full min-h-[220px] w-full"
       />
@@ -521,10 +550,12 @@ function SampleGridButton({
 function FocusedSample({
   request,
   sample,
+  blurImages,
   onOpenLightbox,
 }: {
   request: GenerationRequestUnit;
   sample: GenerationSampleSlot;
+  blurImages: boolean;
   onOpenLightbox: () => void;
 }) {
   const { t } = useTranslation("generation");
@@ -538,6 +569,7 @@ function FocusedSample({
     >
       <SampleVisual
         sample={sample}
+        blurImages={blurImages}
         alt={t("requestSampleAlt", {
           request: request.requestIndex + 1,
           sample: sample.sampleIndex + 1,
@@ -556,30 +588,35 @@ function FocusedSample({
 
 function SampleVisual({
   sample,
+  blurImages,
   alt,
   className,
   crop = false,
 }: {
   sample: GenerationSampleSlot;
+  blurImages: boolean;
   alt: string;
   className: string;
   crop?: boolean;
 }) {
   const { t } = useTranslation("generation");
   const style = crop ? CROPPED_PREVIEW_STYLE : undefined;
+  const imageClassName = [className, blurImages ? "blur-md" : ""].join(" ");
   if (sample.resource) {
     return (
       <GenerationResourceImage
         resource={sample.resource}
         alt={alt}
-        className={className}
+        className={imageClassName}
         style={style}
         fallbackLabel="Final image unavailable"
       />
     );
   }
   if (sample.streamSrc) {
-    return <ResourceImage src={sample.streamSrc} alt={alt} className={className} style={style} />;
+    return (
+      <ResourceImage src={sample.streamSrc} alt={alt} className={imageClassName} style={style} />
+    );
   }
   return (
     <ResourceImage

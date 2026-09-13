@@ -32,6 +32,7 @@ const HISTORY_STATUS_OPTIONS = [
 
 type GenerationHistoryRailProps = {
   batches: ReadonlyArray<GenerationHistoryBatchDto>;
+  blurImages: boolean;
   pending: boolean;
   error: string | null;
   selectedBatchId: string | null;
@@ -57,6 +58,7 @@ type GenerationHistoryRailProps = {
 
 export function GenerationHistoryRail({
   batches,
+  blurImages,
   pending,
   error,
   selectedBatchId,
@@ -171,6 +173,7 @@ export function GenerationHistoryRail({
             <GenerationHistoryBatch
               key={batch.batch_id}
               batch={batch}
+              blurImages={blurImages}
               selected={selectedBatchId === batch.batch_id}
               checked={selectedBatchIds.has(batch.batch_id)}
               onSelect={onSelect}

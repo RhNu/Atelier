@@ -197,6 +197,8 @@ export function GeneratePage() {
   );
   const historyBatches = historyQuery.data?.items ?? EMPTY_ITEMS;
   const isViewingLive = Boolean(viewBatchId && viewBatchId === effectiveLiveBatchId);
+  const blurGeneratedImages =
+    globalSettingsQuery.data?.frontend.gallery.blur_sensitive_images === true;
 
   useEffect(() => {
     syncActiveBatch(status?.batch_id ?? null, status?.current_job_id ?? null);
@@ -539,6 +541,7 @@ export function GeneratePage() {
             <GenerationPreviewStage
               batch={batchView}
               selectedRequest={selectedRequest}
+              blurImages={blurGeneratedImages}
               focusedSampleIndex={focusedSampleIndex}
               focusMode={focusMode}
               isViewingLive={isViewingLive}
@@ -573,6 +576,7 @@ export function GeneratePage() {
         history={
           <GenerationHistoryRail
             batches={historyBatches}
+            blurImages={blurGeneratedImages}
             pending={historyQuery.isPending}
             error={historyQuery.isError ? formatError(historyQuery.error) : null}
             selectedBatchId={viewBatchId}

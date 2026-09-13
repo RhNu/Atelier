@@ -9,12 +9,14 @@ import { GenerationResourceImage } from "./GenerationResourceImage";
 
 export function GenerationHistoryBatch({
   batch,
+  blurImages,
   selected,
   checked,
   onSelect,
   onToggleSelection,
 }: {
   batch: GenerationHistoryBatchDto;
+  blurImages: boolean;
   selected: boolean;
   checked: boolean;
   onSelect: (batchId: string) => void;
@@ -51,6 +53,7 @@ export function GenerationHistoryBatch({
                 alt={t("batchOutput", { index: index + 1 })}
                 className={[
                   "h-full min-h-0 w-full bg-app-panel object-cover text-[8px]",
+                  blurImages ? "blur-md" : "",
                   availableOutputs.length === 1 ? "col-span-2 row-span-2" : "",
                 ].join(" ")}
                 fallbackLabel=""
