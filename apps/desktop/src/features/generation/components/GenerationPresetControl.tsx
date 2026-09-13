@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppIconButton } from "@/components/ui";
-import { ResourcePickerDialog } from "@/features/resources";
+import { ResourcePickerDialog } from "@/features/resources/components/ResourcePickerDialog";
 import type { PromptPresetDto } from "@/types";
 
 type GenerationPresetControlProps = {

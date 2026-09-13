@@ -1881,6 +1881,20 @@ describe("GeneratePage queue and preview behavior", () => {
     );
   });
 
+  it("uses Alt+C to browse folders and insert a prompt chunk at the caret", async () => {
+    const { user } = setup();
+    const prompt = await screen.findByLabelText("Positive prompt");
+
+    typeInPromptEditor(prompt, "1girl, ");
+    fireEvent.keyDown(prompt, { key: "c", altKey: true });
+    const dialog = await screen.findByRole("dialog", { name: "Prompt chunk library" });
+    await user.click(within(dialog).getByRole("button", { name: "Open Lighting" }));
+    await user.click(within(dialog).getByRole("button", { name: /Lighting\/lighting/u }));
+
+    expect(promptEditorText(prompt)).toBe("1girl, $chunk(Lighting/lighting), ");
+    expect(screen.queryByRole("dialog", { name: "Prompt chunk library" })).not.toBeInTheDocument();
+  });
+
   it("supports tag and chunk completion in character prompts", async () => {
     const { user } = setup();
 

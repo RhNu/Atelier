@@ -1,4 +1,4 @@
-/* eslint-disable react-perf/jsx-no-new-object-as-prop */
+/* eslint-disable react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
 import { useQueryClient } from "@tanstack/react-query";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,10 +7,12 @@ import { generationApi } from "@/platform/atelier";
 import type { ImageModelDto, PromptTokenCountDto } from "@/types";
 
 import { createNaiPromptCompletion } from "./completion";
+import { insertPromptChunkReference } from "./editor-adapter";
 import type { NaiPromptHighlightMode } from "./editor-theme";
 import type { NaiPromptProfile, PromptEditorMessages } from "./prompt-analysis";
 import { usePromptEditorSettings } from "./prompt-editor-settings-context";
 import { normalizeFullWidthPunctuation } from "./prompt-normalization";
+import { PromptChunkPickerDialog } from "./PromptChunkPickerDialog";
 import { usePromptEditor } from "./use-prompt-editor";
 
 export type NaiPromptEditorHandle = { focus: () => void };
@@ -61,6 +63,7 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
     const shouldConvertFullWidthPunctuation =
       convertFullWidthPunctuation ?? inheritedConvertFullWidthPunctuation;
     const { t } = useTranslation("promptEditor");
+    const [chunkPickerOpen, setChunkPickerOpen] = useState(false);
     const queryClient = useQueryClient();
     const messages = usePromptEditorMessages(t);
     const completionSource = useMemo(
@@ -76,6 +79,14 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
         ),
       [model, queryClient, t],
     );
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!readOnly && event.altKey && event.key.toLocaleLowerCase() === "c") {
+        event.preventDefault();
+        setChunkPickerOpen(true);
+      }
+      onKeyDown?.(event);
+    }
+
     const { hostRef, viewRef } = usePromptEditor(
       {
         id,
@@ -91,28 +102,43 @@ export const NaiPromptEditor = forwardRef<NaiPromptEditorHandle, NaiPromptEditor
         completionsPhrase: t("completions"),
         completionSource,
       },
-      { onChange, onBlur, onKeyDown },
+      { onChange, onBlur, onKeyDown: handleKeyDown },
     );
     useImperativeHandle(forwardedRef, () => ({ focus: () => viewRef.current?.focus() }), [viewRef]);
 
     return (
-      <div className="grid gap-1.5">
-        <div
-          ref={hostRef}
-          className={[
-            "nai-prompt-editor overflow-hidden border border-app-border bg-black/20 focus-within:border-brand-400",
-            className ?? "",
-          ].join(" ")}
-          style={{ minHeight }}
-        />
-        {model ? (
-          <PromptTokenMeter
-            model={model}
-            text={shouldConvertFullWidthPunctuation ? normalizeFullWidthPunctuation(value) : value}
-            suppliedCount={tokenCount}
+      <>
+        <div className="grid gap-1.5">
+          <div
+            ref={hostRef}
+            className={[
+              "nai-prompt-editor overflow-hidden border border-app-border bg-black/20 focus-within:border-brand-400",
+              className ?? "",
+            ].join(" ")}
+            style={{ minHeight }}
+          />
+          {model ? (
+            <PromptTokenMeter
+              model={model}
+              text={
+                shouldConvertFullWidthPunctuation ? normalizeFullWidthPunctuation(value) : value
+              }
+              suppliedCount={tokenCount}
+            />
+          ) : null}
+        </div>
+        {chunkPickerOpen ? (
+          <PromptChunkPickerDialog
+            open
+            model={model ?? null}
+            onClose={() => setChunkPickerOpen(false)}
+            onSelect={(path) => {
+              const view = viewRef.current;
+              if (view) insertPromptChunkReference(view, path);
+            }}
           />
         ) : null}
-      </div>
+      </>
     );
   },
 );

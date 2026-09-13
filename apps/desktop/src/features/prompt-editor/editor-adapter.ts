@@ -171,6 +171,17 @@ export function applyControlledValue(view: EditorView, value: string) {
   });
 }
 
+export function insertPromptChunkReference(view: EditorView, path: string): void {
+  const selection = view.state.selection.main;
+  const insert = `$chunk(${path}), `;
+  view.dispatch({
+    changes: { from: selection.from, to: selection.to, insert },
+    selection: { anchor: selection.from + insert.length },
+    scrollIntoView: true,
+    userEvent: "input",
+  });
+}
+
 export function reconfigurePromptProfile(
   view: EditorView,
   compartment: Compartment,

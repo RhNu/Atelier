@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ResourcePickerDialog } from "@/features/resources";
+import { ResourcePickerDialog } from "@/features/resources/components/ResourcePickerDialog";
 import type { ImageModelDto, VibeDocumentEntryDto } from "@/types";
 
 import { useVibeDocumentsQuery } from "../data/useGenerationActions";

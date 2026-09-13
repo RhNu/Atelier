@@ -80,29 +80,7 @@ export function ResourcePickerDialog<Item extends ResourcePickerItem>({
           />
         </label>
 
-        <nav
-          className="flex min-h-9 min-w-0 items-center gap-1 border-b border-app-border pb-2"
-          aria-label={t("folderNavigation")}
-        >
-          <AppButton variant="ghost" className="h-8 px-2" onClick={() => setCurrentFolderId(null)}>
-            <Home aria-hidden="true" className="size-4" />
-            {t("library")}
-          </AppButton>
-          {view.breadcrumbs.map((folder) => (
-            <Fragment key={folder.folder_id}>
-              <span aria-hidden="true" className="text-app-muted">
-                /
-              </span>
-              <AppButton
-                variant="ghost"
-                className="h-8 max-w-48 px-2"
-                onClick={() => setCurrentFolderId(folder.folder_id)}
-              >
-                <span className="truncate">{folderName(folder)}</span>
-              </AppButton>
-            </Fragment>
-          ))}
-        </nav>
+        <PickerBreadcrumbs breadcrumbs={view.breadcrumbs} onOpen={setCurrentFolderId} />
 
         {loading ? (
           <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-app-muted">
@@ -184,6 +162,41 @@ export function ResourcePickerDialog<Item extends ResourcePickerItem>({
         )}
       </div>
     </AppModal>
+  );
+}
+
+function PickerBreadcrumbs({
+  breadcrumbs,
+  onOpen,
+}: {
+  breadcrumbs: ReturnType<typeof buildResourcePickerView>["breadcrumbs"];
+  onOpen: (folderId: string | null) => void;
+}) {
+  const { t } = useTranslation("resources");
+  return (
+    <nav
+      className="flex min-h-9 min-w-0 items-center gap-1 border-b border-app-border pb-2"
+      aria-label={t("folderNavigation")}
+    >
+      <AppButton variant="ghost" className="h-8 px-2" onClick={() => onOpen(null)}>
+        <Home aria-hidden="true" className="size-4" />
+        {t("library")}
+      </AppButton>
+      {breadcrumbs.map((folder) => (
+        <Fragment key={folder.folder_id}>
+          <span aria-hidden="true" className="text-app-muted">
+            /
+          </span>
+          <AppButton
+            variant="ghost"
+            className="h-8 max-w-48 px-2"
+            onClick={() => onOpen(folder.folder_id)}
+          >
+            <span className="truncate">{folderName(folder)}</span>
+          </AppButton>
+        </Fragment>
+      ))}
+    </nav>
   );
 }
 
