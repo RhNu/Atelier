@@ -390,6 +390,7 @@ dependencies = [
  "atelier-kernel",
  "atelier-prompt-resources",
  "atelier-resource-catalog",
+ "atelier-resource-library",
  "atelier-safety",
  "atelier-settings",
  "atelier-vibe",
@@ -400,6 +401,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.20",
+ "uuid",
 ]
 
 [[package]]
@@ -831,6 +833,7 @@ dependencies = [
 name = "atelier-resource-library"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "thiserror 2.0.20",
  "unicode-ident",
  "unicode-normalization",

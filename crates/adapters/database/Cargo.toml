@@ -14,6 +14,7 @@ atelier-jobs = { workspace = true }
 atelier-kernel = { workspace = true }
 atelier-prompt-resources = { workspace = true }
 atelier-resource-catalog = { workspace = true }
+atelier-resource-library = { workspace = true }
 atelier-safety = { workspace = true }
 atelier-settings = { workspace = true }
 atelier-vibe = { workspace = true }
@@ -21,6 +22,7 @@ rusqlite = { workspace = true, features = ["bundled"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 futures-executor = { workspace = true }

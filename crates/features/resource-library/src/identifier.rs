@@ -30,6 +30,40 @@ impl ResourceIdentifier {
     }
 
     #[must_use]
+    pub fn from_legacy(value: &str, fallback: &str) -> Self {
+        let normalized = value.trim().nfc().collect::<String>();
+        let mut output = String::new();
+        let mut previous_was_replacement = false;
+        for character in normalized.chars() {
+            let valid = if output.is_empty() {
+                character == '_' || unicode_ident::is_xid_start(character)
+            } else {
+                character == '_' || character == '-' || unicode_ident::is_xid_continue(character)
+            };
+            if valid {
+                output.push(character);
+                previous_was_replacement = false;
+                continue;
+            }
+            if output.is_empty() && (character == '-' || unicode_ident::is_xid_continue(character))
+            {
+                output.push('_');
+                output.push(character);
+                previous_was_replacement = false;
+            } else if !previous_was_replacement {
+                output.push('_');
+                previous_was_replacement = true;
+            }
+        }
+        let candidate = if output.chars().all(|character| character == '_') {
+            fallback
+        } else {
+            output.as_str()
+        };
+        Self::parse(candidate).unwrap_or_else(|_| Self("item".to_owned()))
+    }
+
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

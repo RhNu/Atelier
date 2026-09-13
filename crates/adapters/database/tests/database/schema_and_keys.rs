@@ -26,7 +26,7 @@ fn schema_initializes_once_and_file_backed_database_reopens() {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .unwrap();
-        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 4));
+        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 5));
         drop(raw);
 
         let reopened = DatabaseConnection::open(&path).unwrap();
@@ -93,6 +93,8 @@ fn version_one_database_migrates_at_a_single_testable_boundary() {
             r"
             DROP INDEX idx_gallery_items_safety_scan_state;
             ALTER TABLE gallery_items DROP COLUMN safety_scan_state;
+            DROP TABLE resource_library_aliases;
+            DROP TABLE resource_library_nodes;
             DROP TABLE prompt_chunk_models;
             DROP TABLE prompt_preset_models;
             UPDATE atelier_schema SET schema_version = 1 WHERE singleton = 1;
@@ -125,7 +127,7 @@ fn version_one_database_migrates_at_a_single_testable_boundary() {
                 |row| row.get::<_, i64>(0)
             )
             .unwrap(),
-            4
+            5
         );
         let row: (String, Option<String>) = raw
             .query_row(
@@ -158,6 +160,8 @@ fn version_two_database_drops_workspace_api_key_metadata() {
             WHERE is_active = 1;
         INSERT INTO api_key_records(id, display_name, secret_record_id, is_active)
         VALUES ('legacy', 'Legacy key', 'novelai-api-key:legacy', 1);
+        DROP TABLE resource_library_aliases;
+        DROP TABLE resource_library_nodes;
         DROP TABLE prompt_chunk_models;
         DROP TABLE prompt_preset_models;
         UPDATE atelier_schema SET schema_version = 2 WHERE singleton = 1;
@@ -183,7 +187,63 @@ fn version_two_database_drops_workspace_api_key_metadata() {
             |row| row.get::<_, i64>(0)
         )
         .unwrap(),
-        4
+        5
+    );
+}
+
+#[test]
+fn version_four_database_backfills_logical_resource_namespaces() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("atelier.sqlite3");
+    drop(DatabaseConnection::open(&path).unwrap());
+    let raw = Connection::open(&path).unwrap();
+    raw.execute(
+        r"
+        INSERT INTO prompt_chunks(
+            chunk_id, chunk_key, content, category, description,
+            preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms
+        ) VALUES ('legacy-hero', 'hero', '1girl', 'People / Women', NULL, NULL, NULL, 10, 20)
+        ",
+        [],
+    )
+    .unwrap();
+    raw.execute_batch(
+        r"
+        DROP TABLE resource_library_aliases;
+        DROP TABLE resource_library_nodes;
+        UPDATE atelier_schema SET schema_version = 4 WHERE singleton = 1;
+        ",
+    )
+    .unwrap();
+    drop(raw);
+
+    drop(DatabaseConnection::open(&path).unwrap());
+    let raw = Connection::open(path).unwrap();
+    let folder: (String, String) = raw
+        .query_row(
+            "SELECT identifier, display_name FROM resource_library_nodes WHERE node_kind = 'folder'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(
+        folder,
+        ("People_Women".to_owned(), "People / Women".to_owned())
+    );
+    let resource: (String, String, String) = raw
+        .query_row(
+            "SELECT namespace, owner_local_id, identifier FROM resource_library_nodes WHERE node_kind = 'resource'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(
+        resource,
+        (
+            "prompt_chunk".to_owned(),
+            "legacy-hero".to_owned(),
+            "hero".to_owned()
+        )
     );
 }
 
@@ -230,8 +290,8 @@ fn old_migration_database_is_rejected_without_changes() {
 fn database_rejects_unknown_format_and_non_current_versions() {
     for (format, version) in [
         ("atelier-workspace-database", 0),
-        ("atelier-workspace-database", 5),
-        ("another-database", 4),
+        ("atelier-workspace-database", 6),
+        ("another-database", 5),
     ] {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("atelier.sqlite3");

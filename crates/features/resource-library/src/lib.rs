@@ -6,6 +6,7 @@
 mod error;
 mod identifier;
 mod model;
+mod ports;
 mod tree;
 
 pub use error::{ResourceLibraryError, ResourceLibraryErrorKind, ResourceLibraryResult};
@@ -14,4 +15,5 @@ pub use model::{
     LibraryFolder, LibraryFolderId, LibraryNamespace, LibraryResource, LibraryResourceId,
     ResourceName,
 };
+pub use ports::ResourceLibraryRepository;
 pub use tree::{LibraryChildren, LibraryNodeRef, LibraryTree};

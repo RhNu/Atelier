@@ -5,6 +5,7 @@ edition = "2024"
 publish.workspace = true
 
 [dependencies]
+async-trait = { workspace = true }
 thiserror = { workspace = true }
 unicode-ident = { workspace = true }
 unicode-normalization = { workspace = true }

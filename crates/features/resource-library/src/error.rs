@@ -10,6 +10,7 @@ pub enum ResourceLibraryErrorKind {
     NotFound,
     Conflict,
     Cycle,
+    Repository,
 }
 
 #[derive(Clone, Debug, Error, PartialEq, Eq)]

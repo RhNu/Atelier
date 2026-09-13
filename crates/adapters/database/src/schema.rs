@@ -5,7 +5,7 @@ use crate::error::{DatabaseError, DatabaseResult};
 mod migrations;
 
 const DATABASE_FORMAT: &str = "atelier-workspace-database";
-const DATABASE_SCHEMA_VERSION: i64 = 4;
+const DATABASE_SCHEMA_VERSION: i64 = 5;
 
 const SCHEMA_SQL: &str = r"
 CREATE TABLE atelier_schema (
@@ -15,7 +15,7 @@ CREATE TABLE atelier_schema (
 );
 
 INSERT INTO atelier_schema(singleton, format, schema_version)
-VALUES (1, 'atelier-workspace-database', 4);
+VALUES (1, 'atelier-workspace-database', 5);
 
 CREATE TABLE resources (
     id TEXT PRIMARY KEY,
@@ -123,6 +123,40 @@ CREATE INDEX idx_gallery_items_effective_safety_label
     ON gallery_items(effective_safety_label);
 CREATE INDEX idx_gallery_items_safety_scan_state
     ON gallery_items(safety_scan_state, indexed_at_ms, item_id);
+
+CREATE TABLE resource_library_nodes (
+    node_id TEXT PRIMARY KEY,
+    namespace TEXT NOT NULL CHECK (
+        namespace IN ('prompt_chunk', 'main_preset', 'character_preset', 'vibe')
+    ),
+    parent_folder_id TEXT,
+    node_kind TEXT NOT NULL CHECK (node_kind IN ('folder', 'resource')),
+    owner_local_id TEXT,
+    identifier TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL,
+    CHECK (
+        (node_kind = 'folder' AND owner_local_id IS NULL) OR
+        (node_kind = 'resource' AND owner_local_id IS NOT NULL)
+    ),
+    FOREIGN KEY (parent_folder_id) REFERENCES resource_library_nodes(node_id) ON DELETE RESTRICT,
+    UNIQUE (namespace, owner_local_id)
+);
+
+CREATE UNIQUE INDEX idx_resource_library_sibling_identifier
+    ON resource_library_nodes(namespace, COALESCE(parent_folder_id, ''), identifier);
+CREATE INDEX idx_resource_library_parent
+    ON resource_library_nodes(namespace, parent_folder_id, node_kind, identifier);
+
+CREATE TABLE resource_library_aliases (
+    node_id TEXT NOT NULL,
+    alias_order INTEGER NOT NULL,
+    alias TEXT NOT NULL,
+    PRIMARY KEY (node_id, alias_order),
+    UNIQUE (node_id, alias),
+    FOREIGN KEY (node_id) REFERENCES resource_library_nodes(node_id) ON DELETE CASCADE
+);
 
 CREATE TABLE prompt_chunks (
     chunk_id TEXT PRIMARY KEY,

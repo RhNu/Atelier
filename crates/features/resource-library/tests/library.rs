@@ -17,6 +17,14 @@ fn identifiers_and_paths_are_unicode_nfc_and_root_relative() {
     for invalid in ["", "/hero", "hero/", "hero//main"] {
         assert!(ResourcePath::parse(invalid).is_err(), "{invalid}");
     }
+    assert_eq!(
+        ResourceIdentifier::from_legacy("人物 / 女性", "item").as_str(),
+        "人物_女性"
+    );
+    assert_eq!(
+        ResourceIdentifier::from_legacy("42 cats", "item").as_str(),
+        "_42_cats"
+    );
 }
 
 #[test]
