@@ -21,6 +21,7 @@ export function ResourcePickerDialog<Item extends ResourcePickerItem>({
   items,
   selectedItemId,
   pending = false,
+  error,
   emptyLabel,
   noMatchesLabel,
   onClose,
@@ -32,6 +33,7 @@ export function ResourcePickerDialog<Item extends ResourcePickerItem>({
   items: ReadonlyArray<Item>;
   selectedItemId?: string | null;
   pending?: boolean;
+  error?: unknown;
   emptyLabel: string;
   noMatchesLabel: string;
   onClose: () => void;
@@ -61,6 +63,7 @@ export function ResourcePickerDialog<Item extends ResourcePickerItem>({
   }
 
   const loading = pending || libraryQuery.isPending;
+  const failure = error ?? libraryQuery.error;
   const hasEntries = view.folders.length > 0 || view.items.length > 0;
 
   return (
@@ -106,11 +109,9 @@ export function ResourcePickerDialog<Item extends ResourcePickerItem>({
             <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
             {t("loading")}
           </div>
-        ) : libraryQuery.isError ? (
+        ) : failure ? (
           <p className="border border-rose-500/40 bg-rose-950/30 p-3 text-sm text-rose-100">
-            {libraryQuery.error instanceof Error
-              ? libraryQuery.error.message
-              : t("foldersUnavailable")}
+            {failure instanceof Error ? failure.message : t("unavailable")}
           </p>
         ) : !hasEntries ? (
           <div className="grid min-h-48 place-items-center border border-dashed border-app-border text-sm text-app-muted">

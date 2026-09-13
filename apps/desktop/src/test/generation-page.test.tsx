@@ -33,6 +33,7 @@ import type {
   GenerationEstimateRequestDto,
   GenerationStatusDto,
   GenerationStatusQueryDto,
+  GetLibrarySnapshotRequestDto,
   GetResourceImageRequestDto,
   ImportImageResourceResponseDto,
   ImageResourceKindDto,
@@ -42,11 +43,15 @@ import type {
   ListVibeDocumentsRequestDto,
   ListPromptPresetsRequestDto,
   ListPromptChunksRequestDto,
+  LibraryNamespaceDto,
+  LibrarySnapshotDto,
   LexiconCompleteRequestDto,
   LexiconSearchItemDto,
   QueueDirectiveDto,
   PromptChunkPageDto,
+  PromptChunkDto,
   PromptPresetPageDto,
+  PromptPresetDto,
   PromptTokenUsageDto,
   ResourceImageDto,
   ReleaseImportedImageResourcesRequestDto,
@@ -67,6 +72,7 @@ import type {
   EnsureVibeEncodingRequestDto,
   EnsuredVibeEncodingDto,
   VibeDocumentPageDto,
+  VibeDocumentEntryDto,
   WorkspaceSettingsDto,
 } from "../types";
 import {
@@ -137,6 +143,8 @@ const mocks = vi.hoisted(() => ({
     complete: vi.fn<(request: LexiconCompleteRequestDto) => Promise<LexiconSearchItemDto[]>>(),
   },
   resourceApi: {
+    librarySnapshot:
+      vi.fn<(request: GetLibrarySnapshotRequestDto) => Promise<LibrarySnapshotDto>>(),
     image: vi.fn<(request: GetResourceImageRequestDto) => Promise<ResourceImageDto>>(),
     releaseImportedImages:
       vi.fn<
@@ -227,6 +235,7 @@ vi.mock("../platform/atelier", () => ({
     },
     resource: {
       root: () => ["resource"],
+      library: (namespace: string) => ["resource", "library", namespace],
       image: (resource: { id: string; variant_id: string | null }) => [
         "resource",
         "image",
@@ -372,6 +381,36 @@ function setup(options?: {
   model?: ImageModelDto;
   subscription?: SubscriptionSummaryDto;
 }) {
+  const chunks = [
+    {
+      chunk_id: "chunk-lighting",
+      path: "Lighting/lighting",
+      folder_id: "folder-lighting",
+      identifier: "lighting",
+      display_name: "Lighting",
+      aliases: [],
+      content: "cinematic lighting, rim light",
+      description: "Reusable lighting stack",
+      preview: null,
+      created_at_ms: 1,
+      updated_at_ms: 1,
+      models: ["nai-diffusion-4-5-full" as const],
+    },
+    {
+      chunk_id: "chunk-hero",
+      path: "Subject/hero",
+      folder_id: "folder-subject",
+      identifier: "hero",
+      display_name: "Hero",
+      aliases: [],
+      content: "solo, looking at viewer",
+      description: "Main character setup",
+      preview: null,
+      created_at_ms: 2,
+      updated_at_ms: 2,
+      models: ["nai-diffusion-4-5-full" as const],
+    },
+  ];
   mocks.generationApi.listModels.mockResolvedValue(imageModelCatalog);
   mocks.generationApi.countPromptTokens.mockResolvedValue({
     prompt: { used: 3, limit: 512 },
@@ -496,36 +535,7 @@ function setup(options?: {
     uc_preset_override: null,
   });
   mocks.promptApi.listChunks.mockResolvedValue({
-    items: [
-      {
-        chunk_id: "chunk-lighting",
-        path: "Lighting/lighting",
-        folder_id: "folder-lighting",
-        identifier: "lighting",
-        display_name: "Lighting",
-        aliases: [],
-        content: "cinematic lighting, rim light",
-        description: "Reusable lighting stack",
-        preview: null,
-        created_at_ms: 1,
-        updated_at_ms: 1,
-        models: ["nai-diffusion-4-5-full"],
-      },
-      {
-        chunk_id: "chunk-hero",
-        path: "Subject/hero",
-        folder_id: "folder-subject",
-        identifier: "hero",
-        display_name: "Hero",
-        aliases: [],
-        content: "solo, looking at viewer",
-        description: "Main character setup",
-        preview: null,
-        created_at_ms: 2,
-        updated_at_ms: 2,
-        models: ["nai-diffusion-4-5-full"],
-      },
-    ],
+    items: chunks,
     total: 2,
     offset: 0,
     limit: 200,
@@ -566,6 +576,14 @@ function setup(options?: {
     resources_deleted: 1,
     blobs_deleted: 1,
   });
+  mocks.resourceApi.librarySnapshot.mockImplementation(async ({ namespace }) =>
+    pickerLibrarySnapshot(namespace, {
+      chunks,
+      mainPresets: options?.mainPresets?.items ?? [],
+      characterPresets: options?.characterPresets?.items ?? [],
+      vibes: options?.vibeDocuments?.items ?? [],
+    }),
+  );
   mocks.galleryApi.imageReference.mockResolvedValue({
     item_id: "gallery-1",
     artifact_id: "artifact-1",
@@ -696,6 +714,84 @@ function emptyPresetPage(): PromptPresetPageDto {
     total: 0,
     offset: 0,
     limit: 200,
+  };
+}
+
+function pickerLibrarySnapshot(
+  namespace: LibraryNamespaceDto,
+  sources: {
+    chunks: ReadonlyArray<PromptChunkDto>;
+    mainPresets: ReadonlyArray<PromptPresetDto>;
+    characterPresets: ReadonlyArray<PromptPresetDto>;
+    vibes: ReadonlyArray<VibeDocumentEntryDto>;
+  },
+): LibrarySnapshotDto {
+  const entries = (() => {
+    if (namespace === "prompt_chunk") {
+      return sources.chunks.map((item) => ({
+        id: item.chunk_id,
+        path: item.path,
+        folderId: item.folder_id,
+        identifier: item.identifier,
+        displayName: item.display_name,
+        aliases: item.aliases,
+      }));
+    }
+    if (namespace === "main_preset" || namespace === "character_preset") {
+      const presets = namespace === "main_preset" ? sources.mainPresets : sources.characterPresets;
+      return presets.map((item) => ({
+        id: item.preset_id,
+        path: item.path,
+        folderId: item.folder_id,
+        identifier: item.identifier,
+        displayName: item.display_name,
+        aliases: item.aliases,
+      }));
+    }
+    return sources.vibes.map((item) => ({
+      id: item.vibe_id,
+      path: item.vibe_id,
+      folderId: null,
+      identifier: item.vibe_id,
+      displayName: item.display_name,
+      aliases: [] as string[],
+    }));
+  })();
+  const folderById = new Map(
+    entries.flatMap((entry) => {
+      if (!entry.folderId || !entry.path.includes("/")) return [];
+      const path = entry.path.slice(0, entry.path.lastIndexOf("/"));
+      const identifier = path.slice(path.lastIndexOf("/") + 1);
+      return [
+        [
+          entry.folderId,
+          {
+            folder_id: entry.folderId,
+            namespace,
+            parent_id: null,
+            identifier,
+            display_name: identifier,
+            path,
+            created_at_ms: 1,
+            updated_at_ms: 1,
+          },
+        ] as const,
+      ];
+    }),
+  );
+  return {
+    folders: [...folderById.values()],
+    resources: entries.map((entry) => ({
+      resource_id: entry.id,
+      namespace,
+      folder_id: entry.folderId,
+      identifier: entry.identifier,
+      display_name: entry.displayName,
+      aliases: entry.aliases,
+      path: entry.path,
+      created_at_ms: 1,
+      updated_at_ms: 1,
+    })),
   };
 }
 
@@ -1245,9 +1341,8 @@ describe("GeneratePage", () => {
 
     typeInPromptEditor(await screen.findByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: "Choose Main preset" }));
-    await user.type(screen.getByLabelText("Search presets"), "cinematic");
-    await user.click(screen.getByLabelText("Filter preset category"));
-    await user.click(screen.getByRole("option", { name: "Style" }));
+    await user.click(screen.getByRole("button", { name: "Open Style" }));
+    await user.type(screen.getByLabelText("Search resources"), "cinematic");
     expect(screen.queryByRole("button", { name: /Portrait stack/u })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Cinematic stack/u }));
 
@@ -1256,6 +1351,7 @@ describe("GeneratePage", () => {
     expect(screen.getByLabelText("Main preset")).toHaveValue("No main preset");
 
     await user.click(screen.getByRole("button", { name: "Choose Main preset" }));
+    await user.click(screen.getByRole("button", { name: "Open Style" }));
     await user.click(screen.getByRole("button", { name: /Cinematic stack/u }));
     await user.click(screen.getByRole("button", { name: "Apply Main preset directly" }));
 
@@ -1300,6 +1396,7 @@ describe("GeneratePage", () => {
     const card = screen.getByRole("article", { name: "Character 1" });
     typeInPromptEditor(screen.getByLabelText("Character 1 prompt"), "1girl");
     await user.click(within(card).getByRole("button", { name: "Choose Character preset" }));
+    await user.click(screen.getByRole("button", { name: "Open Cast" }));
     await user.click(screen.getByRole("button", { name: /Heroine/u }));
     await user.click(within(card).getByRole("button", { name: "Apply Character preset directly" }));
 

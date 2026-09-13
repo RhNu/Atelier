@@ -261,6 +261,7 @@ export const GenerationPromptPanel = forwardRef<
         label={t("mainPreset")}
         noPresetLabel={t("noMainPreset")}
         libraryTitle={t("mainPresetLibrary")}
+        namespace="main_preset"
         presets={mainPresets}
         selectedPresetId={draft.mainPresetId}
         pending={mainPresetsPending}

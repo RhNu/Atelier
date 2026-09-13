@@ -253,6 +253,7 @@ function CharacterCard({
         label={t("characterPreset")}
         noPresetLabel={t("noCharacterPreset")}
         libraryTitle={t("characterPresetLibrary")}
+        namespace="character_preset"
         presets={characterPresets}
         selectedPresetId={character.presetId}
         pending={characterPresetsPending}
