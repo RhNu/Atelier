@@ -32,6 +32,7 @@ members = [
     "crates/features/prompt-lexicon",
     "crates/features/precise-reference",
     "crates/features/resource-catalog",
+    "crates/features/resource-library",
     "crates/features/safety",
     "crates/features/secrets",
     "crates/features/settings",
@@ -96,6 +97,7 @@ atelier-prompt = { path = "crates/features/prompt" }
 atelier-prompt-lexicon = { path = "crates/features/prompt-lexicon" }
 atelier-prompt-resources = { path = "crates/features/prompt-resources" }
 atelier-resource-catalog = { path = "crates/features/resource-catalog" }
+atelier-resource-library = { path = "crates/features/resource-library" }
 atelier-safety = { path = "crates/features/safety" }
 atelier-secrets = { path = "crates/features/secrets" }
 atelier-settings = { path = "crates/features/settings" }
@@ -114,6 +116,8 @@ thiserror = "2"
 tokio = { version = "1", features = ["rt", "sync"] }
 ts-rs = { version = "12", features = ["serde-compat", "serde-json-impl", "format"] }
 unicode-normalization = "0.1"
+unicode-ident = "1"
 url = "2"
+uuid = { version = "1.24", features = ["v4"] }
 walkdir = "2"
 zstd = "0.13"

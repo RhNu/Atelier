@@ -828,6 +828,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "atelier-resource-library"
+version = "0.1.0"
+dependencies = [
+ "thiserror 2.0.20",
+ "unicode-ident",
+ "unicode-normalization",
+ "uuid",
+]
+
+[[package]]
 name = "atelier-safety"
 version = "0.1.0"
 dependencies = [
