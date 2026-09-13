@@ -47,8 +47,23 @@ The command requires a clean, synchronized `main` branch and authenticated GitHu
 commits unrelated changes, moves tags, or replaces published assets. Use `--dry-run` to inspect the
 resolved plan, `--yes` for non-interactive use, `--no-wait` to return after dispatch, and `--json`
 for a machine-readable final result. An interrupted or failed command saves its checkpoint below
-`.git/atelier/`; rerun the same selector to resume. A failed release run is resumed with
-`gh run rerun --failed`, preserving the workflow's saved artifact and publication safeguards.
+`.git/atelier/`; resume with the checkpoint's explicit version (for example,
+`cargo xtask release 0.6.0`). The original selector remains accepted, but the explicit version is
+unambiguous after the package version changes. Before an unfinished checkpoint blocks a newer
+release, the command checks GitHub and automatically closes the checkpoint when that exact source
+SHA is already published. A failed release run is resumed with `gh run rerun --failed`, preserving
+the workflow's saved artifact and publication safeguards.
+
+If CI reveals a source problem before the release workflow has been dispatched, push the fix to a
+clean, synchronized `main`, then restart the same version from that new source explicitly:
+
+```powershell
+cargo xtask release 0.6.0 --restart
+```
+
+`--restart` is rejected once a matching release workflow exists. This prevents a build or
+publication retry from silently drifting to newer source. Ordinary resume never changes the saved
+source SHA.
 
 The lower-level preparation-only command remains available when manual orchestration is needed:
 
@@ -150,7 +165,9 @@ before the application so its catalog endpoint is available.
 
 ## Failure recovery and immutable releases
 
-- If preparation or CI fails, fix the source and start a new run.
+- If preparation fails before a source commit exists, fix the problem and resume the saved version.
+- If source CI fails, either rerun transient CI failures or push a fix and use `--restart` before
+  any release workflow exists.
 - If build/staging fails, rerun failed jobs. Successful immutable Actions artifacts are retained.
 - If upload/publication fails, use **Re-run failed jobs**. The publish job reuses the same artifact
   without recompiling, regenerating release notes or re-signing.

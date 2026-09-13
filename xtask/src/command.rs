@@ -53,6 +53,11 @@ struct ReleaseArgs {
     yes: bool,
     #[arg(long, help = "Return after dispatching the release workflow")]
     no_wait: bool,
+    #[arg(
+        long,
+        help = "Restart an unfinished pre-workflow release from synchronized main"
+    )]
+    restart: bool,
     #[arg(long, help = "Emit the final result as JSON")]
     json: bool,
     #[command(subcommand)]
@@ -206,6 +211,7 @@ pub fn run_in_workspace(
                         dry_run: args.dry_run,
                         yes: args.yes,
                         no_wait: args.no_wait,
+                        restart: args.restart,
                         json: args.json,
                     },
                 )

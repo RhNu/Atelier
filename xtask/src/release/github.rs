@@ -43,6 +43,7 @@ impl WorkflowRun {
 #[serde(rename_all = "camelCase")]
 pub struct ReleaseView {
     pub url: String,
+    pub target_commitish: String,
 }
 
 #[derive(Deserialize)]
@@ -50,6 +51,7 @@ pub struct ReleaseView {
 struct FoundRelease {
     url: String,
     is_draft: bool,
+    target_commitish: String,
 }
 
 fn gh_capture(root: &Path, args: &[&str]) -> Result<String, String> {
@@ -193,7 +195,7 @@ pub fn published_release(
             "-R",
             &github.repository,
             "--json",
-            "url,isDraft",
+            "url,isDraft,targetCommitish",
         ],
     ) {
         Ok(output) => output,
@@ -206,7 +208,10 @@ pub fn published_release(
     };
     let found: FoundRelease = serde_json::from_slice(&output.stdout)
         .map_err(|error| format!("invalid gh release JSON: {error}"))?;
-    Ok((!found.is_draft).then_some(ReleaseView { url: found.url }))
+    Ok((!found.is_draft).then_some(ReleaseView {
+        url: found.url,
+        target_commitish: found.target_commitish,
+    }))
 }
 
 pub fn find_ci_run(root: &Path, github: &GitHubContext, sha: &str) -> Result<WorkflowRun, String> {

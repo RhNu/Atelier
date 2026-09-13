@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use self::git::{GitSnapshot, commit_version, preflight_git, push_release};
 use self::github::{
-    GitHubContext, dispatch_release, ensure_release_prerequisites, find_ci_run,
+    GitHubContext, ReleaseView, dispatch_release, ensure_release_prerequisites, find_ci_run,
     find_existing_release_run, find_release_run, get_run, published_release,
     release_artifact_expired, rerun, show_failed_logs, watch_run,
 };
@@ -31,6 +31,7 @@ pub struct ApplicationReleaseRequest {
     pub dry_run: bool,
     pub yes: bool,
     pub no_wait: bool,
+    pub restart: bool,
     pub json: bool,
 }
 
@@ -107,33 +108,41 @@ pub fn run_application_release(
     let reporter = Reporter { json: request.json };
     reporter.stage("Inspecting release state");
     let current = read_application_version(root)?;
-    let saved = load_state(root)?;
-    if let Some(saved) = &saved
-        && !saved.completed
-        && saved.selector != request.selector
-    {
-        return Err(format!(
-            "unfinished Atelier {} release uses selector `{}`; rerun that selector before starting `{}`",
-            saved.version, saved.selector, request.selector
-        ));
+    let (mut state, pending_github, already_published) =
+        resolve_release_start(root, request, &reporter, &current)?;
+    if already_published {
+        return emit_outcome(request, &outcome(&state, true, request.dry_run));
     }
-    let mut state = if let Some(saved) = saved.filter(|saved| !saved.completed) {
-        reporter.detail(&format!("Resuming Atelier {}", saved.version));
-        saved
-    } else {
-        let version = resolve_release_version(&current, &request.selector)?;
-        ReleaseState::new(request.selector.clone(), version.to_string())
-    };
-    let target = Version::parse(&state.version).map_err(|error| error.to_string())?;
+    let target = checkpoint_version(&state)?;
 
     reporter.stage("Running Git and GitHub preflight checks");
     let git = preflight_git(root, &target, &state)?;
-    let github = ensure_release_prerequisites(root)?;
+    let github = if let Some(github) = pending_github {
+        github
+    } else {
+        ensure_release_prerequisites(root)?
+    };
     state.reconcile(&git, &current, &target)?;
 
     reporter.detail(&format!("Repository: {}", github.repository));
     reporter.detail(&format!("Version: {current} -> {target}"));
     reporter.detail(&format!("Main SHA: {}", short_sha(&git.origin_sha)));
+    if let Some(release) = published_release(root, &github, &target)? {
+        verify_published_source(&target, &release, state.source_sha.as_deref())?;
+        reporter.stage(&format!("Atelier {target} is already published"));
+        state.complete(release.url);
+        if !request.dry_run {
+            save_state(root, &state)?;
+        }
+        return emit_outcome(request, &outcome(&state, true, request.dry_run));
+    }
+    if request.restart {
+        restart_from_main(root, &github, &current, &target, &git, &mut state)?;
+        reporter.detail(&format!(
+            "Restarting Atelier {target} from {}",
+            short_sha(&git.head_sha)
+        ));
+    }
     if request.dry_run {
         return emit_outcome(
             request,
@@ -148,14 +157,7 @@ pub fn run_application_release(
             },
         );
     }
-    confirm(request, &target)?;
-
-    if published_release(root, &github, &target)?.is_some() {
-        reporter.stage(&format!("Atelier {target} is already published"));
-        state.completed = true;
-        save_state(root, &state)?;
-        return emit_outcome(request, &outcome(&state, true, false));
-    }
+    confirm(request, &target, &state)?;
 
     let source_sha = prepare_source(root, &reporter, &current, &target, &git, &mut state)?;
     wait_for_ci(root, request, &reporter, &github, &source_sha, &mut state)?;
@@ -169,6 +171,62 @@ pub fn run_application_release(
         &mut state,
     )?;
     emit_outcome(request, &outcome(&state, published, false))
+}
+
+fn resolve_release_start(
+    root: &Path,
+    request: &ApplicationReleaseRequest,
+    reporter: &Reporter,
+    current: &Version,
+) -> Result<(ReleaseState, Option<GitHubContext>, bool), String> {
+    let mut saved = load_state(root)?;
+    let github = if saved
+        .as_ref()
+        .is_some_and(|checkpoint| !checkpoint.completed)
+    {
+        let mut checkpoint = saved.take().expect("unfinished checkpoint was present");
+        let resumes_checkpoint = request_resumes_checkpoint(&checkpoint, &request.selector);
+        let target = checkpoint_version(&checkpoint)?;
+        let context = ensure_release_prerequisites(root)?;
+        let release = published_release(root, &context, &target)?;
+        if let Some(release) = release {
+            verify_published_source(&target, &release, checkpoint.source_sha.as_deref())?;
+            checkpoint.complete(release.url);
+            reporter.detail(&format!(
+                "Recovered the completed Atelier {target} release from GitHub"
+            ));
+            if !request.dry_run {
+                save_state(root, &checkpoint)?;
+            }
+            if resumes_checkpoint {
+                return Ok((checkpoint, Some(context), true));
+            }
+        } else if !resumes_checkpoint {
+            return Err(format!(
+                "Atelier {} has an unfinished release checkpoint and is not published; resume it with `cargo xtask release {}` before starting `{}`",
+                checkpoint.version, checkpoint.version, request.selector
+            ));
+        } else {
+            saved = Some(checkpoint);
+        }
+        Some(context)
+    } else {
+        None
+    };
+    let resuming = saved
+        .as_ref()
+        .is_some_and(|checkpoint| !checkpoint.completed);
+    if request.restart && !resuming {
+        return Err("--restart requires an unfinished release checkpoint".to_owned());
+    }
+    let state = if let Some(saved) = saved.filter(|saved| !saved.completed) {
+        reporter.detail(&format!("Resuming Atelier {}", saved.version));
+        saved
+    } else {
+        let version = resolve_release_version(current, &request.selector)?;
+        ReleaseState::new(request.selector.clone(), version.to_string())
+    };
+    Ok((state, github, false))
 }
 
 fn prepare_source(
@@ -226,9 +284,9 @@ fn wait_for_ci(
         }
         show_failed_logs(root, github, ci.database_id);
         return Err(format!(
-            "CI failed for {}; fix main and rerun `cargo xtask release {}`",
+            "CI failed for {}; rerun that CI if the failure was transient, or push a fix and run `cargo xtask release {} --restart`",
             short_sha(source_sha),
-            request.selector
+            state.version,
         ));
     }
     Ok(())
@@ -291,14 +349,14 @@ fn run_release_workflow(
         }
         show_failed_logs(root, github, release_run.database_id);
         return Err(format!(
-            "release run {} failed; rerun this command to retry failed jobs using the saved artifact",
-            release_run.database_id
+            "release run {} failed; rerun `cargo xtask release {}` to retry failed jobs using the saved artifact",
+            release_run.database_id, state.version
         ));
     }
     let release = published_release(root, github, target)?
         .ok_or_else(|| format!("workflow succeeded but GitHub release v{target} was not found"))?;
-    state.release_url = Some(release.url);
-    state.completed = true;
+    verify_published_source(target, &release, Some(source_sha))?;
+    state.complete(release.url);
     save_state(root, state)?;
     reporter.stage(&format!("Published Atelier {target}"));
     Ok(true)
@@ -329,7 +387,11 @@ fn emit_outcome(
     Ok(())
 }
 
-fn confirm(request: &ApplicationReleaseRequest, target: &Version) -> Result<(), String> {
+fn confirm(
+    request: &ApplicationReleaseRequest,
+    target: &Version,
+    state: &ReleaseState,
+) -> Result<(), String> {
     if request.yes {
         return Ok(());
     }
@@ -339,7 +401,14 @@ fn confirm(request: &ApplicationReleaseRequest, target: &Version) -> Result<(), 
                 .to_owned(),
         );
     }
-    eprintln!("Release Atelier {target}, commit its version, and push main? [y/N]");
+    if let Some(source_sha) = &state.source_sha {
+        eprintln!(
+            "Resume the Atelier {target} release from {}? [y/N]",
+            short_sha(source_sha)
+        );
+    } else {
+        eprintln!("Release Atelier {target}, commit its version, and push main? [y/N]");
+    }
     let mut answer = String::new();
     io::stdin()
         .read_line(&mut answer)
@@ -349,6 +418,65 @@ fn confirm(request: &ApplicationReleaseRequest, target: &Version) -> Result<(), 
     } else {
         Err("release cancelled before making changes".to_owned())
     }
+}
+
+fn request_resumes_checkpoint(state: &ReleaseState, selector: &str) -> bool {
+    state.selector == selector || state.version == selector
+}
+
+fn restart_from_main(
+    root: &Path,
+    github: &GitHubContext,
+    current: &Version,
+    target: &Version,
+    git: &GitSnapshot,
+    state: &mut ReleaseState,
+) -> Result<(), String> {
+    if current != target {
+        return Err(format!(
+            "cannot restart Atelier {target} while the workspace version is {current}"
+        ));
+    }
+    if !git.clean || git.head_sha != git.origin_sha {
+        return Err(
+            "--restart requires a clean main branch synchronized with origin/main".to_owned(),
+        );
+    }
+    if state.release_run.is_some()
+        || find_existing_release_run(root, github, &state.request_id)?.is_some()
+    {
+        return Err(
+            "cannot restart from a new source because a release workflow already exists; resume the saved version instead"
+                .to_owned(),
+        );
+    }
+    state.restart_from_main(git);
+    Ok(())
+}
+
+fn checkpoint_version(state: &ReleaseState) -> Result<Version, String> {
+    Version::parse(&state.version)
+        .map_err(|error| format!("invalid release checkpoint version: {error}"))
+}
+
+fn verify_published_source(
+    version: &Version,
+    release: &ReleaseView,
+    expected_source: Option<&str>,
+) -> Result<(), String> {
+    let expected_source = expected_source.ok_or_else(|| {
+        format!(
+            "GitHub release v{version} already exists, but the local checkpoint has no source SHA; inspect {} before continuing",
+            release.url
+        )
+    })?;
+    if release.target_commitish != expected_source {
+        return Err(format!(
+            "GitHub release v{version} targets {}, but the local checkpoint expects {expected_source}; inspect {} before continuing",
+            release.target_commitish, release.url
+        ));
+    }
+    Ok(())
 }
 
 fn read_application_version(root: &Path) -> Result<Version, String> {
@@ -427,4 +555,36 @@ pub fn validate_resource_catalog(root: &Path) -> Result<(), String> {
     validate_catalog(&catalog).map_err(|error| error.to_string())?;
     println!("Downloadable resource catalog is valid: {}", path.display());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use semver::Version;
+
+    use super::{ReleaseState, ReleaseView, request_resumes_checkpoint, verify_published_source};
+
+    #[test]
+    fn unfinished_release_can_resume_by_original_selector_or_explicit_target() {
+        let patch = ReleaseState::new("patch".to_owned(), "0.6.0".to_owned());
+        assert!(request_resumes_checkpoint(&patch, "patch"));
+        assert!(request_resumes_checkpoint(&patch, "0.6.0"));
+        assert!(!request_resumes_checkpoint(&patch, "minor"));
+
+        let explicit = ReleaseState::new("0.6.0".to_owned(), "0.6.0".to_owned());
+        assert!(request_resumes_checkpoint(&explicit, "0.6.0"));
+        assert!(!request_resumes_checkpoint(&explicit, "patch"));
+    }
+
+    #[test]
+    fn published_release_must_match_the_checkpoint_source() {
+        let version = Version::parse("0.6.0").unwrap();
+        let release = ReleaseView {
+            url: "https://example.invalid/releases/v0.6.0".to_owned(),
+            target_commitish: "a".repeat(40),
+        };
+
+        assert!(verify_published_source(&version, &release, Some(&"a".repeat(40))).is_ok());
+        assert!(verify_published_source(&version, &release, Some(&"b".repeat(40))).is_err());
+        assert!(verify_published_source(&version, &release, None).is_err());
+    }
 }
