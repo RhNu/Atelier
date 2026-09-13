@@ -55,10 +55,11 @@ export function useVibeDocumentsQuery(request: ListVibeDocumentsRequestDto) {
   });
 }
 
-export function useResourceLibraryQuery(namespace: LibraryNamespaceDto) {
+export function useResourceLibraryQuery(namespace: LibraryNamespaceDto, enabled = true) {
   return useQuery({
     queryKey: queryKeys.resource.library(namespace),
     queryFn: () => resourceApi.librarySnapshot({ namespace }),
+    enabled,
   });
 }
 
