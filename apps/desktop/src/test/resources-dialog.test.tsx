@@ -159,11 +159,10 @@ const MAIN_PRESETS = [mainPreset];
 const CHARACTER_PRESETS = [characterPreset];
 
 describe("Resources dialogs", () => {
-  it("keeps the Library primary and opens editing in a dialog", async () => {
+  it("opens editing in a dialog", async () => {
     const user = userEvent.setup();
     renderWorkspace(0);
 
-    expect(screen.getByRole("heading", { name: "Library" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /lighting/ }));
@@ -239,6 +238,8 @@ describe("Resources dialogs", () => {
 
     const listView = screen.getByRole("button", { name: "List view" });
     const gridView = screen.getByRole("button", { name: "Grid view" });
+    expect(screen.getByRole("button", { name: "Library" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Library" })).not.toBeInTheDocument();
     expect(listView).toHaveAttribute("aria-pressed", "false");
     expect(gridView).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("No preview")).toBeInTheDocument();

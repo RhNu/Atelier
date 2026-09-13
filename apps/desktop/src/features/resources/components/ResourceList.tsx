@@ -36,7 +36,6 @@ export function ResourceList({
   pending,
   error,
   emptyTitle,
-  actions,
   folderItems,
   viewMode,
   children,
@@ -44,7 +43,6 @@ export function ResourceList({
   pending: boolean;
   error: string | null;
   emptyTitle: string;
-  actions?: ReactNode;
   folderItems?: ReactNode;
   viewMode: ResourceViewMode;
   children: ReactNode;
@@ -52,10 +50,6 @@ export function ResourceList({
   const { t } = useTranslation("resources");
   return (
     <AppPanel variant="section" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <header className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-3">
-        <h2 className="text-sm font-semibold text-white">{t("library")}</h2>
-        {actions}
-      </header>
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {pending ? (
           <EmptyState title={t("loading")} />
