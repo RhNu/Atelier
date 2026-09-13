@@ -35,7 +35,6 @@ export function CharacterGuidanceSection({
   onOpenPositionEditor: () => void;
 }) {
   const { t } = useTranslation("generation");
-  const [activeCharacterIndex, setActiveCharacterIndex] = useState(0);
   const showPositionSettings =
     Boolean(capabilities?.character_position_mode) && draft.characters.length > 0;
 
@@ -67,7 +66,6 @@ export function CharacterGuidanceSection({
       },
       { persist: "immediate" },
     );
-    setActiveCharacterIndex((index) => Math.max(0, Math.min(index, characters.length - 1)));
   }
 
   return (
@@ -91,12 +89,10 @@ export function CharacterGuidanceSection({
               draft={draft}
               character={character}
               index={index}
-              selected={showPositionSettings && activeCharacterIndex === index}
               characterPresets={characterPresets}
               characterPresetsPending={characterPresetsPending}
               tokenCounts={tokenCounts}
               onPatch={onPatch}
-              onSelect={() => setActiveCharacterIndex(index)}
               onRemove={() => removeCharacter(character.id)}
             />
           ))}
@@ -156,23 +152,19 @@ function CharacterCard({
   draft,
   character,
   index,
-  selected,
   characterPresets,
   characterPresetsPending,
   tokenCounts,
   onPatch,
-  onSelect,
   onRemove,
 }: {
   draft: GenerationDraft;
   character: GenerationCharacterDraft;
   index: number;
-  selected: boolean;
   characterPresets: ReadonlyArray<PromptPresetDto>;
   characterPresetsPending: boolean;
   tokenCounts: PromptTokenUsageDto | null;
   onPatch: PatchDraft;
-  onSelect: () => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation("generation");
@@ -196,21 +188,14 @@ function CharacterCard({
     <article
       aria-label={t("character", { index: index + 1 })}
       className={[
-        "grid gap-2 border bg-app-bg/70 p-2",
-        selected ? "border-brand-400/60" : "border-app-border",
+        "grid gap-2 border border-app-border bg-app-bg/70 p-2",
         character.enabled ? "" : "opacity-50 grayscale",
       ].join(" ")}
     >
       <header className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          aria-label={t("selectCharacter", { index: index + 1 })}
-          aria-pressed={selected}
-          className="text-xs font-semibold text-app-muted hover:text-app-text"
-          onClick={onSelect}
-        >
+        <span className="text-xs font-semibold text-app-muted">
           {t("character", { index: index + 1 })}
-        </button>
+        </span>
         <div className="flex items-center gap-1">
           <AppIconButton
             icon={Power}
