@@ -4,9 +4,12 @@ import type { ResourceRefDto } from "./ResourceRefDto";
 
 export type PromptChunkDto = {
   chunk_id: string;
-  key: string;
+  path: string;
+  folder_id: string | null;
+  identifier: string;
+  display_name: string;
+  aliases: Array<string>;
   content: string;
-  category: string | null;
   description: string | null;
   preview: ResourceRefDto | null;
   models: Array<ImageModelDto>;

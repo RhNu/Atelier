@@ -21,6 +21,9 @@ export type PromptBehaviorDraft = {
 
 export type PresetEditorDraft = {
   presetId: string | null;
+  folderId: string | null;
+  identifier: string;
+  aliases: string[];
   kind: PromptPresetKindDto;
   name: string;
   category: string;
@@ -40,6 +43,9 @@ export function blankPresetEditorDraft(
 ): PresetEditorDraft {
   return {
     presetId: null,
+    folderId: null,
+    identifier: "",
+    aliases: [],
     kind,
     name: "",
     category: "",
@@ -57,11 +63,14 @@ export function blankPresetEditorDraft(
 export function presetToEditorDraft(preset: PromptPresetDto): PresetEditorDraft {
   return {
     presetId: preset.preset_id,
+    folderId: preset.folder_id,
+    identifier: preset.identifier,
+    aliases: [...preset.aliases],
     kind: preset.kind,
-    name: preset.name,
-    category: preset.category ?? "",
+    name: preset.display_name,
+    category: parentPath(preset.path),
     description: preset.description ?? "",
-    order: preset.order,
+    order: 0,
     prompt: promptBehaviorToDraft(preset.prompt_behavior),
     uc: promptBehaviorToDraft(preset.uc_behavior),
     qualityOverride: preset.quality_override ?? "",
@@ -78,10 +87,13 @@ export function editorDraftToUpsertRequest(
   return {
     preset_id: draft.presetId,
     kind,
-    name: draft.name.trim(),
-    category: nullableText(draft.category),
+    path: [draft.category.trim(), draft.identifier || toIdentifier(draft.name)]
+      .filter(Boolean)
+      .join("/"),
+    folder_id: draft.folderId,
+    display_name: draft.name.trim(),
+    aliases: draft.aliases,
     description: nullableText(draft.description),
-    order: draft.order,
     prompt_behavior: promptBehaviorToDto(draft.prompt),
     uc_behavior: promptBehaviorToDto(draft.uc),
     quality_override: kind === "main" && draft.qualityOverride ? draft.qualityOverride : null,
@@ -89,6 +101,18 @@ export function editorDraftToUpsertRequest(
     preview: draft.preview,
     models: draft.models,
   };
+}
+
+function parentPath(path: string): string {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+}
+
+function toIdentifier(value: string): string {
+  const normalized = value
+    .trim()
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{N}_-]+/gu, "_");
+  return /^[\p{L}_]/u.test(normalized) ? normalized : `_${normalized || "preset"}`;
 }
 
 export function presetPreviewSource(draft: PresetEditorDraft): string {

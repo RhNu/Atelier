@@ -57,6 +57,8 @@ impl VibeEncodingConfigDto {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct VibeDocumentSummaryDto {
     document_id: String,
+    #[serde(default)]
+    source_id: String,
     display_name: String,
     has_image: bool,
     #[serde(default)]
@@ -73,6 +75,7 @@ impl From<&VibeDocumentSummary> for VibeDocumentSummaryDto {
     fn from(value: &VibeDocumentSummary) -> Self {
         Self {
             document_id: value.document_id.as_str().to_owned(),
+            source_id: value.source_id.clone(),
             display_name: value.display_name.clone(),
             has_image: value.has_image,
             hidden: value.hidden,
@@ -92,6 +95,7 @@ impl VibeDocumentSummaryDto {
     fn into_domain(self) -> DatabaseResult<VibeDocumentSummary> {
         Ok(VibeDocumentSummary {
             document_id: VibeId::new(self.document_id),
+            source_id: self.source_id,
             display_name: self.display_name,
             has_image: self.has_image,
             hidden: self.hidden,

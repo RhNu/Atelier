@@ -8,6 +8,7 @@ fn vibe_repository_round_trips_documents_and_cached_encodings() {
         let entry = VibeDocumentEntry {
             summary: VibeDocumentSummary {
                 document_id: VibeId::new("vibe-1"),
+                source_id: "source-vibe-1".to_owned(),
                 display_name: "Style A".to_owned(),
                 has_image: true,
                 hidden: false,

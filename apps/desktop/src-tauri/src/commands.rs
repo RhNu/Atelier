@@ -51,6 +51,9 @@ pub use generation::*;
 mod resources;
 pub use resources::*;
 
+mod resource_library;
+pub use resource_library::*;
+
 mod history;
 pub use history::*;
 

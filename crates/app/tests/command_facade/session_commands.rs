@@ -134,7 +134,7 @@ fn account_and_prompt_chunk_commands_share_runtime() {
         assert_eq!(
             host.get_prompt_chunk(GetPromptChunkRequestDto {
                 chunk_id: None,
-                key: Some("hero".to_owned()),
+                path: Some("hero".to_owned()),
             })
             .await
             .unwrap()
@@ -191,10 +191,11 @@ fn prompt_preset_commands_share_session() {
             .upsert_prompt_preset(UpsertPromptPresetRequestDto {
                 preset_id: None,
                 kind: PromptPresetKindDto::Main,
-                name: "Main".to_owned(),
-                category: None,
+                path: "main".to_owned(),
+                folder_id: None,
+                display_name: "Main".to_owned(),
+                aliases: Vec::new(),
                 description: None,
-                order: 0,
                 prompt_behavior: PromptPresetBehaviorDto::Surround {
                     before: "$chunk(hero)".to_owned(),
                     after: "sharp focus".to_owned(),

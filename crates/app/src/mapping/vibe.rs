@@ -30,6 +30,7 @@ pub fn ensured_vibe_to_dto(value: &EnsuredVibeEncoding) -> EnsuredVibeEncodingDt
 pub fn vibe_entry_to_dto(value: VibeDocumentEntry) -> VibeDocumentEntryDto {
     VibeDocumentEntryDto {
         vibe_id: value.summary.document_id.as_str().to_owned(),
+        source_id: value.summary.source_id.clone(),
         display_name: value.summary.display_name,
         has_image: value.summary.has_image,
         hidden: value.summary.hidden,

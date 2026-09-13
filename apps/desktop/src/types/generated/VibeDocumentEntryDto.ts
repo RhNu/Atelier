@@ -4,6 +4,7 @@ import type { VibeEncodingConfigDto } from "./VibeEncodingConfigDto";
 
 export type VibeDocumentEntryDto = {
   vibe_id: string;
+  source_id: string;
   display_name: string;
   has_image: boolean;
   hidden: boolean;

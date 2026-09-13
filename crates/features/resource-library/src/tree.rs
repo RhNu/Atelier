@@ -25,6 +25,10 @@ pub struct LibraryTree {
 }
 
 impl LibraryTree {
+    /// Inserts or replaces a folder after validating its parent and siblings.
+    ///
+    /// # Errors
+    /// Returns an error for a missing parent, namespace mismatch, or sibling conflict.
     pub fn insert_folder(&mut self, folder: LibraryFolder) -> ResourceLibraryResult<()> {
         self.validate_parent(folder.namespace, folder.parent_id.as_ref())?;
         self.ensure_name_available(
@@ -37,6 +41,10 @@ impl LibraryTree {
         Ok(())
     }
 
+    /// Inserts or replaces a resource after validating its parent and siblings.
+    ///
+    /// # Errors
+    /// Returns an error for a missing parent, namespace mismatch, or sibling conflict.
     pub fn insert_resource(&mut self, resource: LibraryResource) -> ResourceLibraryResult<()> {
         self.validate_parent(resource.namespace, resource.folder_id.as_ref())?;
         self.ensure_name_available(
@@ -49,6 +57,13 @@ impl LibraryTree {
         Ok(())
     }
 
+    /// Moves a folder within its namespace.
+    ///
+    /// # Errors
+    /// Returns an error for missing nodes, conflicts, or ancestry cycles.
+    ///
+    /// # Panics
+    /// Panics only if the validated folder disappears from this in-memory tree.
     pub fn move_folder(
         &mut self,
         id: &LibraryFolderId,
@@ -78,6 +93,13 @@ impl LibraryTree {
         Ok(())
     }
 
+    /// Moves a resource within its namespace.
+    ///
+    /// # Errors
+    /// Returns an error for missing nodes, namespace mismatches, or conflicts.
+    ///
+    /// # Panics
+    /// Panics only if the validated resource disappears from this in-memory tree.
     pub fn move_resource(
         &mut self,
         id: &LibraryResourceId,
@@ -98,6 +120,10 @@ impl LibraryTree {
         Ok(())
     }
 
+    /// Returns identifier-sorted direct children.
+    ///
+    /// # Errors
+    /// Returns an error when the requested parent is invalid for the namespace.
     pub fn children(
         &self,
         namespace: LibraryNamespace,
@@ -125,6 +151,10 @@ impl LibraryTree {
         Ok(LibraryChildren { folders, resources })
     }
 
+    /// Resolves a resource to its root-relative canonical path.
+    ///
+    /// # Errors
+    /// Returns an error for a missing resource or invalid folder ancestry.
     pub fn resource_path(&self, id: &LibraryResourceId) -> ResourceLibraryResult<ResourcePath> {
         let resource = self.require_resource(id)?;
         let mut segments = self.folder_segments(resource.folder_id.as_ref())?;
@@ -132,6 +162,21 @@ impl LibraryTree {
         Ok(ResourcePath::from_segments(segments))
     }
 
+    /// Resolves a folder to its root-relative canonical path.
+    ///
+    /// # Errors
+    /// Returns an error for a missing folder or invalid folder ancestry.
+    pub fn folder_path(&self, id: &LibraryFolderId) -> ResourceLibraryResult<ResourcePath> {
+        let folder = self.require_folder(id)?;
+        let mut segments = self.folder_segments(folder.parent_id.as_ref())?;
+        segments.push(&folder.identifier);
+        Ok(ResourcePath::from_segments(segments))
+    }
+
+    /// Returns every resource nested below a folder.
+    ///
+    /// # Errors
+    /// Returns an error when the folder does not exist.
     pub fn descendant_resources(
         &self,
         id: &LibraryFolderId,

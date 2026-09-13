@@ -85,6 +85,7 @@ pub struct GetVibeDocumentRequestDto {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct VibeDocumentEntryDto {
     pub vibe_id: String,
+    pub source_id: String,
     pub display_name: String,
     pub has_image: bool,
     pub hidden: bool,

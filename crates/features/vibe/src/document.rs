@@ -3,6 +3,7 @@ use base64::engine::general_purpose::STANDARD;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::fmt::Write as _;
+use uuid::Uuid;
 
 use crate::{
     VibeDocumentSummary, VibeDomainResult, VibeEncodeSettings, VibeEncodingConfig, VibeError,
@@ -162,7 +163,8 @@ fn validate_official_vibe_object(
         .map(ToOwned::to_owned);
     Ok(VibeImportEntry {
         summary: VibeDocumentSummary {
-            document_id: VibeId::new(id),
+            document_id: VibeId::new(Uuid::new_v4().hyphenated().to_string()),
+            source_id: id.to_owned(),
             display_name,
             has_image: vibe_type == "image",
             hidden: false,

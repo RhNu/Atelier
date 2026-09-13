@@ -13,6 +13,7 @@ pub mod history;
 pub mod novelai_explore;
 pub mod prompt;
 pub mod resource;
+pub mod resource_library;
 pub mod settings;
 pub mod vibe;
 pub mod workspace;

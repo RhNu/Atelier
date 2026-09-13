@@ -286,9 +286,12 @@ function chunkPage(): PromptChunkPageDto {
     items: [
       {
         chunk_id: "chunk-lighting",
-        key: "lighting",
+        path: "lighting",
+        folder_id: null,
+        identifier: "lighting",
+        display_name: "Lighting",
+        aliases: [],
         content: "dramatic lighting",
-        category: null,
         description: null,
         preview: null,
         created_at_ms: 1,

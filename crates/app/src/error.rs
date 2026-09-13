@@ -164,6 +164,15 @@ impl From<atelier_resource_catalog::ResourceCatalogError> for AppError {
     }
 }
 
+impl From<atelier_resource_library::ResourceLibraryError> for AppError {
+    fn from(error: atelier_resource_library::ResourceLibraryError) -> Self {
+        Self::new(
+            format!("resource_library_{:?}", error.kind()).to_lowercase(),
+            error.to_string(),
+        )
+    }
+}
+
 impl From<atelier_settings::SettingsError> for AppError {
     fn from(error: atelier_settings::SettingsError) -> Self {
         Self::new(error.kind.to_string(), error.message)

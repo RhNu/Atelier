@@ -139,9 +139,9 @@ function chunkItems(
     .map((chunk) => ({
       kind: "chunk",
       id: `chunk:${chunk.chunk_id}`,
-      label: chunk.key,
-      value: chunk.key,
-      detail: chunk.description ?? chunk.category ?? messages.promptChunk,
+      label: chunk.path,
+      value: chunk.path,
+      detail: chunk.description ?? parentPath(chunk.path) ?? messages.promptChunk,
       rank: "workspace",
     }));
 }
@@ -200,9 +200,17 @@ function shouldFetchTags(context: PromptCompletionContext): boolean {
 }
 
 function chunkMatches(chunk: PromptChunkDto, query: string): boolean {
-  return [chunk.key, chunk.category ?? "", chunk.description ?? "", chunk.content].some((value) =>
-    normalize(value).includes(query),
-  );
+  return [
+    chunk.path,
+    chunk.display_name,
+    ...chunk.aliases,
+    chunk.description ?? "",
+    chunk.content,
+  ].some((value) => normalize(value).includes(query));
+}
+
+function parentPath(path: string): string | null {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : null;
 }
 
 function normalize(value: string): string {

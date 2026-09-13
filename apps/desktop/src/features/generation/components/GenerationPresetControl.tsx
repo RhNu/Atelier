@@ -39,7 +39,9 @@ export function GenerationPresetControl({
   const { t } = useTranslation("generation");
   const [dialogOpen, setDialogOpen] = useState(false);
   const selectedPreset = presets.find((preset) => preset.preset_id === selectedPresetId) ?? null;
-  const displayName = pending ? t("loadingPresets") : (selectedPreset?.name ?? noPresetLabel);
+  const displayName = pending
+    ? t("loadingPresets")
+    : (selectedPreset?.display_name ?? noPresetLabel);
 
   return (
     <div className="grid gap-1.5">
@@ -114,7 +116,7 @@ function PresetLibraryDialog({
       [
         ...new Set(
           presets
-            .map((preset) => preset.category?.trim())
+            .map((preset) => parentPath(preset.path))
             .filter((value): value is string => Boolean(value)),
         ),
       ].toSorted((left, right) => left.localeCompare(right)),
@@ -133,11 +135,13 @@ function PresetLibraryDialog({
     return presets.filter((preset) => {
       const matchesCategory =
         category === ALL_CATEGORIES ||
-        (category === UNCATEGORIZED ? !preset.category?.trim() : preset.category === category);
+        (category === UNCATEGORIZED
+          ? !parentPath(preset.path)
+          : parentPath(preset.path) === category);
       if (!matchesCategory) return false;
       if (!query) return true;
-      return [preset.name, preset.category, preset.description].some((value) =>
-        value?.toLocaleLowerCase().includes(query),
+      return [preset.display_name, preset.path, ...preset.aliases, preset.description].some(
+        (value) => value?.toLocaleLowerCase().includes(query),
       );
     });
   }, [category, deferredSearch, presets]);
@@ -201,15 +205,15 @@ function PresetLibraryDialog({
                   ) : null}
                   <GenerationResourceThumbnail
                     resource={preset.preview}
-                    alt={preset.name}
+                    alt={preset.display_name}
                     className="aspect-square w-full"
                   />
                   <span className="min-w-0">
                     <span className="block truncate text-xs font-semibold text-app-text">
-                      {preset.name}
+                      {preset.display_name}
                     </span>
                     <span className="mt-0.5 block truncate text-[11px] text-app-muted">
-                      {preset.category ?? t("uncategorizedPresets")}
+                      {parentPath(preset.path) ?? t("uncategorizedPresets")}
                     </span>
                     {preset.description ? (
                       <span className="mt-1 line-clamp-2 block text-[11px] text-app-muted/80">
@@ -225,4 +229,8 @@ function PresetLibraryDialog({
       </div>
     </AppModal>
   );
+}
+
+function parentPath(path: string): string | null {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : null;
 }

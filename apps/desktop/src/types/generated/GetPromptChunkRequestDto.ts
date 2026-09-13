@@ -2,5 +2,5 @@
 
 export type GetPromptChunkRequestDto = {
   chunk_id: string | null;
-  key: string | null;
+  path: string | null;
 };

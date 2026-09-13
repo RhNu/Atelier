@@ -153,16 +153,18 @@ async fn upsert_hero_chunk(
     let hero = host
         .upsert_prompt_chunk(UpsertPromptChunkRequestDto {
             chunk_id: None,
-            key: "hero".to_owned(),
+            path: "hero".to_owned(),
+            folder_id: None,
+            display_name: "Hero".to_owned(),
+            aliases: Vec::new(),
             content: "1girl".to_owned(),
-            category: Some("subject".to_owned()),
             description: None,
             models: vec![ImageModelDto::NaiDiffusion45Full],
             preview: None,
         })
         .await
         .unwrap();
-    assert_eq!(hero.key, "hero");
+    assert_eq!(hero.path, "hero");
     hero
 }
 
@@ -171,9 +173,11 @@ async fn upsert_scene_chunk(
 ) -> atelier_app_api::prompt::PromptChunkDto {
     host.upsert_prompt_chunk(UpsertPromptChunkRequestDto {
         chunk_id: None,
-        key: "scene".to_owned(),
+        path: "scene".to_owned(),
+        folder_id: None,
+        display_name: "Scene".to_owned(),
+        aliases: Vec::new(),
         content: "$chunk(hero), blue sky".to_owned(),
-        category: None,
         description: None,
         models: vec![ImageModelDto::NaiDiffusion45Full],
         preview: None,

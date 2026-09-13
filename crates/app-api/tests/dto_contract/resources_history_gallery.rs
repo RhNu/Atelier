@@ -98,6 +98,7 @@ fn image_resource_import_dtos_are_resource_catalog_oriented() {
 fn vibe_catalog_dtos_have_stable_metadata_shapes() {
     let entry = VibeDocumentEntryDto {
         vibe_id: "vibe-1".to_owned(),
+        source_id: "source-vibe-1".to_owned(),
         display_name: "Style A".to_owned(),
         has_image: true,
         hidden: false,
@@ -154,6 +155,7 @@ fn vibe_catalog_dtos_have_stable_metadata_shapes() {
         json!({
             "items": [{
                 "vibe_id": "vibe-1",
+                "source_id": "source-vibe-1",
                 "display_name": "Style A",
                 "has_image": true,
                 "hidden": false,

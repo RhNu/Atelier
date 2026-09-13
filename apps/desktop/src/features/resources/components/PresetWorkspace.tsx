@@ -38,8 +38,9 @@ export function PresetWorkspace({
       presets.filter((preset) =>
         matchesSearch(
           search,
-          preset.name,
-          preset.category,
+          preset.display_name,
+          preset.path,
+          ...preset.aliases,
           preset.description,
           presetSearchText(preset),
         ),
@@ -65,8 +66,8 @@ export function PresetWorkspace({
           <ResourceListButton
             key={preset.preset_id}
             selected={editorPreset?.preset_id === preset.preset_id}
-            title={preset.name}
-            detail={preset.category ?? t("preset")}
+            title={preset.display_name}
+            detail={preset.path || t("preset")}
             description={preset.description ?? presetSearchText(preset)}
             preview={preset.preview}
             viewMode={viewMode}

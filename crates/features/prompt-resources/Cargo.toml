@@ -9,6 +9,7 @@ async-trait = { workspace = true }
 atelier-prompt = { workspace = true }
 atelier-generation = { workspace = true }
 atelier-resource-catalog = { workspace = true }
+atelier-resource-library = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

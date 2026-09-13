@@ -1,4 +1,5 @@
 use atelier_generation::{ImageModel, QualityPreset};
+use atelier_resource_library::ResourceName;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::references::chunk_reference_keys_in_text;
@@ -74,11 +75,18 @@ where
         };
         let old_key = existing.as_ref().map(|chunk| chunk.key.clone());
         let created_at_ms = existing.as_ref().map_or(now, |chunk| chunk.created_at_ms);
+        let resource_name = normalize_resource_name(
+            &request.key.identifier(),
+            &request.display_name,
+            &request.aliases,
+        )?;
         let chunk = PromptChunk {
             id: id.clone(),
             key: request.key,
+            folder_id: request.folder_id,
+            display_name: resource_name.display_name,
+            aliases: request.aliases,
             content: request.content,
-            category: request.category,
             description: request.description,
             preview_thumb: request.preview_thumb,
             models: request.models,
@@ -226,13 +234,18 @@ where
             (None, _) => self.repository.allocate_preset_id().await?,
         };
         let created_at_ms = existing.as_ref().map_or(now, |preset| preset.created_at_ms);
+        let identifier = request.path.identifier();
+        let resource_name =
+            normalize_resource_name(&identifier, &request.display_name, &request.aliases)?;
         let preset = PromptPreset {
             id,
             kind: request.kind,
-            name: normalize_required_name(&request.name)?,
-            category: normalize_optional_text(request.category),
+            identifier,
+            path: request.path,
+            folder_id: request.folder_id,
+            display_name: resource_name.display_name,
+            aliases: request.aliases,
             description: normalize_optional_text(request.description),
-            order: request.order,
             prompt_behavior: request.prompt_behavior,
             uc_behavior: request.uc_behavior,
             quality_override: request.quality_override,
@@ -257,7 +270,7 @@ where
         self.repository.get_preset_by_id(id).await
     }
 
-    /// Lists presets sorted by order, name, then id.
+    /// Lists presets sorted by path, then id.
     ///
     /// # Errors
     /// Returns an error when the repository cannot be queried.
@@ -268,9 +281,8 @@ where
     ) -> PromptResourceResult<Vec<PromptPreset>> {
         let mut presets = self.repository.list_presets(kind, model).await?;
         presets.sort_by(|left, right| {
-            left.order
-                .cmp(&right.order)
-                .then_with(|| left.name.cmp(&right.name))
+            left.path
+                .cmp(&right.path)
                 .then_with(|| left.id.cmp(&right.id))
         });
         Ok(presets)
@@ -336,7 +348,8 @@ where
 }
 
 fn validate_preset_request(request: &UpsertPromptPresetRequest) -> PromptResourceResult<()> {
-    normalize_required_name(&request.name)?;
+    let identifier = request.path.identifier();
+    normalize_resource_name(&identifier, &request.display_name, &request.aliases)?;
     if request.kind == PromptPresetKind::Character
         && (request.quality_override.is_some()
             || request
@@ -389,14 +402,13 @@ fn ensure_model_coverage(
     }
 }
 
-fn normalize_required_name(value: &str) -> PromptResourceResult<String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return Err(PromptResourceError::invalid_request(
-            "preset name cannot be empty",
-        ));
-    }
-    Ok(trimmed.to_owned())
+fn normalize_resource_name(
+    identifier: &atelier_resource_library::ResourceIdentifier,
+    display_name: &str,
+    aliases: &[String],
+) -> PromptResourceResult<ResourceName> {
+    ResourceName::new(identifier.clone(), display_name, aliases)
+        .map_err(|error| PromptResourceError::invalid_request(error.to_string()))
 }
 
 fn normalize_optional_text(value: Option<String>) -> Option<String> {

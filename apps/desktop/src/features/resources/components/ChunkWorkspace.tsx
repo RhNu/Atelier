@@ -31,7 +31,10 @@ export function ChunkWorkspace({
   const [editorChunk, setEditorChunk] = useState<PromptChunkDto | null | undefined>(undefined);
   const previousNewRequest = useRef(newRequest);
   const filtered = useMemo(
-    () => chunks.filter((chunk) => matchesSearch(search, chunk.key, chunk.content, chunk.category)),
+    () =>
+      chunks.filter((chunk) =>
+        matchesSearch(search, chunk.path, chunk.display_name, chunk.content, ...chunk.aliases),
+      ),
     [chunks, search],
   );
 
@@ -53,8 +56,8 @@ export function ChunkWorkspace({
           <ResourceListButton
             key={chunk.chunk_id}
             selected={editorChunk?.chunk_id === chunk.chunk_id}
-            title={chunk.key}
-            detail={chunk.category ?? "Uncategorized"}
+            title={chunk.display_name}
+            detail={chunk.path}
             description={chunk.description ?? chunk.content}
             preview={chunk.preview}
             viewMode={viewMode}

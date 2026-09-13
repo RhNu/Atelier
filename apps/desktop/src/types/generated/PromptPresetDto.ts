@@ -8,10 +8,12 @@ import type { ResourceRefDto } from "./ResourceRefDto";
 export type PromptPresetDto = {
   preset_id: string;
   kind: PromptPresetKindDto;
-  name: string;
-  category: string | null;
+  path: string;
+  folder_id: string | null;
+  identifier: string;
+  display_name: string;
+  aliases: Array<string>;
   description: string | null;
-  order: number;
   prompt_behavior: PromptPresetBehaviorDto;
   uc_behavior: PromptPresetBehaviorDto;
   quality_override: QualityPresetDto | null;

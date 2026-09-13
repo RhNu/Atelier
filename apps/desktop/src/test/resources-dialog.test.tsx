@@ -61,9 +61,12 @@ vi.mock("../features/generation/data/useImageModelCatalog", () => ({
 
 const chunk: PromptChunkDto = {
   chunk_id: "chunk-1",
-  key: "lighting",
+  path: "Style/lighting",
+  folder_id: "folder-style",
+  identifier: "lighting",
+  display_name: "Lighting",
+  aliases: [],
   content: "cinematic lighting",
-  category: "Style",
   description: null,
   preview: null,
   created_at_ms: 1,
@@ -75,10 +78,12 @@ const CHUNK_CATEGORIES = ["Style"];
 const preset: PromptPresetDto = {
   preset_id: "preset-1",
   kind: "character",
-  name: "Hero",
-  category: "Characters",
+  path: "Characters/hero",
+  folder_id: "folder-characters",
+  identifier: "hero",
+  display_name: "Hero",
+  aliases: [],
   description: "Reusable hero details",
-  order: 2,
   prompt_behavior: { mode: "surround", before: "hero", after: "" },
   uc_behavior: { mode: "surround", before: "", after: "" },
   quality_override: null,
@@ -94,13 +99,16 @@ const mainPreset: PromptPresetDto = {
   ...preset,
   preset_id: "preset-main",
   kind: "main",
-  name: "Cinematic",
-  category: "Main styles",
+  path: "Main styles/cinematic",
+  folder_id: "folder-main-styles",
+  identifier: "cinematic",
+  display_name: "Cinematic",
 };
 const characterPreset: PromptPresetDto = {
   ...preset,
   preset_id: "preset-character",
-  category: "Character archetypes",
+  path: "Character archetypes/hero",
+  folder_id: "folder-character-archetypes",
 };
 const MAIN_PRESETS = [mainPreset];
 const CHARACTER_PRESETS = [characterPreset];

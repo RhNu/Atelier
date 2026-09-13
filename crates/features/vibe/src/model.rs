@@ -128,6 +128,7 @@ pub struct VibeEncodingRecord {
 #[derive(Clone, Debug, PartialEq)]
 pub struct VibeDocumentSummary {
     pub document_id: VibeId,
+    pub source_id: String,
     pub display_name: String,
     pub has_image: bool,
     pub hidden: bool,

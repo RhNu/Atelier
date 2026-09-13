@@ -9,7 +9,10 @@ import { nullableText } from "./resource-model";
 
 export type ChunkEditorDraft = {
   chunkId: string | null;
+  folderId: string | null;
   key: string;
+  displayName: string;
+  aliases: string[];
   content: string;
   category: string;
   description: string;
@@ -22,7 +25,10 @@ export function blankChunkEditorDraft(
 ): ChunkEditorDraft {
   return {
     chunkId: null,
+    folderId: null,
     key: "",
+    displayName: "",
+    aliases: [],
     content: "",
     category: "",
     description: "",
@@ -34,9 +40,12 @@ export function blankChunkEditorDraft(
 export function chunkToEditorDraft(chunk: PromptChunkDto): ChunkEditorDraft {
   return {
     chunkId: chunk.chunk_id,
-    key: chunk.key,
+    folderId: chunk.folder_id,
+    key: chunk.identifier,
+    displayName: chunk.display_name,
+    aliases: [...chunk.aliases],
     content: chunk.content,
-    category: chunk.category ?? "",
+    category: parentPath(chunk.path),
     description: chunk.description ?? "",
     preview: chunk.preview,
     models: [...chunk.models],
@@ -46,11 +55,17 @@ export function chunkToEditorDraft(chunk: PromptChunkDto): ChunkEditorDraft {
 export function editorDraftToChunkRequest(draft: ChunkEditorDraft): UpsertPromptChunkRequestDto {
   return {
     chunk_id: draft.chunkId,
-    key: draft.key.trim(),
+    path: [draft.category.trim(), draft.key.trim()].filter(Boolean).join("/"),
+    folder_id: draft.folderId,
+    display_name: draft.displayName.trim() || draft.key.trim(),
+    aliases: draft.aliases,
     content: draft.content,
-    category: nullableText(draft.category),
     description: nullableText(draft.description),
     preview: draft.preview,
     models: draft.models,
   };
+}
+
+function parentPath(path: string): string {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
 }

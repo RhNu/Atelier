@@ -124,11 +124,12 @@ fn account_command_requests_use_plain_ids_without_secrets() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
     assert_eq!(
         serde_json::to_value(GetPromptChunkRequestDto {
             chunk_id: Some("chunk-1".to_owned()),
-            key: None,
+            path: None,
         })
         .unwrap(),
         json!({ "chunk_id": "chunk-1" })
@@ -189,10 +190,11 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
         serde_json::to_value(UpsertPromptPresetRequestDto {
             preset_id: None,
             kind: PromptPresetKindDto::Character,
-            name: "Hero".to_owned(),
-            category: None,
+            path: "characters/Hero".to_owned(),
+            folder_id: Some("folder-1".to_owned()),
+            display_name: "Hero".to_owned(),
+            aliases: vec!["heroine".to_owned()],
             description: None,
-            order: 0,
             prompt_behavior: PromptPresetBehaviorDto::Surround {
                 before: "red hair".to_owned(),
                 after: String::new(),
@@ -210,8 +212,10 @@ fn prompt_command_dtos_have_stable_page_and_delete_shapes() {
         json!({
             "kind": "character",
             "models": ["nai-diffusion-4-5-full"],
-            "name": "Hero",
-            "order": 0,
+            "path": "characters/Hero",
+            "folder_id": "folder-1",
+            "display_name": "Hero",
+            "aliases": ["heroine"],
             "prompt_behavior": {
                 "mode": "surround",
                 "before": "red hair",

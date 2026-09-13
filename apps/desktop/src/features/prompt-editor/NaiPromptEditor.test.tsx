@@ -27,9 +27,12 @@ const mocks = vi.hoisted(() => ({
     items: [
       {
         chunk_id: "chunk-lighting",
-        key: "lighting",
+        path: "lighting",
+        folder_id: null,
+        identifier: "lighting",
+        display_name: "Lighting",
+        aliases: [],
         content: "dramatic light",
-        category: null,
         description: null,
         preview: null,
         created_at_ms: 1,

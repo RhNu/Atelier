@@ -117,6 +117,21 @@ impl ResourcePath {
     pub fn segments(&self) -> impl Iterator<Item = &str> {
         self.0.split('/')
     }
+
+    #[must_use]
+    /// Returns the final identifier segment.
+    ///
+    /// # Panics
+    /// Panics only if an internally constructed path violates the non-empty
+    /// invariant established by [`Self::parse`].
+    pub fn identifier(&self) -> ResourceIdentifier {
+        let value = self
+            .0
+            .rsplit('/')
+            .next()
+            .expect("resource path is non-empty");
+        ResourceIdentifier::parse(value).expect("resource path segments are validated")
+    }
 }
 
 fn invalid_path(value: &str) -> ResourceLibraryError {

@@ -42,9 +42,11 @@ fn queued_prompt_is_frozen_across_resource_edits_and_workspace_reopen() {
 fn chunk_request(chunk_id: Option<String>, content: &str) -> UpsertPromptChunkRequestDto {
     UpsertPromptChunkRequestDto {
         chunk_id,
-        key: "hero".to_owned(),
+        path: "hero".to_owned(),
+        folder_id: None,
+        display_name: "Hero".to_owned(),
+        aliases: Vec::new(),
         content: content.to_owned(),
-        category: None,
         description: None,
         preview: None,
         models: vec![ImageModelDto::NaiDiffusion45Full],

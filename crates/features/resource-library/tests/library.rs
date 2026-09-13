@@ -43,11 +43,7 @@ fn tree_enforces_namespace_parent_and_sibling_rules() {
         "people/hero"
     );
 
-    let duplicate_folder = folder(
-        LibraryNamespace::PromptChunk,
-        Some(people.id.clone()),
-        "hero",
-    );
+    let duplicate_folder = folder(LibraryNamespace::PromptChunk, Some(people.id), "hero");
     assert_eq!(
         tree.insert_folder(duplicate_folder).unwrap_err().kind(),
         ResourceLibraryErrorKind::Conflict

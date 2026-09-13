@@ -7,6 +7,7 @@ mod generation;
 mod history;
 mod prompt;
 mod resource;
+mod resource_library;
 mod settings;
 mod vibe;
 mod workspace;

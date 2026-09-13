@@ -90,7 +90,7 @@ impl PromptUseCases<'_> {
     }
 
     pub async fn get_chunk(&self, request: GetPromptChunkRequestDto) -> AppResult<PromptChunkDto> {
-        let chunk = match (request.chunk_id, request.key) {
+        let chunk = match (request.chunk_id, request.path) {
             (Some(id), None) => {
                 self.prompt_chunks
                     .get_chunk_by_id(&PromptChunkId::new(id))
@@ -157,7 +157,7 @@ impl PromptUseCases<'_> {
         request: UpsertPromptPresetRequestDto,
     ) -> AppResult<PromptPresetDto> {
         let _write_guard = self.prompt_resource_write.lock().await;
-        let request = upsert_prompt_preset_to_domain(request);
+        let request = upsert_prompt_preset_to_domain(request)?;
         let existing = if let Some(id) = &request.preset_id {
             self.prompt_presets.get_preset_by_id(id).await?
         } else {

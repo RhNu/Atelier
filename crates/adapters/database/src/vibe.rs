@@ -1,6 +1,7 @@
 #![allow(clippy::significant_drop_tightening)]
 
 use async_trait::async_trait;
+use atelier_resource_library::ResourceIdentifier;
 use atelier_vibe::{
     VibeDocumentEntry, VibeDomainResult, VibeEncodeSettings, VibeEncodingRecord, VibeError,
     VibeErrorKind, VibeId, VibeRepository, VibeSourceIdentity,
@@ -28,8 +29,9 @@ impl DatabaseVibeRepository {
         updated_at_ms: u64,
         update: impl FnOnce(&mut VibeDocumentEntry),
     ) -> VibeDomainResult<Option<VibeDocumentEntry>> {
-        let connection = self.connection.lock().map_err(vibe_error)?;
-        let Some(json) = connection
+        let mut connection = self.connection.lock().map_err(vibe_error)?;
+        let transaction = connection.transaction().map_err(sql_error)?;
+        let Some(json) = transaction
             .query_row(
                 "SELECT document_json FROM vibe_documents WHERE vibe_id = ?1",
                 params![id.as_str()],
@@ -49,7 +51,7 @@ impl DatabaseVibeRepository {
         }
         entry.summary.updated_at_ms = updated_at_ms;
         let json = VibeDocumentEntryDto::encode_domain(&entry).map_err(vibe_error)?;
-        connection
+        transaction
             .execute(
                 r"
                 UPDATE vibe_documents
@@ -66,6 +68,13 @@ impl DatabaseVibeRepository {
                 ],
             )
             .map_err(sql_error)?;
+        transaction
+            .execute(
+                "UPDATE resource_library_nodes SET display_name = ?2, updated_at_ms = ?3 WHERE node_id = ?1",
+                params![id.as_str(), entry.summary.display_name, i64::try_from(updated_at_ms).unwrap_or(i64::MAX)],
+            )
+            .map_err(sql_error)?;
+        transaction.commit().map_err(sql_error)?;
         Ok(Some(entry))
     }
 }
@@ -74,25 +83,48 @@ impl DatabaseVibeRepository {
 impl VibeRepository for DatabaseVibeRepository {
     async fn insert_document(&self, entry: VibeDocumentEntry) -> VibeDomainResult<VibeId> {
         let json = VibeDocumentEntryDto::encode_domain(&entry).map_err(vibe_error)?;
-        let connection = self.connection.lock().map_err(vibe_error)?;
-        connection
+        let mut connection = self.connection.lock().map_err(vibe_error)?;
+        let transaction = connection.transaction().map_err(sql_error)?;
+        let identifier = unique_vibe_identifier(&transaction, &entry)?;
+        transaction
             .execute(
                 r"
-                INSERT INTO vibe_documents(vibe_id, display_name, has_image, document_json)
-                VALUES (?1, ?2, ?3, ?4)
+                INSERT INTO resource_library_nodes(
+                    node_id, namespace, parent_folder_id, node_kind, owner_local_id,
+                    identifier, display_name, created_at_ms, updated_at_ms
+                ) VALUES (?1, 'vibe', NULL, 'resource', ?1, ?2, ?3, ?4, ?5)
+                ON CONFLICT(node_id) DO NOTHING
+                ",
+                params![
+                    entry.summary.document_id.as_str(),
+                    identifier,
+                    entry.summary.display_name,
+                    i64::try_from(entry.summary.created_at_ms).unwrap_or(i64::MAX),
+                    i64::try_from(entry.summary.updated_at_ms).unwrap_or(i64::MAX),
+                ],
+            )
+            .map_err(sql_error)?;
+        transaction
+            .execute(
+                r"
+                INSERT INTO vibe_documents(vibe_id, source_id, display_name, has_image, document_json)
+                VALUES (?1, ?2, ?3, ?4, ?5)
                 ON CONFLICT(vibe_id) DO UPDATE
-                SET display_name = excluded.display_name,
+                SET source_id = excluded.source_id,
+                    display_name = excluded.display_name,
                     has_image = excluded.has_image,
                     document_json = excluded.document_json
                 ",
                 params![
                     entry.summary.document_id.as_str(),
+                    entry.summary.source_id,
                     entry.summary.display_name.as_str(),
                     i64::from(entry.summary.has_image),
                     json,
                 ],
             )
             .map_err(sql_error)?;
+        transaction.commit().map_err(sql_error)?;
         Ok(entry.summary.document_id)
     }
 
@@ -122,7 +154,8 @@ impl VibeRepository for DatabaseVibeRepository {
                 r"
                 SELECT document_json
                 FROM vibe_documents
-                ORDER BY display_name ASC, vibe_id ASC
+                JOIN resource_library_nodes n ON n.node_id = vibe_documents.vibe_id
+                ORDER BY n.identifier ASC, vibe_documents.vibe_id ASC
                 ",
             )
             .map_err(sql_error)?;
@@ -236,6 +269,43 @@ impl VibeRepository for DatabaseVibeRepository {
             .map(|_| ())
             .map_err(sql_error)
     }
+}
+
+fn unique_vibe_identifier(
+    transaction: &rusqlite::Transaction<'_>,
+    entry: &VibeDocumentEntry,
+) -> VibeDomainResult<String> {
+    if transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM resource_library_nodes WHERE node_id = ?1)",
+            [entry.summary.document_id.as_str()],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(sql_error)?
+    {
+        return Ok(
+            ResourceIdentifier::from_legacy(&entry.summary.display_name, "vibe")
+                .as_str()
+                .to_owned(),
+        );
+    }
+    let base = ResourceIdentifier::from_legacy(&entry.summary.display_name, "vibe")
+        .as_str()
+        .to_owned();
+    let mut candidate = base.clone();
+    let mut suffix = 2;
+    while transaction
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM resource_library_nodes WHERE namespace = 'vibe' AND parent_folder_id IS NULL AND identifier = ?1)",
+            [&candidate],
+            |row| row.get::<_, bool>(0),
+        )
+        .map_err(sql_error)?
+    {
+        candidate = format!("{base}-{suffix}");
+        suffix += 1;
+    }
+    Ok(candidate)
 }
 
 fn sql_error(error: rusqlite::Error) -> VibeError {

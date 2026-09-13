@@ -21,12 +21,16 @@ use atelier_prompt_resources::{
     PromptPreset, PromptPresetBehavior, PromptPresetId, PromptPresetKind, PromptTrace,
     UpsertPromptChunkRequest, UpsertPromptPresetRequest,
 };
+use atelier_resource_library::{LibraryFolderId, ResourcePath};
 pub fn prompt_chunk_to_dto(chunk: &PromptChunk) -> PromptChunkDto {
     PromptChunkDto {
         chunk_id: chunk.id.as_str().to_owned(),
-        key: chunk.key.as_str().to_owned(),
+        path: chunk.key.as_str().to_owned(),
+        folder_id: chunk.folder_id.as_ref().map(|id| id.as_str().to_owned()),
+        identifier: chunk.key.identifier().as_str().to_owned(),
+        display_name: chunk.display_name.clone(),
+        aliases: chunk.aliases.clone(),
         content: chunk.content.clone(),
-        category: chunk.category.clone(),
         description: chunk.description.clone(),
         preview: chunk.preview_thumb.as_ref().map(resource_ref_to_dto),
         models: chunk
@@ -44,10 +48,12 @@ pub fn prompt_preset_to_dto(preset: &PromptPreset) -> PromptPresetDto {
     PromptPresetDto {
         preset_id: preset.id.as_str().to_owned(),
         kind: prompt_preset_kind_to_dto(preset.kind),
-        name: preset.name.clone(),
-        category: preset.category.clone(),
+        path: preset.path.as_str().to_owned(),
+        folder_id: preset.folder_id.as_ref().map(|id| id.as_str().to_owned()),
+        identifier: preset.identifier.as_str().to_owned(),
+        display_name: preset.display_name.clone(),
+        aliases: preset.aliases.clone(),
         description: preset.description.clone(),
-        order: preset.order,
         prompt_behavior: prompt_preset_behavior_to_dto(&preset.prompt_behavior),
         uc_behavior: prompt_preset_behavior_to_dto(&preset.uc_behavior),
         quality_override: preset.quality_override.map(quality_preset_to_dto),
@@ -66,14 +72,19 @@ pub fn prompt_preset_to_dto(preset: &PromptPreset) -> PromptPresetDto {
 
 pub fn upsert_prompt_preset_to_domain(
     request: UpsertPromptPresetRequestDto,
-) -> UpsertPromptPresetRequest {
-    UpsertPromptPresetRequest {
+) -> AppResult<UpsertPromptPresetRequest> {
+    Ok(UpsertPromptPresetRequest {
         preset_id: request.preset_id.map(PromptPresetId::new),
         kind: prompt_preset_kind_to_domain(request.kind),
-        name: request.name,
-        category: request.category,
+        path: ResourcePath::parse(&request.path)?,
+        folder_id: request
+            .folder_id
+            .as_deref()
+            .map(LibraryFolderId::parse)
+            .transpose()?,
+        display_name: request.display_name,
+        aliases: request.aliases,
         description: request.description,
-        order: request.order,
         prompt_behavior: prompt_preset_behavior_to_domain(request.prompt_behavior),
         uc_behavior: prompt_preset_behavior_to_domain(request.uc_behavior),
         quality_override: request.quality_override.map(quality_preset_to_domain),
@@ -84,7 +95,7 @@ pub fn upsert_prompt_preset_to_domain(
             .into_iter()
             .map(image_model_to_domain)
             .collect(),
-    }
+    })
 }
 
 fn prompt_preset_behavior_to_domain(value: PromptPresetBehaviorDto) -> PromptPresetBehavior {
@@ -127,9 +138,15 @@ pub fn upsert_prompt_chunk_to_domain(
 ) -> AppResult<UpsertPromptChunkRequest> {
     Ok(UpsertPromptChunkRequest {
         chunk_id: request.chunk_id.map(PromptChunkId::new),
-        key: PromptChunkKey::parse(&request.key)?,
+        key: PromptChunkKey::parse(&request.path)?,
+        folder_id: request
+            .folder_id
+            .as_deref()
+            .map(LibraryFolderId::parse)
+            .transpose()?,
+        display_name: request.display_name,
+        aliases: request.aliases,
         content: request.content,
-        category: request.category,
         description: request.description,
         preview_thumb: request.preview.map(resource_ref_from_dto),
         models: request

@@ -143,8 +143,10 @@ fn request(
     UpsertPromptChunkRequest {
         chunk_id,
         key: PromptChunkKey::parse(key).unwrap(),
+        folder_id: None,
+        display_name: key.to_owned(),
+        aliases: Vec::new(),
         content: content.to_owned(),
-        category: None,
         description: None,
         preview_thumb: None,
         models: vec![ImageModel::NaiDiffusion45Full],
@@ -155,15 +157,17 @@ fn preset_request(
     preset_id: Option<atelier_prompt_resources::PromptPresetId>,
     kind: PromptPresetKind,
     name: &str,
-    order: i32,
+    _order: i32,
 ) -> UpsertPromptPresetRequest {
+    let identifier = atelier_resource_library::ResourceIdentifier::from_legacy(name, "preset");
     UpsertPromptPresetRequest {
         preset_id,
         kind,
-        name: name.to_owned(),
-        category: None,
+        path: atelier_resource_library::ResourcePath::parse(identifier.as_str()).unwrap(),
+        folder_id: None,
+        display_name: name.to_owned(),
+        aliases: Vec::new(),
         description: None,
-        order,
         prompt_behavior: surround("", ""),
         uc_behavior: surround("", ""),
         quality_override: None,

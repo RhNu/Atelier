@@ -4,9 +4,11 @@ import type { ResourceRefDto } from "./ResourceRefDto";
 
 export type UpsertPromptChunkRequestDto = {
   chunk_id: string | null;
-  key: string;
+  path: string;
+  folder_id: string | null;
+  display_name: string;
+  aliases: Array<string>;
   content: string;
-  category: string | null;
   description: string | null;
   preview: ResourceRefDto | null;
   models: Array<ImageModelDto>;

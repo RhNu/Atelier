@@ -5,7 +5,7 @@ use crate::error::{DatabaseError, DatabaseResult};
 mod migrations;
 
 const DATABASE_FORMAT: &str = "atelier-workspace-database";
-const DATABASE_SCHEMA_VERSION: i64 = 5;
+const DATABASE_SCHEMA_VERSION: i64 = 6;
 
 const SCHEMA_SQL: &str = r"
 CREATE TABLE atelier_schema (
@@ -15,7 +15,7 @@ CREATE TABLE atelier_schema (
 );
 
 INSERT INTO atelier_schema(singleton, format, schema_version)
-VALUES (1, 'atelier-workspace-database', 5);
+VALUES (1, 'atelier-workspace-database', 6);
 
 CREATE TABLE resources (
     id TEXT PRIMARY KEY,
@@ -73,6 +73,7 @@ CREATE INDEX idx_generation_payloads_ref
 
 CREATE TABLE vibe_documents (
     vibe_id TEXT PRIMARY KEY,
+    source_id TEXT NOT NULL,
     display_name TEXT NOT NULL,
     has_image INTEGER NOT NULL,
     document_json TEXT NOT NULL

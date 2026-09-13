@@ -34,7 +34,8 @@ fn imports_official_single_vibe_document() {
     assert_eq!(imported.entries.len(), 1);
     let entry = &imported.entries[0];
     assert_eq!(entry.summary.display_name, "Style A");
-    assert_eq!(entry.summary.document_id.as_str(), ENCODING_PAYLOAD_SHA256);
+    assert!(uuid::Uuid::parse_str(entry.summary.document_id.as_str()).is_ok());
+    assert_eq!(entry.summary.source_id, ENCODING_PAYLOAD_SHA256);
     assert_eq!(entry.summary.available_encoding_configs.len(), 1);
     assert_eq!(entry.encoding_payloads.len(), 1);
     assert_eq!(

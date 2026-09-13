@@ -7,10 +7,13 @@ use crate::resource::ResourceRefDto;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PromptChunkDto {
     pub chunk_id: String,
-    pub key: String,
-    pub content: String,
+    pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
+    pub folder_id: Option<String>,
+    pub identifier: String,
+    pub display_name: String,
+    pub aliases: Vec<String>,
+    pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -39,12 +42,14 @@ pub enum PromptPresetBehaviorDto {
 pub struct PromptPresetDto {
     pub preset_id: String,
     pub kind: PromptPresetKindDto,
-    pub name: String,
+    pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
+    pub folder_id: Option<String>,
+    pub identifier: String,
+    pub display_name: String,
+    pub aliases: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub order: i32,
     pub prompt_behavior: PromptPresetBehaviorDto,
     pub uc_behavior: PromptPresetBehaviorDto,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -63,12 +68,14 @@ pub struct UpsertPromptPresetRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preset_id: Option<String>,
     pub kind: PromptPresetKindDto,
-    pub name: String,
+    pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
+    pub folder_id: Option<String>,
+    pub display_name: String,
+    #[serde(default)]
+    pub aliases: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub order: i32,
     pub prompt_behavior: PromptPresetBehaviorDto,
     pub uc_behavior: PromptPresetBehaviorDto,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -84,10 +91,13 @@ pub struct UpsertPromptPresetRequestDto {
 pub struct UpsertPromptChunkRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_id: Option<String>,
-    pub key: String,
-    pub content: String,
+    pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
+    pub folder_id: Option<String>,
+    pub display_name: String,
+    #[serde(default)]
+    pub aliases: Vec<String>,
+    pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -100,7 +110,7 @@ pub struct GetPromptChunkRequestDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chunk_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub key: Option<String>,
+    pub path: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]

@@ -1,6 +1,6 @@
 use atelier_generation::{ImageModel, QualityPreset};
-use atelier_prompt::{FunctionValue, parse_prompt};
 use atelier_resource_catalog::ResourceRef;
+use atelier_resource_library::{LibraryFolderId, ResourceIdentifier, ResourcePath};
 
 use crate::PromptResourceError;
 use crate::references::{chunk_references_in_text, rewrite_chunk_references};
@@ -24,34 +24,30 @@ impl PromptChunkId {
 pub struct PromptChunkKey(String);
 
 impl PromptChunkKey {
-    /// Parses a chunk key using the same identifier shape accepted by prompt
-    /// extension call arguments.
+    /// Parses a root-relative resource path used by `$chunk(...)`.
     ///
     /// # Errors
-    /// Returns an error when the key is not a single prompt identifier.
+    /// Returns an error when the key is not a canonical resource path.
     pub fn parse(value: &str) -> Result<Self, PromptResourceError> {
-        let source = format!("$chunk({value})");
-        let parsed = parse_prompt(&source);
-        let ast = parsed.ast();
-        let Some(call) = ast.extension_calls().first() else {
-            return Err(Self::invalid_key(value));
-        };
-        if ast.extension_calls().len() != 1 || call.args.len() != 1 {
-            return Err(Self::invalid_key(value));
-        }
-        let arg = &call.args[0];
-        if arg.name.is_none()
-            && matches!(&arg.value, FunctionValue::Identifier(identifier) if identifier == value)
-        {
-            Ok(Self(value.to_owned()))
-        } else {
-            Err(Self::invalid_key(value))
-        }
+        ResourcePath::parse(value)
+            .map(|path| Self(path.as_str().to_owned()))
+            .map_err(|_| Self::invalid_key(value))
     }
 
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+
+    #[must_use]
+    /// Returns the final identifier segment of this chunk path.
+    ///
+    /// # Panics
+    /// Panics only if an instance bypasses [`Self::parse`] and violates its
+    /// non-empty path invariant.
+    pub fn identifier(&self) -> ResourceIdentifier {
+        let value = self.0.rsplit('/').next().expect("validated resource path");
+        ResourceIdentifier::parse(value).expect("validated resource path segment")
     }
 
     fn invalid_key(value: &str) -> PromptResourceError {
@@ -63,8 +59,10 @@ impl PromptChunkKey {
 pub struct PromptChunk {
     pub id: PromptChunkId,
     pub key: PromptChunkKey,
+    pub folder_id: Option<LibraryFolderId>,
+    pub display_name: String,
+    pub aliases: Vec<String>,
     pub content: String,
-    pub category: Option<String>,
     pub description: Option<String>,
     pub preview_thumb: Option<ResourceRef>,
     pub models: Vec<ImageModel>,
@@ -83,8 +81,10 @@ impl PromptChunk {
 pub struct UpsertPromptChunkRequest {
     pub chunk_id: Option<PromptChunkId>,
     pub key: PromptChunkKey,
+    pub folder_id: Option<LibraryFolderId>,
+    pub display_name: String,
+    pub aliases: Vec<String>,
     pub content: String,
-    pub category: Option<String>,
     pub description: Option<String>,
     pub preview_thumb: Option<ResourceRef>,
     pub models: Vec<ImageModel>,
@@ -156,10 +156,12 @@ impl PromptPresetBehavior {
 pub struct PromptPreset {
     pub id: PromptPresetId,
     pub kind: PromptPresetKind,
-    pub name: String,
-    pub category: Option<String>,
+    pub path: ResourcePath,
+    pub folder_id: Option<LibraryFolderId>,
+    pub identifier: ResourceIdentifier,
+    pub display_name: String,
+    pub aliases: Vec<String>,
     pub description: Option<String>,
-    pub order: i32,
     pub prompt_behavior: PromptPresetBehavior,
     pub uc_behavior: PromptPresetBehavior,
     pub quality_override: Option<QualityPreset>,
@@ -187,10 +189,11 @@ impl PromptPreset {
 pub struct UpsertPromptPresetRequest {
     pub preset_id: Option<PromptPresetId>,
     pub kind: PromptPresetKind,
-    pub name: String,
-    pub category: Option<String>,
+    pub path: ResourcePath,
+    pub folder_id: Option<LibraryFolderId>,
+    pub display_name: String,
+    pub aliases: Vec<String>,
     pub description: Option<String>,
-    pub order: i32,
     pub prompt_behavior: PromptPresetBehavior,
     pub uc_behavior: PromptPresetBehavior,
     pub quality_override: Option<QualityPreset>,

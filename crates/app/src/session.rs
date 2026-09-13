@@ -2,12 +2,14 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use atelier_adapter_database::{
     DatabaseGalleryIndex, DatabaseGenerationDraftRepository, DatabaseGenerationStore,
-    DatabasePromptResourceRepository, DatabaseRunHistoryRepository, DatabaseSettingsRepository,
+    DatabasePromptResourceRepository, DatabaseResourceLibraryRepository,
+    DatabaseRunHistoryRepository, DatabaseSettingsRepository,
 };
 use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
 use atelier_kernel::KernelRuntime;
 use atelier_prompt_resources::{PromptChunkService, PromptCompiler, PromptPresetService};
+use atelier_resource_library::ResourceLibraryService;
 use atelier_safety::SafetyScanner;
 use atelier_settings::WorkspaceSettingsService;
 use atelier_workspace::{WorkspaceLockLease, WorkspaceRoot};
@@ -20,7 +22,8 @@ use crate::ports::{
 };
 use crate::usecases::{
     DirectorUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases, HistoryUseCases,
-    PromptUseCases, ResourceUseCases, SettingsUseCases, VibeUseCases, WorkspaceUseCases,
+    PromptUseCases, ResourceLibraryUseCases, ResourceUseCases, SettingsUseCases, VibeUseCases,
+    WorkspaceUseCases,
 };
 use crate::{AppResult, error::AppError};
 
@@ -43,6 +46,7 @@ pub struct WorkspaceSession<
     pub(crate) prompt_presets: PromptPresetService<DatabasePromptResourceRepository>,
     pub(crate) prompt_compiler: PromptCompiler<DatabasePromptResourceRepository>,
     pub(crate) prompt_resource_write: Mutex<()>,
+    pub(crate) resource_library: ResourceLibraryService<DatabaseResourceLibraryRepository>,
     pub(crate) artifacts: AppArtifactService,
     pub(crate) gallery: AppGalleryService,
     pub(crate) gallery_index: DatabaseGalleryIndex,
@@ -99,6 +103,13 @@ impl<S, F, E> WorkspaceSession<S, F, E> {
         ResourceUseCases {
             resource_reader: &self.resource_reader,
             resources: &self.resources,
+        }
+    }
+
+    #[must_use]
+    pub const fn resource_library(&self) -> ResourceLibraryUseCases<'_> {
+        ResourceLibraryUseCases {
+            library: &self.resource_library,
         }
     }
 

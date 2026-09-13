@@ -18,8 +18,10 @@ fn chunk_service_manages_chunks_and_validates_keys() {
             .upsert_chunk(UpsertPromptChunkRequest {
                 chunk_id: None,
                 key: PromptChunkKey::parse("光照-1").unwrap(),
+                folder_id: None,
+                display_name: "光照-1".to_owned(),
+                aliases: Vec::new(),
                 content: "cinematic lighting".to_owned(),
-                category: Some("style".to_owned()),
                 description: Some("lighting preset".to_owned()),
                 preview_thumb: None,
                 models: vec![ImageModel::NaiDiffusion45Full],
@@ -194,8 +196,10 @@ fn request(
     UpsertPromptChunkRequest {
         chunk_id,
         key: PromptChunkKey::parse(key).unwrap(),
+        folder_id: None,
+        display_name: key.to_owned(),
+        aliases: Vec::new(),
         content: content.to_owned(),
-        category: None,
         description: None,
         preview_thumb: None,
         models: vec![ImageModel::NaiDiffusion45Full],

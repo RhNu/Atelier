@@ -25,7 +25,7 @@ fn prompt_previews_survive_reopen_and_are_released_with_their_resources() {
         let reopened_chunk = host
             .get_prompt_chunk(GetPromptChunkRequestDto {
                 chunk_id: Some(chunk.chunk_id.clone()),
-                key: None,
+                path: None,
             })
             .await
             .unwrap();
@@ -57,9 +57,11 @@ fn prompt_previews_survive_reopen_and_are_released_with_their_resources() {
 
         host.upsert_prompt_chunk(UpsertPromptChunkRequestDto {
             chunk_id: Some(reopened_chunk.chunk_id),
-            key: reopened_chunk.key,
+            path: reopened_chunk.path,
+            folder_id: reopened_chunk.folder_id,
+            display_name: reopened_chunk.display_name,
+            aliases: reopened_chunk.aliases,
             content: reopened_chunk.content,
-            category: reopened_chunk.category,
             description: reopened_chunk.description,
             models: reopened_chunk.models,
             preview: None,
@@ -118,9 +120,11 @@ async fn create_prompt_resources_with_previews(
     let chunk = host
         .upsert_prompt_chunk(UpsertPromptChunkRequestDto {
             chunk_id: None,
-            key: "previewed".to_owned(),
+            path: "previewed".to_owned(),
+            folder_id: None,
+            display_name: "Previewed".to_owned(),
+            aliases: Vec::new(),
             content: "1girl".to_owned(),
-            category: None,
             description: None,
             models: vec![ImageModelDto::NaiDiffusion45Full],
             preview: Some(chunk_preview.clone()),
@@ -131,10 +135,11 @@ async fn create_prompt_resources_with_previews(
         .upsert_prompt_preset(UpsertPromptPresetRequestDto {
             preset_id: None,
             kind: PromptPresetKindDto::Main,
-            name: "Previewed".to_owned(),
-            category: None,
+            path: "previewed".to_owned(),
+            folder_id: None,
+            display_name: "Previewed".to_owned(),
+            aliases: Vec::new(),
             description: None,
-            order: 0,
             prompt_behavior: PromptPresetBehaviorDto::Surround {
                 before: String::new(),
                 after: String::new(),

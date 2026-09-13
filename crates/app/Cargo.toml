@@ -31,6 +31,7 @@ atelier-prompt-lexicon = { workspace = true }
 atelier-prompt = { workspace = true }
 atelier-prompt-resources = { workspace = true }
 atelier-resource-catalog = { workspace = true }
+atelier-resource-library = { workspace = true }
 atelier-safety = { workspace = true }
 atelier-secrets = { workspace = true }
 atelier-settings = { workspace = true }

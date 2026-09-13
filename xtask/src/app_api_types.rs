@@ -94,6 +94,11 @@ use atelier_app_api::{
         SaveResourceImageRequestDto, SaveResourceImagesZipEntryDto,
         SaveResourceImagesZipRequestDto,
     },
+    resource_library::{
+        DeleteLibraryFolderRequestDto, DeleteLibraryFolderResponseDto,
+        GetLibrarySnapshotRequestDto, LibraryFolderDto, LibraryNamespaceDto, LibraryResourceDto,
+        LibrarySnapshotDto, UpdateLibraryResourceRequestDto, UpsertLibraryFolderRequestDto,
+    },
     settings::{
         GenerationDefaultsDto, GlobalFrontendSettingsDto, GlobalGallerySettingsDto,
         GlobalSafetySettingsDto, GlobalSettingsDto, ImageVariantSettingsDto,
@@ -161,6 +166,7 @@ pub fn export_app_api_types(config: &AppApiTypeExportConfig) -> Result<(), Strin
     export_history_types(&ts_config)?;
     export_downloadable_resource_types(&ts_config)?;
     export_prompt_types(&ts_config)?;
+    export_resource_library_types(&ts_config)?;
     export_resource_types(&ts_config)?;
     export_settings_types(&ts_config)?;
     export_vibe_types(&ts_config)?;
@@ -414,6 +420,21 @@ fn export_resource_types(config: &Config) -> Result<(), String> {
         SaveResourceImagesZipEntryDto,
         SaveResourceImagesZipRequestDto,
         ResourceImageDto,
+    )
+}
+
+fn export_resource_library_types(config: &Config) -> Result<(), String> {
+    export_types!(
+        config,
+        LibraryNamespaceDto,
+        LibraryFolderDto,
+        LibraryResourceDto,
+        LibrarySnapshotDto,
+        GetLibrarySnapshotRequestDto,
+        UpsertLibraryFolderRequestDto,
+        UpdateLibraryResourceRequestDto,
+        DeleteLibraryFolderRequestDto,
+        DeleteLibraryFolderResponseDto,
     )
 }
 

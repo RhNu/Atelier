@@ -49,7 +49,7 @@ pub fn chunk_call_key(call: &ExtensionCall) -> Option<&str> {
         return None;
     }
     match &arg.value {
-        FunctionValue::Identifier(value) => Some(value.as_str()),
+        FunctionValue::Identifier(value) | FunctionValue::Raw(value) => Some(value.trim()),
         _ => None,
     }
 }

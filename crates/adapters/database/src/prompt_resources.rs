@@ -8,7 +8,9 @@ use atelier_prompt_resources::{
     PromptResourceRepository, PromptResourceResult, rewrite_chunk_references,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
+use atelier_resource_library::{LibraryFolderId, ResourceIdentifier, ResourceName};
 use rusqlite::{OptionalExtension, Params, params};
+use uuid::Uuid;
 
 use crate::connection::DatabaseConnection;
 use crate::error::DatabaseError;
@@ -117,7 +119,7 @@ impl PromptResourceReader for DatabasePromptResourceRepository {
         let mut statement = connection
             .prepare(
                 prompt_preset_select(&format!(
-                    "{where_clause} ORDER BY sort_order ASC, name ASC, preset_id ASC"
+                    "{where_clause} ORDER BY category ASC, preset_id ASC"
                 ))
                 .as_str(),
             )
@@ -138,32 +140,13 @@ impl PromptResourceReader for DatabasePromptResourceRepository {
 #[async_trait]
 impl PromptResourceRepository for DatabasePromptResourceRepository {
     async fn allocate_chunk_id(&self) -> PromptResourceResult<PromptChunkId> {
-        let connection = self.connection.lock().map_err(prompt_error)?;
-        let mut next = connection
-            .query_row("SELECT COUNT(*) + 1 FROM prompt_chunks", [], |row| {
-                row.get::<_, i64>(0)
-            })
-            .map_err(sql_error)?
-            .max(1);
-        loop {
-            let id = PromptChunkId::new(format!("chunk-{next}"));
-            let exists = connection
-                .query_row(
-                    "SELECT EXISTS(SELECT 1 FROM prompt_chunks WHERE chunk_id = ?1)",
-                    params![id.as_str()],
-                    |row| row.get::<_, bool>(0),
-                )
-                .map_err(sql_error)?;
-            if !exists {
-                return Ok(id);
-            }
-            next += 1;
-        }
+        Ok(PromptChunkId::new(Uuid::new_v4().hyphenated().to_string()))
     }
 
     async fn save_chunk(&self, chunk: PromptChunk) -> PromptResourceResult<()> {
         let mut connection = self.connection.lock().map_err(prompt_error)?;
         let tx = connection.transaction().map_err(sql_error)?;
+        upsert_chunk_library_node(&tx, &chunk)?;
         upsert_chunk(&tx, &chunk)?;
         replace_chunk_models(&tx, &chunk)?;
         tx.commit().map_err(sql_error)
@@ -176,6 +159,7 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
     ) -> PromptResourceResult<()> {
         let mut connection = self.connection.lock().map_err(prompt_error)?;
         let tx = connection.transaction().map_err(sql_error)?;
+        upsert_chunk_library_node(&tx, &chunk)?;
         upsert_chunk(&tx, &chunk)?;
         replace_chunk_models(&tx, &chunk)?;
 
@@ -230,14 +214,19 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
     }
 
     async fn delete_chunk(&self, id: &PromptChunkId) -> PromptResourceResult<()> {
-        let connection = self.connection.lock().map_err(prompt_error)?;
-        connection
-            .execute(
-                "DELETE FROM prompt_chunks WHERE chunk_id = ?1",
-                params![id.as_str()],
-            )
-            .map(|_| ())
-            .map_err(sql_error)
+        let mut connection = self.connection.lock().map_err(prompt_error)?;
+        let tx = connection.transaction().map_err(sql_error)?;
+        tx.execute(
+            "DELETE FROM prompt_chunks WHERE chunk_id = ?1",
+            params![id.as_str()],
+        )
+        .map_err(sql_error)?;
+        tx.execute(
+            "DELETE FROM resource_library_nodes WHERE node_id = ?1",
+            params![id.as_str()],
+        )
+        .map_err(sql_error)?;
+        tx.commit().map_err(sql_error)
     }
 
     async fn list_chunk_references(
@@ -268,46 +257,32 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
     }
 
     async fn allocate_preset_id(&self) -> PromptResourceResult<PromptPresetId> {
-        let connection = self.connection.lock().map_err(prompt_error)?;
-        let mut next = connection
-            .query_row("SELECT COUNT(*) + 1 FROM prompt_presets", [], |row| {
-                row.get::<_, i64>(0)
-            })
-            .map_err(sql_error)?
-            .max(1);
-        loop {
-            let id = PromptPresetId::new(format!("preset-{next}"));
-            let exists = connection
-                .query_row(
-                    "SELECT EXISTS(SELECT 1 FROM prompt_presets WHERE preset_id = ?1)",
-                    params![id.as_str()],
-                    |row| row.get::<_, bool>(0),
-                )
-                .map_err(sql_error)?;
-            if !exists {
-                return Ok(id);
-            }
-            next += 1;
-        }
+        Ok(PromptPresetId::new(Uuid::new_v4().hyphenated().to_string()))
     }
 
     async fn save_preset(&self, preset: PromptPreset) -> PromptResourceResult<()> {
         let mut connection = self.connection.lock().map_err(prompt_error)?;
         let tx = connection.transaction().map_err(sql_error)?;
+        upsert_preset_library_node(&tx, &preset)?;
         upsert_preset(&tx, &preset)?;
         replace_preset_models(&tx, &preset)?;
         tx.commit().map_err(sql_error)
     }
 
     async fn delete_preset(&self, id: &PromptPresetId) -> PromptResourceResult<()> {
-        let connection = self.connection.lock().map_err(prompt_error)?;
-        connection
-            .execute(
-                "DELETE FROM prompt_presets WHERE preset_id = ?1",
-                params![id.as_str()],
-            )
-            .map(|_| ())
-            .map_err(sql_error)
+        let mut connection = self.connection.lock().map_err(prompt_error)?;
+        let tx = connection.transaction().map_err(sql_error)?;
+        tx.execute(
+            "DELETE FROM prompt_presets WHERE preset_id = ?1",
+            params![id.as_str()],
+        )
+        .map_err(sql_error)?;
+        tx.execute(
+            "DELETE FROM resource_library_nodes WHERE node_id = ?1",
+            params![id.as_str()],
+        )
+        .map_err(sql_error)?;
+        tx.commit().map_err(sql_error)
     }
 }
 
@@ -333,7 +308,7 @@ fn upsert_chunk(connection: &impl SqlExecutor, chunk: &PromptChunk) -> PromptRes
                 chunk.id.as_str(),
                 chunk.key.as_str(),
                 chunk.content,
-                chunk.category.as_deref(),
+                Option::<&str>::None,
                 chunk.description.as_deref(),
                 chunk.preview_thumb.as_ref().map(|value| value.id.as_str()),
                 chunk
@@ -387,10 +362,10 @@ fn upsert_preset(connection: &impl SqlExecutor, preset: &PromptPreset) -> Prompt
             params![
                 preset.id.as_str(),
                 preset_kind_to_str(preset.kind),
-                preset.name,
-                preset.category.as_deref(),
+                preset.display_name,
+                preset.path.as_str(),
                 preset.description.as_deref(),
-                preset.order,
+                0,
                 prompt_mode,
                 uc_mode,
                 before,
@@ -417,6 +392,103 @@ fn upsert_preset(connection: &impl SqlExecutor, preset: &PromptPreset) -> Prompt
         .map_err(sql_error)
 }
 
+fn upsert_chunk_library_node(
+    transaction: &rusqlite::Transaction<'_>,
+    chunk: &PromptChunk,
+) -> PromptResourceResult<()> {
+    upsert_library_node(
+        transaction,
+        chunk.id.as_str(),
+        "prompt_chunk",
+        chunk.folder_id.as_ref(),
+        &chunk.key.identifier(),
+        &chunk.display_name,
+        &chunk.aliases,
+        chunk.created_at_ms,
+        chunk.updated_at_ms,
+    )
+}
+
+fn upsert_preset_library_node(
+    transaction: &rusqlite::Transaction<'_>,
+    preset: &PromptPreset,
+) -> PromptResourceResult<()> {
+    let namespace = match preset.kind {
+        PromptPresetKind::Main => "main_preset",
+        PromptPresetKind::Character => "character_preset",
+    };
+    upsert_library_node(
+        transaction,
+        preset.id.as_str(),
+        namespace,
+        preset.folder_id.as_ref(),
+        &preset.identifier,
+        &preset.display_name,
+        &preset.aliases,
+        preset.created_at_ms,
+        preset.updated_at_ms,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn upsert_library_node(
+    transaction: &rusqlite::Transaction<'_>,
+    id: &str,
+    namespace: &str,
+    folder_id: Option<&LibraryFolderId>,
+    identifier: &ResourceIdentifier,
+    display_name: &str,
+    aliases: &[String],
+    created_at_ms: u64,
+    updated_at_ms: u64,
+) -> PromptResourceResult<()> {
+    let name = ResourceName::new(identifier.clone(), display_name, aliases)
+        .map_err(|error| PromptResourceError::invalid_request(error.to_string()))?;
+    transaction
+        .execute(
+            r"
+            INSERT INTO resource_library_nodes(
+                node_id, namespace, parent_folder_id, node_kind, owner_local_id,
+                identifier, display_name, created_at_ms, updated_at_ms
+            ) VALUES (?1, ?2, ?3, 'resource', ?1, ?4, ?5, ?6, ?7)
+            ON CONFLICT(node_id) DO UPDATE SET
+                namespace = excluded.namespace,
+                parent_folder_id = excluded.parent_folder_id,
+                identifier = excluded.identifier,
+                display_name = excluded.display_name,
+                owner_local_id = excluded.node_id,
+                updated_at_ms = excluded.updated_at_ms
+            ",
+            params![
+                id,
+                namespace,
+                folder_id.map(LibraryFolderId::as_str),
+                name.identifier.as_str(),
+                name.display_name,
+                i64::try_from(created_at_ms)
+                    .map_err(|error| PromptResourceError::repository(error.to_string()))?,
+                i64::try_from(updated_at_ms)
+                    .map_err(|error| PromptResourceError::repository(error.to_string()))?,
+            ],
+        )
+        .map_err(sql_error)?;
+    transaction
+        .execute(
+            "DELETE FROM resource_library_aliases WHERE node_id = ?1",
+            [id],
+        )
+        .map_err(sql_error)?;
+    for (index, alias) in name.aliases.iter().enumerate() {
+        transaction
+            .execute(
+                "INSERT INTO resource_library_aliases(node_id, alias_order, alias) VALUES (?1, ?2, ?3)",
+                params![id, i64::try_from(index).unwrap_or(i64::MAX), alias],
+            )
+            .map_err(sql_error)?;
+    }
+    Ok(())
+}
+
 trait SqlExecutor {
     fn execute_sql<P: Params>(&self, sql: &str, params: P) -> rusqlite::Result<usize>;
 }
@@ -436,11 +508,17 @@ impl SqlExecutor for rusqlite::Transaction<'_> {
 fn prompt_chunk_select(where_clause: &str) -> String {
     format!(
         r"
-        SELECT chunk_id, chunk_key, content, category, description,
-               preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms,
+        SELECT prompt_chunks.chunk_id, chunk_key, content, category, description,
+               preview_resource_id, preview_variant_id, prompt_chunks.created_at_ms,
+               prompt_chunks.updated_at_ms,
                (SELECT GROUP_CONCAT(model, char(10)) FROM prompt_chunk_models pcm
-                WHERE pcm.chunk_id = prompt_chunks.chunk_id)
-        FROM prompt_chunks {where_clause}
+                WHERE pcm.chunk_id = prompt_chunks.chunk_id),
+               n.parent_folder_id, n.display_name,
+               (SELECT GROUP_CONCAT(alias, char(10)) FROM resource_library_aliases a
+                WHERE a.node_id = prompt_chunks.chunk_id ORDER BY alias_order)
+        FROM prompt_chunks
+        JOIN resource_library_nodes n ON n.node_id = prompt_chunks.chunk_id
+        {where_clause}
         "
     )
 }
@@ -451,8 +529,17 @@ fn prompt_chunk_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptChun
     Ok(PromptChunk {
         id: PromptChunkId::new(row.get::<_, String>(0)?),
         key: PromptChunkKey::parse(&row.get::<_, String>(1)?).map_err(to_sql_error)?,
+        folder_id: row
+            .get::<_, Option<String>>(10)?
+            .map(|value| {
+                LibraryFolderId::parse(&value).map_err(|error| {
+                    to_sql_error(PromptResourceError::repository(error.to_string()))
+                })
+            })
+            .transpose()?,
+        display_name: row.get(11)?,
+        aliases: parse_aliases(row.get::<_, Option<String>>(12)?),
         content: row.get(2)?,
-        category: row.get(3)?,
         description: row.get(4)?,
         preview_thumb: preview_resource_id.map(|id| {
             ResourceRef::new(ResourceId::new(id), preview_variant_id.map(VariantId::new))
@@ -466,13 +553,19 @@ fn prompt_chunk_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptChun
 fn prompt_preset_select(where_clause: &str) -> String {
     format!(
         r"
-        SELECT preset_id, preset_kind, name, category, description, sort_order, prompt_mode,
+        SELECT prompt_presets.preset_id, preset_kind, name, category, description, sort_order, prompt_mode,
                uc_mode, before_text, after_text, replace_text, uc_before_text,
                uc_after_text, uc_replace_text, quality_override, uc_preset_override,
-               preview_resource_id, preview_variant_id, created_at_ms, updated_at_ms,
+               preview_resource_id, preview_variant_id, prompt_presets.created_at_ms,
+               prompt_presets.updated_at_ms,
                (SELECT GROUP_CONCAT(model, char(10)) FROM prompt_preset_models ppm
-                WHERE ppm.preset_id = prompt_presets.preset_id)
-        FROM prompt_presets {where_clause}
+                WHERE ppm.preset_id = prompt_presets.preset_id),
+               n.parent_folder_id, n.identifier, n.display_name,
+               (SELECT GROUP_CONCAT(alias, char(10)) FROM resource_library_aliases a
+                WHERE a.node_id = prompt_presets.preset_id ORDER BY alias_order)
+        FROM prompt_presets
+        JOIN resource_library_nodes n ON n.node_id = prompt_presets.preset_id
+        {where_clause}
         "
     )
 }
@@ -497,10 +590,21 @@ fn prompt_preset_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptPre
     Ok(PromptPreset {
         id: PromptPresetId::new(row.get::<_, String>(0)?),
         kind: preset_kind_from_str(&row.get::<_, String>(1)?).map_err(to_sql_error)?,
-        name: row.get(2)?,
-        category: row.get(3)?,
+        path: atelier_resource_library::ResourcePath::parse(&row.get::<_, String>(3)?)
+            .map_err(|error| to_sql_error(PromptResourceError::repository(error.to_string())))?,
+        folder_id: row
+            .get::<_, Option<String>>(21)?
+            .map(|value| {
+                LibraryFolderId::parse(&value).map_err(|error| {
+                    to_sql_error(PromptResourceError::repository(error.to_string()))
+                })
+            })
+            .transpose()?,
+        identifier: ResourceIdentifier::parse(&row.get::<_, String>(22)?)
+            .map_err(|error| to_sql_error(PromptResourceError::repository(error.to_string())))?,
+        display_name: row.get(23)?,
+        aliases: parse_aliases(row.get::<_, Option<String>>(24)?),
         description: row.get(4)?,
-        order: row.get(5)?,
         prompt_behavior,
         uc_behavior,
         quality_override: row
@@ -516,6 +620,12 @@ fn prompt_preset_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PromptPre
         updated_at_ms: i64_to_u64(row.get(19)?)?,
         models: parse_models(row.get::<_, Option<String>>(20)?).map_err(to_sql_error)?,
     })
+}
+
+fn parse_aliases(value: Option<String>) -> Vec<String> {
+    value
+        .map(|text| text.lines().map(str::to_owned).collect())
+        .unwrap_or_default()
 }
 
 fn replace_chunk_models(

@@ -480,6 +480,6 @@ fn trace_used_preset(trace: &mut PromptOrchestrationTrace, preset: &PromptPreset
     trace.used_presets.push(UsedPromptPresetTrace {
         preset_id: preset.id.clone(),
         kind: preset.kind,
-        name: preset.name.clone(),
+        name: preset.display_name.clone(),
     });
 }

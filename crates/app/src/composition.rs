@@ -5,7 +5,8 @@ use atelier_adapter_database::{
     DatabaseArtifactRepository, DatabaseConnection, DatabaseGalleryIndex,
     DatabaseGenerationDraftRepository, DatabaseGenerationPayloadStore, DatabaseGenerationStore,
     DatabasePromptResourceRepository, DatabaseResourceCatalogRepository,
-    DatabaseRunHistoryRepository, DatabaseSettingsRepository, DatabaseVibeRepository,
+    DatabaseResourceLibraryRepository, DatabaseRunHistoryRepository, DatabaseSettingsRepository,
+    DatabaseVibeRepository,
 };
 use atelier_adapter_image_codec::ImageMetadataBlobStore;
 use atelier_adapter_novelai::{NovelAiClientFactory, ResolverBackedNovelAiAdapter};
@@ -19,6 +20,7 @@ use atelier_jobs::GenerationStore;
 use atelier_kernel::KernelRuntime;
 use atelier_prompt_resources::{PromptChunkService, PromptCompiler, PromptPresetService};
 use atelier_resource_catalog::ResourceCatalog;
+use atelier_resource_library::ResourceLibraryService;
 use atelier_safety::SafetyScanner;
 use atelier_secrets::SecretStore;
 use atelier_settings::WorkspaceSettingsService;
@@ -70,6 +72,8 @@ where
         let run_history = DatabaseRunHistoryRepository::new(connection.clone());
         let resource_repository = DatabaseResourceCatalogRepository::new(connection.clone());
         let prompt_repository = DatabasePromptResourceRepository::new(connection.clone());
+        let resource_library =
+            ResourceLibraryService::new(DatabaseResourceLibraryRepository::new(connection.clone()));
         let settings_repository = DatabaseSettingsRepository::new(connection.clone());
         let settings = WorkspaceSettingsService::new(settings_repository);
         let generation_drafts = atelier_generation::GenerationDraftService::new(
@@ -127,6 +131,7 @@ where
             prompt_presets: PromptPresetService::new(prompt_repository),
             prompt_compiler,
             prompt_resource_write: Mutex::new(()),
+            resource_library,
             artifacts,
             gallery,
             gallery_index,

@@ -68,13 +68,13 @@ export function ResourcesPage() {
   const handleListView = useCallback(() => setViewMode("list"), []);
   const handleGridView = useCallback(() => setViewMode("grid"), []);
   const chunkCategories = categorySuggestions(
-    (chunksQuery.data?.items ?? EMPTY_CHUNKS).map((chunk) => chunk.category),
+    (chunksQuery.data?.items ?? EMPTY_CHUNKS).map((chunk) => parentPath(chunk.path)),
   );
   const mainPresetCategories = categorySuggestions(
-    (mainPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => preset.category),
+    (mainPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => parentPath(preset.path)),
   );
   const characterPresetCategories = categorySuggestions(
-    (characterPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => preset.category),
+    (characterPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => parentPath(preset.path)),
   );
 
   return (
@@ -144,6 +144,10 @@ export function ResourcesPage() {
       </div>
     </div>
   );
+}
+
+function parentPath(path: string): string | null {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : null;
 }
 
 type ResourcesToolbarProps = {
