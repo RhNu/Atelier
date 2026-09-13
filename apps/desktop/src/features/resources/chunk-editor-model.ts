@@ -14,7 +14,7 @@ export type ChunkEditorDraft = {
   displayName: string;
   aliases: string[];
   content: string;
-  category: string;
+  folderPath: string;
   description: string;
   preview: ResourceRefDto | null;
   models: ImageModelDto[];
@@ -22,15 +22,17 @@ export type ChunkEditorDraft = {
 
 export function blankChunkEditorDraft(
   model: ImageModelDto = "nai-diffusion-4-5-full",
+  folderId: string | null = null,
+  folderPath = "",
 ): ChunkEditorDraft {
   return {
     chunkId: null,
-    folderId: null,
+    folderId,
     key: "",
     displayName: "",
     aliases: [],
     content: "",
-    category: "",
+    folderPath,
     description: "",
     preview: null,
     models: [model],
@@ -45,7 +47,7 @@ export function chunkToEditorDraft(chunk: PromptChunkDto): ChunkEditorDraft {
     displayName: chunk.display_name,
     aliases: [...chunk.aliases],
     content: chunk.content,
-    category: parentPath(chunk.path),
+    folderPath: parentPath(chunk.path),
     description: chunk.description ?? "",
     preview: chunk.preview,
     models: [...chunk.models],
@@ -55,7 +57,7 @@ export function chunkToEditorDraft(chunk: PromptChunkDto): ChunkEditorDraft {
 export function editorDraftToChunkRequest(draft: ChunkEditorDraft): UpsertPromptChunkRequestDto {
   return {
     chunk_id: draft.chunkId,
-    path: [draft.category.trim(), draft.key.trim()].filter(Boolean).join("/"),
+    path: [draft.folderPath.trim(), draft.key.trim()].filter(Boolean).join("/"),
     folder_id: draft.folderId,
     display_name: draft.displayName.trim() || draft.key.trim(),
     aliases: draft.aliases,

@@ -103,6 +103,7 @@ export const queryKeys = {
   },
   resource: {
     root: () => ["workspace", "resource"] as const,
+    library: (namespace: string) => ["workspace", "resource", "library", namespace] as const,
     image: (resource: ResourceRefDto) =>
       ["workspace", "resource", "image", normalizeResourceRef(resource)] as const,
   },

@@ -25,33 +25,30 @@ import {
 import { formatError } from "../resource-model";
 import { ModelBindingField, PreviewModelField } from "./ModelBindingField";
 import { PresetPromptFields } from "./PresetPromptFields";
-import {
-  CategoryInput,
-  EditorActions,
-  EditorPanel,
-  NumberInput,
-  TextArea,
-  TextInput,
-} from "./ResourceEditorPrimitives";
+import { EditorActions, EditorPanel, TextArea, TextInput } from "./ResourceEditorPrimitives";
 
 type PresetEditorDialogProps = {
   kind: PromptPresetKindDto;
   preset: PromptPresetDto | null;
-  categorySuggestions: ReadonlyArray<string>;
   onClose: () => void;
   defaultModel: ImageModelDto;
+  initialFolderId?: string | null;
+  initialFolderPath?: string;
 };
 
 export function PresetEditorDialog({
   kind,
   preset,
-  categorySuggestions,
   onClose,
   defaultModel,
+  initialFolderId = null,
+  initialFolderPath = "",
 }: PresetEditorDialogProps) {
   const { t } = useTranslation("resources");
   const [draft, setDraft] = useState(() =>
-    preset ? presetToEditorDraft(preset) : blankPresetEditorDraft(kind, defaultModel),
+    preset
+      ? presetToEditorDraft(preset)
+      : blankPresetEditorDraft(kind, defaultModel, initialFolderId, initialFolderPath),
   );
   const [preview, setPreview] = useState<CompiledPromptDto | null>(null);
   const [previewModel, setPreviewModel] = useState(preset?.models[0] ?? defaultModel);
@@ -131,34 +128,35 @@ export function PresetEditorDialog({
         <ModelBindingField models={draft.models} onChange={updateModels} />
         <PreviewModelField models={draft.models} value={previewModel} onChange={setPreviewModel} />
         <TextInput
-          label={t("name")}
+          label={t("displayName")}
           value={draft.name}
           onChange={(name) => setDraft({ ...draft, name })}
         />
-        <CategoryInput
-          label={t("category")}
-          value={draft.category}
-          suggestions={categorySuggestions}
-          onChange={(category) => setDraft({ ...draft, category })}
+        <TextInput
+          label={t("identifier")}
+          value={draft.identifier}
+          onChange={(identifier) => setDraft({ ...draft, identifier })}
         />
+        <TextInput
+          label={t("aliases")}
+          value={draft.aliases.join(", ")}
+          onChange={(aliases) =>
+            setDraft({
+              ...draft,
+              aliases: aliases
+                .split(",")
+                .map((alias) => alias.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+        <ReadOnlyFolder path={draft.folderPath} label={t("folder")} />
         <TextArea
           label={t("description")}
           value={draft.description}
           minRows="min-h-24"
           onChange={(description) => setDraft({ ...draft, description })}
         />
-        <details className="group border border-app-border bg-black/10">
-          <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-app-muted hover:text-app-text">
-            {t("advancedSettings")}
-          </summary>
-          <div className="border-t border-app-border p-3">
-            <NumberInput
-              label={t("order")}
-              value={draft.order}
-              onChange={(order) => setDraft({ ...draft, order })}
-            />
-          </div>
-        </details>
         <PresetPromptFields
           draft={draft}
           previewModel={previewModel}
@@ -172,5 +170,16 @@ export function PresetEditorDialog({
         />
       </EditorPanel>
     </AppModal>
+  );
+}
+
+function ReadOnlyFolder({ path, label }: { path: string; label: string }) {
+  return (
+    <div className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
+      {label}
+      <div className="flex h-9 items-center border border-app-border bg-black/10 px-3 text-sm font-normal text-app-text normal-case">
+        {path || "/"}
+      </div>
+    </div>
   );
 }

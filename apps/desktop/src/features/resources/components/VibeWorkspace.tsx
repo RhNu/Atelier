@@ -1,12 +1,12 @@
-/* eslint-disable max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
+/* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
 import { Download, FilePlus2, Import, Save } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { runLoggedAction } from "@/app/logger";
 import { AppButton, AppModal, AppPanel, EmptyState } from "@/components/ui";
 import { useToastStore } from "@/stores/toast-store";
-import type { VibeDocumentEntryDto } from "@/types";
+import type { LibraryResourceDto, VibeDocumentEntryDto } from "@/types";
 
 import {
   useEnsureVibeEncodingFromSourceMutation,
@@ -15,6 +15,7 @@ import {
   useImportVibeDocumentsMutation,
   useRenameVibeDocumentMutation,
   useSetVibeDocumentHiddenMutation,
+  useUpdateLibraryResourceMutation,
 } from "../data/useResourcesData";
 import { formatError, matchesSearch } from "../resource-model";
 import type { ResourceViewMode } from "../resource-model";
@@ -29,6 +30,8 @@ export function VibeWorkspace({
   includeHidden,
   onIncludeHiddenChange,
   viewMode,
+  onResourceDragStart,
+  libraryResources = [],
 }: {
   vibes: ReadonlyArray<VibeDocumentEntryDto>;
   pending: boolean;
@@ -37,6 +40,8 @@ export function VibeWorkspace({
   includeHidden: boolean;
   onIncludeHiddenChange: (value: boolean) => void;
   viewMode: ResourceViewMode;
+  onResourceDragStart?: (event: DragEvent, resourceId: string) => void;
+  libraryResources?: ReadonlyArray<LibraryResourceDto>;
 }) {
   const { t } = useTranslation("resources");
   const pushToast = useToastStore((state) => state.push);
@@ -51,6 +56,7 @@ export function VibeWorkspace({
   const ensureEncodingMutation = useEnsureVibeEncodingFromSourceMutation();
   const exportMutation = useExportVibeDocumentMutation();
   const renameMutation = useRenameVibeDocumentMutation();
+  const updateResourceMutation = useUpdateLibraryResourceMutation();
   const hideMutation = useSetVibeDocumentHiddenMutation();
   const commandError =
     importVibeMutation.error ??
@@ -144,42 +150,65 @@ export function VibeWorkspace({
             }
           >
             {filtered.map((vibe) => (
-              <VibeCard
+              <div
                 key={vibe.vibe_id}
-                vibe={vibe}
-                viewMode={viewMode}
-                selected={selectedIds.includes(vibe.vibe_id)}
-                exportPending={exportMutation.isPending}
-                encodePending={ensureEncodingMutation.isPending}
-                onToggleSelected={(selected) =>
-                  setSelectedIds((current) =>
-                    selected
-                      ? [...current, vibe.vibe_id]
-                      : current.filter((id) => id !== vibe.vibe_id),
-                  )
-                }
-                onExport={() =>
-                  exportMutation.mutate({
-                    vibe_ids: [vibe.vibe_id],
-                    format: "naiv4vibe",
-                  })
-                }
-                onEdit={() => setEditingVibe(vibe)}
-                onEnsureEncoding={ensureEncodingHandler(vibe)}
-              />
+                draggable={Boolean(onResourceDragStart)}
+                onDragStart={(event) => onResourceDragStart?.(event, vibe.vibe_id)}
+              >
+                <VibeCard
+                  vibe={vibe}
+                  viewMode={viewMode}
+                  selected={selectedIds.includes(vibe.vibe_id)}
+                  exportPending={exportMutation.isPending}
+                  encodePending={ensureEncodingMutation.isPending}
+                  onToggleSelected={(selected) =>
+                    setSelectedIds((current) =>
+                      selected
+                        ? [...current, vibe.vibe_id]
+                        : current.filter((id) => id !== vibe.vibe_id),
+                    )
+                  }
+                  onExport={() =>
+                    exportMutation.mutate({
+                      vibe_ids: [vibe.vibe_id],
+                      format: "naiv4vibe",
+                    })
+                  }
+                  onEdit={() => setEditingVibe(vibe)}
+                  onEnsureEncoding={ensureEncodingHandler(vibe)}
+                />
+              </div>
             ))}
           </div>
         )}
       </div>
       <VibeEditDialog
         vibe={editingVibe}
-        saving={renameMutation.isPending || hideMutation.isPending}
+        resource={
+          libraryResources.find(({ resource_id }) => resource_id === editingVibe?.vibe_id) ?? null
+        }
+        saving={
+          renameMutation.isPending || updateResourceMutation.isPending || hideMutation.isPending
+        }
         error={null}
         onClose={() => setEditingVibe(null)}
-        onSave={(displayName, hidden) => {
+        onSave={(displayName, identifier, aliases, hidden) => {
           if (!editingVibe) return;
           const updates: Promise<unknown>[] = [];
-          if (displayName !== editingVibe.display_name) {
+          const libraryResource = libraryResources.find(
+            ({ resource_id }) => resource_id === editingVibe.vibe_id,
+          );
+          if (libraryResource) {
+            updates.push(
+              updateResourceMutation.mutateAsync({
+                resource_id: libraryResource.resource_id,
+                folder_id: libraryResource.folder_id,
+                identifier,
+                display_name: displayName,
+                aliases,
+              }),
+            );
+          } else if (displayName !== editingVibe.display_name) {
             updates.push(
               renameMutation.mutateAsync({
                 vibe_id: editingVibe.vibe_id,
@@ -207,24 +236,30 @@ export function VibeWorkspace({
 
 function VibeEditDialog({
   vibe,
+  resource,
   saving,
   error,
   onClose,
   onSave,
 }: {
   vibe: VibeDocumentEntryDto | null;
+  resource: LibraryResourceDto | null;
   saving: boolean;
   error: string | null;
   onClose: () => void;
-  onSave: (displayName: string, hidden: boolean) => void;
+  onSave: (displayName: string, identifier: string, aliases: string[], hidden: boolean) => void;
 }) {
   const { t } = useTranslation("resources");
   const [name, setName] = useState("");
   const [hidden, setHidden] = useState(false);
+  const [identifier, setIdentifier] = useState("");
+  const [aliases, setAliases] = useState("");
   useEffect(() => {
     setName(vibe?.display_name ?? "");
     setHidden(vibe?.hidden ?? false);
-  }, [vibe?.display_name, vibe?.hidden, vibe?.vibe_id]);
+    setIdentifier(resource?.identifier ?? "");
+    setAliases(resource?.aliases.join(", ") ?? "");
+  }, [resource, vibe?.display_name, vibe?.hidden, vibe?.vibe_id]);
   const close = () => {
     setName("");
     onClose();
@@ -238,6 +273,12 @@ function VibeEditDialog({
           </p>
         ) : null}
         <TextInput label={t("localDisplayName")} value={name} onChange={setName} />
+        {resource ? (
+          <>
+            <TextInput label={t("identifier")} value={identifier} onChange={setIdentifier} />
+            <TextInput label={t("aliases")} value={aliases} onChange={setAliases} />
+          </>
+        ) : null}
         <label className="flex h-9 items-center gap-2 border border-app-border bg-black/20 px-3 text-sm text-app-text">
           <input
             aria-label={t("hidden")}
@@ -247,7 +288,20 @@ function VibeEditDialog({
           />
           {t("hidden")}
         </label>
-        <AppButton onClick={() => onSave(name, hidden)} disabled={saving || !name.trim()}>
+        <AppButton
+          onClick={() =>
+            onSave(
+              name.trim(),
+              identifier.trim(),
+              aliases
+                .split(",")
+                .map((alias) => alias.trim())
+                .filter(Boolean),
+              hidden,
+            )
+          }
+          disabled={saving || !name.trim() || (Boolean(resource) && !identifier.trim())}
+        >
           <Save aria-hidden="true" className="size-4" />
           {t("saveChanges")}
         </AppButton>

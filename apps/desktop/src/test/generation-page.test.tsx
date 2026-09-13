@@ -1779,7 +1779,7 @@ describe("GeneratePage queue and preview behavior", () => {
     expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: "1girl",
-        negative_prompt: "$chunk(lighting), ",
+        negative_prompt: "$chunk(Lighting/lighting), ",
       }),
     );
   });
@@ -1805,7 +1805,7 @@ describe("GeneratePage queue and preview behavior", () => {
         currentCompletions(promptEditorView(characterNegativePrompt).state).map(
           (item) => item.label,
         ),
-      ).toContain("lighting"),
+      ).toContain("Lighting/lighting"),
     );
     expect(acceptPromptCompletion(characterNegativePrompt)).toBe(true);
     typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
@@ -1818,7 +1818,7 @@ describe("GeneratePage queue and preview behavior", () => {
           {
             preset_id: null,
             prompt: "cinematic_lighting,",
-            negative_prompt: "$chunk(lighting),",
+            negative_prompt: "$chunk(Lighting/lighting),",
             enabled: true,
           },
         ],
@@ -1844,6 +1844,6 @@ describe("GeneratePage queue and preview behavior", () => {
     expect(screen.queryByRole("option", { name: /cinematic_lighting/u })).not.toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: /hero/u }));
 
-    expect(promptEditorText(prompt)).toBe("$chunk(hero), ");
+    expect(promptEditorText(prompt)).toBe("$chunk(Subject/hero), ");
   });
 });

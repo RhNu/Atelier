@@ -28,6 +28,8 @@ import type {
   DeletePromptChunkResponseDto,
   DeletePromptPresetRequestDto,
   DeletePromptPresetResponseDto,
+  DeleteLibraryFolderRequestDto,
+  DeleteLibraryFolderResponseDto,
   EnsureVibeEncodingRequestDto,
   EnsuredVibeEncodingDto,
   EventsSinceRequestDto,
@@ -51,6 +53,7 @@ import type {
   GenerationHistoryPageDto,
   GenerationHistoryQueryDto,
   GetPromptChunkRequestDto,
+  GetLibrarySnapshotRequestDto,
   GetResourceImageRequestDto,
   GetVibeDocumentRequestDto,
   ImageResourceKindDto,
@@ -63,6 +66,9 @@ import type {
   ImportImageResourceResponseDto,
   ImportedVibeDocumentsDto,
   ListVibeDocumentsRequestDto,
+  LibraryFolderDto,
+  LibraryResourceDto,
+  LibrarySnapshotDto,
   ListPromptChunksRequestDto,
   ListPromptPresetsRequestDto,
   OpenWorkspaceRequestDto,
@@ -107,10 +113,12 @@ import type {
   SubmitGenerationBatchRequestDto,
   SubscriptionSummaryDto,
   UpdateApiKeyRequestDto,
+  UpdateLibraryResourceRequestDto,
   UpdateGlobalSettingsRequestDto,
   UpdateWorkspaceSettingsRequestDto,
   UpsertPromptChunkRequestDto,
   UpsertPromptPresetRequestDto,
+  UpsertLibraryFolderRequestDto,
   VibeDocumentEntryDto,
   VibeDocumentPageDto,
   WorkspaceSettingsDto,
@@ -319,6 +327,23 @@ export const lexiconApi = {
 };
 
 export const resourceApi = {
+  librarySnapshot: (request: GetLibrarySnapshotRequestDto) =>
+    invokeAtelierCommand<LibrarySnapshotDto>(atelierCommands.getResourceLibrarySnapshot, {
+      request,
+    }),
+  upsertLibraryFolder: (request: UpsertLibraryFolderRequestDto) =>
+    invokeAtelierCommand<LibraryFolderDto>(atelierCommands.upsertResourceLibraryFolder, {
+      request,
+    }),
+  updateLibraryResource: (request: UpdateLibraryResourceRequestDto) =>
+    invokeAtelierCommand<LibraryResourceDto>(atelierCommands.updateResourceLibraryResource, {
+      request,
+    }),
+  deleteLibraryFolder: (request: DeleteLibraryFolderRequestDto) =>
+    invokeAtelierCommand<DeleteLibraryFolderResponseDto>(
+      atelierCommands.deleteResourceLibraryFolder,
+      { request },
+    ),
   image: (request: GetResourceImageRequestDto) =>
     invokeAtelierCommand<ResourceImageDto>(atelierCommands.getResourceImage, { request }),
   commitGenerationCanvas: (request: CommitGenerationCanvasResourcesRequestDto) =>

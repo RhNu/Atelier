@@ -210,6 +210,11 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
                 .map_err(sql_error)?;
             }
         }
+        crate::resource_library::rewrite_generation_draft(
+            &tx,
+            &[(old_key.clone(), chunk.key.clone())],
+        )
+        .map_err(|error| PromptResourceError::repository(error.to_string()))?;
         tx.commit().map_err(sql_error)
     }
 
@@ -253,6 +258,27 @@ impl PromptResourceRepository for DatabasePromptResourceRepository {
                     key: key.clone(),
                 }),
         );
+        let draft_json = self
+            .connection
+            .lock()
+            .map_err(prompt_error)?
+            .query_row(
+                "SELECT value_json FROM workspace_settings WHERE setting_key = 'generation.draft'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(sql_error)?;
+        if let Some(draft_json) = draft_json {
+            let draft = serde_json::from_str(&draft_json)
+                .map_err(|error| PromptResourceError::repository(error.to_string()))?;
+            if crate::resource_library::json_references_chunk(&draft, key) {
+                references.push(ChunkReference {
+                    chunk_id: PromptChunkId::new("generation-draft"),
+                    key: key.clone(),
+                });
+            }
+        }
         Ok(references)
     }
 

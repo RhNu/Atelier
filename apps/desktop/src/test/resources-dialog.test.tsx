@@ -22,6 +22,36 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../features/resources/data/useResourcesData", () => ({
+  useResourceLibraryQuery: (namespace: string) => {
+    const resourceIds =
+      {
+        prompt_chunk: ["chunk-1"],
+        main_preset: ["preset-main"],
+        character_preset: ["preset-character"],
+        vibe: [],
+      }[namespace] ?? [];
+    return {
+      data: {
+        folders: [],
+        resources: resourceIds.map((resourceId) => ({
+          resource_id: resourceId,
+          namespace,
+          folder_id: null,
+          identifier: resourceId,
+          display_name: resourceId,
+          aliases: [],
+          path: resourceId,
+          created_at_ms: 1,
+          updated_at_ms: 1,
+        })),
+      },
+      isPending: false,
+      isError: false,
+    };
+  },
+  useUpsertLibraryFolderMutation: () => mocks.upsert,
+  useUpdateLibraryResourceMutation: () => mocks.upsert,
+  useDeleteLibraryFolderMutation: () => mocks.remove,
   usePromptChunksQuery: () => ({
     data: { items: CHUNKS, total: CHUNKS.length },
     isPending: false,
@@ -74,7 +104,6 @@ const chunk: PromptChunkDto = {
   models: ["nai-diffusion-4-5-full"],
 };
 const CHUNKS = [chunk];
-const CHUNK_CATEGORIES = ["Style"];
 const preset: PromptPresetDto = {
   preset_id: "preset-1",
   kind: "character",
@@ -94,7 +123,6 @@ const preset: PromptPresetDto = {
   models: ["nai-diffusion-4-5-full"],
 };
 const PRESETS = [preset];
-const PRESET_CATEGORIES = ["Characters", "Style"];
 const mainPreset: PromptPresetDto = {
   ...preset,
   preset_id: "preset-main",
@@ -138,7 +166,7 @@ describe("Resources dialogs", () => {
     expect(promptEditorText(screen.getByLabelText("Content"))).toBe("");
   });
 
-  it("uses compact preset metadata and keeps order in advanced settings", async () => {
+  it("edits explicit preset identity metadata without legacy ordering", async () => {
     const user = userEvent.setup();
     renderPresetWorkspace();
 
@@ -147,15 +175,10 @@ describe("Resources dialogs", () => {
     expect(screen.getByRole("dialog", { name: "Edit Character Preset" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Enabled")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Description")).toBeInstanceOf(HTMLTextAreaElement);
-    const category = screen.getByRole("combobox", { name: "Category" });
-    expect(category).toHaveAttribute("aria-autocomplete", "list");
-    expect(category).toHaveValue("Characters");
-    await user.click(category);
-    expect(screen.getByRole("listbox", { name: "Category" })).toHaveClass("bg-app-panel");
-    expect(screen.getByRole("option", { name: "Style" })).toBeInTheDocument();
-
-    const advanced = screen.getByText("Advanced settings").closest("details");
-    expect(advanced).not.toHaveAttribute("open");
+    expect(screen.getByLabelText("Display name")).toHaveValue("Hero");
+    expect(screen.getByLabelText("Identifier")).toHaveValue("hero");
+    expect(screen.getByText("Characters")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Order")).not.toBeInTheDocument();
   });
 
   it("preserves both prompt behavior buffers while switching tabs", async () => {
@@ -211,7 +234,7 @@ describe("Resources dialogs", () => {
     expect(screen.queryByText("No preview")).not.toBeInTheDocument();
   });
 
-  it("keeps main and character preset category suggestions separate", async () => {
+  it("keeps main and character preset libraries separate", async () => {
     const user = userEvent.setup();
     render(
       <QueryClientProvider client={createAtelierQueryClient()}>
@@ -220,19 +243,11 @@ describe("Resources dialogs", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: "Main Presets" }));
-    await user.click(screen.getByRole("button", { name: "New" }));
-    await user.click(screen.getByRole("combobox", { name: "Category" }));
-
-    expect(screen.getByRole("option", { name: "Main styles" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Character archetypes" })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("button", { name: /Cinematic/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Hero/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Character Presets" }));
-    await user.click(screen.getByRole("button", { name: "New" }));
-    await user.click(screen.getByRole("combobox", { name: "Category" }));
-
-    expect(screen.getByRole("option", { name: "Character archetypes" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Main styles" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Hero/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Cinematic/ })).not.toBeInTheDocument();
   });
 });
 
@@ -250,7 +265,6 @@ function workspace(newRequest: number, chunks: ReadonlyArray<PromptChunkDto> = C
         search=""
         newRequest={newRequest}
         viewMode="list"
-        categorySuggestions={CHUNK_CATEGORIES}
         defaultModel="nai-diffusion-4-5-full"
       />
     </QueryClientProvider>
@@ -268,7 +282,6 @@ function renderPresetWorkspace() {
         search=""
         newRequest={0}
         viewMode="list"
-        categorySuggestions={PRESET_CATEGORIES}
         defaultModel="nai-diffusion-4-5-full"
       />
     </QueryClientProvider>,

@@ -1,3 +1,4 @@
+/* eslint-disable react-perf/jsx-no-new-array-as-prop */
 import { LayoutGrid, List, Plus } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +12,7 @@ import {
 import type { ImageModelDto, PromptChunkDto, PromptPresetDto, VibeDocumentEntryDto } from "@/types";
 
 import { ChunkWorkspace } from "./components/ChunkWorkspace";
+import { LibraryNavigator } from "./components/LibraryNavigator";
 import { PresetWorkspace } from "./components/PresetWorkspace";
 import { SearchField } from "./components/ResourceEditorPrimitives";
 import { VibeWorkspace } from "./components/VibeWorkspace";
@@ -19,13 +21,7 @@ import {
   usePromptPresetsQuery,
   useVibeDocumentsQuery,
 } from "./data/useResourcesData";
-import {
-  categorySuggestions,
-  formatError,
-  parseTab,
-  type ResourceTab,
-  type ResourceViewMode,
-} from "./resource-model";
+import { formatError, parseTab, type ResourceTab, type ResourceViewMode } from "./resource-model";
 
 const EMPTY_CHUNKS: ReadonlyArray<PromptChunkDto> = [];
 const EMPTY_PRESETS: ReadonlyArray<PromptPresetDto> = [];
@@ -67,15 +63,6 @@ export function ResourcesPage() {
   const handleNew = useCallback(() => setNewRequest((value) => value + 1), []);
   const handleListView = useCallback(() => setViewMode("list"), []);
   const handleGridView = useCallback(() => setViewMode("grid"), []);
-  const chunkCategories = categorySuggestions(
-    (chunksQuery.data?.items ?? EMPTY_CHUNKS).map((chunk) => parentPath(chunk.path)),
-  );
-  const mainPresetCategories = categorySuggestions(
-    (mainPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => parentPath(preset.path)),
-  );
-  const characterPresetCategories = categorySuggestions(
-    (characterPresetsQuery.data?.items ?? EMPTY_PRESETS).map((preset) => parentPath(preset.path)),
-  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -93,61 +80,91 @@ export function ResourcesPage() {
           onNew={handleNew}
         />
         {tab === "chunks" ? (
-          <ChunkWorkspace
-            chunks={chunksQuery.data?.items ?? EMPTY_CHUNKS}
-            pending={chunksQuery.isPending}
-            error={chunksQuery.isError ? formatError(chunksQuery.error) : null}
-            search={search}
-            newRequest={newRequest}
-            viewMode={viewMode}
-            categorySuggestions={chunkCategories}
-            defaultModel={modelFilter ?? "nai-diffusion-4-5-full"}
-          />
+          <LibraryNavigator namespace="prompt_chunk" search={search}>
+            {(visibleIds, startDrag, currentFolder) => (
+              <ChunkWorkspace
+                chunks={(chunksQuery.data?.items ?? EMPTY_CHUNKS).filter((chunk) =>
+                  visibleIds.has(chunk.chunk_id),
+                )}
+                pending={chunksQuery.isPending}
+                error={chunksQuery.isError ? formatError(chunksQuery.error) : null}
+                search=""
+                newRequest={newRequest}
+                viewMode={viewMode}
+                defaultModel={modelFilter ?? "nai-diffusion-4-5-full"}
+                onResourceDragStart={startDrag}
+                currentFolderId={currentFolder.id}
+                currentFolderPath={currentFolder.path}
+              />
+            )}
+          </LibraryNavigator>
         ) : null}
         {tab === "main-presets" ? (
-          <PresetWorkspace
-            kind="main"
-            presets={mainPresetsQuery.data?.items ?? EMPTY_PRESETS}
-            pending={mainPresetsQuery.isPending}
-            error={mainPresetsQuery.isError ? formatError(mainPresetsQuery.error) : null}
-            search={search}
-            newRequest={newRequest}
-            viewMode={viewMode}
-            categorySuggestions={mainPresetCategories}
-            defaultModel={modelFilter ?? "nai-diffusion-4-5-full"}
-          />
+          <LibraryNavigator namespace="main_preset" search={search}>
+            {(visibleIds, startDrag, currentFolder) => (
+              <PresetWorkspace
+                kind="main"
+                presets={(mainPresetsQuery.data?.items ?? EMPTY_PRESETS).filter((preset) =>
+                  visibleIds.has(preset.preset_id),
+                )}
+                pending={mainPresetsQuery.isPending}
+                error={mainPresetsQuery.isError ? formatError(mainPresetsQuery.error) : null}
+                search=""
+                newRequest={newRequest}
+                viewMode={viewMode}
+                defaultModel={modelFilter ?? "nai-diffusion-4-5-full"}
+                onResourceDragStart={startDrag}
+                currentFolderId={currentFolder.id}
+                currentFolderPath={currentFolder.path}
+              />
+            )}
+          </LibraryNavigator>
         ) : null}
         {tab === "character-presets" ? (
-          <PresetWorkspace
-            kind="character"
-            presets={characterPresetsQuery.data?.items ?? EMPTY_PRESETS}
-            pending={characterPresetsQuery.isPending}
-            error={characterPresetsQuery.isError ? formatError(characterPresetsQuery.error) : null}
-            search={search}
-            newRequest={newRequest}
-            viewMode={viewMode}
-            categorySuggestions={characterPresetCategories}
-            defaultModel={modelFilter ?? "nai-diffusion-4-5-full"}
-          />
+          <LibraryNavigator namespace="character_preset" search={search}>
+            {(visibleIds, startDrag, currentFolder) => (
+              <PresetWorkspace
+                kind="character"
+                presets={(characterPresetsQuery.data?.items ?? EMPTY_PRESETS).filter((preset) =>
+                  visibleIds.has(preset.preset_id),
+                )}
+                pending={characterPresetsQuery.isPending}
+                error={
+                  characterPresetsQuery.isError ? formatError(characterPresetsQuery.error) : null
+                }
+                search=""
+                newRequest={newRequest}
+                viewMode={viewMode}
+                defaultModel={modelFilter ?? "nai-diffusion-4-5-full"}
+                onResourceDragStart={startDrag}
+                currentFolderId={currentFolder.id}
+                currentFolderPath={currentFolder.path}
+              />
+            )}
+          </LibraryNavigator>
         ) : null}
         {tab === "vibe" ? (
-          <VibeWorkspace
-            vibes={vibesQuery.data?.items ?? EMPTY_VIBES}
-            pending={vibesQuery.isPending}
-            error={vibesQuery.isError ? formatError(vibesQuery.error) : null}
-            search={search}
-            includeHidden={includeHiddenVibes}
-            onIncludeHiddenChange={setIncludeHiddenVibes}
-            viewMode={viewMode}
-          />
+          <LibraryNavigator namespace="vibe" search={search}>
+            {(visibleIds, startDrag, _currentFolder, libraryResources) => (
+              <VibeWorkspace
+                vibes={(vibesQuery.data?.items ?? EMPTY_VIBES).filter((vibe) =>
+                  visibleIds.has(vibe.vibe_id),
+                )}
+                pending={vibesQuery.isPending}
+                error={vibesQuery.isError ? formatError(vibesQuery.error) : null}
+                search=""
+                includeHidden={includeHiddenVibes}
+                onIncludeHiddenChange={setIncludeHiddenVibes}
+                viewMode={viewMode}
+                onResourceDragStart={startDrag}
+                libraryResources={libraryResources}
+              />
+            )}
+          </LibraryNavigator>
         ) : null}
       </div>
     </div>
   );
-}
-
-function parentPath(path: string): string | null {
-  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : null;
 }
 
 type ResourcesToolbarProps = {

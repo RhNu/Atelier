@@ -1,4 +1,4 @@
-/* eslint-disable react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop */
+/* eslint-disable max-lines-per-function, react-perf/jsx-no-jsx-as-prop, react-perf/jsx-no-new-array-as-prop, react-perf/jsx-no-new-function-as-prop */
 import { Eye } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -20,7 +20,6 @@ import {
 import { formatError } from "../resource-model";
 import { ModelBindingField, PreviewModelField } from "./ModelBindingField";
 import {
-  CategoryInput,
   CompiledPreview,
   EditorActions,
   EditorPanel,
@@ -32,20 +31,24 @@ import { ResourcePreviewEditor } from "./ResourcePreviewEditor";
 
 type ChunkEditorDialogProps = {
   chunk: PromptChunkDto | null;
-  categorySuggestions: ReadonlyArray<string>;
   onClose: () => void;
   defaultModel: ImageModelDto;
+  initialFolderId?: string | null;
+  initialFolderPath?: string;
 };
 
 export function ChunkEditorDialog({
   chunk,
-  categorySuggestions,
   onClose,
   defaultModel,
+  initialFolderId = null,
+  initialFolderPath = "",
 }: ChunkEditorDialogProps) {
   const { t } = useTranslation("resources");
   const [draft, setDraft] = useState(() =>
-    chunk ? chunkToEditorDraft(chunk) : blankChunkEditorDraft(defaultModel),
+    chunk
+      ? chunkToEditorDraft(chunk)
+      : blankChunkEditorDraft(defaultModel, initialFolderId, initialFolderPath),
   );
   const [tab, setTab] = useState("content");
   const [previewModel, setPreviewModel] = useState(chunk?.models[0] ?? defaultModel);
@@ -153,12 +156,25 @@ export function ChunkEditorDialog({
         ) : null}
         {tab === "details" ? (
           <>
-            <CategoryInput
-              label={t("category")}
-              value={draft.category}
-              suggestions={categorySuggestions}
-              onChange={(category) => setDraft({ ...draft, category })}
+            <TextInput
+              label={t("displayName")}
+              value={draft.displayName}
+              onChange={(displayName) => setDraft({ ...draft, displayName })}
             />
+            <TextInput
+              label={t("aliases")}
+              value={draft.aliases.join(", ")}
+              onChange={(aliases) =>
+                setDraft({
+                  ...draft,
+                  aliases: aliases
+                    .split(",")
+                    .map((alias) => alias.trim())
+                    .filter(Boolean),
+                })
+              }
+            />
+            <ReadOnlyFolder path={draft.folderPath} label={t("folder")} />
             <TextArea
               label={t("description")}
               value={draft.description}
@@ -179,5 +195,16 @@ export function ChunkEditorDialog({
         ) : null}
       </EditorPanel>
     </AppModal>
+  );
+}
+
+function ReadOnlyFolder({ path, label }: { path: string; label: string }) {
+  return (
+    <div className="grid gap-1 text-xs font-semibold text-app-muted uppercase">
+      {label}
+      <div className="flex h-9 items-center border border-app-border bg-black/10 px-3 text-sm font-normal text-app-text normal-case">
+        {path || "/"}
+      </div>
+    </div>
   );
 }

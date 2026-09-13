@@ -26,9 +26,8 @@ export type PresetEditorDraft = {
   aliases: string[];
   kind: PromptPresetKindDto;
   name: string;
-  category: string;
+  folderPath: string;
   description: string;
-  order: number;
   prompt: PromptBehaviorDraft;
   uc: PromptBehaviorDraft;
   qualityOverride: QualityPresetDto | "";
@@ -40,17 +39,18 @@ export type PresetEditorDraft = {
 export function blankPresetEditorDraft(
   kind: PromptPresetKindDto,
   model: ImageModelDto = "nai-diffusion-4-5-full",
+  folderId: string | null = null,
+  folderPath = "",
 ): PresetEditorDraft {
   return {
     presetId: null,
-    folderId: null,
+    folderId,
     identifier: "",
     aliases: [],
     kind,
     name: "",
-    category: "",
+    folderPath,
     description: "",
-    order: 0,
     prompt: blankPromptBehavior(),
     uc: blankPromptBehavior(),
     qualityOverride: "",
@@ -68,9 +68,8 @@ export function presetToEditorDraft(preset: PromptPresetDto): PresetEditorDraft 
     aliases: [...preset.aliases],
     kind: preset.kind,
     name: preset.display_name,
-    category: parentPath(preset.path),
+    folderPath: parentPath(preset.path),
     description: preset.description ?? "",
-    order: 0,
     prompt: promptBehaviorToDraft(preset.prompt_behavior),
     uc: promptBehaviorToDraft(preset.uc_behavior),
     qualityOverride: preset.quality_override ?? "",
@@ -87,7 +86,7 @@ export function editorDraftToUpsertRequest(
   return {
     preset_id: draft.presetId,
     kind,
-    path: [draft.category.trim(), draft.identifier || toIdentifier(draft.name)]
+    path: [draft.folderPath.trim(), draft.identifier || toIdentifier(draft.name)]
       .filter(Boolean)
       .join("/"),
     folder_id: draft.folderId,

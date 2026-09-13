@@ -1,6 +1,6 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
 import { Search } from "lucide-react";
-import { Children, type ReactNode } from "react";
+import { Children, type DragEventHandler, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppPanel, EmptyState, ResourceImage } from "@/components/ui";
@@ -85,6 +85,7 @@ export function ResourceListButton({
   preview,
   viewMode,
   onClick,
+  onDragStart,
 }: {
   selected: boolean;
   title: string;
@@ -93,6 +94,7 @@ export function ResourceListButton({
   preview: ResourceRefDto | null;
   viewMode: ResourceViewMode;
   onClick: () => void;
+  onDragStart?: DragEventHandler<HTMLButtonElement>;
 }) {
   const selectedClass = selected
     ? "border-brand-400/70 bg-brand-500/10"
@@ -101,6 +103,8 @@ export function ResourceListButton({
     return (
       <button
         type="button"
+        draggable={Boolean(onDragStart)}
+        onDragStart={onDragStart}
         onClick={onClick}
         className={["group grid content-start border text-left", selectedClass].join(" ")}
       >
@@ -115,6 +119,8 @@ export function ResourceListButton({
   return (
     <button
       type="button"
+      draggable={Boolean(onDragStart)}
+      onDragStart={onDragStart}
       onClick={onClick}
       className={[
         "grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3 border px-2 py-1.5 text-left",

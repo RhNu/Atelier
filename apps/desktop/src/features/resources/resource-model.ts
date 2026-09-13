@@ -10,12 +10,6 @@ export function nullableText(value: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function categorySuggestions(values: ReadonlyArray<string | null>): string[] {
-  return [...new Set(values.flatMap((value) => (value?.trim() ? [value.trim()] : [])))].sort(
-    (left, right) => left.localeCompare(right),
-  );
-}
-
 export function matchesSearch(search: string, ...values: Array<string | null>): boolean {
   const needle = search.trim().toLowerCase();
   if (!needle) {

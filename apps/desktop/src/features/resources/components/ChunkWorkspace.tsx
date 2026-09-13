@@ -1,5 +1,5 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ImageModelDto, PromptChunkDto } from "@/types";
@@ -15,8 +15,10 @@ export function ChunkWorkspace({
   search,
   newRequest,
   viewMode,
-  categorySuggestions,
   defaultModel,
+  onResourceDragStart,
+  currentFolderId = null,
+  currentFolderPath = "",
 }: {
   chunks: ReadonlyArray<PromptChunkDto>;
   pending: boolean;
@@ -24,8 +26,10 @@ export function ChunkWorkspace({
   search: string;
   newRequest: number;
   viewMode: ResourceViewMode;
-  categorySuggestions: ReadonlyArray<string>;
   defaultModel: ImageModelDto;
+  onResourceDragStart?: (event: DragEvent, resourceId: string) => void;
+  currentFolderId?: string | null;
+  currentFolderPath?: string;
 }) {
   const { t } = useTranslation("resources");
   const [editorChunk, setEditorChunk] = useState<PromptChunkDto | null | undefined>(undefined);
@@ -61,6 +65,11 @@ export function ChunkWorkspace({
             description={chunk.description ?? chunk.content}
             preview={chunk.preview}
             viewMode={viewMode}
+            onDragStart={
+              onResourceDragStart
+                ? (event) => onResourceDragStart(event, chunk.chunk_id)
+                : undefined
+            }
             onClick={() => setEditorChunk(chunk)}
           />
         ))}
@@ -69,8 +78,9 @@ export function ChunkWorkspace({
         <ChunkEditorDialog
           key={editorChunk?.chunk_id ?? `new-${newRequest}`}
           chunk={editorChunk}
-          categorySuggestions={categorySuggestions}
           defaultModel={defaultModel}
+          initialFolderId={currentFolderId}
+          initialFolderPath={currentFolderPath}
           onClose={() => setEditorChunk(undefined)}
         />
       ) : null}

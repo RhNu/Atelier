@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { runLoggedAction } from "@/app/logger";
@@ -11,17 +12,21 @@ import {
 } from "@/platform/atelier";
 import type {
   CompilePromptRequestDto,
+  DeleteLibraryFolderRequestDto,
   DeletePromptChunkRequestDto,
   DeletePromptPresetRequestDto,
   ExportVibeDocumentRequestDto,
   ListPromptChunksRequestDto,
   ListPromptPresetsRequestDto,
   ListVibeDocumentsRequestDto,
+  LibraryNamespaceDto,
   RenameVibeDocumentRequestDto,
   ResourceRefDto,
   SetVibeDocumentHiddenRequestDto,
   UpsertPromptChunkRequestDto,
   UpsertPromptPresetRequestDto,
+  UpdateLibraryResourceRequestDto,
+  UpsertLibraryFolderRequestDto,
 } from "@/types";
 
 type EnsureVibeEncodingFromSourceRequest = {
@@ -47,6 +52,51 @@ export function useVibeDocumentsQuery(request: ListVibeDocumentsRequestDto) {
   return useQuery({
     queryKey: queryKeys.vibe.list(request),
     queryFn: () => vibeApi.listDocuments(request),
+  });
+}
+
+export function useResourceLibraryQuery(namespace: LibraryNamespaceDto) {
+  return useQuery({
+    queryKey: queryKeys.resource.library(namespace),
+    queryFn: () => resourceApi.librarySnapshot({ namespace }),
+  });
+}
+
+function useLibraryMutationInvalidation() {
+  const queryClient = useQueryClient();
+  return async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() }),
+    ]);
+  };
+}
+
+export function useUpsertLibraryFolderMutation() {
+  const invalidate = useLibraryMutationInvalidation();
+  return useMutation({
+    mutationFn: (request: UpsertLibraryFolderRequestDto) =>
+      runLoggedAction("Save resource folder", () => resourceApi.upsertLibraryFolder(request)),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateLibraryResourceMutation() {
+  const invalidate = useLibraryMutationInvalidation();
+  return useMutation({
+    mutationFn: (request: UpdateLibraryResourceRequestDto) =>
+      runLoggedAction("Move resource", () => resourceApi.updateLibraryResource(request)),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteLibraryFolderMutation() {
+  const invalidate = useLibraryMutationInvalidation();
+  return useMutation({
+    mutationFn: (request: DeleteLibraryFolderRequestDto) =>
+      runLoggedAction("Delete resource folder", () => resourceApi.deleteLibraryFolder(request)),
+    onSuccess: invalidate,
   });
 }
 
@@ -107,7 +157,10 @@ export function useUpsertPromptChunkMutation() {
     mutationFn: (request: UpsertPromptChunkRequestDto) =>
       runLoggedAction("Save prompt chunk", () => promptApi.upsertChunk(request)),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+      ]);
     },
   });
 }
@@ -118,7 +171,10 @@ export function useDeletePromptChunkMutation() {
     mutationFn: (request: DeletePromptChunkRequestDto) =>
       runLoggedAction("Delete prompt chunk", () => promptApi.deleteChunk(request)),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+      ]);
     },
   });
 }
@@ -129,7 +185,10 @@ export function useUpsertPromptPresetMutation() {
     mutationFn: (request: UpsertPromptPresetRequestDto) =>
       runLoggedAction("Save prompt preset", () => promptApi.upsertPreset(request)),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+      ]);
     },
   });
 }
@@ -140,7 +199,10 @@ export function useDeletePromptPresetMutation() {
     mutationFn: (request: DeletePromptPresetRequestDto) =>
       runLoggedAction("Delete prompt preset", () => promptApi.deletePreset(request)),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+      ]);
     },
   });
 }
@@ -153,7 +215,10 @@ export function useImportVibeDocumentsMutation() {
         desktopApi.pickAndImportVibeDocuments({ extensions: [] }),
       ),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+      ]);
     },
   });
 }
@@ -166,7 +231,10 @@ export function useImportEmbeddedPngVibeDocumentsMutation() {
         desktopApi.pickAndImportEmbeddedPngVibeDocuments({ extensions: [] }),
       ),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+      ]);
     },
   });
 }
@@ -184,7 +252,10 @@ export function useRenameVibeDocumentMutation() {
     mutationFn: (request: RenameVibeDocumentRequestDto) =>
       runLoggedAction("Rename Vibe document", () => vibeApi.renameDocument(request)),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vibe.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
+      ]);
     },
   });
 }

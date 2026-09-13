@@ -530,7 +530,7 @@ fn delete_feature_resource(
     Ok(())
 }
 
-fn json_references_chunk(value: &Value, key: &PromptChunkKey) -> bool {
+pub fn json_references_chunk(value: &Value, key: &PromptChunkKey) -> bool {
     match value {
         Value::String(text) => chunk_references_in_text(text, key),
         Value::Array(values) => values.iter().any(|value| json_references_chunk(value, key)),
@@ -707,7 +707,7 @@ fn rewrite_table_texts(
     Ok(())
 }
 
-fn rewrite_generation_draft(
+pub fn rewrite_generation_draft(
     transaction: &rusqlite::Transaction<'_>,
     mappings: &[(PromptChunkKey, PromptChunkKey)],
 ) -> ResourceLibraryResult<()> {

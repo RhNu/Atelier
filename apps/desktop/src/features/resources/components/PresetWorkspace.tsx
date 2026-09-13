@@ -1,5 +1,5 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ImageModelDto, PromptPresetDto, PromptPresetKindDto } from "@/types";
@@ -17,8 +17,10 @@ export function PresetWorkspace({
   search,
   newRequest,
   viewMode,
-  categorySuggestions,
   defaultModel,
+  onResourceDragStart,
+  currentFolderId = null,
+  currentFolderPath = "",
 }: {
   kind: PromptPresetKindDto;
   presets: ReadonlyArray<PromptPresetDto>;
@@ -27,8 +29,10 @@ export function PresetWorkspace({
   search: string;
   newRequest: number;
   viewMode: ResourceViewMode;
-  categorySuggestions: ReadonlyArray<string>;
   defaultModel: ImageModelDto;
+  onResourceDragStart?: (event: DragEvent, resourceId: string) => void;
+  currentFolderId?: string | null;
+  currentFolderPath?: string;
 }) {
   const { t } = useTranslation("resources");
   const [editorPreset, setEditorPreset] = useState<PromptPresetDto | null | undefined>(undefined);
@@ -71,6 +75,11 @@ export function PresetWorkspace({
             description={preset.description ?? presetSearchText(preset)}
             preview={preset.preview}
             viewMode={viewMode}
+            onDragStart={
+              onResourceDragStart
+                ? (event) => onResourceDragStart(event, preset.preset_id)
+                : undefined
+            }
             onClick={() => setEditorPreset(preset)}
           />
         ))}
@@ -80,8 +89,9 @@ export function PresetWorkspace({
           key={editorPreset?.preset_id ?? `new-${newRequest}`}
           kind={kind}
           preset={editorPreset}
-          categorySuggestions={categorySuggestions}
           defaultModel={defaultModel}
+          initialFolderId={currentFolderId}
+          initialFolderPath={currentFolderPath}
           onClose={() => setEditorPreset(undefined)}
         />
       ) : null}
