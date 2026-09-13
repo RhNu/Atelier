@@ -61,4 +61,14 @@ describe("preset editor model", () => {
     });
     expect(draft.uc.mode).toBe("surround");
   });
+
+  it("uses the required identifier when the optional display name is blank", () => {
+    const draft = blankPresetEditorDraft("main");
+    draft.identifier = "cinematic";
+
+    const request = editorDraftToUpsertRequest(draft, "main");
+
+    expect(request.path).toBe("cinematic");
+    expect(request.display_name).toBe("cinematic");
+  });
 });

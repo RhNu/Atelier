@@ -37,6 +37,7 @@ export function ResourceList({
   error,
   emptyTitle,
   actions,
+  folderItems,
   viewMode,
   children,
 }: {
@@ -44,6 +45,7 @@ export function ResourceList({
   error: string | null;
   emptyTitle: string;
   actions?: ReactNode;
+  folderItems?: ReactNode;
   viewMode: ResourceViewMode;
   children: ReactNode;
 }) {
@@ -59,7 +61,7 @@ export function ResourceList({
           <EmptyState title={t("loading")} />
         ) : error ? (
           <EmptyState title={t("unavailable")} description={error} />
-        ) : Children.count(children) === 0 ? (
+        ) : Children.count(folderItems) + Children.count(children) === 0 ? (
           <EmptyState title={emptyTitle} iconOnly />
         ) : (
           <div
@@ -69,6 +71,7 @@ export function ResourceList({
                 : "grid gap-1"
             }
           >
+            {folderItems}
             {children}
           </div>
         )}

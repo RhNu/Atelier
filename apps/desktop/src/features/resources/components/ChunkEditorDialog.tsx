@@ -157,7 +157,7 @@ export function ChunkEditorDialog({
         {tab === "details" ? (
           <>
             <TextInput
-              label={t("displayName")}
+              label={t("displayNameOptional")}
               value={draft.displayName}
               onChange={(displayName) => setDraft({ ...draft, displayName })}
             />

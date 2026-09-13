@@ -1,5 +1,5 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop */
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ImageModelDto, PromptChunkDto } from "@/types";
@@ -17,6 +17,7 @@ export function ChunkWorkspace({
   viewMode,
   defaultModel,
   onResourceDragStart,
+  folderItems,
   currentFolderId = null,
   currentFolderPath = "",
 }: {
@@ -28,6 +29,7 @@ export function ChunkWorkspace({
   viewMode: ResourceViewMode;
   defaultModel: ImageModelDto;
   onResourceDragStart?: (event: DragEvent, resourceId: string) => void;
+  folderItems?: ReactNode;
   currentFolderId?: string | null;
   currentFolderPath?: string;
 }) {
@@ -54,6 +56,7 @@ export function ChunkWorkspace({
         pending={pending}
         error={error}
         emptyTitle={t("noPromptChunks")}
+        folderItems={folderItems}
         viewMode={viewMode}
       >
         {filtered.map((chunk) => (

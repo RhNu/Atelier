@@ -1,6 +1,6 @@
 /* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
 import { Download, FilePlus2, Import, Save } from "lucide-react";
-import { useEffect, useMemo, useState, type DragEvent } from "react";
+import { Children, useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { runLoggedAction } from "@/app/logger";
@@ -32,6 +32,7 @@ export function VibeWorkspace({
   viewMode,
   onResourceDragStart,
   libraryResources = [],
+  folderItems,
 }: {
   vibes: ReadonlyArray<VibeDocumentEntryDto>;
   pending: boolean;
@@ -42,6 +43,7 @@ export function VibeWorkspace({
   viewMode: ResourceViewMode;
   onResourceDragStart?: (event: DragEvent, resourceId: string) => void;
   libraryResources?: ReadonlyArray<LibraryResourceDto>;
+  folderItems?: ReactNode;
 }) {
   const { t } = useTranslation("resources");
   const pushToast = useToastStore((state) => state.push);
@@ -139,7 +141,7 @@ export function VibeWorkspace({
           <EmptyState title={t("loadingVibes")} />
         ) : error ? (
           <EmptyState title={t("vibeUnavailable")} description={error} />
-        ) : filtered.length === 0 ? (
+        ) : Children.count(folderItems) + filtered.length === 0 ? (
           <EmptyState title={t("noVibes")} iconOnly />
         ) : (
           <div
@@ -149,6 +151,7 @@ export function VibeWorkspace({
                 : "grid gap-1"
             }
           >
+            {folderItems}
             {filtered.map((vibe) => (
               <div
                 key={vibe.vibe_id}
@@ -272,13 +275,11 @@ function VibeEditDialog({
             {error}
           </p>
         ) : null}
-        <TextInput label={t("localDisplayName")} value={name} onChange={setName} />
         {resource ? (
-          <>
-            <TextInput label={t("identifier")} value={identifier} onChange={setIdentifier} />
-            <TextInput label={t("aliases")} value={aliases} onChange={setAliases} />
-          </>
+          <TextInput label={t("identifier")} value={identifier} onChange={setIdentifier} />
         ) : null}
+        <TextInput label={t("displayNameOptional")} value={name} onChange={setName} />
+        {resource ? <TextInput label={t("aliases")} value={aliases} onChange={setAliases} /> : null}
         <label className="flex h-9 items-center gap-2 border border-app-border bg-black/20 px-3 text-sm text-app-text">
           <input
             aria-label={t("hidden")}
@@ -300,7 +301,9 @@ function VibeEditDialog({
               hidden,
             )
           }
-          disabled={saving || !name.trim() || (Boolean(resource) && !identifier.trim())}
+          disabled={
+            saving || (!resource && !name.trim()) || (Boolean(resource) && !identifier.trim())
+          }
         >
           <Save aria-hidden="true" className="size-4" />
           {t("saveChanges")}

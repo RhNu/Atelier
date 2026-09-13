@@ -10,7 +10,10 @@ import type { ListPromptPresetsRequestDto, PromptChunkDto, PromptPresetDto } fro
 import { promptEditorText, typeInPromptEditor } from "./prompt-editor-test-utils";
 
 const mocks = vi.hoisted(() => ({
-  upsert: { isPending: false, mutateAsync: vi.fn<() => Promise<never>>() },
+  upsert: {
+    isPending: false,
+    mutateAsync: vi.fn<(request?: unknown) => Promise<void>>(async () => undefined),
+  },
   remove: { isPending: false, mutateAsync: vi.fn<() => Promise<never>>() },
   compile: { isPending: false, mutateAsync: vi.fn<() => Promise<never>>() },
   preview: {
@@ -32,7 +35,21 @@ vi.mock("../features/resources/data/useResourcesData", () => ({
       }[namespace] ?? [];
     return {
       data: {
-        folders: [],
+        folders:
+          namespace === "prompt_chunk"
+            ? [
+                {
+                  folder_id: "folder-style",
+                  namespace,
+                  parent_id: null,
+                  identifier: "styles",
+                  display_name: "Styles",
+                  path: "styles",
+                  created_at_ms: 1,
+                  updated_at_ms: 1,
+                },
+              ]
+            : [],
         resources: resourceIds.map((resourceId) => ({
           resource_id: resourceId,
           namespace,
@@ -175,7 +192,7 @@ describe("Resources dialogs", () => {
     expect(screen.getByRole("dialog", { name: "Edit Character Preset" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Enabled")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Description")).toBeInstanceOf(HTMLTextAreaElement);
-    expect(screen.getByLabelText("Display name")).toHaveValue("Hero");
+    expect(screen.getByLabelText("Display name (optional)")).toHaveValue("Hero");
     expect(screen.getByLabelText("Identifier")).toHaveValue("hero");
     expect(screen.getByText("Characters")).toBeInTheDocument();
     expect(screen.queryByLabelText("Order")).not.toBeInTheDocument();
@@ -234,6 +251,46 @@ describe("Resources dialogs", () => {
     expect(screen.queryByText("No preview")).not.toBeInTheDocument();
   });
 
+  it("places folders before resources in the same view container", async () => {
+    expect.hasAssertions();
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={createAtelierQueryClient()}>
+        <ResourcesPage />
+      </QueryClientProvider>,
+    );
+
+    assertFolderPrecedesResource();
+    await user.click(screen.getByRole("button", { name: "List view" }));
+    assertFolderPrecedesResource();
+  });
+
+  it("creates folders in place and treats the display name as optional", async () => {
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={createAtelierQueryClient()}>
+        <ResourcesPage />
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Styles" }));
+    await user.click(screen.getByRole("button", { name: "New folder" }));
+    expect(screen.queryByLabelText("Parent folder")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Display name (optional)")).toHaveValue("");
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save).toBeDisabled();
+    await user.type(screen.getByLabelText("Identifier"), "new-folder");
+    expect(save).toBeEnabled();
+    await user.click(save);
+    expect(mocks.upsert.mutateAsync).toHaveBeenLastCalledWith({
+      folder_id: null,
+      namespace: "prompt_chunk",
+      parent_id: "folder-style",
+      identifier: "new-folder",
+      display_name: "",
+    });
+  });
+
   it("keeps main and character preset libraries separate", async () => {
     const user = userEvent.setup();
     render(
@@ -286,4 +343,11 @@ function renderPresetWorkspace() {
       />
     </QueryClientProvider>,
   );
+}
+
+function assertFolderPrecedesResource() {
+  const folder = screen.getByRole("button", { name: "Styles" }).closest("article");
+  const resource = screen.getByRole("button", { name: /Lighting/ });
+  expect(folder?.parentElement).toBe(resource.parentElement);
+  expect(folder?.nextElementSibling).toBe(resource);
 }

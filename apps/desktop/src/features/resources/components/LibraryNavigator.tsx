@@ -1,4 +1,4 @@
-/* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-array-as-prop */
+/* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-function-as-prop */
 import { ChevronRight, Folder, FolderPen, FolderPlus, Home, Trash2 } from "lucide-react";
 import { Fragment, useState, type DragEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,7 +17,7 @@ import {
   useUpdateLibraryResourceMutation,
   useUpsertLibraryFolderMutation,
 } from "../data/useResourcesData";
-import { formatError, matchesSearch } from "../resource-model";
+import { formatError, matchesSearch, type ResourceViewMode } from "../resource-model";
 import { TextInput } from "./ResourceEditorPrimitives";
 
 const DRAG_TYPE = "application/x-atelier-library-node";
@@ -27,15 +27,18 @@ type DraggedNode = { kind: "folder" | "resource"; id: string };
 export function LibraryNavigator({
   namespace,
   search,
+  viewMode,
   children,
 }: {
   namespace: LibraryNamespaceDto;
   search: string;
+  viewMode: ResourceViewMode;
   children: (
     visibleResourceIds: ReadonlySet<string>,
     startDrag: StartDrag,
     currentFolder: CurrentFolder,
     resources: ReadonlyArray<LibraryResourceDto>,
+    folderItems: ReactNode,
   ) => ReactNode;
 }) {
   const { t } = useTranslation("resources");
@@ -99,6 +102,24 @@ export function LibraryNavigator({
     event.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ kind: "resource", id: resourceId }));
     event.dataTransfer.effectAllowed = "move";
   };
+  const folderItems = visibleFolders.map((folder) => (
+    <LibraryFolderItem
+      key={folder.folder_id}
+      folder={folder}
+      viewMode={viewMode}
+      onOpen={() => setCurrentFolderId(folder.folder_id)}
+      onEdit={() => setEditingFolder(folder)}
+      onDelete={() => setDeletingFolder(folder)}
+      onDragStart={(event) => {
+        event.dataTransfer.setData(
+          DRAG_TYPE,
+          JSON.stringify({ kind: "folder", id: folder.folder_id }),
+        );
+        event.dataTransfer.effectAllowed = "move";
+      }}
+      onDrop={(event) => dropInto(event, folder.folder_id)}
+    />
+  ));
 
   if (snapshotQuery.isPending) return <EmptyState title={t("loadingFolders")} />;
   if (snapshotQuery.isError) {
@@ -156,62 +177,18 @@ export function LibraryNavigator({
           {error}
         </p>
       ) : null}
-      {visibleFolders.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2 border-b border-app-border p-3">
-          {visibleFolders.map((folder) => (
-            <div
-              key={folder.folder_id}
-              draggable
-              className="group flex items-center gap-2 border border-app-border bg-app-surface px-3 py-2 hover:border-brand-400/60"
-              onDragStart={(event) => {
-                event.dataTransfer.setData(
-                  DRAG_TYPE,
-                  JSON.stringify({ kind: "folder", id: folder.folder_id }),
-                );
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.stopPropagation();
-                dropInto(event, folder.folder_id);
-              }}
-            >
-              <button
-                type="button"
-                className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                onClick={() => setCurrentFolderId(folder.folder_id)}
-              >
-                <Folder aria-hidden="true" className="size-4 shrink-0 text-brand-300" />
-                <span className="truncate text-sm font-medium">{folder.display_name}</span>
-                <span className="truncate text-xs text-app-muted">{folder.path}</span>
-              </button>
-              <AppIconButton
-                icon={FolderPen}
-                label={t("editNamedFolder", { name: folder.display_name })}
-                size="sm"
-                onClick={() => setEditingFolder(folder)}
-              />
-              <AppIconButton
-                icon={Trash2}
-                label={t("deleteNamedFolder", { name: folder.display_name })}
-                size="sm"
-                onClick={() => setDeletingFolder(folder)}
-              />
-            </div>
-          ))}
-        </div>
-      ) : null}
       {children(
         visibleResourceIds,
         startDrag,
         { id: currentFolderId, path: currentPath },
         resources,
+        folderItems,
       )}
       <FolderDialog
         key={editingFolder?.folder_id ?? (editingFolder === null ? "new" : "closed")}
         folder={editingFolder}
         namespace={namespace}
         parentId={currentFolderId}
-        folders={folders}
         saving={upsertFolder.isPending}
         onClose={() => setEditingFolder(undefined)}
         onSave={(request) =>
@@ -235,11 +212,114 @@ export function LibraryNavigator({
 type StartDrag = (event: DragEvent, resourceId: string) => void;
 type CurrentFolder = { id: string | null; path: string };
 
+function LibraryFolderItem({
+  folder,
+  viewMode,
+  onOpen,
+  onEdit,
+  onDelete,
+  onDragStart,
+  onDrop,
+}: {
+  folder: LibraryFolderDto;
+  viewMode: ResourceViewMode;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onDragStart: (event: DragEvent<HTMLElement>) => void;
+  onDrop: (event: DragEvent<HTMLElement>) => void;
+}) {
+  const { t } = useTranslation("resources");
+  const actions = (
+    <span className="flex shrink-0 gap-0.5">
+      <AppIconButton
+        icon={FolderPen}
+        label={t("editNamedFolder", { name: folder.display_name })}
+        size="sm"
+        onClick={onEdit}
+      />
+      <AppIconButton
+        icon={Trash2}
+        label={t("deleteNamedFolder", { name: folder.display_name })}
+        size="sm"
+        variant="danger"
+        onClick={onDelete}
+      />
+    </span>
+  );
+  const dragProps = {
+    draggable: true,
+    onDragStart,
+    onDragOver: (event: DragEvent<HTMLElement>) => event.preventDefault(),
+    onDrop: (event: DragEvent<HTMLElement>) => {
+      event.stopPropagation();
+      onDrop(event);
+    },
+  };
+  if (viewMode === "list") {
+    return (
+      <article
+        {...dragProps}
+        className="grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 border border-app-border bg-app-surface px-2 py-1.5 hover:border-brand-400/60"
+      >
+        <button
+          type="button"
+          aria-label={t("openNamedFolder", { name: folder.display_name })}
+          className="grid size-11 place-items-center border border-app-border bg-black/20 text-brand-300"
+          onClick={onOpen}
+        >
+          <Folder aria-hidden="true" className="size-5" />
+        </button>
+        <button
+          type="button"
+          aria-label={folder.display_name}
+          className="min-w-0 text-left"
+          onClick={onOpen}
+        >
+          <span className="block truncate text-sm font-semibold text-app-text">
+            {folder.display_name}
+          </span>
+          <span className="mt-0.5 block truncate text-xs text-app-muted">{folder.path}</span>
+        </button>
+        {actions}
+      </article>
+    );
+  }
+  return (
+    <article
+      {...dragProps}
+      className="group grid content-start border border-app-border bg-app-surface hover:border-brand-400/60"
+    >
+      <button
+        type="button"
+        aria-label={t("openNamedFolder", { name: folder.display_name })}
+        className="grid aspect-square w-full place-items-center bg-black/20 text-brand-300"
+        onClick={onOpen}
+      >
+        <Folder aria-hidden="true" className="size-12" />
+      </button>
+      <span className="flex min-w-0 items-center gap-1 border-t border-app-border px-2 py-1.5">
+        <button
+          type="button"
+          aria-label={folder.display_name}
+          className="min-w-0 flex-1 text-left"
+          onClick={onOpen}
+        >
+          <span className="block truncate text-sm font-semibold text-app-text">
+            {folder.display_name}
+          </span>
+          <span className="mt-1 block truncate text-xs text-app-muted">{folder.path}</span>
+        </button>
+        {actions}
+      </span>
+    </article>
+  );
+}
+
 function FolderDialog({
   folder,
   namespace,
   parentId,
-  folders,
   saving,
   onClose,
   onSave,
@@ -247,7 +327,6 @@ function FolderDialog({
   folder: LibraryFolderDto | null | undefined;
   namespace: LibraryNamespaceDto;
   parentId: string | null;
-  folders: ReadonlyArray<LibraryFolderDto>;
   saving: boolean;
   onClose: () => void;
   onSave: (request: UpsertLibraryFolderRequestDto) => void;
@@ -255,7 +334,6 @@ function FolderDialog({
   const { t } = useTranslation("resources");
   const [identifier, setIdentifier] = useState(folder?.identifier ?? "");
   const [displayName, setDisplayName] = useState(folder?.display_name ?? "");
-  const [destination, setDestination] = useState(folder?.parent_id ?? parentId ?? "");
   if (folder === undefined) return null;
   return (
     <AppModal
@@ -265,40 +343,19 @@ function FolderDialog({
       onClose={onClose}
     >
       <div className="grid gap-3">
-        <TextInput label={t("displayName")} value={displayName} onChange={setDisplayName} />
         <TextInput label={t("identifier")} value={identifier} onChange={setIdentifier} />
-        <label className="grid gap-1 text-xs text-app-muted">
-          {t("parentFolder")}
-          <select
-            className="h-9 border border-app-border bg-app-surface px-2 text-sm text-app-text"
-            value={destination}
-            onChange={(event) => setDestination(event.target.value)}
-          >
-            <option value="">{t("libraryRoot")}</option>
-            {folders
-              .filter(
-                (candidate) =>
-                  candidate.folder_id !== folder?.folder_id &&
-                  (!folder || !isInSubtree(candidate.path, folder.path)),
-              )
-              .map((candidate) => (
-                <option key={candidate.folder_id} value={candidate.folder_id}>
-                  {candidate.path}
-                </option>
-              ))}
-          </select>
-        </label>
+        <TextInput label={t("displayNameOptional")} value={displayName} onChange={setDisplayName} />
         <div className="flex justify-end gap-2">
           <AppButton variant="ghost" onClick={onClose}>
             {t("cancel")}
           </AppButton>
           <AppButton
-            disabled={saving || !identifier.trim() || !displayName.trim()}
+            disabled={saving || !identifier.trim()}
             onClick={() =>
               onSave({
                 folder_id: folder?.folder_id ?? null,
                 namespace,
-                parent_id: destination || null,
+                parent_id: folder ? folder.parent_id : parentId,
                 identifier: identifier.trim(),
                 display_name: displayName.trim(),
               })

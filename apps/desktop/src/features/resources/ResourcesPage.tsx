@@ -80,8 +80,8 @@ export function ResourcesPage() {
           onNew={handleNew}
         />
         {tab === "chunks" ? (
-          <LibraryNavigator namespace="prompt_chunk" search={search}>
-            {(visibleIds, startDrag, currentFolder) => (
+          <LibraryNavigator namespace="prompt_chunk" search={search} viewMode={viewMode}>
+            {(visibleIds, startDrag, currentFolder, _resources, folderItems) => (
               <ChunkWorkspace
                 chunks={(chunksQuery.data?.items ?? EMPTY_CHUNKS).filter((chunk) =>
                   visibleIds.has(chunk.chunk_id),
@@ -93,6 +93,7 @@ export function ResourcesPage() {
                 viewMode={viewMode}
                 defaultModel={modelFilter ?? "nai-diffusion-4-5-full"}
                 onResourceDragStart={startDrag}
+                folderItems={folderItems}
                 currentFolderId={currentFolder.id}
                 currentFolderPath={currentFolder.path}
               />
@@ -100,8 +101,8 @@ export function ResourcesPage() {
           </LibraryNavigator>
         ) : null}
         {tab === "main-presets" ? (
-          <LibraryNavigator namespace="main_preset" search={search}>
-            {(visibleIds, startDrag, currentFolder) => (
+          <LibraryNavigator namespace="main_preset" search={search} viewMode={viewMode}>
+            {(visibleIds, startDrag, currentFolder, _resources, folderItems) => (
               <PresetWorkspace
                 kind="main"
                 presets={(mainPresetsQuery.data?.items ?? EMPTY_PRESETS).filter((preset) =>
@@ -114,6 +115,7 @@ export function ResourcesPage() {
                 viewMode={viewMode}
                 defaultModel={modelFilter ?? "nai-diffusion-4-5-full"}
                 onResourceDragStart={startDrag}
+                folderItems={folderItems}
                 currentFolderId={currentFolder.id}
                 currentFolderPath={currentFolder.path}
               />
@@ -121,8 +123,8 @@ export function ResourcesPage() {
           </LibraryNavigator>
         ) : null}
         {tab === "character-presets" ? (
-          <LibraryNavigator namespace="character_preset" search={search}>
-            {(visibleIds, startDrag, currentFolder) => (
+          <LibraryNavigator namespace="character_preset" search={search} viewMode={viewMode}>
+            {(visibleIds, startDrag, currentFolder, _resources, folderItems) => (
               <PresetWorkspace
                 kind="character"
                 presets={(characterPresetsQuery.data?.items ?? EMPTY_PRESETS).filter((preset) =>
@@ -137,6 +139,7 @@ export function ResourcesPage() {
                 viewMode={viewMode}
                 defaultModel={modelFilter ?? "nai-diffusion-4-5-full"}
                 onResourceDragStart={startDrag}
+                folderItems={folderItems}
                 currentFolderId={currentFolder.id}
                 currentFolderPath={currentFolder.path}
               />
@@ -144,8 +147,8 @@ export function ResourcesPage() {
           </LibraryNavigator>
         ) : null}
         {tab === "vibe" ? (
-          <LibraryNavigator namespace="vibe" search={search}>
-            {(visibleIds, startDrag, _currentFolder, libraryResources) => (
+          <LibraryNavigator namespace="vibe" search={search} viewMode={viewMode}>
+            {(visibleIds, startDrag, _currentFolder, libraryResources, folderItems) => (
               <VibeWorkspace
                 vibes={(vibesQuery.data?.items ?? EMPTY_VIBES).filter((vibe) =>
                   visibleIds.has(vibe.vibe_id),
@@ -158,6 +161,7 @@ export function ResourcesPage() {
                 viewMode={viewMode}
                 onResourceDragStart={startDrag}
                 libraryResources={libraryResources}
+                folderItems={folderItems}
               />
             )}
           </LibraryNavigator>

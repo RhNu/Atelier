@@ -86,11 +86,9 @@ export function editorDraftToUpsertRequest(
   return {
     preset_id: draft.presetId,
     kind,
-    path: [draft.folderPath.trim(), draft.identifier || toIdentifier(draft.name)]
-      .filter(Boolean)
-      .join("/"),
+    path: [draft.folderPath.trim(), draft.identifier.trim()].filter(Boolean).join("/"),
     folder_id: draft.folderId,
-    display_name: draft.name.trim(),
+    display_name: draft.name.trim() || draft.identifier.trim(),
     aliases: draft.aliases,
     description: nullableText(draft.description),
     prompt_behavior: promptBehaviorToDto(draft.prompt),
@@ -104,14 +102,6 @@ export function editorDraftToUpsertRequest(
 
 function parentPath(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
-}
-
-function toIdentifier(value: string): string {
-  const normalized = value
-    .trim()
-    .normalize("NFC")
-    .replace(/[^\p{L}\p{N}_-]+/gu, "_");
-  return /^[\p{L}_]/u.test(normalized) ? normalized : `_${normalized || "preset"}`;
 }
 
 export function presetPreviewSource(draft: PresetEditorDraft): string {

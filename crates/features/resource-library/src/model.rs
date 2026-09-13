@@ -73,14 +73,16 @@ pub struct ResourceName {
 impl ResourceName {
     /// Creates normalized user-facing naming metadata.
     ///
+    /// A blank display name falls back to the identifier.
+    ///
     /// # Errors
-    /// Returns an error when the display name is empty.
+    /// Returns an error when neither value provides a visible name.
     pub fn new(
         identifier: ResourceIdentifier,
         display_name: &str,
         aliases: impl IntoIterator<Item = impl AsRef<str>>,
     ) -> ResourceLibraryResult<Self> {
-        let display_name = normalize_visible_name(display_name)?;
+        let display_name = normalize_visible_name(display_name, identifier.as_str())?;
         let mut seen = BTreeSet::new();
         let aliases = aliases
             .into_iter()
@@ -114,8 +116,10 @@ pub struct LibraryFolder {
 impl LibraryFolder {
     /// Creates a normalized folder.
     ///
+    /// A blank display name falls back to the identifier.
+    ///
     /// # Errors
-    /// Returns an error when the display name is empty.
+    /// Returns an error when neither value provides a visible name.
     pub fn new(
         id: LibraryFolderId,
         namespace: LibraryNamespace,
@@ -124,12 +128,13 @@ impl LibraryFolder {
         display_name: &str,
         now_ms: u64,
     ) -> ResourceLibraryResult<Self> {
+        let display_name = normalize_visible_name(display_name, identifier.as_str())?;
         Ok(Self {
             id,
             namespace,
             parent_id,
             identifier,
-            display_name: normalize_visible_name(display_name)?,
+            display_name,
             created_at_ms: now_ms,
             updated_at_ms: now_ms,
         })
@@ -146,12 +151,17 @@ pub struct LibraryResource {
     pub updated_at_ms: u64,
 }
 
-fn normalize_visible_name(value: &str) -> ResourceLibraryResult<String> {
+fn normalize_visible_name(value: &str, fallback: &str) -> ResourceLibraryResult<String> {
     let normalized = value.trim().nfc().collect::<String>();
+    let normalized = if normalized.is_empty() {
+        fallback.trim().nfc().collect()
+    } else {
+        normalized
+    };
     if normalized.is_empty() {
         return Err(ResourceLibraryError::new(
             ResourceLibraryErrorKind::InvalidName,
-            "resource display name cannot be empty",
+            "resource display name and fallback cannot both be empty",
         ));
     }
     Ok(normalized)

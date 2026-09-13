@@ -28,6 +28,24 @@ fn identifiers_and_paths_are_unicode_nfc_and_root_relative() {
 }
 
 #[test]
+fn blank_display_names_fall_back_to_identifiers() {
+    let identifier = ResourceIdentifier::parse("人物").unwrap();
+    let name = ResourceName::new(identifier.clone(), "  ", ["角色"]).unwrap();
+    let folder = LibraryFolder::new(
+        LibraryFolderId::allocate(),
+        LibraryNamespace::PromptChunk,
+        None,
+        identifier,
+        "",
+        10,
+    )
+    .unwrap();
+
+    assert_eq!(name.display_name, "人物");
+    assert_eq!(folder.display_name, "人物");
+}
+
+#[test]
 fn tree_enforces_namespace_parent_and_sibling_rules() {
     let mut tree = LibraryTree::default();
     let people = folder(LibraryNamespace::PromptChunk, None, "people");

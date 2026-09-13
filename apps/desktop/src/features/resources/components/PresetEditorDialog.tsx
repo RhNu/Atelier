@@ -128,14 +128,14 @@ export function PresetEditorDialog({
         <ModelBindingField models={draft.models} onChange={updateModels} />
         <PreviewModelField models={draft.models} value={previewModel} onChange={setPreviewModel} />
         <TextInput
-          label={t("displayName")}
-          value={draft.name}
-          onChange={(name) => setDraft({ ...draft, name })}
-        />
-        <TextInput
           label={t("identifier")}
           value={draft.identifier}
           onChange={(identifier) => setDraft({ ...draft, identifier })}
+        />
+        <TextInput
+          label={t("displayNameOptional")}
+          value={draft.name}
+          onChange={(name) => setDraft({ ...draft, name })}
         />
         <TextInput
           label={t("aliases")}
