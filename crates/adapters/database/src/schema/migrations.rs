@@ -7,6 +7,7 @@ mod v2_to_v3;
 mod v3_to_v4;
 mod v4_to_v5;
 mod v5_to_v6;
+mod v6_to_v7;
 
 pub(super) fn migrate(
     connection: &mut Connection,
@@ -20,6 +21,7 @@ pub(super) fn migrate(
             3 => v3_to_v4::migrate(connection)?,
             4 => v4_to_v5::migrate(connection)?,
             5 => v5_to_v6::migrate(connection)?,
+            6 => v6_to_v7::migrate(connection)?,
             unsupported => {
                 return Err(DatabaseError::unsupported_schema(format!(
                     "no database migration starts at schema version {unsupported}"

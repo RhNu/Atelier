@@ -1,5 +1,6 @@
 //! `SQLite` database adapters for Atelier.
 
+mod agent;
 mod artifacts;
 mod codec;
 mod connection;
@@ -16,6 +17,7 @@ mod schema;
 mod settings;
 mod vibe;
 
+pub use agent::DatabaseAgentWorkspaceRepository;
 pub use artifacts::DatabaseArtifactRepository;
 pub use connection::DatabaseConnection;
 pub use error::{DatabaseError, DatabaseErrorKind, DatabaseResult};

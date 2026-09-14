@@ -1,12 +1,13 @@
 use std::sync::{Arc, Mutex as StdMutex};
 
 use atelier_adapter_database::{
-    DatabaseGalleryIndex, DatabaseGenerationDraftRepository, DatabaseGenerationStore,
-    DatabasePromptResourceRepository, DatabaseResourceLibraryRepository,
+    DatabaseAgentWorkspaceRepository, DatabaseGalleryIndex, DatabaseGenerationDraftRepository,
+    DatabaseGenerationStore, DatabasePromptResourceRepository, DatabaseResourceLibraryRepository,
     DatabaseRunHistoryRepository, DatabaseSettingsRepository,
 };
 use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
+use atelier_agent::AgentWorkspaceService;
 use atelier_kernel::KernelRuntime;
 use atelier_prompt_resources::{PromptChunkService, PromptCompiler, PromptPresetService};
 use atelier_resource_library::ResourceLibraryService;
@@ -21,9 +22,9 @@ use crate::ports::{
     AppResourceReader, SharedWorkspaceSettings,
 };
 use crate::usecases::{
-    DirectorUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases, HistoryUseCases,
-    PromptUseCases, ResourceLibraryUseCases, ResourceUseCases, SettingsUseCases, VibeUseCases,
-    WorkspaceUseCases,
+    AgentWorkspaceUseCases, DirectorUseCases, EventsUseCases, GalleryUseCases, GenerationUseCases,
+    HistoryUseCases, PromptUseCases, ResourceLibraryUseCases, ResourceUseCases, SettingsUseCases,
+    VibeUseCases, WorkspaceUseCases,
 };
 use crate::{AppResult, error::AppError};
 
@@ -37,6 +38,7 @@ pub struct WorkspaceSession<
     pub(crate) workspace_lock: StdMutex<Box<dyn WorkspaceLockLease>>,
     pub(crate) api_keys: AppApiKeyService<S, F>,
     pub(crate) settings: WorkspaceSettingsService<DatabaseSettingsRepository>,
+    pub(crate) agent: AgentWorkspaceService<DatabaseAgentWorkspaceRepository>,
     pub(crate) generation_drafts:
         atelier_generation::GenerationDraftService<DatabaseGenerationDraftRepository>,
     pub(crate) generation_draft_write: Mutex<()>,
@@ -119,6 +121,11 @@ impl<S, F, E> WorkspaceSession<S, F, E> {
             settings: &self.settings,
             settings_state: &self.settings_state,
         }
+    }
+
+    #[must_use]
+    pub const fn agent(&self) -> AgentWorkspaceUseCases<'_> {
+        AgentWorkspaceUseCases { agent: &self.agent }
     }
 
     #[must_use]

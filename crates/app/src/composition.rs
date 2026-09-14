@@ -2,9 +2,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
 
 use atelier_adapter_database::{
-    DatabaseArtifactRepository, DatabaseConnection, DatabaseGalleryIndex,
-    DatabaseGenerationDraftRepository, DatabaseGenerationPayloadStore, DatabaseGenerationStore,
-    DatabasePromptResourceRepository, DatabaseResourceCatalogRepository,
+    DatabaseAgentWorkspaceRepository, DatabaseArtifactRepository, DatabaseConnection,
+    DatabaseGalleryIndex, DatabaseGenerationDraftRepository, DatabaseGenerationPayloadStore,
+    DatabaseGenerationStore, DatabasePromptResourceRepository, DatabaseResourceCatalogRepository,
     DatabaseResourceLibraryRepository, DatabaseRunHistoryRepository, DatabaseSettingsRepository,
     DatabaseVibeRepository,
 };
@@ -14,6 +14,7 @@ use atelier_adapter_storage_fs::{
     FileSystemResourceBlobStore, FileSystemResourceContentReader, FileSystemWorkspaceLock,
     FileSystemWorkspaceStore, workspace_database_path,
 };
+use atelier_agent::AgentWorkspaceService;
 use atelier_artifacts::ArtifactService;
 use atelier_gallery::GalleryService;
 use atelier_jobs::GenerationStore;
@@ -76,6 +77,11 @@ where
             ResourceLibraryService::new(DatabaseResourceLibraryRepository::new(connection.clone()));
         let settings_repository = DatabaseSettingsRepository::new(connection.clone());
         let settings = WorkspaceSettingsService::new(settings_repository);
+        let agent =
+            AgentWorkspaceService::new(DatabaseAgentWorkspaceRepository::new(connection.clone()));
+        agent
+            .interrupt_running_sessions(crate::time::unix_timestamp_ms())
+            .await?;
         let generation_drafts = atelier_generation::GenerationDraftService::new(
             DatabaseGenerationDraftRepository::new(connection.clone()),
         );
@@ -123,6 +129,7 @@ where
             workspace_lock: StdMutex::new(lease),
             api_keys,
             settings,
+            agent,
             generation_drafts,
             generation_draft_write: Mutex::new(()),
             gallery_safety_rescan: Mutex::new(()),

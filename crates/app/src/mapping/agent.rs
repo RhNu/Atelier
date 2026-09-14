@@ -1,9 +1,12 @@
 use atelier_agent::{
-    AgentAuth, AgentConnection, AgentConnectionId, AgentModel, AgentModelId, AgentProbeStatus,
-    AgentRegistry,
+    AgentAuth, AgentConnection, AgentConnectionId, AgentEvent, AgentEventKind, AgentModel,
+    AgentModelId, AgentPermissionMode, AgentProbeStatus, AgentRegistry, AgentSession,
+    AgentSessionStatus, AgentWorkspaceSettings,
 };
 use atelier_app_api::agent::{
-    AgentAuthKindDto, AgentConnectionDto, AgentModelDto, AgentProbeStatusDto, AgentRegistryDto,
+    AgentAuthKindDto, AgentConnectionDto, AgentEventDto, AgentEventKindDto, AgentModelDto,
+    AgentModelSnapshotDto, AgentPermissionModeDto, AgentPersonaSnapshotDto, AgentProbeStatusDto,
+    AgentRegistryDto, AgentSessionDto, AgentSessionStatusDto, AgentWorkspaceSettingsDto,
     SaveAgentConnectionRequestDto, SaveAgentModelRequestDto,
 };
 
@@ -23,6 +26,119 @@ pub fn agent_connection_to_domain(
         },
         created_at_ms: current.map_or(now_ms, |value| value.created_at_ms),
         updated_at_ms: now_ms,
+    }
+}
+
+pub fn agent_workspace_settings_to_domain(
+    value: AgentWorkspaceSettingsDto,
+) -> AgentWorkspaceSettings {
+    AgentWorkspaceSettings {
+        display_name: value.display_name,
+        instructions: value.instructions,
+        v5_prompt_guidance: value.v5_prompt_guidance,
+        tag_prompt_guidance: value.tag_prompt_guidance,
+        permission_mode: match value.permission_mode {
+            AgentPermissionModeDto::Standard => AgentPermissionMode::Standard,
+            AgentPermissionModeDto::Ask => AgentPermissionMode::Ask,
+            AgentPermissionModeDto::BypassAll => AgentPermissionMode::BypassAll,
+        },
+        default_model_id: value.default_model_id.map(AgentModelId::new),
+    }
+}
+
+pub fn agent_workspace_settings_to_dto(
+    value: &AgentWorkspaceSettings,
+) -> AgentWorkspaceSettingsDto {
+    AgentWorkspaceSettingsDto {
+        display_name: value.display_name.clone(),
+        instructions: value.instructions.clone(),
+        v5_prompt_guidance: value.v5_prompt_guidance.clone(),
+        tag_prompt_guidance: value.tag_prompt_guidance.clone(),
+        permission_mode: match value.permission_mode {
+            AgentPermissionMode::Standard => AgentPermissionModeDto::Standard,
+            AgentPermissionMode::Ask => AgentPermissionModeDto::Ask,
+            AgentPermissionMode::BypassAll => AgentPermissionModeDto::BypassAll,
+        },
+        default_model_id: value
+            .default_model_id
+            .as_ref()
+            .map(|id| id.as_str().to_owned()),
+    }
+}
+
+pub fn agent_session_to_dto(value: &AgentSession) -> AgentSessionDto {
+    AgentSessionDto {
+        id: value.id.as_str().to_owned(),
+        title: value.title.clone(),
+        model: AgentModelSnapshotDto {
+            model_id: value.model.model_id.as_str().to_owned(),
+            connection_id: value.model.connection_id.as_str().to_owned(),
+            wire_model_id: value.model.wire_model_id.clone(),
+            display_name: value.model.display_name.clone(),
+            context_window: value.model.context_window,
+            max_output_tokens: value.model.max_output_tokens,
+            temperature: value.model.temperature,
+        },
+        persona: AgentPersonaSnapshotDto {
+            display_name: value.persona.display_name.clone(),
+            instructions: value.persona.instructions.clone(),
+            v5_prompt_guidance: value.persona.v5_prompt_guidance.clone(),
+            tag_prompt_guidance: value.persona.tag_prompt_guidance.clone(),
+        },
+        status: match value.status {
+            AgentSessionStatus::Idle => AgentSessionStatusDto::Idle,
+            AgentSessionStatus::Running => AgentSessionStatusDto::Running,
+            AgentSessionStatus::Interrupted => AgentSessionStatusDto::Interrupted,
+        },
+        created_at_ms: value.created_at_ms,
+        updated_at_ms: value.updated_at_ms,
+    }
+}
+
+pub fn agent_event_to_dto(value: &AgentEvent) -> AgentEventDto {
+    AgentEventDto {
+        id: value.id.as_str().to_owned(),
+        session_id: value.session_id.as_str().to_owned(),
+        sequence: value.sequence,
+        created_at_ms: value.created_at_ms,
+        event: match &value.kind {
+            AgentEventKind::UserMessage { content } => AgentEventKindDto::UserMessage {
+                content: content.clone(),
+            },
+            AgentEventKind::AssistantMessage {
+                content,
+                interrupted,
+            } => AgentEventKindDto::AssistantMessage {
+                content: content.clone(),
+                interrupted: *interrupted,
+            },
+            AgentEventKind::ToolCall {
+                tool_name,
+                arguments_json,
+            } => AgentEventKindDto::ToolCall {
+                tool_name: tool_name.clone(),
+                arguments_json: arguments_json.clone(),
+            },
+            AgentEventKind::ToolResult {
+                tool_name,
+                result_json,
+                failed,
+            } => AgentEventKindDto::ToolResult {
+                tool_name: tool_name.clone(),
+                result_json: result_json.clone(),
+                failed: *failed,
+            },
+            AgentEventKind::Approval {
+                tool_name,
+                approved,
+            } => AgentEventKindDto::Approval {
+                tool_name: tool_name.clone(),
+                approved: *approved,
+            },
+            AgentEventKind::Warning { content } => AgentEventKindDto::Warning {
+                content: content.clone(),
+            },
+        },
     }
 }
 

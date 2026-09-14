@@ -27,6 +27,7 @@ string_id!(AgentConnectionId);
 string_id!(AgentModelId);
 string_id!(AgentSessionId);
 string_id!(AgentEventId);
+string_id!(AgentActionId);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AgentAuth {
@@ -289,6 +290,35 @@ pub struct AgentEvent {
     pub sequence: u64,
     pub created_at_ms: u64,
     pub kind: AgentEventKind,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum AgentActionState {
+    Applied,
+    Undone,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AgentAction {
+    pub id: AgentActionId,
+    pub session_id: AgentSessionId,
+    pub tool_name: String,
+    pub base_revision: u64,
+    pub applied_revision: u64,
+    pub before_json: String,
+    pub after_json: String,
+    pub state: AgentActionState,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AgentSummary {
+    pub session_id: AgentSessionId,
+    pub through_sequence: u64,
+    pub content: String,
+    pub content_hash: String,
+    pub created_at_ms: u64,
 }
 
 fn ensure_not_blank(field: &str, value: &str) -> AgentResult<()> {

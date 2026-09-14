@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use crate::{
-    AgentConnection, AgentConnectionId, AgentError, AgentEvent, AgentModel, AgentModelId,
-    AgentModelSnapshot, AgentPersonaSnapshot, AgentRegistry, AgentRegistryRepository, AgentResult,
-    AgentSession, AgentSessionId, AgentSessionStatus, AgentWorkspaceRepository,
-    AgentWorkspaceSettings,
+    AgentAction, AgentActionId, AgentConnection, AgentConnectionId, AgentError, AgentEvent,
+    AgentModel, AgentModelId, AgentModelSnapshot, AgentPersonaSnapshot, AgentRegistry,
+    AgentRegistryRepository, AgentResult, AgentSession, AgentSessionId, AgentSessionStatus,
+    AgentSummary, AgentWorkspaceRepository, AgentWorkspaceSettings,
 };
 
 #[derive(Clone)]
@@ -151,9 +151,9 @@ impl<R: AgentWorkspaceRepository> AgentWorkspaceService<R> {
         registry: &AgentRegistry,
         now_ms: u64,
     ) -> AgentResult<AgentSession> {
-        if title.trim().is_empty() {
+        if title.trim().is_empty() || title.chars().count() > 80 {
             return Err(AgentError::validation(
-                "agent session title must not be blank",
+                "agent session title must contain between 1 and 80 characters",
             ));
         }
         let settings = self.repository.get_settings().await?;
@@ -212,7 +212,34 @@ impl<R: AgentWorkspaceRepository> AgentWorkspaceService<R> {
     /// # Errors
     /// Returns an error when persistence fails.
     pub async fn save_session(&self, session: AgentSession) -> AgentResult<()> {
+        if session.title.trim().is_empty() || session.title.chars().count() > 80 {
+            return Err(AgentError::validation(
+                "agent session title must contain between 1 and 80 characters",
+            ));
+        }
         self.repository.save_session(session).await
+    }
+
+    /// Renames an idle or interrupted session.
+    ///
+    /// # Errors
+    /// Returns an error for an invalid title, missing session, or persistence failure.
+    pub async fn rename_session(
+        &self,
+        id: &AgentSessionId,
+        title: String,
+        now_ms: u64,
+    ) -> AgentResult<AgentSession> {
+        let mut session = self.get_session(id).await?;
+        if session.status == AgentSessionStatus::Running {
+            return Err(AgentError::conflict(
+                "stop the active Agent turn before renaming",
+            ));
+        }
+        session.title = title;
+        session.updated_at_ms = now_ms;
+        self.save_session(session.clone()).await?;
+        Ok(session)
     }
 
     /// Deletes a session and its owned records.
@@ -220,6 +247,13 @@ impl<R: AgentWorkspaceRepository> AgentWorkspaceService<R> {
     /// # Errors
     /// Returns an error when persistence fails.
     pub async fn delete_session(&self, id: &AgentSessionId) -> AgentResult<bool> {
+        if let Some(session) = self.repository.get_session(id).await?
+            && session.status == AgentSessionStatus::Running
+        {
+            return Err(AgentError::conflict(
+                "stop the active Agent turn before deleting its session",
+            ));
+        }
         self.repository.delete_session(id).await
     }
 
@@ -237,6 +271,38 @@ impl<R: AgentWorkspaceRepository> AgentWorkspaceService<R> {
     /// Returns an error for duplicate sequence values or persistence failure.
     pub async fn append_event(&self, event: AgentEvent) -> AgentResult<()> {
         self.repository.append_event(event).await
+    }
+
+    /// Loads one reversible Agent action.
+    ///
+    /// # Errors
+    /// Returns an error when persistence fails.
+    pub async fn get_action(&self, id: &AgentActionId) -> AgentResult<Option<AgentAction>> {
+        self.repository.get_action(id).await
+    }
+
+    /// Creates or updates one reversible Agent action.
+    ///
+    /// # Errors
+    /// Returns an error when persistence fails.
+    pub async fn save_action(&self, action: AgentAction) -> AgentResult<()> {
+        self.repository.save_action(action).await
+    }
+
+    /// Loads the latest rolling summary for a session.
+    ///
+    /// # Errors
+    /// Returns an error when persistence fails.
+    pub async fn get_summary(&self, id: &AgentSessionId) -> AgentResult<Option<AgentSummary>> {
+        self.repository.get_summary(id).await
+    }
+
+    /// Replaces the rolling summary for a session.
+    ///
+    /// # Errors
+    /// Returns an error when persistence fails.
+    pub async fn save_summary(&self, summary: AgentSummary) -> AgentResult<()> {
+        self.repository.save_summary(summary).await
     }
 
     /// Marks unfinished sessions as interrupted during workspace startup.

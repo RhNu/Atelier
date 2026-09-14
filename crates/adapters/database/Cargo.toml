@@ -7,6 +7,7 @@ publish.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 atelier-artifacts = { workspace = true }
+atelier-agent = { workspace = true }
 atelier-gallery = { workspace = true }
 atelier-generation = { workspace = true }
 atelier-image-analysis = { workspace = true }

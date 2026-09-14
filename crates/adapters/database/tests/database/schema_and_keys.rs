@@ -26,7 +26,7 @@ fn schema_initializes_once_and_file_backed_database_reopens() {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .unwrap();
-        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 6));
+        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 7));
         drop(raw);
 
         let reopened = DatabaseConnection::open(&path).unwrap();
@@ -89,6 +89,7 @@ fn version_one_database_migrates_at_a_single_testable_boundary() {
             rusqlite::params![item.id.as_str(), serde_json::to_string(&legacy).unwrap()],
         )
         .unwrap();
+        drop_current_agent_tables(&raw);
         raw.execute_batch(
             r"
             DROP INDEX idx_gallery_items_safety_scan_state;
@@ -127,7 +128,7 @@ fn version_one_database_migrates_at_a_single_testable_boundary() {
                 |row| row.get::<_, i64>(0)
             )
             .unwrap(),
-            6
+            7
         );
         let row: (String, Option<String>) = raw
             .query_row(
@@ -147,6 +148,7 @@ fn version_two_database_drops_workspace_api_key_metadata() {
     let path = temp.path().join("atelier.sqlite3");
     drop(DatabaseConnection::open(&path).unwrap());
     let raw = Connection::open(&path).unwrap();
+    drop_current_agent_tables(&raw);
     raw.execute_batch(
         r"
         CREATE TABLE api_key_records (
@@ -187,7 +189,7 @@ fn version_two_database_drops_workspace_api_key_metadata() {
             |row| row.get::<_, i64>(0)
         )
         .unwrap(),
-        6
+        7
     );
 }
 
@@ -207,6 +209,7 @@ fn version_four_database_backfills_logical_resource_namespaces() {
         [],
     )
     .unwrap();
+    drop_current_agent_tables(&raw);
     raw.execute_batch(
         r"
         DROP TABLE resource_library_aliases;
@@ -292,8 +295,8 @@ fn old_migration_database_is_rejected_without_changes() {
 fn database_rejects_unknown_format_and_non_current_versions() {
     for (format, version) in [
         ("atelier-workspace-database", 0),
-        ("atelier-workspace-database", 7),
-        ("another-database", 6),
+        ("atelier-workspace-database", 8),
+        ("another-database", 7),
     ] {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("atelier.sqlite3");
@@ -343,6 +346,19 @@ fn current_prompt_preset_schema_has_no_legacy_enabled_column() {
     assert!(columns.contains(&"prompt_mode".to_owned()));
     assert!(columns.contains(&"uc_mode".to_owned()));
     assert!(!columns.contains(&"enabled".to_owned()));
+}
+
+fn drop_current_agent_tables(connection: &Connection) {
+    connection
+        .execute_batch(
+            r"
+            DROP TABLE agent_events;
+            DROP TABLE agent_actions;
+            DROP TABLE agent_summaries;
+            DROP TABLE agent_sessions;
+            ",
+        )
+        .unwrap();
 }
 
 #[test]

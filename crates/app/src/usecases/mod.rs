@@ -6,6 +6,7 @@ pub use resource::ResourceUseCases;
 
 mod account;
 mod agent;
+mod agent_workspace;
 mod director;
 mod events;
 mod gallery;
@@ -22,6 +23,7 @@ mod workspace;
 
 pub use account::AccountUseCases;
 pub use agent::AgentModelUseCases;
+pub use agent_workspace::AgentWorkspaceUseCases;
 pub use director::DirectorUseCases;
 pub use events::EventsUseCases;
 pub use gallery::GalleryUseCases;

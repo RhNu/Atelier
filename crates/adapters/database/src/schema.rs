@@ -5,7 +5,7 @@ use crate::error::{DatabaseError, DatabaseResult};
 mod migrations;
 
 const DATABASE_FORMAT: &str = "atelier-workspace-database";
-const DATABASE_SCHEMA_VERSION: i64 = 6;
+const DATABASE_SCHEMA_VERSION: i64 = 7;
 
 const SCHEMA_SQL: &str = r"
 CREATE TABLE atelier_schema (
@@ -15,7 +15,7 @@ CREATE TABLE atelier_schema (
 );
 
 INSERT INTO atelier_schema(singleton, format, schema_version)
-VALUES (1, 'atelier-workspace-database', 6);
+VALUES (1, 'atelier-workspace-database', 7);
 
 CREATE TABLE resources (
     id TEXT PRIMARY KEY,
@@ -223,6 +223,56 @@ CREATE INDEX idx_prompt_preset_models_model
 CREATE TABLE workspace_settings (
     setting_key TEXT PRIMARY KEY,
     value_json TEXT NOT NULL
+);
+
+CREATE TABLE agent_sessions (
+    session_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('idle', 'running', 'interrupted')),
+    model_json TEXT NOT NULL,
+    persona_json TEXT NOT NULL,
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL
+);
+
+CREATE INDEX idx_agent_sessions_updated_at
+    ON agent_sessions(updated_at_ms DESC, session_id ASC);
+
+CREATE TABLE agent_events (
+    event_id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    event_kind TEXT NOT NULL,
+    event_json TEXT NOT NULL,
+    created_at_ms INTEGER NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES agent_sessions(session_id) ON DELETE CASCADE,
+    UNIQUE (session_id, sequence)
+);
+
+CREATE INDEX idx_agent_events_session_sequence
+    ON agent_events(session_id, sequence);
+
+CREATE TABLE agent_actions (
+    action_id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    base_revision INTEGER NOT NULL,
+    applied_revision INTEGER NOT NULL,
+    before_json TEXT NOT NULL,
+    after_json TEXT NOT NULL,
+    action_state TEXT NOT NULL CHECK (action_state IN ('applied', 'undone')),
+    created_at_ms INTEGER NOT NULL,
+    updated_at_ms INTEGER NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES agent_sessions(session_id) ON DELETE CASCADE
+);
+
+CREATE TABLE agent_summaries (
+    session_id TEXT PRIMARY KEY,
+    through_sequence INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    created_at_ms INTEGER NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES agent_sessions(session_id) ON DELETE CASCADE
 );
 
 CREATE TABLE generation_queue_state (
