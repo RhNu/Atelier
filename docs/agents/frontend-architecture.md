@@ -2,7 +2,7 @@
 
 ## Status
 
-- Date: 2026-05-22
+- Date: 2026-09-14
 - Status: Current guidance
 
 Atelier desktop is a dense React workbench for NovelAI image workflows. The frontend should feel like a local creative tool: direct, compact, preview-first, and organized around workspace tasks rather than marketing pages or generic provider abstractions.
@@ -35,6 +35,12 @@ contracts, image loading, local completion and copy actions are shared; each sou
 controls and inspector. Inactive sources retain UI state but do not initiate searches or image loads.
 Cache keys include source identity and the Danbooru account revision. Invalidating frontend queries
 does not claim to cancel an already-running Tauri HTTP request. `/inspiration` is only a redirect.
+
+`features/agent` owns the persistent workspace assistant drawer, conversation projection, command
+queries, and settings surfaces. The drawer is mounted at the workbench shell rather than within a
+route, so route changes and closing the drawer do not end an active turn. Zustand owns only transient
+drawer state; sessions, events, persona, permissions, and generation-draft mutations remain backend
+data. While a turn is active, the route surface is inert so Agent and user edits cannot race.
 
 Feature folders should stay shallow and explicit:
 
@@ -122,6 +128,10 @@ The current Settings frontend separates application and workspace scopes:
 - Application / Connections: NovelAI API key registry, active-key switching, and automatically
   refreshed subscription summary shared across workspaces, followed by other service accounts such
   as Danbooru.
+- Application / Agent: OpenAI-compatible model connections and registered chat models shared across
+  workspaces. Provider secrets stay in the operating-system keyring.
+- Workspace / Agent: persona instructions, prompt-family guidance, default model selection, and tool
+  approval policy. Conversations and action history are also workspace-local.
 
 ## Localization
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-- Date: 2026-05-20
+- Date: 2026-09-14
 - Status: Current guidance
 
 This document is the single architecture and backend layout overview for Atelier. It replaces the older split between general architecture guidance, crate layout planning, and rollout planning.
@@ -14,6 +14,11 @@ Names and module boundaries can still change when implementation proves a better
 Atelier is a desktop workspace for NovelAI image workflows. Internal language should stay close to the product domain: workspace, prompt, prompt resource, generation work, job, artifact, gallery item, Vibe document, Director result, resource reference, and safety assessment.
 
 NovelAI protocol details belong behind the `novelai-bridge` adapter. The application should not become a generic provider abstraction unless a separate design note proves that need.
+
+The built-in Agent is an internal NovelAI workflow surface, not a coding or general computer-use
+agent. Its model transport may use an OpenAI-compatible chat endpoint, but the Agent can act only
+through Atelier-owned tools. It has no shell, arbitrary filesystem, plugin, credential, or image-pixel
+access.
 
 ## Layer Shape
 
@@ -73,6 +78,7 @@ crates/
   app-api/
 
   features/
+    agent/
     danbooru/
     explore/
     artifacts/
@@ -93,6 +99,8 @@ crates/
     workspace/
 
   adapters/
+    agent-config-fs/
+    agent-rig/
     danbooru/
     novelai-explore/
     database/
@@ -120,6 +128,8 @@ Stable cross-feature primitives and small support types. It should not contain f
 Feature crates are the default owner for domain concepts:
 
 - `workspace`: workspace root, layout, controlled paths, lock, manifest.
+- `agent`: application-global connection/model definitions, workspace-local persona/session/event/
+  action models, permission rules, and host-neutral model/tool contracts for the internal Agent.
 - `resource-catalog`: resource IDs, kinds, owners, lifecycle, blob and variant ports.
 - `downloadable-resources`: application-global reconstructable runtime resource descriptors,
   groups, install state, resolution, and leases.
@@ -153,6 +163,9 @@ Feature crates are the default owner for domain concepts:
 Adapters are the boundary for real I/O:
 
 - `storage-fs`: workspace filesystem operations, locks, resource blob storage.
+- `agent-config-fs`: versioned application-global Agent connection and model registry persistence.
+- `agent-rig`: Rig-backed OpenAI-compatible chat streaming, model discovery, bounded history, and
+  dynamic-tool execution. Provider types stay inside this adapter.
 - `database`: SQLite-backed repositories and adapter-local JSON DTOs.
 - `image-codec`: PNG/JPEG/WebP probing plus deterministic gallery/export variant encoding.
 - `keyring`: system credential storage for secret values.
@@ -164,6 +177,21 @@ Adapters are the boundary for real I/O:
 - `settings-fs`: user-level global settings stored below the desktop host-provided application configuration directory.
 - `secrets-fs`: application-level NovelAI API key metadata stored below the desktop host-provided
   application configuration directory. Secret values remain in the system keyring.
+
+### Internal Agent ownership and control
+
+Agent connection and model definitions are application-global. Bearer tokens are referenced by ID
+and stored in the operating-system keyring; they must not enter registry JSON, workspace SQLite,
+events, logs, or frontend responses. Persona instructions, permission mode, default model choice,
+sessions, summaries, events, and reversible actions are workspace-owned.
+
+An Agent turn snapshots its selected model and persona so later global edits do not rewrite history.
+The application layer exposes a fixed Atelier tool set for reading prompt resources, editing the
+versioned generation draft, and submitting at most one generation batch per turn. Draft writes use
+revision checks; successful mutations record before/after state for one-step undo. Standard mode asks
+before generation, Ask mode asks before every mutation, and Bypass All is an explicit workspace
+choice. Closing the drawer does not cancel a turn; stopping it, closing/replacing the workspace, or
+shutting down does.
 
 Persistence and secret boundaries are adapter contracts:
 
@@ -190,12 +218,12 @@ External library types should not leak upward into feature crates, `kernel`, or 
 
 `app` should be host-neutral. It should map `app-api` DTOs to feature/kernel inputs, hold runtime state, inject adapters, apply runtime guards, and expose use case groups. It must not depend on Tauri.
 
-The process-level `AtelierRuntime` owns global settings, the application-level API key registry,
-event listeners, injected external dependencies, and an optional `WorkspaceSession`. A
-`WorkspaceSession` owns only services and runtime state tied to one opened workspace, while its
-NovelAI adapter resolves the active key through the shared application registry. Opening a
-replacement workspace builds the candidate session and persists its recent-workspace state before
-publishing it.
+The process-level `AtelierRuntime` owns global settings, the application-level API key registry, the
+global Agent model registry/runtime, event listeners, injected external dependencies, and an optional
+`WorkspaceSession`. A `WorkspaceSession` owns only services and runtime state tied to one opened
+workspace, including Agent sessions and turn coordination, while its NovelAI adapter resolves the
+active key through the shared application registry. Opening a replacement workspace builds the
+candidate session and persists its recent-workspace state before publishing it.
 
 Runtime construction uses one explicit `RuntimeDependencies` value. Global settings and API key
 metadata storage are required dependencies; in-memory persistence belongs in test support. Optional

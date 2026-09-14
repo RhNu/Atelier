@@ -39,6 +39,8 @@ be expressed there.
 - `kernel` owns runtime state and cross-feature orchestration, but not real I/O.
 - Adapters own filesystem, database, keyring, `novelai-bridge`, and other external integrations.
 - The Tauri shell is a desktop host adapter, not the application layer; it owns platform desktop host glue and keeps file picker reads/writes out of the frontend.
+- Agent model connections are application-global; Agent persona, permissions, conversations, and
+  actions are workspace-local.
 - Workspace-owned creative resources go through `resource-catalog`; global, reconstructable
   runtime assets go through `downloadable-resources`.
 - Reference projects are read-only inputs. Do not copy implementation without license and source records.
@@ -59,6 +61,7 @@ Implemented or partially implemented:
 - `crates/features/generation`
 - `crates/features/jobs`
 - `crates/features/artifacts`
+- `crates/features/agent`
 - `crates/features/gallery`
 - `crates/features/explore`
 - `crates/features/danbooru`
@@ -78,6 +81,8 @@ Implemented or partially implemented:
 - `crates/adapters/novelai`
 - `crates/adapters/novelai-explore`
 - `crates/adapters/danbooru`
+- `crates/adapters/agent-config-fs`
+- `crates/adapters/agent-rig`
 - `crates/adapters/image-analysis-onnx`
 - `crates/adapters/downloadable-resources-fs`
 - `crates/adapters/settings-fs`

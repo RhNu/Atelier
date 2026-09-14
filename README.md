@@ -4,6 +4,10 @@ Atelier is a desktop creative workspace for NovelAI image workflows.
 
 The project is intentionally NovelAI-specific. It should preserve clear feature boundaries, use `novelai-bridge` for NovelAI API integration, and avoid turning into a generic AI image tool.
 
+Atelier also includes an internal workspace Agent that can inspect prompt resources, edit the current
+generation draft, and submit NovelAI generation work through controlled application tools. It is not
+a coding, shell, filesystem, or general computer-use agent.
+
 ## Development
 
 Prerequisites:
