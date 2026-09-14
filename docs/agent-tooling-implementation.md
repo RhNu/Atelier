@@ -29,5 +29,12 @@ and real provider behavior require user QA, with remaining checks recorded at de
   Desktop QA pending: edit then immediately send; multi-field edit and undo; clear/recreate then
   attempt an old undo; failed turn refresh. Database failure injection is outside the allowed
   automated test scope; transactional behavior was reviewed in the adapter implementation.
-- Stage 2: pending.
+- Stage 2: implemented. Added complete observed resource maintenance, lexicon tools, registered
+  prompt-function guidance, immutable compiled previews, resolved text/token usage/estimates and
+  preview-bound submission approvals. Resource-library rewrites now advance durable draft versions.
+  Passed 11 targeted Rust pure-logic tests and 4 frontend event-model tests, frontend formatting,
+  lint, typecheck and build, plus Rust formatting, strict workspace clippy and line budget.
+  Existing frontend and line-budget warnings remain. Desktop/provider QA is listed in `docs/agent-tools.md`.
+  Preview invalidation intentionally covers the whole prompt library; draft undo does not undo
+  resource mutations.
 - Stage 3: pending.

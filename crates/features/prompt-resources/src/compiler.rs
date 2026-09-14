@@ -118,6 +118,10 @@ pub struct PromptCompiler<R> {
 }
 
 impl<R> PromptCompiler<R> {
+    pub fn function_descriptors(&self) -> impl Iterator<Item = &crate::PromptFunctionDescriptor> {
+        self.functions.descriptors()
+    }
+
     #[must_use]
     pub fn new(repository: R) -> Self {
         Self {

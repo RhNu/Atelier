@@ -2,6 +2,24 @@ use atelier_prompt::{ExtensionCall, FunctionValue, parse_prompt};
 
 use crate::PromptChunkKey;
 
+/// Rewrites prompt references in every saved model state without touching resource identifiers.
+pub fn rewrite_draft_chunk_references(
+    draft: &mut atelier_generation::GenerationDraftSnapshot,
+    mappings: &[(PromptChunkKey, PromptChunkKey)],
+) {
+    for state in &mut draft.prompt_states {
+        let mut fields = vec![&mut state.prompt, &mut state.negative_prompt];
+        for character in &mut state.characters {
+            fields.extend([&mut character.prompt, &mut character.negative_prompt]);
+        }
+        for text in fields {
+            for (old, new) in mappings {
+                *text = rewrite_chunk_references(text, old, new);
+            }
+        }
+    }
+}
+
 #[must_use]
 pub fn chunk_references_in_text(text: &str, key: &PromptChunkKey) -> bool {
     let parsed = parse_prompt(text);

@@ -88,7 +88,7 @@ impl GenerationDraftRepository for DatabaseGenerationDraftRepository {
     }
 }
 
-fn load_on_connection(
+pub fn load_on_connection(
     connection: &rusqlite::Connection,
 ) -> GenerationDraftResult<Option<VersionedGenerationDraft>> {
     let json = connection

@@ -113,6 +113,7 @@ impl<S, F, E> WorkspaceSession<S, F, E> {
     #[must_use]
     pub const fn resource_library(&self) -> ResourceLibraryUseCases<'_> {
         ResourceLibraryUseCases {
+            prompt_resource_write: &self.prompt_resource_write,
             library: &self.resource_library,
         }
     }

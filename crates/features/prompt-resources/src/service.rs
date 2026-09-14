@@ -140,6 +140,17 @@ where
         Ok(chunks)
     }
 
+    /// Lists resources and saved drafts that directly reference a chunk.
+    ///
+    /// # Errors
+    /// Returns an error when the repository cannot be queried.
+    pub async fn list_references(
+        &self,
+        key: &crate::PromptChunkKey,
+    ) -> PromptResourceResult<Vec<crate::ChunkReference>> {
+        self.repository.list_chunk_references(key).await
+    }
+
     /// Deletes an unreferenced chunk.
     ///
     /// # Errors

@@ -26,16 +26,34 @@ export type DisplayAgentEvent =
 export type AgentToolNameKey =
   | "toolNames.getGenerationContext"
   | "toolNames.editGenerationDraft"
-  | "toolNames.listPromptChunks"
-  | "toolNames.listPromptPresets"
+  | "toolNames.searchPromptResources"
+  | "toolNames.getPromptResource"
+  | "toolNames.getPromptLibrary"
+  | "toolNames.createPromptResource"
+  | "toolNames.editPromptResource"
+  | "toolNames.copyPromptResource"
+  | "toolNames.deletePromptResource"
+  | "toolNames.getLexiconContext"
+  | "toolNames.searchLexicon"
+  | "toolNames.getLexiconEntity"
+  | "toolNames.previewGeneration"
   | "toolNames.submitGeneration"
   | "toolNames.undoAgentAction";
 
 export const AGENT_TOOL_NAME_KEYS: Readonly<Record<string, AgentToolNameKey>> = {
   get_generation_context: "toolNames.getGenerationContext",
   edit_generation_draft: "toolNames.editGenerationDraft",
-  list_prompt_chunks: "toolNames.listPromptChunks",
-  list_prompt_presets: "toolNames.listPromptPresets",
+  search_prompt_resources: "toolNames.searchPromptResources",
+  get_prompt_resource: "toolNames.getPromptResource",
+  get_prompt_library: "toolNames.getPromptLibrary",
+  create_prompt_resource: "toolNames.createPromptResource",
+  edit_prompt_resource: "toolNames.editPromptResource",
+  copy_prompt_resource: "toolNames.copyPromptResource",
+  delete_prompt_resource: "toolNames.deletePromptResource",
+  get_lexicon_context: "toolNames.getLexiconContext",
+  search_lexicon: "toolNames.searchLexicon",
+  get_lexicon_entity: "toolNames.getLexiconEntity",
+  preview_generation: "toolNames.previewGeneration",
   submit_generation: "toolNames.submitGeneration",
   undo_agent_action: "toolNames.undoAgentAction",
 };

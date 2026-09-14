@@ -12,6 +12,7 @@ use atelier_resource_library::{
 use crate::AppResult;
 
 pub struct ResourceLibraryUseCases<'a> {
+    pub(crate) prompt_resource_write: &'a futures::lock::Mutex<()>,
     pub(crate) library: &'a ResourceLibraryService<DatabaseResourceLibraryRepository>,
 }
 
@@ -69,6 +70,7 @@ impl ResourceLibraryUseCases<'_> {
         &self,
         request: UpsertLibraryFolderRequestDto,
     ) -> AppResult<LibraryFolderDto> {
+        let _guard = self.prompt_resource_write.lock().await;
         let namespace = namespace_to_domain(request.namespace);
         let saved = self
             .library
@@ -114,6 +116,7 @@ impl ResourceLibraryUseCases<'_> {
         &self,
         request: UpdateLibraryResourceRequestDto,
     ) -> AppResult<LibraryResourceDto> {
+        let _guard = self.prompt_resource_write.lock().await;
         let resource = self
             .library
             .update_resource(UpdateLibraryResourceRequest {
@@ -155,6 +158,7 @@ impl ResourceLibraryUseCases<'_> {
         &self,
         request: DeleteLibraryFolderRequestDto,
     ) -> AppResult<DeleteLibraryFolderResponseDto> {
+        let _guard = self.prompt_resource_write.lock().await;
         let id = LibraryFolderId::parse(&request.folder_id)?;
         self.library.delete_folder(&id).await?;
         Ok(DeleteLibraryFolderResponseDto { deleted: true })

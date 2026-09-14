@@ -5,7 +5,7 @@ use atelier_app_api::generation::{
 use serde_json::{Value, json};
 
 pub fn tool_specs() -> Vec<AgentToolSpec> {
-    vec![
+    let mut specs = vec![
         spec(
             "get_generation_context",
             "Read the current draft and model capabilities. Versions are managed by the host.",
@@ -20,21 +20,13 @@ pub fn tool_specs() -> Vec<AgentToolSpec> {
             ),
         ),
         spec(
-            "list_prompt_chunks",
-            "Search prompt chunks for the current model.",
-            search_schema(),
-        ),
-        spec(
-            "list_prompt_presets",
-            "Search main or character prompt presets for the current model.",
-            object(
-                json!({"query":{"type":"string"},"kind":{"type":"string","enum":["main","character"]},"limit":{"type":"integer","minimum":1,"maximum":100}}),
-                &[],
-            ),
+            "preview_generation",
+            "Compile the observed text-only draft with presets and chunks. Read expanded text, effective overrides, token usage and optional Anlas estimate. Review this result in the next model response before submission; the host binds submission to the compiled snapshot.",
+            object(json!({}), &[]),
         ),
         spec(
             "submit_generation",
-            "Submit the observed text-only draft as a generation batch.",
+            "Submit the previously observed compiled preview as a generation batch. Requires preview_generation first. Changed draft or prompt resources invalidate the preview.",
             object(json!({}), &[]),
         ),
         spec(
@@ -42,7 +34,10 @@ pub fn tool_specs() -> Vec<AgentToolSpec> {
             "Undo a draft edit by action_id if no subsequent edit occurred.",
             object(json!({"action_id":{"type":"string"}}), &["action_id"]),
         ),
-    ]
+    ];
+    specs.extend(super::resource_schemas::specs());
+    specs.extend(super::lexicon::specs());
+    specs
 }
 
 #[allow(
@@ -63,13 +58,6 @@ pub(super) fn object(properties: Value, required: &[&str]) -> Value {
     schema
 }
 
-fn search_schema() -> Value {
-    object(
-        json!({"query":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":100}}),
-        &[],
-    )
-}
-
 pub(super) fn text_edit_schema() -> Value {
     json!({"oneOf":[
         object(json!({"mode":{"const":"set"},"text":{"type":"string"}}), &["mode","text"]),
@@ -78,7 +66,7 @@ pub(super) fn text_edit_schema() -> Value {
     ]})
 }
 
-fn operation(name: &str, mut properties: Value, required: &[&str]) -> Value {
+pub(super) fn operation(name: &str, mut properties: Value, required: &[&str]) -> Value {
     properties["op"] = json!({"const":name});
     let mut fields = vec!["op"];
     fields.extend_from_slice(required);

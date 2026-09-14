@@ -10,12 +10,25 @@ use crate::{PromptResourceError, PromptResourceReader, PromptResourceResult};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PromptFunctionDescriptor {
     pub name: String,
+    pub syntax: String,
+    pub description: String,
 }
 
 impl PromptFunctionDescriptor {
     #[must_use]
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
+        let name = name.into();
+        Self {
+            syntax: format!("${name}(...)"),
+            name,
+            description: String::new(),
+        }
+    }
+    #[must_use]
+    pub fn with_documentation(mut self, syntax: &str, description: &str) -> Self {
+        syntax.clone_into(&mut self.syntax);
+        description.clone_into(&mut self.description);
+        self
     }
 }
 
@@ -98,6 +111,12 @@ impl PromptFunctionRegistry {
             .insert(function.descriptor().name.clone(), function);
     }
 
+    pub fn descriptors(&self) -> impl Iterator<Item = &PromptFunctionDescriptor> {
+        self.functions
+            .values()
+            .map(|function| function.descriptor())
+    }
+
     /// Returns the function registered under `name`.
     ///
     /// # Errors
@@ -119,7 +138,7 @@ pub struct ChunkFunction {
 impl ChunkFunction {
     pub fn new() -> Self {
         Self {
-            descriptor: PromptFunctionDescriptor::new("chunk"),
+            descriptor: PromptFunctionDescriptor::new("chunk").with_documentation("$chunk(path)", "Expand a chunk by its root-relative library path. Referenced chunks must support the current model; nested calls are expanded with cycle and depth checks."),
         }
     }
 }
@@ -168,7 +187,10 @@ pub struct CommentFunction {
 impl CommentFunction {
     pub fn new() -> Self {
         Self {
-            descriptor: PromptFunctionDescriptor::new("comment"),
+            descriptor: PromptFunctionDescriptor::new("comment").with_documentation(
+                "$comment(text)",
+                "Keep a text note in the editor and remove it from the compiled prompt.",
+            ),
         }
     }
 }

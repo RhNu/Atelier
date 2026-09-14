@@ -123,8 +123,9 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.agent.events(sessionId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.agent.sessions() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.generation.draft() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.generation.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
       ]);
       drawer.finishTurn();
     } catch (error) {
@@ -132,6 +133,8 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
         queryClient.invalidateQueries({ queryKey: queryKeys.agent.events(sessionId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.agent.sessions() }),
         queryClient.invalidateQueries({ queryKey: queryKeys.generation.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.prompt.root() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.resource.root() }),
       ]);
       drawer.finishTurn(formatError(error));
     }

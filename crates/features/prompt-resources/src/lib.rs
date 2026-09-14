@@ -27,5 +27,7 @@ pub use model::{
     UpsertPromptChunkRequest, UpsertPromptPresetRequest,
 };
 pub use ports::{PromptResourceReader, PromptResourceRepository};
-pub use references::{chunk_references_in_text, rewrite_chunk_references};
+pub use references::{
+    chunk_references_in_text, rewrite_chunk_references, rewrite_draft_chunk_references,
+};
 pub use service::{PromptChunkService, PromptPresetService};

@@ -17,7 +17,7 @@ use atelier_secrets::{SecretRecordId, SecretStore};
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 use sha2::{Digest, Sha256};
 
-use super::tools::{AgentTools, runtime_event_to_dto, tool_specs};
+use super::tools::{AgentToolContext, AgentTools, runtime_event_to_dto, tool_specs};
 use crate::{AppError, AppResult, AtelierRuntime, WorkspaceSession};
 
 #[allow(
@@ -107,12 +107,15 @@ where
     };
     let tools = Arc::new(AgentTools::new(
         app.clone(),
-        session_id.clone(),
-        permission_mode,
-        runtime_observer.clone(),
-        cancellation.clone(),
-        user_sequence.saturating_add(1),
-        draft,
+        runtime.lexicon.clone(),
+        AgentToolContext {
+            session_id: session_id.clone(),
+            permission_mode,
+            observer: runtime_observer.clone(),
+            cancellation: cancellation.clone(),
+            next_sequence: user_sequence.saturating_add(1),
+            initial_draft: draft,
+        },
     ));
     let outcome = runtime
         .agent_runtime

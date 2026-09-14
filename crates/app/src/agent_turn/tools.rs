@@ -13,7 +13,6 @@ use atelier_agent::{
 use atelier_app_api::{
     agent::AgentTurnEventDto,
     generation::{GenerationDraftDto, VersionedGenerationDraftDto},
-    prompt::{ListPromptChunksRequestDto, ListPromptPresetsRequestDto, PromptPresetKindDto},
 };
 use atelier_secrets::SecretStore;
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
@@ -25,8 +24,18 @@ pub use super::schemas::tool_specs;
 use super::{AgentTurnCoordinator, draft_edit::DraftEdit};
 use crate::{AppError, WorkspaceSession};
 
+pub(super) struct AgentToolContext {
+    pub session_id: AgentSessionId,
+    pub permission_mode: AgentPermissionMode,
+    pub observer: Arc<dyn AgentRunObserver>,
+    pub cancellation: CancellationToken,
+    pub next_sequence: u64,
+    pub initial_draft: VersionedGenerationDraftDto,
+}
+
 pub(super) struct AgentTools<S, F, E> {
     pub(super) app: Arc<WorkspaceSession<S, F, E>>,
+    pub(super) lexicon: Arc<dyn atelier_prompt_lexicon::LexiconEngine>,
     pub(super) session_id: AgentSessionId,
     pub(super) permission_mode: AgentPermissionMode,
     pub(super) coordinator: Arc<AgentTurnCoordinator>,
@@ -34,28 +43,37 @@ pub(super) struct AgentTools<S, F, E> {
     pub(super) cancellation: CancellationToken,
     pub(super) next_sequence: AtomicU64,
     pub(super) submitted: AtomicBool,
+    pub(super) resource_observations: Mutex<super::resources::ResourceObservations>,
+    pub(super) preview_observation: Mutex<AgentObservation<super::preview::GenerationPreview>>,
     draft_observation: Mutex<AgentObservation<VersionedGenerationDraftDto>>,
 }
 
 impl<S, F, E> AgentTools<S, F, E> {
     pub fn new(
         app: Arc<WorkspaceSession<S, F, E>>,
-        session_id: AgentSessionId,
-        permission_mode: AgentPermissionMode,
-        observer: Arc<dyn AgentRunObserver>,
-        cancellation: CancellationToken,
-        next_sequence: u64,
-        initial_draft: VersionedGenerationDraftDto,
+        lexicon: Arc<dyn atelier_prompt_lexicon::LexiconEngine>,
+        context: AgentToolContext,
     ) -> Self {
+        let AgentToolContext {
+            session_id,
+            permission_mode,
+            observer,
+            cancellation,
+            next_sequence,
+            initial_draft,
+        } = context;
         Self {
             coordinator: app.agent_turn.clone(),
             app,
+            lexicon,
             session_id,
             permission_mode,
             observer,
             cancellation,
             next_sequence: AtomicU64::new(next_sequence),
             submitted: AtomicBool::new(false),
+            resource_observations: Mutex::new(super::resources::ResourceObservations::default()),
+            preview_observation: Mutex::new(AgentObservation::new(None)),
             draft_observation: Mutex::new(AgentObservation::new(Some(initial_draft))),
         }
     }
@@ -70,6 +88,10 @@ where
 {
     async fn begin_model_step(&self) -> AgentResult<()> {
         self.observation()?.begin_model_step();
+        self.preview_observed()?.begin_model_step();
+        for observation in self.resources_observed()?.values_mut() {
+            observation.begin_model_step();
+        }
         Ok(())
     }
 
@@ -87,12 +109,19 @@ where
             Ok(value) => (value.clone(), false),
             Err(error) => (json!({"error": error.to_string()}).to_string(), true),
         };
-        self.append_event(AgentEventKind::ToolResult {
-            tool_name: tool_name.to_owned(),
-            result_json,
-            failed,
-        })
-        .await?;
+        if let Err(error) = self
+            .append_event(AgentEventKind::ToolResult {
+                tool_name: tool_name.to_owned(),
+                result_json,
+                failed,
+            })
+            .await
+        {
+            *self.observation()? = AgentObservation::new(None);
+            self.resources_observed()?.clear();
+            *self.preview_observed()? = AgentObservation::new(None);
+            return Err(error);
+        }
         result
     }
 }
@@ -106,7 +135,14 @@ where
     async fn authorize(&self, tool_name: &str, arguments_json: &str) -> AgentResult<()> {
         let mutation = !matches!(
             tool_name,
-            "get_generation_context" | "list_prompt_chunks" | "list_prompt_presets"
+            "get_generation_context"
+                | "preview_generation"
+                | "search_prompt_resources"
+                | "get_prompt_resource"
+                | "get_prompt_library"
+                | "get_lexicon_context"
+                | "search_lexicon"
+                | "get_lexicon_entity"
         );
         let needs_approval = mutation
             && match self.permission_mode {
@@ -117,6 +153,11 @@ where
         if !needs_approval {
             return Ok(());
         }
+        let approval_arguments = if tool_name == "submit_generation" {
+            self.submission_approval().await?
+        } else {
+            arguments_json.to_owned()
+        };
         let approval_id = uuid::Uuid::new_v4().to_string();
         let decision = self
             .coordinator
@@ -124,7 +165,7 @@ where
         self.observer.emit(AgentRuntimeEvent::ApprovalRequested {
             approval_id: approval_id.clone(),
             name: tool_name.to_owned(),
-            arguments_json: arguments_json.to_owned(),
+            arguments_json: approval_arguments,
         });
         let approved = tokio::select! {
             () = self.cancellation.cancelled() => return Err(AgentError::cancelled()),
@@ -150,8 +191,17 @@ where
         match name {
             "get_generation_context" => self.get_context().await,
             "edit_generation_draft" => self.edit_draft(arguments).await,
-            "list_prompt_chunks" => self.list_chunks(arguments).await,
-            "list_prompt_presets" => self.list_presets(arguments).await,
+            "search_prompt_resources" => self.search_resources(arguments).await,
+            "get_prompt_resource" => self.get_resource(arguments).await,
+            "get_prompt_library" => self.get_prompt_library().await,
+            "get_lexicon_context" => self.get_lexicon_context(),
+            "search_lexicon" => self.search_lexicon(arguments),
+            "get_lexicon_entity" => self.get_lexicon_entity(arguments),
+            "create_prompt_resource" => self.create_resource(arguments).await,
+            "edit_prompt_resource" => self.edit_resource(arguments).await,
+            "copy_prompt_resource" => self.copy_resource(arguments).await,
+            "delete_prompt_resource" => self.delete_resource(arguments).await,
+            "preview_generation" => self.preview_generation().await,
             "submit_generation" => self.submit_generation().await,
             "undo_agent_action" => self.undo_action(arguments).await,
             _ => Err(AgentError::validation(format!(
@@ -170,7 +220,7 @@ where
 
     async fn get_context(&self) -> AgentResult<String> {
         let value = self.current_draft().await?;
-        let result = json!({"draft": value.draft, "models": atelier_generation::ImageModel::ALL.into_iter().map(crate::mapping::model_descriptor_to_dto).collect::<Vec<_>>()}).to_string();
+        let result = json!({"draft": value.draft, "prompt_functions":self.app.prompt_compiler.function_descriptors().map(|value| json!({"name":value.name,"syntax":value.syntax,"description":value.description})).collect::<Vec<_>>(), "models": atelier_generation::ImageModel::ALL.into_iter().map(crate::mapping::model_descriptor_to_dto).collect::<Vec<_>>()}).to_string();
         self.observation()?.publish(value);
         Ok(result)
     }
@@ -301,53 +351,6 @@ where
             })
             .await
     }
-    async fn list_chunks(&self, arguments_json: &str) -> AgentResult<String> {
-        let args: SearchArgs = parse_args(arguments_json)?;
-        let model = self.current_draft().await?.draft.model;
-        let mut page = self
-            .app
-            .prompt()
-            .list_chunks(ListPromptChunksRequestDto {
-                model: Some(model),
-                offset: 0,
-                limit: 500,
-            })
-            .await
-            .map_err(agent_app_error)?;
-        filter_chunks(&mut page.items, args.query.as_deref());
-        page.items.truncate(args.limit.unwrap_or(30).min(100));
-        serde_json::to_string(&page.items).map_err(|error| AgentError::runtime(error.to_string()))
-    }
-
-    async fn list_presets(&self, arguments_json: &str) -> AgentResult<String> {
-        let args: PresetSearchArgs = parse_args(arguments_json)?;
-        let model = self.current_draft().await?.draft.model;
-        let mut page = self
-            .app
-            .prompt()
-            .list_presets(ListPromptPresetsRequestDto {
-                kind: args.kind,
-                model: Some(model),
-                offset: 0,
-                limit: 500,
-            })
-            .await
-            .map_err(agent_app_error)?;
-        filter_presets(&mut page.items, args.query.as_deref());
-        page.items.truncate(args.limit.unwrap_or(30).min(100));
-        serde_json::to_string(&page.items).map_err(|error| AgentError::runtime(error.to_string()))
-    }
-}
-#[derive(Deserialize)]
-struct SearchArgs {
-    query: Option<String>,
-    limit: Option<usize>,
-}
-#[derive(Deserialize)]
-struct PresetSearchArgs {
-    query: Option<String>,
-    kind: Option<PromptPresetKindDto>,
-    limit: Option<usize>,
 }
 
 pub(super) fn parse_args<T: for<'de> Deserialize<'de>>(value: &str) -> AgentResult<T> {
@@ -368,39 +371,6 @@ pub(super) fn agent_app_error(error: AppError) -> AgentError {
     let message = error.to_string();
     drop(error);
     AgentError::new(kind, message)
-}
-
-fn filter_chunks(items: &mut Vec<atelier_app_api::prompt::PromptChunkDto>, query: Option<&str>) {
-    if let Some(query) = query.map(str::trim).filter(|value| !value.is_empty()) {
-        let query = query.to_lowercase();
-        items.retain(|value| {
-            format!(
-                "{} {} {} {}",
-                value.identifier,
-                value.display_name,
-                value.aliases.join(" "),
-                value.content
-            )
-            .to_lowercase()
-            .contains(&query)
-        });
-    }
-}
-
-fn filter_presets(items: &mut Vec<atelier_app_api::prompt::PromptPresetDto>, query: Option<&str>) {
-    if let Some(query) = query.map(str::trim).filter(|value| !value.is_empty()) {
-        let query = query.to_lowercase();
-        items.retain(|value| {
-            format!(
-                "{} {} {}",
-                value.identifier,
-                value.display_name,
-                value.aliases.join(" ")
-            )
-            .to_lowercase()
-            .contains(&query)
-        });
-    }
 }
 
 pub fn runtime_event_to_dto(event: AgentRuntimeEvent) -> AgentTurnEventDto {

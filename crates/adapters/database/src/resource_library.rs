@@ -711,47 +711,19 @@ pub fn rewrite_generation_draft(
     transaction: &rusqlite::Transaction<'_>,
     mappings: &[(PromptChunkKey, PromptChunkKey)],
 ) -> ResourceLibraryResult<()> {
-    let json = transaction
-        .query_row(
-            "SELECT value_json FROM workspace_settings WHERE setting_key = 'generation.draft'",
-            [],
-            |row| row.get::<_, String>(0),
-        )
-        .optional()
-        .map_err(sql_error)?;
-    let Some(json) = json else {
+    let Some(mut current) =
+        crate::generation_draft::load_on_connection(transaction).map_err(|error| {
+            ResourceLibraryError::new(ResourceLibraryErrorKind::Repository, error.to_string())
+        })?
+    else {
         return Ok(());
     };
-    let mut value: Value = serde_json::from_str(&json).map_err(json_error)?;
-    rewrite_json_strings(&mut value, mappings);
-    transaction
-        .execute(
-            "UPDATE workspace_settings SET value_json = ?1 WHERE setting_key = 'generation.draft'",
-            [serde_json::to_string(&value).map_err(json_error)?],
-        )
+    atelier_prompt_resources::rewrite_draft_chunk_references(&mut current.snapshot, mappings);
+    crate::generation_draft::save_on_connection(transaction, current.revision, &current.snapshot)
         .map(|_| ())
-        .map_err(sql_error)
-}
-
-fn rewrite_json_strings(value: &mut Value, mappings: &[(PromptChunkKey, PromptChunkKey)]) {
-    match value {
-        Value::String(text) => {
-            *text = mappings.iter().fold(text.clone(), |current, (old, new)| {
-                rewrite_chunk_references(&current, old, new)
-            });
-        }
-        Value::Array(values) => {
-            for value in values {
-                rewrite_json_strings(value, mappings);
-            }
-        }
-        Value::Object(values) => {
-            for value in values.values_mut() {
-                rewrite_json_strings(value, mappings);
-            }
-        }
-        Value::Null | Value::Bool(_) | Value::Number(_) => {}
-    }
+        .map_err(|error| {
+            ResourceLibraryError::new(ResourceLibraryErrorKind::Repository, error.to_string())
+        })
 }
 
 fn sync_display_name(

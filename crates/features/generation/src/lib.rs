@@ -39,8 +39,8 @@ pub use ports::{
     GenerationResult, ImageStreamResult, NovelAiGenerationClient, passive_image_stream,
 };
 pub use prompt_tokens::{
-    CharacterPromptTokenUsage, PromptTokenCount, PromptTokenCountError, PromptTokenUsage,
-    count_prompt_tokens,
+    CharacterPromptTokenUsage, PromptTextResolutionError, PromptTokenCount, PromptTokenCountError,
+    PromptTokenUsage, count_prompt_tokens, resolve_prompt_text,
 };
 pub use request_plan::{
     GenerationOutputMode, GenerationPlanContext, GenerationRequestPlan, SeedMode,

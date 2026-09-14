@@ -71,19 +71,25 @@ where
         };
         let usage = count_prompt_tokens(&generation_request)
             .map_err(|error| AppError::new("prompt_tokenizer", error.to_string()))?;
-        Ok(PromptTokenUsageDto {
-            prompt: prompt_token_count_to_dto(usage.prompt),
-            negative_prompt: prompt_token_count_to_dto(usage.negative_prompt),
-            characters: usage
-                .characters
-                .into_iter()
-                .map(|character| CharacterPromptTokenUsageDto {
-                    index: character.index,
-                    prompt: prompt_token_count_to_dto(character.prompt),
-                    negative_prompt: prompt_token_count_to_dto(character.negative_prompt),
-                })
-                .collect(),
-        })
+        Ok(prompt_token_usage_to_dto(usage))
+    }
+}
+
+pub(super) fn prompt_token_usage_to_dto(
+    usage: atelier_generation::PromptTokenUsage,
+) -> PromptTokenUsageDto {
+    PromptTokenUsageDto {
+        prompt: prompt_token_count_to_dto(usage.prompt),
+        negative_prompt: prompt_token_count_to_dto(usage.negative_prompt),
+        characters: usage
+            .characters
+            .into_iter()
+            .map(|character| CharacterPromptTokenUsageDto {
+                index: character.index,
+                prompt: prompt_token_count_to_dto(character.prompt),
+                negative_prompt: prompt_token_count_to_dto(character.negative_prompt),
+            })
+            .collect(),
     }
 }
 

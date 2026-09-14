@@ -55,17 +55,6 @@ where
         &self,
         request: SubmitGenerationBatchRequestDto,
     ) -> AppResult<QueueDirectiveDto> {
-        self.app
-            .api_keys
-            .resolve_active_secret()
-            .await
-            .map_err(|error| {
-                if error.kind == SecretsErrorKind::MissingActiveKey {
-                    AppError::missing_active_key()
-                } else {
-                    AppError::from(error)
-                }
-            })?;
         let batch_id = request.batch_id.clone();
         ensure_generation_batch_target_is_new(
             &self.app.run_history,
@@ -89,6 +78,27 @@ where
             })
             .collect::<Vec<_>>();
         let work = self.submit_batch_request_to_domain(request).await?;
+        self.submit_ready_batch(batch_id, history_positions, work)
+            .await
+    }
+
+    pub(super) async fn submit_ready_batch(
+        &self,
+        batch_id: String,
+        history_positions: Vec<(String, Option<String>, GenerationHistoryPosition)>,
+        work: SubmitGenerationBatch,
+    ) -> AppResult<QueueDirectiveDto> {
+        self.app
+            .api_keys
+            .resolve_active_secret()
+            .await
+            .map_err(|error| {
+                if error.kind == SecretsErrorKind::MissingActiveKey {
+                    AppError::missing_active_key()
+                } else {
+                    AppError::from(error)
+                }
+            })?;
         let mut records = Vec::new();
         for (job_id, title, position) in history_positions {
             records.push(
@@ -304,7 +314,7 @@ where
         }
     }
 
-    async fn generate_request_to_domain(
+    pub(super) async fn generate_request_to_domain(
         &self,
         value: GenerateImageRequestDto,
     ) -> AppResult<GenerateImageRequest> {
@@ -342,12 +352,24 @@ where
         })
     }
 
-    async fn prepare_prompt(
+    pub(super) async fn prepare_prompt(
+        &self,
+        value: GenerateImageRequestDto,
+    ) -> AppResult<(
+        GenerateImageRequestDto,
+        atelier_prompt_resources::CompiledPrompt,
+    )> {
+        let (request, prompt, _) = self.prepare_prompt_details(value).await?;
+        Ok((request, prompt))
+    }
+
+    pub(super) async fn prepare_prompt_details(
         &self,
         mut value: GenerateImageRequestDto,
     ) -> AppResult<(
         GenerateImageRequestDto,
         atelier_prompt_resources::CompiledPrompt,
+        super::generation_prepared::PreparedPromptTrace,
     )> {
         let compiled = self
             .app
@@ -356,6 +378,7 @@ where
                 crate::prompt_preparation::generation_prompt(&value),
             ))
             .await?;
+        let trace = super::generation_prepared::PreparedPromptTrace::from(&compiled);
         let snapshot = atelier_prompt_resources::CompiledPrompt {
             expanded_prompt: compiled.prompt.clone(),
             trace: compiled
@@ -389,7 +412,7 @@ where
                 character.preset_id = None;
             }
         }
-        Ok((value, snapshot))
+        Ok((value, snapshot, trace))
     }
 
     async fn optional_vibe_transfer_to_domain(

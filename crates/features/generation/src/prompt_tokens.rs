@@ -41,6 +41,27 @@ pub fn count_prompt_tokens(
         novelai_bridge::Tokenizers::bundled().map_err(|error| PromptTokenCountError {
             message: error.to_string(),
         })?;
+    let usage = prompt_request(request)
+        .count_tokens(&tokenizers)
+        .map_err(|error| PromptTokenCountError {
+            message: error.to_string(),
+        })?;
+    Ok(PromptTokenUsage {
+        prompt: prompt_token_count_from_bridge(usage.prompt),
+        negative_prompt: prompt_token_count_from_bridge(usage.negative_prompt),
+        characters: usage
+            .characters
+            .into_iter()
+            .map(|character| CharacterPromptTokenUsage {
+                index: character.index,
+                prompt: prompt_token_count_from_bridge(character.prompt),
+                negative_prompt: prompt_token_count_from_bridge(character.negative_prompt),
+            })
+            .collect(),
+    })
+}
+
+fn prompt_request(request: &GenerateImageRequest) -> novelai_bridge::GenerateImageRequest {
     let mut bridge_request = novelai_bridge::GenerateImageRequest::builder(
         request.prompt.clone(),
         request.model.bridge_model(),
@@ -68,25 +89,27 @@ pub fn count_prompt_tokens(
                 .collect(),
         );
     }
-    let usage = bridge_request
-        .build()
-        .count_tokens(&tokenizers)
-        .map_err(|error| PromptTokenCountError {
+    bridge_request.build()
+}
+
+#[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
+#[error("prompt text resolution failed: {message}")]
+pub struct PromptTextResolutionError {
+    message: String,
+}
+
+/// Resolves final conditioning text, including `NovelAI` quality and UC preset text.
+///
+/// # Errors
+/// Returns an error when prompt normalization fails.
+pub fn resolve_prompt_text(
+    request: &GenerateImageRequest,
+) -> Result<novelai_bridge::ResolvedPrompts, PromptTextResolutionError> {
+    prompt_request(request)
+        .resolve_prompts()
+        .map_err(|error| PromptTextResolutionError {
             message: error.to_string(),
-        })?;
-    Ok(PromptTokenUsage {
-        prompt: prompt_token_count_from_bridge(usage.prompt),
-        negative_prompt: prompt_token_count_from_bridge(usage.negative_prompt),
-        characters: usage
-            .characters
-            .into_iter()
-            .map(|character| CharacterPromptTokenUsage {
-                index: character.index,
-                prompt: prompt_token_count_from_bridge(character.prompt),
-                negative_prompt: prompt_token_count_from_bridge(character.negative_prompt),
-            })
-            .collect(),
-    })
+        })
 }
 
 const fn prompt_token_count_from_bridge(value: novelai_bridge::TokenCount) -> PromptTokenCount {

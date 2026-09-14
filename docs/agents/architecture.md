@@ -186,8 +186,8 @@ events, logs, or frontend responses. Persona instructions, permission mode, defa
 sessions, summaries, events, and reversible actions are workspace-owned.
 
 An Agent turn snapshots its selected model and persona so later global edits do not rewrite history.
-The application layer exposes a fixed Atelier tool set for reading prompt resources, editing the
-versioned generation draft, and submitting at most one generation batch per turn. Draft writes use
+The application layer exposes a fixed Atelier tool set for maintaining prompt resources, reading the lexicon,
+editing the versioned generation draft, and submitting at most one generation batch per turn. Draft writes use
 revision checks managed by the host against snapshots actually delivered to the model. Tool schemas
 never require model-authored revision values. Observations from tool results become eligible only
 on the next model request; a stale or consumed observation rejects queued edits. Draft operations
@@ -197,6 +197,17 @@ writes and their before/after undo records commit in one database transaction. S
 before generation, Ask mode asks before every mutation, and Bypass All is an explicit workspace
 choice. Closing the drawer does not cancel a turn; stopping it, closing/replacing the workspace, or
 shutting down does.
+
+Prompt resource mutations compare host-held observations while holding the same writer lock used
+by library renames. A multi-operation resource edit validates a staged copy before saving. Chunk
+reference rewrites save through the draft version lifecycle, so stale draft edits and undo are
+rejected. Resource images remain outside the Agent mutation schema.
+
+Generation preview holds an immutable compiled request, scope traces, resolved conditioning text,
+token usage and optional cost estimate. Submission approvals show that preview and recheck its
+draft, resource-library and subscription inputs after approval. Submission uses the prepared
+request directly rather than expanding prompt functions again. Preview currently invalidates on
+any prompt-library change; resource edits compare only the target resource.
 
 Persistence and secret boundaries are adapter contracts:
 

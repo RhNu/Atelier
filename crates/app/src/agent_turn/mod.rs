@@ -9,3 +9,13 @@ mod tools;
 
 pub use coordinator::AgentTurnCoordinator;
 pub use runner::{run_agent_turn, undo_agent_action};
+
+mod resource_edit;
+mod resource_input;
+mod resource_schemas;
+mod resource_search;
+mod resources;
+
+mod lexicon;
+
+mod preview;
