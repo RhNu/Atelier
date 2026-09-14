@@ -128,7 +128,10 @@ impl<S, F, E> WorkspaceSession<S, F, E> {
 
     #[must_use]
     pub const fn agent(&self) -> AgentWorkspaceUseCases<'_> {
-        AgentWorkspaceUseCases { agent: &self.agent }
+        AgentWorkspaceUseCases {
+            agent: &self.agent,
+            turns: &self.agent_turn,
+        }
     }
 
     #[must_use]

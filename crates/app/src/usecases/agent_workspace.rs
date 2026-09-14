@@ -12,6 +12,7 @@ use crate::mapping::{
 use crate::{AppError, AppResult};
 
 pub struct AgentWorkspaceUseCases<'a> {
+    pub(crate) turns: &'a std::sync::Arc<crate::agent_turn::AgentTurnCoordinator>,
     pub(crate) agent: &'a AgentWorkspaceService<DatabaseAgentWorkspaceRepository>,
 }
 
@@ -36,11 +37,15 @@ impl AgentWorkspaceUseCases<'_> {
         &self,
         request: UpdateAgentWorkspaceSettingsRequestDto,
     ) -> AppResult<AgentWorkspaceSettingsDto> {
-        self.agent
+        let previous = self.agent.get_settings().await?;
+        let saved = self
+            .agent
             .update_settings(agent_workspace_settings_to_domain(request.settings))
-            .await
-            .map(|value| agent_workspace_settings_to_dto(&value))
-            .map_err(AppError::from)
+            .await?;
+        if previous.output_vision_enabled && !saved.output_vision_enabled {
+            self.turns.cancel(None)?;
+        }
+        Ok(agent_workspace_settings_to_dto(&saved))
     }
 
     /// Creates a session with immutable model and persona snapshots.

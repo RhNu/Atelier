@@ -102,7 +102,13 @@ pub trait AgentToolExecutor: Send + Sync {
         Ok(())
     }
 
-    async fn execute(&self, tool_name: &str, arguments_json: &str) -> AgentResult<String>;
+    /// `call_id` is runtime-owned and stable for a retry; it is never a model argument.
+    async fn execute(
+        &self,
+        call_id: &str,
+        tool_name: &str,
+        arguments_json: &str,
+    ) -> AgentResult<crate::AgentToolOutput>;
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

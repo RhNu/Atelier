@@ -187,7 +187,7 @@ sessions, summaries, events, and reversible actions are workspace-owned.
 
 An Agent turn snapshots its selected model and persona so later global edits do not rewrite history.
 The application layer exposes a fixed Atelier tool set for maintaining prompt resources, reading the lexicon,
-editing the versioned generation draft, and submitting at most one generation batch per turn. Draft writes use
+editing the versioned generation draft, and iterating through preview-bound generation batches. Draft writes use
 revision checks managed by the host against snapshots actually delivered to the model. Tool schemas
 never require model-authored revision values. Observations from tool results become eligible only
 on the next model request; a stale or consumed observation rejects queued edits. Draft operations
@@ -208,6 +208,15 @@ token usage and optional cost estimate. Submission approvals show that preview a
 draft, resource-library and subscription inputs after approval. Submission uses the prepared
 request directly rather than expanding prompt functions again. Preview currently invalidates on
 any prompt-library change; resource edits compare only the target resource.
+
+Optional output vision requires both a user workspace setting and an image-capable session model.
+Image tools are limited to the output-area batch and batches submitted by this turn. Native image
+blocks are ephemeral; persisted events/history contain provenance metadata only. Status/wait read
+persisted generation history using event notifications instead of holding the generation lock.
+Host call identities and receipts prevent re-executing submission retries. Cancelling a turn first
+drains tool persistence, then stops only its owned generation batches. Old queue workers cannot
+advance a replacement batch. Context limits preserve text observations and require an explicit new
+turn when exhausted; old image blocks may be omitted with re-read notices.
 
 Persistence and secret boundaries are adapter contracts:
 

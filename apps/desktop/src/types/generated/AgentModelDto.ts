@@ -9,5 +9,6 @@ export type AgentModelDto = {
   context_window: number;
   max_output_tokens: number;
   temperature: number;
+  supports_vision: boolean;
   probe_status: AgentProbeStatusDto;
 };

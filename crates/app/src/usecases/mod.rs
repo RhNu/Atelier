@@ -35,3 +35,5 @@ pub use resource_library::ResourceLibraryUseCases;
 pub use settings::SettingsUseCases;
 pub use vibe::VibeUseCases;
 pub use workspace::WorkspaceUseCases;
+
+mod generation_cancel;

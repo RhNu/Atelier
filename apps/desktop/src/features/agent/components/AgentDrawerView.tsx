@@ -31,6 +31,9 @@ type AgentDrawerViewProps = {
   activeSessionTitle: string;
   contextWindow: number | null;
   contextInputTokens: number | null;
+  visionEnabled: boolean;
+  modelSupportsVision: boolean;
+  onVisionChange: (enabled: boolean) => void;
   permissionMode: AgentPermissionModeDto;
   updatingPermission: boolean;
   defaultModelId: string | null;
@@ -186,6 +189,21 @@ export function AgentDrawerView(props: AgentDrawerViewProps) {
             onChange={changeMessage}
             onKeyDown={handleMessageKey}
           />
+          <label
+            className="mt-2 flex items-center gap-2 text-xs text-app-muted"
+            title={props.modelSupportsVision ? t("visionDescription") : t("visionModelUnavailable")}
+          >
+            <input
+              type="checkbox"
+              checked={props.visionEnabled}
+              disabled={props.updatingPermission}
+              onChange={(event) => props.onVisionChange(event.target.checked)}
+            />
+            {t("outputVision")}
+          </label>
+          {props.visionEnabled && !props.modelSupportsVision ? (
+            <p className="mt-1 text-xs text-app-muted">{t("visionModelUnavailable")}</p>
+          ) : null}
           <div className="mt-1.5 flex items-center justify-end gap-1.5">
             <span
               className="mr-auto truncate text-[10px] text-app-muted tabular-nums"

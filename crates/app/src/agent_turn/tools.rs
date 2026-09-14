@@ -1,6 +1,6 @@
 use std::sync::{
     Arc, Mutex,
-    atomic::{AtomicBool, AtomicU64, Ordering},
+    atomic::{AtomicU64, Ordering},
 };
 
 use async_trait::async_trait;
@@ -31,6 +31,8 @@ pub(super) struct AgentToolContext {
     pub cancellation: CancellationToken,
     pub next_sequence: u64,
     pub initial_draft: VersionedGenerationDraftDto,
+    pub vision_enabled: bool,
+    pub output_batch_id: Option<String>,
 }
 
 pub(super) struct AgentTools<S, F, E> {
@@ -42,7 +44,10 @@ pub(super) struct AgentTools<S, F, E> {
     pub(super) observer: Arc<dyn AgentRunObserver>,
     pub(super) cancellation: CancellationToken,
     pub(super) next_sequence: AtomicU64,
-    pub(super) submitted: AtomicBool,
+    pub(super) owned_batches: Mutex<std::collections::BTreeSet<String>>,
+    pub(super) vision_enabled: bool,
+    submission_receipts: Mutex<super::submission_receipts::SubmissionReceipts>,
+    pub(super) generation_batches: Mutex<std::collections::BTreeSet<String>>,
     pub(super) resource_observations: Mutex<super::resources::ResourceObservations>,
     pub(super) preview_observation: Mutex<AgentObservation<super::preview::GenerationPreview>>,
     draft_observation: Mutex<AgentObservation<VersionedGenerationDraftDto>>,
@@ -61,6 +66,8 @@ impl<S, F, E> AgentTools<S, F, E> {
             cancellation,
             next_sequence,
             initial_draft,
+            vision_enabled,
+            output_batch_id,
         } = context;
         Self {
             coordinator: app.agent_turn.clone(),
@@ -71,7 +78,10 @@ impl<S, F, E> AgentTools<S, F, E> {
             observer,
             cancellation,
             next_sequence: AtomicU64::new(next_sequence),
-            submitted: AtomicBool::new(false),
+            owned_batches: Mutex::default(),
+            submission_receipts: Mutex::default(),
+            vision_enabled,
+            generation_batches: Mutex::new(output_batch_id.into_iter().collect()),
             resource_observations: Mutex::new(super::resources::ResourceObservations::default()),
             preview_observation: Mutex::new(AgentObservation::new(None)),
             draft_observation: Mutex::new(AgentObservation::new(Some(initial_draft))),
@@ -87,6 +97,12 @@ where
     E: EmbeddedVibeDocumentExtractor + Clone + Send + Sync + 'static,
 {
     async fn begin_model_step(&self) -> AgentResult<()> {
+        if self.cancellation.is_cancelled() {
+            return Err(AgentError::cancelled());
+        }
+        if self.vision_enabled && !self.app.agent.get_settings().await?.output_vision_enabled {
+            return Err(AgentError::cancelled());
+        }
         self.observation()?.begin_model_step();
         self.preview_observed()?.begin_model_step();
         for observation in self.resources_observed()?.values_mut() {
@@ -95,18 +111,59 @@ where
         Ok(())
     }
 
-    async fn execute(&self, tool_name: &str, arguments_json: &str) -> AgentResult<String> {
+    async fn execute(
+        &self,
+        call_id: &str,
+        tool_name: &str,
+        arguments_json: &str,
+    ) -> AgentResult<atelier_agent::AgentToolOutput> {
+        if self.cancellation.is_cancelled() {
+            return Err(AgentError::cancelled());
+        }
+        if tool_name == "submit_generation" {
+            #[derive(Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Empty {}
+            let _: Empty = parse_args(arguments_json)?;
+            let arguments = parse_args(arguments_json)?;
+            let receipt = self
+                .submission_receipts
+                .lock()
+                .map_err(|_| AgentError::runtime("submission receipts unavailable"))?
+                .begin(call_id, arguments)?;
+            if let Some(receipt) = receipt {
+                return receipt.map(atelier_agent::AgentToolOutput::text);
+            }
+        }
         self.append_event(AgentEventKind::ToolCall {
             tool_name: tool_name.to_owned(),
             arguments_json: arguments_json.to_owned(),
         })
         .await?;
         let result = match self.authorize(tool_name, arguments_json).await {
-            Ok(()) => self.dispatch(tool_name, arguments_json).await,
+            Ok(()) if tool_name == "read_generation_output" => {
+                self.read_generation_output(arguments_json).await
+            }
+            Ok(()) => self
+                .dispatch(tool_name, arguments_json)
+                .await
+                .map(atelier_agent::AgentToolOutput::text),
             Err(error) => Err(error),
         };
+        if tool_name == "submit_generation" {
+            self.submission_receipts
+                .lock()
+                .map_err(|_| AgentError::runtime("submission receipts unavailable"))?
+                .finish(
+                    call_id,
+                    result
+                        .as_ref()
+                        .map(|value| value.text.clone())
+                        .map_err(Clone::clone),
+                )?;
+        }
         let (result_json, failed) = match &result {
-            Ok(value) => (value.clone(), false),
+            Ok(value) => (value.text.clone(), false),
             Err(error) => (json!({"error": error.to_string()}).to_string(), true),
         };
         if let Err(error) = self
@@ -136,6 +193,9 @@ where
         let mutation = !matches!(
             tool_name,
             "get_generation_context"
+                | "read_generation_output"
+                | "get_generation_status"
+                | "wait_for_generation"
                 | "preview_generation"
                 | "search_prompt_resources"
                 | "get_prompt_resource"
@@ -201,6 +261,9 @@ where
             "edit_prompt_resource" => self.edit_resource(arguments).await,
             "copy_prompt_resource" => self.copy_resource(arguments).await,
             "delete_prompt_resource" => self.delete_resource(arguments).await,
+            "get_generation_status" => self.generation_status(arguments).await,
+            "wait_for_generation" => self.wait_generation(arguments).await,
+            "cancel_generation" => self.cancel_generation(arguments).await,
             "preview_generation" => self.preview_generation().await,
             "submit_generation" => self.submit_generation().await,
             "undo_agent_action" => self.undo_action(arguments).await,
@@ -220,7 +283,7 @@ where
 
     async fn get_context(&self) -> AgentResult<String> {
         let value = self.current_draft().await?;
-        let result = json!({"draft": value.draft, "prompt_functions":self.app.prompt_compiler.function_descriptors().map(|value| json!({"name":value.name,"syntax":value.syntax,"description":value.description})).collect::<Vec<_>>(), "models": atelier_generation::ImageModel::ALL.into_iter().map(crate::mapping::model_descriptor_to_dto).collect::<Vec<_>>()}).to_string();
+        let result = json!({"draft": value.draft, "output_vision_enabled":self.vision_enabled,"output_batches": self.generation_batches.lock().map_err(|_| AgentError::runtime("generation ownership unavailable"))?.clone(), "prompt_functions":self.app.prompt_compiler.function_descriptors().map(|value| json!({"name":value.name,"syntax":value.syntax,"description":value.description})).collect::<Vec<_>>(), "models": atelier_generation::ImageModel::ALL.into_iter().map(crate::mapping::model_descriptor_to_dto).collect::<Vec<_>>()}).to_string();
         self.observation()?.publish(value);
         Ok(result)
     }

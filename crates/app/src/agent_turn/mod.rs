@@ -19,3 +19,13 @@ mod resources;
 mod lexicon;
 
 mod preview;
+
+mod generation_feedback;
+
+mod output_vision;
+
+mod submission_receipts;
+
+mod generation_control;
+
+mod cancellation;

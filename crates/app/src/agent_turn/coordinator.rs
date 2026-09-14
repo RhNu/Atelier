@@ -18,6 +18,7 @@ struct PendingApproval {
 #[derive(Default)]
 pub struct AgentTurnCoordinator {
     active: Mutex<Option<ActiveTurn>>,
+    pub(crate) generations: super::generation_control::GenerationControls,
 }
 
 impl AgentTurnCoordinator {
@@ -52,6 +53,9 @@ impl AgentTurnCoordinator {
     }
 
     pub fn cancel(&self, session_id: Option<&str>) -> AgentResult<bool> {
+        if session_id.is_none() {
+            self.generations.cancel_all()?;
+        }
         let active_guard = self
             .active
             .lock()

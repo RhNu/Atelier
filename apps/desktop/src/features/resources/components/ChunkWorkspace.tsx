@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { ImageModelDto, PromptChunkDto } from "@/types";
 
 import { matchesSearch, type ResourceViewMode } from "../resource-model";
+import { useSelectedPromptResource } from "../selected-prompt-resources";
 import { ChunkEditorDialog } from "./ChunkEditorDialog";
 import { ResourceList, ResourceListButton } from "./ResourceEditorPrimitives";
 
@@ -35,6 +36,10 @@ export function ChunkWorkspace({
 }) {
   const { t } = useTranslation("resources");
   const [editorChunk, setEditorChunk] = useState<PromptChunkDto | null | undefined>(undefined);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  useSelectedPromptResource(
+    chunks.some((item) => item.chunk_id === selectedId) ? selectedId : null,
+  );
   const previousNewRequest = useRef(newRequest);
   const filtered = useMemo(
     () =>
@@ -48,6 +53,7 @@ export function ChunkWorkspace({
     if (newRequest === previousNewRequest.current) return;
     previousNewRequest.current = newRequest;
     setEditorChunk(null);
+    setSelectedId(null);
   }, [newRequest]);
 
   return (
@@ -62,7 +68,7 @@ export function ChunkWorkspace({
         {filtered.map((chunk) => (
           <ResourceListButton
             key={chunk.chunk_id}
-            selected={editorChunk?.chunk_id === chunk.chunk_id}
+            selected={selectedId === chunk.chunk_id}
             title={chunk.display_name}
             detail={chunk.path}
             description={chunk.description ?? chunk.content}
@@ -73,7 +79,10 @@ export function ChunkWorkspace({
                 ? (event) => onResourceDragStart(event, chunk.chunk_id)
                 : undefined
             }
-            onClick={() => setEditorChunk(chunk)}
+            onClick={() => {
+              setSelectedId(chunk.chunk_id);
+              setEditorChunk(chunk);
+            }}
           />
         ))}
       </ResourceList>

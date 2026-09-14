@@ -63,6 +63,8 @@ pub struct SaveAgentModelRequestDto {
     pub context_window: u32,
     pub max_output_tokens: u32,
     pub temperature: f32,
+    #[serde(default)]
+    pub supports_vision: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -79,6 +81,8 @@ pub struct AgentModelDto {
     pub context_window: u32,
     pub max_output_tokens: u32,
     pub temperature: f32,
+    #[serde(default)]
+    pub supports_vision: bool,
     pub probe_status: AgentProbeStatusDto,
 }
 
@@ -117,6 +121,7 @@ pub struct AgentWorkspaceSettingsDto {
     pub instructions: String,
     pub v5_prompt_guidance: String,
     pub tag_prompt_guidance: String,
+    pub output_vision_enabled: bool,
     pub permission_mode: AgentPermissionModeDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_model_id: Option<String>,
@@ -166,6 +171,8 @@ pub struct AgentModelSnapshotDto {
     pub context_window: u32,
     pub max_output_tokens: u32,
     pub temperature: f32,
+    #[serde(default)]
+    pub supports_vision: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -232,6 +239,9 @@ pub struct AgentEventDto {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct AgentTurnContextDto {
     pub route: String,
+    pub output_batch_id: Option<String>,
+    pub output_job_id: Option<String>,
+    pub output_sample_index: Option<u32>,
     #[serde(default)]
     pub selected_resource_ids: Vec<String>,
 }

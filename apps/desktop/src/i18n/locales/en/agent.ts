@@ -1,4 +1,14 @@
 export const agent = {
+  modelSupportsVision: "Model accepts image input",
+  modelVisionDescription:
+    "Set according to the model on this connection. Changes apply to new conversations.",
+  visionSaveFailed: "Could not save output vision setting",
+  outputVision: "Allow Agent to read output images",
+  visionDescription:
+    "Send output images to the current Agent model for analysis. Turning this off stops the active Agent turn.",
+  visionModelUnavailable:
+    "This conversation uses a model without image input enabled. Configure a capable model and start a new conversation.",
+
   title: "Atelier Agent",
   drawerLabel: "Agent workspace",
   close: "Close Agent",
@@ -62,6 +72,10 @@ export const agent = {
     getLexiconContext: "Read lexicon capabilities",
     searchLexicon: "Search lexicon",
     getLexiconEntity: "Read lexicon entry",
+    readGenerationOutput: "Read output image",
+    cancelGeneration: "Cancel generation",
+    getGenerationStatus: "Read generation status",
+    waitForGeneration: "Wait for generation",
     previewGeneration: "Preview prompts and cost",
     submitGeneration: "Submit generation",
     undoAgentAction: "Undo Agent edit",

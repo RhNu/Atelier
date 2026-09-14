@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } 
 import { useTranslation } from "react-i18next";
 
 import { flushGenerationDraft } from "@/features/generation/state/draft-save-barrier";
+import { useGenerationEventStore } from "@/features/generation/state/generation-event-store";
+import { selectedPromptResourceIds } from "@/features/resources/selected-prompt-resources";
 import { agentApi, queryKeys } from "@/platform/atelier";
 import { useToastStore } from "@/stores/toast-store";
 import type { AgentEventDto, AgentSessionDto } from "@/types";
@@ -104,6 +106,19 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
     [pushToast, settings.data, settingsMutation, t],
   );
 
+  const changeVision = useCallback(
+    (enabled: boolean) => {
+      if (!settings.data) return;
+      settingsMutation.mutate(
+        { settings: { ...settings.data, output_vision_enabled: enabled } },
+        {
+          onError: (error) => notifyError(pushToast, t("visionSaveFailed"), error),
+        },
+      );
+    },
+    [settings.data, settingsMutation, pushToast, t],
+  );
+
   const send = useCallback(async () => {
     const content = message.trim();
     const sessionId = drawer.activeSessionId;
@@ -112,11 +127,22 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
     drawer.beginTurn(sessionId, content);
     try {
       await flushGenerationDraft();
+      const outputs = useGenerationEventStore.getState();
       await agentApi.runTurn(
         {
           session_id: sessionId,
           message: content,
-          context: { route, selected_resource_ids: [] },
+          context: {
+            route,
+            selected_resource_ids: selectedPromptResourceIds(),
+            output_batch_id: outputs.viewBatchId ?? outputs.liveBatchId,
+            output_job_id:
+              outputs.selectedJobId ??
+              (outputs.viewBatchId === null || outputs.viewBatchId === outputs.liveBatchId
+                ? outputs.latestJobId
+                : null),
+            output_sample_index: outputs.focusedSampleIndex,
+          },
         },
         drawer.pushEvent,
       );
@@ -195,6 +221,9 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
       activeSessionTitle={activeSession?.title ?? ""}
       contextWindow={activeSession?.model.context_window ?? null}
       contextInputTokens={drawer.contextInputTokens}
+      visionEnabled={settings.data?.output_vision_enabled ?? false}
+      modelSupportsVision={activeSession?.model.supports_vision ?? false}
+      onVisionChange={changeVision}
       permissionMode={settings.data?.permission_mode ?? "standard"}
       updatingPermission={settingsMutation.isPending || !settings.data}
       defaultModelId={defaultModelId}

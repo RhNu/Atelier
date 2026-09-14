@@ -109,6 +109,7 @@ where
                 &prepared_ref,
                 &compiled_prompt.expanded_prompt,
                 &plan,
+                cancellation,
             )
             .await
         }
@@ -153,14 +154,16 @@ async fn run_image_generation<P>(
     prepared_payload_ref: &atelier_jobs::JobPayloadRef,
     prompt_snapshot: &str,
     plan: &GenerationRequestPlan,
+    cancellation: &dyn crate::GenerationTaskCancellation,
 ) -> KernelResult<QueueDirective>
 where
     P: GenerationPayloadStore + KernelClock + KernelEventSink + KernelGenerationPorts,
 {
-    let result = match runtime
-        .ports()
-        .generate(plan.normalized_request.clone())
-        .await
+    let result = match super::cancellation::request(
+        runtime.ports().generate(plan.normalized_request.clone()),
+        cancellation,
+    )
+    .await?
     {
         Ok(result) => result,
         Err(error) => return handle_novelai_failure(runtime, batch_id, job_id, error).await,

@@ -37,6 +37,7 @@ pub fn agent_workspace_settings_to_domain(
         instructions: value.instructions,
         v5_prompt_guidance: value.v5_prompt_guidance,
         tag_prompt_guidance: value.tag_prompt_guidance,
+        output_vision_enabled: value.output_vision_enabled,
         permission_mode: match value.permission_mode {
             AgentPermissionModeDto::Standard => AgentPermissionMode::Standard,
             AgentPermissionModeDto::Ask => AgentPermissionMode::Ask,
@@ -54,6 +55,7 @@ pub fn agent_workspace_settings_to_dto(
         instructions: value.instructions.clone(),
         v5_prompt_guidance: value.v5_prompt_guidance.clone(),
         tag_prompt_guidance: value.tag_prompt_guidance.clone(),
+        output_vision_enabled: value.output_vision_enabled,
         permission_mode: match value.permission_mode {
             AgentPermissionMode::Standard => AgentPermissionModeDto::Standard,
             AgentPermissionMode::Ask => AgentPermissionModeDto::Ask,
@@ -78,6 +80,7 @@ pub fn agent_session_to_dto(value: &AgentSession) -> AgentSessionDto {
             context_window: value.model.context_window,
             max_output_tokens: value.model.max_output_tokens,
             temperature: value.model.temperature,
+            supports_vision: value.model.supports_vision,
         },
         persona: AgentPersonaSnapshotDto {
             display_name: value.persona.display_name.clone(),
@@ -151,6 +154,7 @@ pub fn agent_model_to_domain(request: SaveAgentModelRequestDto, now_ms: u64) -> 
         context_window: request.context_window,
         max_output_tokens: request.max_output_tokens,
         temperature: request.temperature,
+        supports_vision: request.supports_vision,
         probe_status: AgentProbeStatus::Unknown,
         updated_at_ms: now_ms,
     }
@@ -186,6 +190,7 @@ fn model_to_dto(value: &AgentModel) -> AgentModelDto {
         context_window: value.context_window,
         max_output_tokens: value.max_output_tokens,
         temperature: value.temperature,
+        supports_vision: value.supports_vision,
         probe_status: match value.probe_status {
             AgentProbeStatus::Unknown => AgentProbeStatusDto::Unknown,
             AgentProbeStatus::Verified => AgentProbeStatusDto::Verified,

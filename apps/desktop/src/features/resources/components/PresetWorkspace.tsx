@@ -6,6 +6,7 @@ import type { ImageModelDto, PromptPresetDto, PromptPresetKindDto } from "@/type
 
 import { presetSearchText } from "../preset-editor-model";
 import { matchesSearch, type ResourceViewMode } from "../resource-model";
+import { useSelectedPromptResource } from "../selected-prompt-resources";
 import { PresetEditorDialog } from "./PresetEditorDialog";
 import { ResourceList, ResourceListButton } from "./ResourceEditorPrimitives";
 
@@ -38,6 +39,10 @@ export function PresetWorkspace({
 }) {
   const { t } = useTranslation("resources");
   const [editorPreset, setEditorPreset] = useState<PromptPresetDto | null | undefined>(undefined);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  useSelectedPromptResource(
+    presets.some((item) => item.preset_id === selectedId) ? selectedId : null,
+  );
   const previousNewRequest = useRef(newRequest);
   const filtered = useMemo(
     () =>
@@ -58,6 +63,7 @@ export function PresetWorkspace({
     if (newRequest === previousNewRequest.current) return;
     previousNewRequest.current = newRequest;
     setEditorPreset(null);
+    setSelectedId(null);
   }, [newRequest]);
 
   return (
@@ -72,7 +78,7 @@ export function PresetWorkspace({
         {filtered.map((preset) => (
           <ResourceListButton
             key={preset.preset_id}
-            selected={editorPreset?.preset_id === preset.preset_id}
+            selected={selectedId === preset.preset_id}
             title={preset.display_name}
             detail={preset.path || t("preset")}
             description={preset.description ?? presetSearchText(preset)}
@@ -83,7 +89,10 @@ export function PresetWorkspace({
                 ? (event) => onResourceDragStart(event, preset.preset_id)
                 : undefined
             }
-            onClick={() => setEditorPreset(preset)}
+            onClick={() => {
+              setSelectedId(preset.preset_id);
+              setEditorPreset(preset);
+            }}
           />
         ))}
       </ResourceList>

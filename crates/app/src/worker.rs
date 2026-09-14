@@ -61,7 +61,21 @@ where
         cancel: GenerationWorkerCancel,
     ) -> CommandResult<QueueDirectiveDto> {
         let session = self.current_session()?;
+        let Some(active) = session.queue.snapshot().active_batch else {
+            return Ok(QueueDirectiveDto::Idle);
+        };
+        if active.batch.status.is_terminal()
+            || matches!(&directive, QueueDirectiveDto::StartJob { job_id } if !active.batch.jobs.iter().any(|job| job.job_id.as_str() == job_id))
+        {
+            return Ok(QueueDirectiveDto::Idle);
+        }
+        let batch_id = active.batch.batch_id;
         loop {
+            if !session.queue.snapshot().active_batch.is_some_and(|active| {
+                active.batch.batch_id == batch_id && !active.batch.status.is_terminal()
+            }) {
+                return Ok(QueueDirectiveDto::Idle);
+            }
             if !self
                 .current_session_optional()?
                 .is_some_and(|current| Arc::ptr_eq(&current, &session))
@@ -90,7 +104,12 @@ where
                     {
                         return Ok(QueueDirectiveDto::Idle);
                     }
-                    directive = Self::command_result(session.generation().delay_elapsed().await)?;
+                    directive = Self::command_result(
+                        session
+                            .generation()
+                            .delay_elapsed_for_batch(batch_id.as_str())
+                            .await,
+                    )?;
                 }
                 QueueDirectiveDto::Paused | QueueDirectiveDto::Idle => return Ok(directive),
             }

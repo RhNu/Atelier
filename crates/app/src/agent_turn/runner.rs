@@ -50,10 +50,17 @@ where
     let summary = refresh_summary(&app, &session_id, &existing_events).await?;
     let history = chat_history(&existing_events, summary.as_ref());
     let draft = app.generation().ensure_draft().await?;
+    let settings = app.agent.get_settings().await?;
+    let vision_enabled = super::output_vision::vision_allowed(
+        settings.output_vision_enabled,
+        session.model.supports_vision,
+    );
     let context = serde_json::to_string(&serde_json::json!({
         "route": request.context.route,
         "selected_resource_ids": request.context.selected_resource_ids,
         "generation_draft": draft.draft,
+        "output_vision_enabled":vision_enabled,
+        "output_area":{"batch_id":request.context.output_batch_id,"job_id":request.context.output_job_id,"sample_index":request.context.output_sample_index},
     }))
     .map_err(|error| AppError::new("agent_runtime", error.to_string()))?;
     let image_model = Some(draft.draft.model);
@@ -67,7 +74,7 @@ where
     };
     let system_prompt = build_agent_system_prompt(&session.persona, family, &context);
     let connection = resolve_connection(runtime, &session.model.connection_id).await?;
-    let permission_mode = app.agent.get_settings().await?.permission_mode;
+    let permission_mode = settings.permission_mode;
     let cancellation = app.agent_turn.begin(session_id.as_str())?;
     let guard = TurnGuard {
         coordinator: app.agent_turn.clone(),
@@ -115,6 +122,8 @@ where
             cancellation: cancellation.clone(),
             next_sequence: user_sequence.saturating_add(1),
             initial_draft: draft,
+            vision_enabled,
+            output_batch_id: request.context.output_batch_id,
         },
     ));
     let outcome = runtime
@@ -126,13 +135,23 @@ where
                 system_prompt,
                 user_message: request.message,
                 history,
-                tools: tool_specs(),
+                tools: tool_specs()
+                    .into_iter()
+                    .filter(|tool| vision_enabled || tool.name != "read_generation_output")
+                    .collect(),
             },
-            tools,
+            tools.clone(),
             runtime_observer,
-            cancellation,
+            cancellation.clone(),
         )
         .await;
+    if outcome.is_err() || cancellation.is_cancelled() {
+        cancellation.cancel();
+        if let Err(error) = tools.cancel_owned_generations().await {
+            finish_session(&app, &mut session, true).await?;
+            return Err(error.into());
+        }
+    }
     let (outcome, interrupted) = match outcome {
         Ok(outcome) => (outcome, false),
         Err(error) if error.kind == AgentErrorKind::Cancelled => (
@@ -352,6 +371,16 @@ fn chat_history(events: &[AgentEvent], summary: Option<&AgentSummary>) -> Vec<Ag
                     content: content.clone(),
                 });
             }
+            AgentEventKind::ToolResult {
+                tool_name,
+                result_json,
+                failed: false,
+            } if tool_name == "read_generation_output" => history.push(AgentChatMessage {
+                role: AgentChatRole::User,
+                content: format!(
+                    "Earlier output read (metadata only; pixels are not retained): {result_json}"
+                ),
+            }),
             _ => {}
         }
     }
@@ -380,6 +409,13 @@ where
             AgentEventKind::UserMessage { content } => format!("User: {content}"),
             AgentEventKind::AssistantMessage { content, .. } => format!("Agent: {content}"),
             AgentEventKind::ToolCall { tool_name, .. } => format!("Tool used: {tool_name}"),
+            AgentEventKind::ToolResult {
+                tool_name,
+                result_json,
+                failed: false,
+            } if tool_name == "read_generation_output" => {
+                format!("Earlier output read (metadata only; pixels not retained): {result_json}")
+            }
             _ => continue,
         };
         content.push_str(&line);

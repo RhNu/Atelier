@@ -38,10 +38,8 @@ impl WorkerState {
     }
 
     fn start_or_defer(&mut self, directive: QueueDirectiveDto) -> Option<WorkerStart> {
-        if let Some(run) = &self.current {
-            if run.cancel.is_cancelled() {
-                self.pending = Some(directive);
-            }
+        if self.current.is_some() {
+            self.pending = Some(directive);
             return None;
         }
 
@@ -273,7 +271,7 @@ mod tests {
     }
 
     #[test]
-    fn worker_state_drops_kicks_while_active_run_is_not_cancelled() {
+    fn worker_state_retains_next_batch_while_previous_run_finishes() {
         let mut state = WorkerState::default();
         let first = state
             .start_or_defer(QueueDirectiveDto::StartJob {
@@ -288,7 +286,12 @@ mod tests {
                 })
                 .is_none()
         );
-        assert_eq!(state.finish(first.id), None);
+        assert_eq!(
+            state.finish(first.id),
+            Some(QueueDirectiveDto::StartJob {
+                job_id: "job-2".to_owned()
+            })
+        );
     }
 
     #[test]

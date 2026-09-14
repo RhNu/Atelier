@@ -117,8 +117,13 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
         let Some(session) = session else {
             return Ok(CloseWorkspaceResponseDto { was_open: false });
         };
-        let _ = session.agent_turn.cancel(None);
-        if let Err(error) = session.release_workspace_lock() {
+        let draining_agent = session
+            .agent_turn
+            .cancel(None)
+            .map_err(crate::AppError::from)
+            .map_err(|error| error.envelope())?;
+        // An active turn retains its session lease until tool persistence has drained.
+        if !draining_agent && let Err(error) = session.release_workspace_lock() {
             // Put the session back so callers can retry a failed close.
             *self.lock_session()? = Some(session);
             return Err(error.envelope());

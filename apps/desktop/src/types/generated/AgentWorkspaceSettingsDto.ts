@@ -6,6 +6,7 @@ export type AgentWorkspaceSettingsDto = {
   instructions: string;
   v5_prompt_guidance: string;
   tag_prompt_guidance: string;
+  output_vision_enabled: boolean;
   permission_mode: AgentPermissionModeDto;
   default_model_id: string | null;
 };

@@ -152,10 +152,40 @@ where
         job_id: &str,
         cancellation: &dyn atelier_kernel::GenerationTaskCancellation,
     ) -> AppResult<QueueDirectiveDto> {
+        let cancellation = super::generation_cancel::GenerationCancellation {
+            worker: cancellation,
+            agent: self.app.agent_turn.generations.for_job(job_id)?,
+        };
         let mut kernel = self.app.kernel.lock().await;
+        if !kernel.queue_snapshot().active_batch.is_some_and(|active| {
+            !active.batch.status.is_terminal()
+                && active
+                    .batch
+                    .jobs
+                    .iter()
+                    .any(|job| job.job_id.as_str() == job_id && !job.status.is_terminal())
+        }) {
+            return Ok(QueueDirectiveDto::Idle);
+        }
         let result = kernel
-            .run_scheduled_generation_job_cancellable(&JobId::new(job_id), cancellation)
+            .run_scheduled_generation_job_cancellable(&JobId::new(job_id), &cancellation)
             .await;
+        if matches!(
+            result,
+            Err(atelier_kernel::KernelError::GenerationCancelled)
+        ) {
+            if let Some(active) = kernel.queue_snapshot().active_batch {
+                kernel.cancel_batch(&active.batch.batch_id)?;
+                let snapshot = kernel.queue_snapshot();
+                self.persist_queue_snapshot(&QueueDirectiveDto::Idle, &snapshot)
+                    .await?;
+                self.app
+                    .agent_turn
+                    .generations
+                    .remove(active.batch.batch_id.as_str())?;
+            }
+            return Ok(QueueDirectiveDto::Idle);
+        }
         let snapshot = kernel.queue_snapshot();
         let job_status = kernel.job_status(&JobId::new(job_id));
 
@@ -177,6 +207,14 @@ where
         );
         self.update_generation_history_status(job_id, status, None)
             .await?;
+        if let Some(active) = &snapshot.active_batch
+            && active.batch.status.is_terminal()
+        {
+            self.app
+                .agent_turn
+                .generations
+                .remove(active.batch.batch_id.as_str())?;
+        }
         drop(kernel);
         Ok(directive)
     }
@@ -532,6 +570,7 @@ where
             },
         )
         .await?;
+        self.app.events.notify_changed();
         Ok(())
     }
 }

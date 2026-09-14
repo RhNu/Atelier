@@ -20,3 +20,6 @@ pub use ports::{AgentRegistryRepository, AgentWorkspaceRepository};
 pub use prompt::{AgentPromptFamily, build_agent_system_prompt};
 pub use runtime::*;
 pub use service::{AgentRegistryService, AgentWorkspaceService};
+
+mod tool_output;
+pub use tool_output::{AgentImageMediaType, AgentToolImage, AgentToolOutput};

@@ -2,5 +2,8 @@
 
 export type AgentTurnContextDto = {
   route: string;
+  output_batch_id: string | null;
+  output_job_id: string | null;
+  output_sample_index: number | null;
   selected_resource_ids: Array<string>;
 };

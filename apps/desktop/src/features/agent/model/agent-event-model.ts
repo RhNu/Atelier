@@ -36,6 +36,10 @@ export type AgentToolNameKey =
   | "toolNames.getLexiconContext"
   | "toolNames.searchLexicon"
   | "toolNames.getLexiconEntity"
+  | "toolNames.readGenerationOutput"
+  | "toolNames.cancelGeneration"
+  | "toolNames.getGenerationStatus"
+  | "toolNames.waitForGeneration"
   | "toolNames.previewGeneration"
   | "toolNames.submitGeneration"
   | "toolNames.undoAgentAction";
@@ -53,6 +57,10 @@ export const AGENT_TOOL_NAME_KEYS: Readonly<Record<string, AgentToolNameKey>> = 
   get_lexicon_context: "toolNames.getLexiconContext",
   search_lexicon: "toolNames.searchLexicon",
   get_lexicon_entity: "toolNames.getLexiconEntity",
+  read_generation_output: "toolNames.readGenerationOutput",
+  cancel_generation: "toolNames.cancelGeneration",
+  get_generation_status: "toolNames.getGenerationStatus",
+  wait_for_generation: "toolNames.waitForGeneration",
   preview_generation: "toolNames.previewGeneration",
   submit_generation: "toolNames.submitGeneration",
   undo_agent_action: "toolNames.undoAgentAction",

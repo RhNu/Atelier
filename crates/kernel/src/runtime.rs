@@ -128,6 +128,17 @@ impl<P> KernelRuntime<P> {
         self.queue.lock().stop().map_err(KernelError::from)
     }
 
+    /// Stops only the matching batch after its running future has finished or been cancelled.
+    ///
+    /// # Errors
+    /// Returns an error if the stop transition fails.
+    pub fn cancel_batch(&mut self, id: &atelier_jobs::BatchId) -> KernelResult<bool> {
+        self.queue
+            .lock()
+            .cancel_batch(id)
+            .map_err(KernelError::from)
+    }
+
     /// Tells the queue that the current delay elapsed.
     ///
     /// # Errors

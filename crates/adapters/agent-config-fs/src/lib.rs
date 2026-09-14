@@ -196,6 +196,8 @@ struct StoredModel {
     context_window: u32,
     max_output_tokens: u32,
     temperature: f32,
+    #[serde(default)]
+    supports_vision: bool,
     probe_status: StoredProbeStatus,
     updated_at_ms: u64,
 }
@@ -210,6 +212,7 @@ impl StoredModel {
             context_window: value.context_window,
             max_output_tokens: value.max_output_tokens,
             temperature: value.temperature,
+            supports_vision: value.supports_vision,
             probe_status: StoredProbeStatus::from_domain(value.probe_status),
             updated_at_ms: value.updated_at_ms,
         }
@@ -224,6 +227,7 @@ impl StoredModel {
             context_window: self.context_window,
             max_output_tokens: self.max_output_tokens,
             temperature: self.temperature,
+            supports_vision: self.supports_vision,
             probe_status: self.probe_status.into_domain(),
             updated_at_ms: self.updated_at_ms,
         }
@@ -313,6 +317,7 @@ mod tests {
                 context_window: 32_768,
                 max_output_tokens: 4_096,
                 temperature: 0.3,
+                supports_vision: false,
                 probe_status: AgentProbeStatus::Verified,
                 updated_at_ms: 2,
             }],

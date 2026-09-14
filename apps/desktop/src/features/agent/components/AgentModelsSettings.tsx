@@ -8,7 +8,12 @@ import { agentApi } from "@/platform/atelier";
 import { useToastStore } from "@/stores/toast-store";
 import type { AgentModelDto, DiscoveredAgentModelDto, SaveAgentModelRequestDto } from "@/types";
 
-import { NumberField, SelectField, TextField } from "../../settings/components/SettingsControls";
+import {
+  CheckboxField,
+  NumberField,
+  SelectField,
+  TextField,
+} from "../../settings/components/SettingsControls";
 import { useAgentRegistryMutations, useAgentRegistryQuery } from "../data/useAgentQueries";
 import {
   DEFAULT_CONTEXT_WINDOW,
@@ -264,6 +269,12 @@ function ModelEditor({
         step="0.1"
         onChange={(temperature) => setDraft((current) => ({ ...current, temperature }))}
       />
+      <CheckboxField
+        label={t("modelSupportsVision")}
+        checked={draft.supports_vision}
+        onChange={(supports_vision) => setDraft((current) => ({ ...current, supports_vision }))}
+      />
+      <p className="text-xs text-app-muted md:col-span-2">{t("modelVisionDescription")}</p>
       <div className="flex items-end justify-end gap-2 md:col-span-2">
         <AppButton variant="ghost" disabled={busy} onClick={onCancel}>
           {t("cancel")}

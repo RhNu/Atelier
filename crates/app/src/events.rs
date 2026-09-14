@@ -10,13 +10,35 @@ use crate::mapping::resource_ref_to_dto;
 const MAX_RETAINED_EVENTS: usize = 1024;
 pub type AppEventListener = Arc<dyn Fn(AppEventDto) + Send + Sync + 'static>;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct AppEventHub {
     events: Arc<Mutex<Vec<AppEventDto>>>,
     listeners: Arc<Mutex<Vec<AppEventListener>>>,
+    changes: tokio::sync::watch::Sender<u64>,
+}
+
+impl Default for AppEventHub {
+    fn default() -> Self {
+        let (changes, _) = tokio::sync::watch::channel(0);
+        Self {
+            events: Arc::default(),
+            listeners: Arc::default(),
+            changes,
+        }
+    }
 }
 
 impl AppEventHub {
+    #[must_use]
+    pub fn subscribe_changes(&self) -> tokio::sync::watch::Receiver<u64> {
+        self.changes.subscribe()
+    }
+
+    pub fn notify_changed(&self) {
+        self.changes
+            .send_modify(|sequence| *sequence = sequence.wrapping_add(1));
+    }
+
     pub fn push_kernel_event(&self, event: KernelEvent) {
         let mut event = kernel_event_to_dto(event);
         if let Ok(mut events) = self.events.lock() {
@@ -29,6 +51,7 @@ impl AppEventHub {
                 events.drain(..overflow);
             }
         }
+        self.notify_changed();
         let listeners = self
             .listeners
             .lock()

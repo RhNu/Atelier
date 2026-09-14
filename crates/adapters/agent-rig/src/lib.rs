@@ -1,5 +1,11 @@
 //! Rig-backed OpenAI-compatible runtime for Atelier's internal Agent.
 
+mod context_budget;
+mod executions;
+mod invocation;
+use executions::ToolExecutions;
+
+use invocation::{InvocationSlot, RuntimeHook};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -23,7 +29,7 @@ use rig_core::{
 use rig_memory::{HeuristicTokenCounter, MemoryPolicy, TokenWindowMemory};
 use tokio_util::sync::CancellationToken;
 
-const MAX_MODEL_CALLS: usize = 12;
+const MAX_MODEL_CALLS: usize = 48;
 const MIN_HISTORY_BUDGET: usize = 1_024;
 const RESERVED_CONTEXT_TOKENS: u32 = 2_048;
 
@@ -63,7 +69,9 @@ impl AgentModelRuntime for RigAgentRuntime {
     ) -> AgentResult<AgentRunOutcome> {
         let client = openai_client(&request.connection)?.completions_api();
         let model = client.completion_model(request.model.wire_model_id.clone());
-        let dynamic_tools = build_tools(&request, &tools, &observer);
+        let invocation = Arc::new(InvocationSlot::default());
+        let executions = Arc::new(ToolExecutions::default());
+        let dynamic_tools = build_tools(&request, &tools, &observer, &invocation, &executions);
         let agent = AgentBuilder::new(model)
             .name("Atelier Agent")
             .preamble(&request.system_prompt)
@@ -73,63 +81,64 @@ impl AgentModelRuntime for RigAgentRuntime {
             .dynamic_tools(dynamic_tools)
             .build();
         let history = shape_history(&request);
+        let budget = context_budget::ContextBudget::new(&request);
         let mut stream = agent
             .stream_chat(Message::user(request.user_message), history)
-            .add_hook(ObservationHook(tools))
+            .add_hook(RuntimeHook {
+                executor: tools,
+                invocation,
+                budget,
+            })
             .max_turns(MAX_MODEL_CALLS)
             .tool_concurrency(1)
             .await;
         let mut outcome = AgentRunOutcome::default();
 
-        loop {
-            let item = tokio::select! {
-                () = cancellation.cancelled() => return Err(AgentError::cancelled()),
-                item = stream.next() => item,
-            };
-            let Some(item) = item else {
-                break;
-            };
-            match item.map_err(|error| AgentError::runtime(error.to_string()))? {
-                MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(text)) => {
-                    outcome.assistant_message.push_str(&text.text);
-                    observer.emit(AgentRuntimeEvent::AssistantTextDelta { text: text.text });
+        let result = async {
+            loop {
+                let item = tokio::select! {
+                    () = cancellation.cancelled() => return Err(AgentError::cancelled()),
+                    item = stream.next() => item,
+                };
+                let Some(item) = item else {
+                    break;
+                };
+                match item.map_err(|error| AgentError::runtime(error.to_string()))? {
+                    MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
+                        text,
+                    )) => {
+                        outcome.assistant_message.push_str(&text.text);
+                        observer.emit(AgentRuntimeEvent::AssistantTextDelta { text: text.text });
+                    }
+                    MultiTurnStreamItem::CompletionCall(call) => {
+                        outcome.model_calls = outcome.model_calls.saturating_add(1);
+                        outcome.input_tokens =
+                            outcome.input_tokens.saturating_add(call.usage.input_tokens);
+                        outcome.output_tokens = outcome
+                            .output_tokens
+                            .saturating_add(call.usage.output_tokens);
+                        observer.emit(AgentRuntimeEvent::Usage {
+                            input_tokens: call.usage.input_tokens,
+                            output_tokens: call.usage.output_tokens,
+                        });
+                    }
+                    MultiTurnStreamItem::FinalResponse(response)
+                        if outcome.assistant_message.is_empty() =>
+                    {
+                        outcome.assistant_message = response.output;
+                    }
+                    _ => {}
                 }
-                MultiTurnStreamItem::CompletionCall(call) => {
-                    outcome.model_calls = outcome.model_calls.saturating_add(1);
-                    outcome.input_tokens =
-                        outcome.input_tokens.saturating_add(call.usage.input_tokens);
-                    outcome.output_tokens = outcome
-                        .output_tokens
-                        .saturating_add(call.usage.output_tokens);
-                    observer.emit(AgentRuntimeEvent::Usage {
-                        input_tokens: call.usage.input_tokens,
-                        output_tokens: call.usage.output_tokens,
-                    });
-                }
-                MultiTurnStreamItem::FinalResponse(response)
-                    if outcome.assistant_message.is_empty() =>
-                {
-                    outcome.assistant_message = response.output;
-                }
-                _ => {}
             }
+            Ok(outcome)
         }
-        Ok(outcome)
-    }
-}
-
-struct ObservationHook(Arc<dyn AgentToolExecutor>);
-
-impl rig_agent::agent::AgentHook for ObservationHook {
-    async fn on_completion_call(
-        &self,
-        _context: &rig_agent::agent::HookContext,
-        _event: rig_agent::agent::CompletionCallEvent<'_>,
-    ) -> rig_agent::agent::CompletionCallAction {
-        match self.0.begin_model_step().await {
-            Ok(()) => rig_agent::agent::CompletionCallAction::continue_run(),
-            Err(error) => rig_agent::agent::CompletionCallAction::stop(error.to_string()),
+        .await;
+        if result.is_err() {
+            cancellation.cancel();
         }
+        drop(stream);
+        executions.drain().await?;
+        result
     }
 }
 
@@ -147,12 +156,16 @@ fn build_tools(
     request: &AgentRunRequest,
     executor: &Arc<dyn AgentToolExecutor>,
     observer: &Arc<dyn AgentRunObserver>,
+    invocation: &Arc<InvocationSlot>,
+    executions: &Arc<ToolExecutions>,
 ) -> Vec<DynamicTool> {
     request
         .tools
         .iter()
         .map(|spec| {
+            let executions = executions.clone();
             let executor = executor.clone();
+            let invocation = invocation.clone();
             let observer = observer.clone();
             let name = spec.name.clone();
             let callback_name = name.clone();
@@ -163,31 +176,28 @@ fn build_tools(
                 spec.description.clone(),
                 parameters,
                 move |_context, arguments| {
+                    let executions = executions.clone();
                     let executor = executor.clone();
+                    let invocation = invocation.clone();
                     let observer = observer.clone();
                     let name = callback_name.clone();
                     Box::pin(async move {
+                        let call_id = invocation
+                            .take(&name, &arguments)
+                            .map_err(|error| ToolExecutionError::provider(error.to_string()))?;
                         let arguments_json = arguments.to_string();
                         observer.emit(AgentRuntimeEvent::ToolStarted {
                             name: name.clone(),
                             arguments_json: arguments_json.clone(),
                         });
-                        match executor.execute(&name, &arguments_json).await {
-                            Ok(result_json) => {
-                                observer.emit(AgentRuntimeEvent::ToolFinished {
-                                    name,
-                                    result_json: result_json.clone(),
-                                    failed: false,
-                                });
-                                Ok(ToolOutput::text(result_json))
-                            }
+                        let result = executions
+                            .start(executor, observer, call_id, name, arguments_json)
+                            .await
+                            .map_err(|error| ToolExecutionError::provider(error.to_string()))?;
+                        match result {
+                            Ok(output) => tool_output(output),
                             Err(error) => {
                                 let feedback = error.to_string();
-                                observer.emit(AgentRuntimeEvent::ToolFinished {
-                                    name,
-                                    result_json: feedback.clone(),
-                                    failed: true,
-                                });
                                 Err(ToolExecutionError::provider(feedback.clone())
                                     .with_model_output(ToolOutput::text(feedback)))
                             }
@@ -197,6 +207,24 @@ fn build_tools(
             )
         })
         .collect()
+}
+
+fn tool_output(output: atelier_agent::AgentToolOutput) -> Result<ToolOutput, ToolExecutionError> {
+    use atelier_agent::AgentImageMediaType;
+    use rig_core::message::{ImageMediaType, ToolResultContent};
+    let mut content = vec![ToolResultContent::text(output.text)];
+    content.extend(output.images.into_iter().map(|image| {
+        ToolResultContent::image_base64(
+            image.base64,
+            Some(match image.media_type {
+                AgentImageMediaType::Png => ImageMediaType::PNG,
+                AgentImageMediaType::Jpeg => ImageMediaType::JPEG,
+                AgentImageMediaType::Webp => ImageMediaType::WEBP,
+            }),
+            None,
+        )
+    }));
+    ToolOutput::content(content).map_err(|error| ToolExecutionError::provider(error.to_string()))
 }
 
 fn shape_history(request: &AgentRunRequest) -> Vec<Message> {
@@ -241,6 +269,7 @@ mod tests {
                 context_window: 3_200,
                 max_output_tokens: 1_000,
                 temperature: 0.3,
+                supports_vision: false,
             },
             system_prompt: String::new(),
             user_message: "next".to_owned(),
@@ -260,5 +289,26 @@ mod tests {
         let shaped = shape_history(&request);
         assert!(shaped.len() < request.history.len());
         assert!(!shaped.is_empty());
+    }
+    #[test]
+    fn tool_images_are_native_content_blocks() {
+        let output = tool_output(atelier_agent::AgentToolOutput {
+            text: "output metadata".into(),
+            images: vec![atelier_agent::AgentToolImage {
+                media_type: atelier_agent::AgentImageMediaType::Png,
+                base64: "AA==".into(),
+            }],
+        })
+        .unwrap();
+        let content = output.as_content();
+        assert_eq!(content.len(), 2);
+        assert!(matches!(
+            &content[0],
+            rig_core::message::ToolResultContent::Text(_)
+        ));
+        assert!(matches!(
+            &content[1],
+            rig_core::message::ToolResultContent::Image(_)
+        ));
     }
 }

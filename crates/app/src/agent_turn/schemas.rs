@@ -37,6 +37,8 @@ pub fn tool_specs() -> Vec<AgentToolSpec> {
     ];
     specs.extend(super::resource_schemas::specs());
     specs.extend(super::lexicon::specs());
+    specs.extend(super::generation_feedback::specs());
+    specs.push(super::output_vision::spec());
     specs
 }
 

@@ -2,6 +2,13 @@ import type { LocaleShape } from "../../locale-types";
 import { agent as enAgent } from "../en/agent";
 
 export const agent = {
+  modelSupportsVision: "模型支持图片输入",
+  modelVisionDescription: "按当前接口的模型能力设置；修改仅影响新建对话。",
+  visionSaveFailed: "读图设置保存失败",
+  outputVision: "允许 Agent 读取输出图片",
+  visionDescription: "将输出图片发送给当前 Agent 模型用于分析；关闭会停止正在进行的 Agent 回合。",
+  visionModelUnavailable: "当前对话模型未启用图片输入能力；请配置支持读图的模型并新建对话。",
+
   title: "Atelier Agent",
   drawerLabel: "Agent 工作区",
   close: "关闭 Agent",
@@ -64,6 +71,10 @@ export const agent = {
     getLexiconContext: "读取词库能力",
     searchLexicon: "搜索词库",
     getLexiconEntity: "读取词条详情",
+    readGenerationOutput: "读取输出图片",
+    cancelGeneration: "取消生成",
+    getGenerationStatus: "读取生图状态",
+    waitForGeneration: "等待生图完成",
     previewGeneration: "预览最终提示词与费用",
     submitGeneration: "提交生成",
     undoAgentAction: "撤销智能体编辑",

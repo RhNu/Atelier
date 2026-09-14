@@ -4,6 +4,7 @@ use crate::{
     RetryPolicy, SubmitJob,
 };
 
+mod cancellation;
 mod state;
 mod transitions;
 

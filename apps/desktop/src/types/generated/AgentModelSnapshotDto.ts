@@ -8,4 +8,5 @@ export type AgentModelSnapshotDto = {
   context_window: number;
   max_output_tokens: number;
   temperature: number;
+  supports_vision: boolean;
 };

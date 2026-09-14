@@ -43,6 +43,6 @@ pub enum KernelError {
     InvalidStreamImage { sample_index: u32, message: String },
     #[error("generation completed without a persistable image")]
     MissingGeneratedImage,
-    #[error("generation stream was cancelled")]
+    #[error("generation was cancelled")]
     GenerationCancelled,
 }

@@ -4,3 +4,5 @@ pub mod stream;
 pub mod vibe;
 
 mod legacy_prompt;
+
+mod cancellation;

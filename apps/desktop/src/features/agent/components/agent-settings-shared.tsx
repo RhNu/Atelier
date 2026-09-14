@@ -71,6 +71,7 @@ export function newModelDraft(connectionId: string): SaveAgentModelRequestDto {
     context_window: DEFAULT_CONTEXT_WINDOW,
     max_output_tokens: DEFAULT_MAX_OUTPUT,
     temperature: DEFAULT_TEMPERATURE,
+    supports_vision: false,
   };
 }
 

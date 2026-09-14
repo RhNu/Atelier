@@ -34,10 +34,13 @@ pub async fn run_stream_generation<P>(
 where
     P: GenerationPayloadStore + KernelClock + KernelEventSink + KernelGenerationPorts,
 {
-    let stream_result = match runtime.ports().generate_stream(request).await {
-        Ok(stream) => stream,
-        Err(error) => return handle_novelai_failure(runtime, batch_id, job_id, error).await,
-    };
+    let stream_result =
+        match super::cancellation::request(runtime.ports().generate_stream(request), cancellation)
+            .await?
+        {
+            Ok(stream) => stream,
+            Err(error) => return handle_novelai_failure(runtime, batch_id, job_id, error).await,
+        };
     let request_seed = stream_result.resolved_seed;
     let mut stream = stream_result.stream;
     let mut latest_images = BTreeMap::new();

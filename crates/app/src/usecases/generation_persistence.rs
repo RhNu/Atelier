@@ -29,6 +29,7 @@ where
             kernel.restore_queue_snapshot(previous)?;
             return Err(AppError::new("job_queue", error.to_string()));
         }
+        self.app.events.notify_changed();
         Ok(())
     }
 
@@ -44,7 +45,9 @@ where
             .queue_repository
             .commit(durable_snapshot, history)
             .await
-            .map_err(|error| AppError::new("job_queue", error.to_string()))
+            .map_err(|error| AppError::new("job_queue", error.to_string()))?;
+        self.app.events.notify_changed();
+        Ok(())
     }
 
     pub(crate) async fn persist_or_restore(
@@ -71,6 +74,8 @@ where
             .queue_repository
             .commit(Some(snapshot), history)
             .await
-            .map_err(|error| AppError::new("job_queue", error.to_string()))
+            .map_err(|error| AppError::new("job_queue", error.to_string()))?;
+        self.app.events.notify_changed();
+        Ok(())
     }
 }

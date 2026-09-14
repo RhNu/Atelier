@@ -313,6 +313,8 @@ struct StoredSettings {
     instructions: String,
     v5_prompt_guidance: String,
     tag_prompt_guidance: String,
+    #[serde(default)]
+    output_vision_enabled: bool,
     permission_mode: String,
     default_model_id: Option<String>,
 }
@@ -325,6 +327,7 @@ impl StoredSettings {
             instructions: value.instructions.clone(),
             v5_prompt_guidance: value.v5_prompt_guidance.clone(),
             tag_prompt_guidance: value.tag_prompt_guidance.clone(),
+            output_vision_enabled: value.output_vision_enabled,
             permission_mode: permission_mode_as_str(value.permission_mode).to_owned(),
             default_model_id: value
                 .default_model_id
@@ -345,6 +348,7 @@ impl StoredSettings {
             instructions: self.instructions,
             v5_prompt_guidance: self.v5_prompt_guidance,
             tag_prompt_guidance: self.tag_prompt_guidance,
+            output_vision_enabled: self.output_vision_enabled,
             permission_mode: permission_mode_from_str(&self.permission_mode)?,
             default_model_id: self.default_model_id.map(AgentModelId::new),
         };
@@ -362,6 +366,8 @@ struct StoredModelSnapshot {
     context_window: u32,
     max_output_tokens: u32,
     temperature: f32,
+    #[serde(default)]
+    supports_vision: bool,
 }
 
 impl StoredModelSnapshot {
@@ -374,6 +380,7 @@ impl StoredModelSnapshot {
             context_window: value.context_window,
             max_output_tokens: value.max_output_tokens,
             temperature: value.temperature,
+            supports_vision: value.supports_vision,
         }
     }
 
@@ -386,6 +393,7 @@ impl StoredModelSnapshot {
             context_window: self.context_window,
             max_output_tokens: self.max_output_tokens,
             temperature: self.temperature,
+            supports_vision: self.supports_vision,
         }
     }
 }
@@ -688,6 +696,7 @@ mod tests {
                 context_window: 32_768,
                 max_output_tokens: 4_096,
                 temperature: 0.3,
+                supports_vision: false,
             },
             persona: AgentPersonaSnapshot {
                 display_name: "Atelier Agent".to_owned(),
@@ -706,6 +715,7 @@ mod tests {
         let connection = DatabaseConnection::open_memory().expect("database");
         let repository = DatabaseAgentWorkspaceRepository::new(connection);
         let settings = AgentWorkspaceSettings {
+            output_vision_enabled: false,
             permission_mode: AgentPermissionMode::Ask,
             instructions: "Keep characters separate".to_owned(),
             ..AgentWorkspaceSettings::default()

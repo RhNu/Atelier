@@ -8,7 +8,6 @@ use atelier_app_api::generation::{
 use atelier_secrets::{ApiKeyId, SecretStore};
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 use serde_json::json;
-use std::sync::atomic::Ordering;
 
 impl<S, F, E> AgentTools<S, F, E>
 where
@@ -17,11 +16,6 @@ where
     E: EmbeddedVibeDocumentExtractor + Clone + Send + Sync + 'static,
 {
     pub(super) async fn submit_generation(&self) -> AgentResult<String> {
-        if self.submitted.load(Ordering::Acquire) {
-            return Err(AgentError::conflict(
-                "only one generation batch may be submitted per Agent turn",
-            ));
-        }
         let subscription = self.active_subscription().await?;
         let _draft = self.app.generation_draft_write.lock().await;
         let _resources = self.app.prompt_resource_write.lock().await;
@@ -32,10 +26,22 @@ where
                 "subscription context changed or was unavailable; call preview_generation again before submitting",
             ));
         }
+        if self.cancellation.is_cancelled() {
+            return Err(AgentError::cancelled());
+        }
         let batch_id = format!("generation-{}", uuid::Uuid::new_v4());
         let job_ids = (0..context.request_count)
             .map(|_| format!("job-{}", uuid::Uuid::new_v4()))
             .collect::<Vec<_>>();
+        self.owned_batches
+            .lock()
+            .map_err(|_| AgentError::runtime("generation ownership unavailable"))?
+            .insert(batch_id.clone());
+        self.coordinator.generations.register(
+            batch_id.clone(),
+            job_ids.clone(),
+            &self.cancellation,
+        )?;
         let directive = self
             .app
             .generation()
@@ -47,7 +53,10 @@ where
             )
             .await
             .map_err(agent_app_error)?;
-        self.submitted.store(true, Ordering::Release);
+        self.generation_batches
+            .lock()
+            .map_err(|_| AgentError::runtime("generation ownership unavailable"))?
+            .insert(batch_id.clone());
         self.preview_observed()?.invalidate();
         self.observer.emit(AgentRuntimeEvent::ToolFinished {
             name: "__generation_submitted".to_owned(),

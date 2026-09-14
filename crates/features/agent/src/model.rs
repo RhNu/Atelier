@@ -97,6 +97,7 @@ pub struct AgentModel {
     pub context_window: u32,
     pub max_output_tokens: u32,
     pub temperature: f32,
+    pub supports_vision: bool,
     pub probe_status: AgentProbeStatus,
     pub updated_at_ms: u64,
 }
@@ -180,6 +181,7 @@ pub struct AgentWorkspaceSettings {
     pub instructions: String,
     pub v5_prompt_guidance: String,
     pub tag_prompt_guidance: String,
+    pub output_vision_enabled: bool,
     pub permission_mode: AgentPermissionMode,
     pub default_model_id: Option<AgentModelId>,
 }
@@ -191,6 +193,7 @@ impl Default for AgentWorkspaceSettings {
             instructions: String::new(),
             v5_prompt_guidance: String::new(),
             tag_prompt_guidance: String::new(),
+            output_vision_enabled: false,
             permission_mode: AgentPermissionMode::Standard,
             default_model_id: None,
         }
@@ -228,6 +231,7 @@ pub struct AgentModelSnapshot {
     pub context_window: u32,
     pub max_output_tokens: u32,
     pub temperature: f32,
+    pub supports_vision: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -372,6 +376,7 @@ mod tests {
             context_window: 4_096,
             max_output_tokens: 4_096,
             temperature: 0.3,
+            supports_vision: false,
             probe_status: AgentProbeStatus::Unknown,
             updated_at_ms: 1,
         };
