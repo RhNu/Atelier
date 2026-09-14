@@ -2,6 +2,7 @@
 
 mod error;
 mod model;
+mod observation;
 mod ports;
 mod prompt;
 mod runtime;
@@ -14,6 +15,7 @@ pub use model::{
     AgentPermissionMode, AgentPersonaSnapshot, AgentProbeStatus, AgentRegistry, AgentSession,
     AgentSessionId, AgentSessionStatus, AgentSummary, AgentWorkspaceSettings,
 };
+pub use observation::AgentObservation;
 pub use ports::{AgentRegistryRepository, AgentWorkspaceRepository};
 pub use prompt::{AgentPromptFamily, build_agent_system_prompt};
 pub use runtime::*;

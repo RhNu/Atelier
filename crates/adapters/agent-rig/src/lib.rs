@@ -75,6 +75,7 @@ impl AgentModelRuntime for RigAgentRuntime {
         let history = shape_history(&request);
         let mut stream = agent
             .stream_chat(Message::user(request.user_message), history)
+            .add_hook(ObservationHook(tools))
             .max_turns(MAX_MODEL_CALLS)
             .tool_concurrency(1)
             .await;
@@ -114,6 +115,21 @@ impl AgentModelRuntime for RigAgentRuntime {
             }
         }
         Ok(outcome)
+    }
+}
+
+struct ObservationHook(Arc<dyn AgentToolExecutor>);
+
+impl rig_agent::agent::AgentHook for ObservationHook {
+    async fn on_completion_call(
+        &self,
+        _context: &rig_agent::agent::HookContext,
+        _event: rig_agent::agent::CompletionCallEvent<'_>,
+    ) -> rig_agent::agent::CompletionCallAction {
+        match self.0.begin_model_step().await {
+            Ok(()) => rig_agent::agent::CompletionCallAction::continue_run(),
+            Err(error) => rig_agent::agent::CompletionCallAction::stop(error.to_string()),
+        }
     }
 }
 

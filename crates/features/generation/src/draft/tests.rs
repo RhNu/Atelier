@@ -8,6 +8,46 @@ fn complete_generation_draft_is_valid() {
 }
 
 #[test]
+fn draft_recreation_does_not_reuse_an_old_revision() {
+    let saved = prepare_generation_draft_save(None, 0, 9, &sample_draft()).unwrap();
+    assert_eq!(saved.revision, 10);
+    assert_eq!(
+        prepare_generation_draft_save(Some(&saved), 9, 10, &sample_draft())
+            .unwrap_err()
+            .kind,
+        GenerationDraftErrorKind::Conflict
+    );
+}
+
+#[test]
+fn unchanged_draft_keeps_revision_but_stale_noop_is_rejected() {
+    let original = VersionedGenerationDraft {
+        revision: 7,
+        snapshot: sample_draft(),
+    };
+    assert_eq!(
+        prepare_generation_draft_save(Some(&original), 7, 7, &sample_draft()).unwrap(),
+        original
+    );
+    assert_eq!(
+        prepare_generation_draft_save(Some(&original), 6, 7, &sample_draft())
+            .unwrap_err()
+            .kind,
+        GenerationDraftErrorKind::Conflict
+    );
+}
+
+#[test]
+fn revision_exhaustion_fails_instead_of_reusing_version() {
+    assert_eq!(
+        prepare_generation_draft_save(None, 0, u64::MAX, &sample_draft())
+            .unwrap_err()
+            .kind,
+        GenerationDraftErrorKind::Repository
+    );
+}
+
+#[test]
 fn generation_draft_rejects_invalid_numeric_and_position_values() {
     let mut draft = sample_draft();
     draft.size.width = 800;

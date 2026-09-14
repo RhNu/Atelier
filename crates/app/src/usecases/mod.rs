@@ -11,7 +11,7 @@ mod director;
 mod events;
 mod gallery;
 mod generation;
-mod generation_draft;
+pub mod generation_draft;
 mod generation_persistence;
 mod generation_support;
 mod generation_tokens;

@@ -223,6 +223,36 @@ pub struct VersionedGenerationDraft {
     pub snapshot: GenerationDraftSnapshot,
 }
 
+/// Prepares a compare-and-swap save using a durable counter that survives clearing the draft.
+///
+/// # Errors
+/// Rejects stale observations, invalid drafts and exhausted revision counters.
+pub fn prepare_generation_draft_save(
+    current: Option<&VersionedGenerationDraft>,
+    expected_revision: u64,
+    counter: u64,
+    draft: &GenerationDraftSnapshot,
+) -> GenerationDraftResult<VersionedGenerationDraft> {
+    draft.validate()?;
+    let current_revision = current.map_or(0, |value| value.revision);
+    if current_revision != expected_revision {
+        return Err(GenerationDraftError::conflict(format!(
+            "generation draft changed from revision {expected_revision} to {current_revision}"
+        )));
+    }
+    if let Some(current) = current.filter(|value| &value.snapshot == draft) {
+        return Ok(current.clone());
+    }
+    let revision = current_revision
+        .max(counter)
+        .checked_add(1)
+        .ok_or_else(|| GenerationDraftError::repository("draft revision exhausted"))?;
+    Ok(VersionedGenerationDraft {
+        revision,
+        snapshot: draft.clone(),
+    })
+}
+
 impl GenerationDraftSnapshot {
     /// Validates persisted generation workbench state before it reaches adapters or commands.
     ///

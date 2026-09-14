@@ -41,7 +41,9 @@ queries, and settings surfaces. The drawer is mounted as an overlay at the workb
 than within a route, so it does not resize the existing route layout, and route changes or closing the
 drawer do not end an active turn. Zustand owns only transient drawer state; sessions, events, persona,
 permissions, and generation-draft mutations remain backend data. While a turn is active, the route
-surface is inert so Agent and user edits cannot race.
+surface is inert. Starting a turn awaits the generation draft save barrier, including pending
+saves from a departed route, before the backend captures its observation. Failed turns refresh draft
+state as well because earlier tools may already have committed edits.
 
 Feature folders should stay shallow and explicit:
 

@@ -62,53 +62,99 @@ impl GenerationDraftRepository for DatabaseGenerationDraftRepository {
         expected_revision: u64,
         draft: &GenerationDraftSnapshot,
     ) -> GenerationDraftResult<VersionedGenerationDraft> {
-        let connection = self.connection.lock().map_err(draft_database_error)?;
-        let current = connection
-            .query_row(
-                "SELECT value_json FROM workspace_settings WHERE setting_key = ?1",
-                params![DRAFT_KEY],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()
-            .map_err(draft_sql_error)?
-            .as_deref()
-            .map(GenerationDraftDto::decode_domain)
-            .transpose()?;
-        let current_revision = current.as_ref().map_or(0, |value| value.revision);
-        if current_revision != expected_revision {
-            return Err(GenerationDraftError::conflict(format!(
-                "generation draft changed from revision {expected_revision} to {current_revision}"
-            )));
-        }
-        let saved = VersionedGenerationDraft {
-            revision: current_revision.saturating_add(1),
-            snapshot: draft.clone(),
-        };
-        let json = GenerationDraftDto::encode_domain(&saved)?;
-        connection
-            .execute(
-                r"
-                INSERT INTO workspace_settings(setting_key, value_json)
-                VALUES (?1, ?2)
-                ON CONFLICT(setting_key) DO UPDATE SET value_json = excluded.value_json
-                ",
-                params![DRAFT_KEY, json],
-            )
-            .map_err(draft_sql_error)?;
+        let mut connection = self.connection.lock().map_err(draft_database_error)?;
+        let transaction = connection.transaction().map_err(draft_sql_error)?;
+        let saved = save_on_connection(&transaction, expected_revision, draft)?;
+        transaction.commit().map_err(draft_sql_error)?;
         drop(connection);
         Ok(saved)
     }
 
     async fn clear_generation_draft(&self) -> GenerationDraftResult<()> {
-        let connection = self.connection.lock().map_err(draft_database_error)?;
-        connection
+        let mut connection = self.connection.lock().map_err(draft_database_error)?;
+        let transaction = connection.transaction().map_err(draft_sql_error)?;
+        let current = load_on_connection(&transaction)?;
+        let revision = current.as_ref().map_or(0, |value| value.revision);
+        preserve_revision(&transaction, revision)?;
+        transaction
             .execute(
                 "DELETE FROM workspace_settings WHERE setting_key = ?1",
-                params![DRAFT_KEY],
+                [DRAFT_KEY],
             )
-            .map(|_| ())
-            .map_err(draft_sql_error)
+            .map_err(draft_sql_error)?;
+        transaction.commit().map_err(draft_sql_error)?;
+        drop(connection);
+        Ok(())
     }
+}
+
+fn load_on_connection(
+    connection: &rusqlite::Connection,
+) -> GenerationDraftResult<Option<VersionedGenerationDraft>> {
+    let json = connection
+        .query_row(
+            "SELECT value_json FROM workspace_settings WHERE setting_key = ?1",
+            [DRAFT_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(draft_sql_error)?;
+    json.as_deref()
+        .map(GenerationDraftDto::decode_domain)
+        .transpose()
+}
+
+const REVISION_KEY: &str = "generation.draft_revision";
+
+fn revision_counter(connection: &rusqlite::Connection) -> GenerationDraftResult<u64> {
+    let value = connection
+        .query_row(
+            "SELECT value_json FROM workspace_settings WHERE setting_key = ?1",
+            [REVISION_KEY],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(draft_sql_error)?;
+    value.map_or(Ok(0), |value| {
+        value.parse().map_err(|error: std::num::ParseIntError| {
+            GenerationDraftError::repository(error.to_string())
+        })
+    })
+}
+
+fn preserve_revision(
+    connection: &rusqlite::Connection,
+    revision: u64,
+) -> GenerationDraftResult<()> {
+    let revision = revision.max(revision_counter(connection)?);
+    connection.execute(
+        "INSERT INTO workspace_settings(setting_key, value_json) VALUES (?1, ?2) ON CONFLICT(setting_key) DO UPDATE SET value_json = excluded.value_json",
+        params![REVISION_KEY, revision.to_string()],
+    ).map(|_| ()).map_err(draft_sql_error)
+}
+
+pub fn save_on_connection(
+    connection: &rusqlite::Connection,
+    expected_revision: u64,
+    draft: &GenerationDraftSnapshot,
+) -> GenerationDraftResult<VersionedGenerationDraft> {
+    let current = load_on_connection(connection)?;
+    let saved = atelier_generation::prepare_generation_draft_save(
+        current.as_ref(),
+        expected_revision,
+        revision_counter(connection)?,
+        draft,
+    )?;
+    if current.as_ref() == Some(&saved) {
+        return Ok(saved);
+    }
+    let json = GenerationDraftDto::encode_domain(&saved)?;
+    connection.execute(
+        "INSERT INTO workspace_settings(setting_key, value_json) VALUES (?1, ?2) ON CONFLICT(setting_key) DO UPDATE SET value_json = excluded.value_json",
+        params![DRAFT_KEY, json],
+    ).map_err(draft_sql_error)?;
+    preserve_revision(connection, saved.revision)?;
+    Ok(saved)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

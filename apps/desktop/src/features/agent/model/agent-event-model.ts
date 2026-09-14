@@ -24,30 +24,20 @@ export type DisplayAgentEvent =
   | { id: string; kind: "generation" };
 
 export type AgentToolNameKey =
-  | "toolNames.getGenerationDraft"
+  | "toolNames.getGenerationContext"
+  | "toolNames.editGenerationDraft"
   | "toolNames.listPromptChunks"
   | "toolNames.listPromptPresets"
-  | "toolNames.updateMainPrompt"
-  | "toolNames.upsertCharacter"
-  | "toolNames.removeCharacter"
-  | "toolNames.setImageSize"
-  | "toolNames.setGenerationParameters"
-  | "toolNames.applyPromptChunk"
-  | "toolNames.applyPromptPreset"
-  | "toolNames.submitGeneration";
+  | "toolNames.submitGeneration"
+  | "toolNames.undoAgentAction";
 
 export const AGENT_TOOL_NAME_KEYS: Readonly<Record<string, AgentToolNameKey>> = {
-  get_generation_draft: "toolNames.getGenerationDraft",
+  get_generation_context: "toolNames.getGenerationContext",
+  edit_generation_draft: "toolNames.editGenerationDraft",
   list_prompt_chunks: "toolNames.listPromptChunks",
   list_prompt_presets: "toolNames.listPromptPresets",
-  update_main_prompt: "toolNames.updateMainPrompt",
-  upsert_character: "toolNames.upsertCharacter",
-  remove_character: "toolNames.removeCharacter",
-  set_image_size: "toolNames.setImageSize",
-  set_generation_parameters: "toolNames.setGenerationParameters",
-  apply_prompt_chunk: "toolNames.applyPromptChunk",
-  apply_prompt_preset: "toolNames.applyPromptPreset",
   submit_generation: "toolNames.submitGeneration",
+  undo_agent_action: "toolNames.undoAgentAction",
 };
 
 export function buildDisplayAgentEvents(input: {

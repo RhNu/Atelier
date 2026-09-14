@@ -32,13 +32,13 @@ describe("Agent event presentation", () => {
     const events: AgentEventDto[] = [
       event("success", {
         kind: "tool_result",
-        tool_name: "update_main_prompt",
-        result_json: '{"action_id":"action-1","revision":2}',
+        tool_name: "edit_generation_draft",
+        result_json: '{"action_id":"action-1"}',
         failed: false,
       }),
       event("failure", {
         kind: "tool_result",
-        tool_name: "update_main_prompt",
+        tool_name: "edit_generation_draft",
         result_json: '{"action_id":"action-2"}',
         failed: true,
       }),
@@ -61,12 +61,12 @@ describe("Agent event presentation", () => {
       liveEvents: [
         {
           kind: "tool_started",
-          name: "update_main_prompt",
-          arguments_json: '{"expected_revision":1}',
+          name: "edit_generation_draft",
+          arguments_json: '{"operations":[]}',
         },
         {
           kind: "tool_finished",
-          name: "update_main_prompt",
+          name: "edit_generation_draft",
           result_json: '{"action_id":"action-1"}',
           failed: false,
         },
@@ -79,8 +79,8 @@ describe("Agent event presentation", () => {
       {
         id: "live-tool-0",
         kind: "tool",
-        name: "update_main_prompt",
-        arguments: '{"expected_revision":1}',
+        name: "edit_generation_draft",
+        arguments: '{"operations":[]}',
         result: '{"action_id":"action-1"}',
         state: "succeeded",
         actionId: "action-1",
@@ -93,13 +93,13 @@ describe("Agent event presentation", () => {
       events: [
         event("call", {
           kind: "tool_call",
-          tool_name: "get_generation_draft",
+          tool_name: "get_generation_context",
           arguments_json: "{}",
         }),
         event("result", {
           kind: "tool_result",
-          tool_name: "get_generation_draft",
-          result_json: '{"revision":2}',
+          tool_name: "get_generation_context",
+          result_json: '{"draft":{}}',
           failed: false,
         }),
       ],
@@ -112,7 +112,7 @@ describe("Agent event presentation", () => {
     expect(displayed[0]).toMatchObject({
       id: "call",
       arguments: "{}",
-      result: '{"revision":2}',
+      result: '{"draft":{}}',
       state: "succeeded",
     });
   });

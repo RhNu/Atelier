@@ -77,11 +77,8 @@ where
             ResourceLibraryService::new(DatabaseResourceLibraryRepository::new(connection.clone()));
         let settings_repository = DatabaseSettingsRepository::new(connection.clone());
         let settings = WorkspaceSettingsService::new(settings_repository);
-        let agent =
-            AgentWorkspaceService::new(DatabaseAgentWorkspaceRepository::new(connection.clone()));
-        agent
-            .interrupt_running_sessions(crate::time::unix_timestamp_ms())
-            .await?;
+        let agent = open_agent(&connection).await?;
+        let agent_edits = atelier_adapter_database::DatabaseAgentEditStore::new(connection.clone());
         let generation_drafts = atelier_generation::GenerationDraftService::new(
             DatabaseGenerationDraftRepository::new(connection.clone()),
         );
@@ -130,6 +127,7 @@ where
             api_keys,
             settings,
             agent,
+            agent_edits,
             agent_turn: Arc::new(crate::agent_turn::AgentTurnCoordinator::default()),
             generation_drafts,
             generation_draft_write: Mutex::new(()),
@@ -183,3 +181,14 @@ where
 }
 
 use crate::session::WorkspaceSession;
+
+async fn open_agent(
+    connection: &DatabaseConnection,
+) -> AppResult<AgentWorkspaceService<DatabaseAgentWorkspaceRepository>> {
+    let agent =
+        AgentWorkspaceService::new(DatabaseAgentWorkspaceRepository::new(connection.clone()));
+    agent
+        .interrupt_running_sessions(crate::time::unix_timestamp_ms())
+        .await?;
+    Ok(agent)
+}

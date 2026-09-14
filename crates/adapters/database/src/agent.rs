@@ -225,37 +225,8 @@ impl AgentWorkspaceRepository for DatabaseAgentWorkspaceRepository {
     }
 
     async fn save_action(&self, action: AgentAction) -> AgentResult<()> {
-        let base_revision = write_u64(action.base_revision)?;
-        let applied_revision = write_u64(action.applied_revision)?;
-        let created_at_ms = write_u64(action.created_at_ms)?;
-        let updated_at_ms = write_u64(action.updated_at_ms)?;
         let connection = self.connection.lock().map_err(database_error)?;
-        connection
-            .execute(
-                r"
-                INSERT INTO agent_actions(
-                    action_id, session_id, tool_name, base_revision, applied_revision,
-                    before_json, after_json, action_state, created_at_ms, updated_at_ms
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
-                ON CONFLICT(action_id) DO UPDATE SET
-                    action_state = excluded.action_state,
-                    updated_at_ms = excluded.updated_at_ms
-                ",
-                params![
-                    action.id.as_str(),
-                    action.session_id.as_str(),
-                    action.tool_name,
-                    base_revision,
-                    applied_revision,
-                    action.before_json,
-                    action.after_json,
-                    action_state_as_str(action.state),
-                    created_at_ms,
-                    updated_at_ms,
-                ],
-            )
-            .map(|_| ())
-            .map_err(sql_error)
+        save_action_on_connection(&connection, &action)
     }
 
     async fn get_summary(&self, session_id: &AgentSessionId) -> AgentResult<Option<AgentSummary>> {
@@ -663,6 +634,42 @@ fn sql_error(error: rusqlite::Error) -> AgentError {
     let message = error.to_string();
     drop(error);
     AgentError::repository(message)
+}
+
+pub fn save_action_on_connection(
+    connection: &rusqlite::Connection,
+    action: &AgentAction,
+) -> AgentResult<()> {
+    let base_revision = write_u64(action.base_revision)?;
+    let applied_revision = write_u64(action.applied_revision)?;
+    let created_at_ms = write_u64(action.created_at_ms)?;
+    let updated_at_ms = write_u64(action.updated_at_ms)?;
+    connection
+        .execute(
+            r"
+                INSERT INTO agent_actions(
+                    action_id, session_id, tool_name, base_revision, applied_revision,
+                    before_json, after_json, action_state, created_at_ms, updated_at_ms
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                ON CONFLICT(action_id) DO UPDATE SET
+                    action_state = excluded.action_state,
+                    updated_at_ms = excluded.updated_at_ms
+                ",
+            params![
+                action.id.as_str(),
+                action.session_id.as_str(),
+                action.tool_name,
+                base_revision,
+                applied_revision,
+                action.before_json,
+                action.after_json,
+                action_state_as_str(action.state),
+                created_at_ms,
+                updated_at_ms,
+            ],
+        )
+        .map(|_| ())
+        .map_err(sql_error)
 }
 
 #[cfg(test)]

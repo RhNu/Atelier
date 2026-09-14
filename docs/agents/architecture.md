@@ -188,7 +188,12 @@ sessions, summaries, events, and reversible actions are workspace-owned.
 An Agent turn snapshots its selected model and persona so later global edits do not rewrite history.
 The application layer exposes a fixed Atelier tool set for reading prompt resources, editing the
 versioned generation draft, and submitting at most one generation batch per turn. Draft writes use
-revision checks; successful mutations record before/after state for one-step undo. Standard mode asks
+revision checks managed by the host against snapshots actually delivered to the model. Tool schemas
+never require model-authored revision values. Observations from tool results become eligible only
+on the next model request; a stale or consumed observation rejects queued edits. Draft operations
+apply atomically, preserve unspecified fields, and support exact literal replacement. The durable
+draft counter survives clearing/recreation; no-op saves do not advance it. Text-only Agent draft
+writes and their before/after undo records commit in one database transaction. Standard mode asks
 before generation, Ask mode asks before every mutation, and Bypass All is an explicit workspace
 choice. Closing the drawer does not cancel a turn; stopping it, closing/replacing the workspace, or
 shutting down does.

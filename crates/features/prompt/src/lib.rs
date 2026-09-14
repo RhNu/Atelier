@@ -6,6 +6,7 @@ mod dialect;
 mod formatter;
 mod functions;
 mod syntax;
+mod text_edit;
 
 pub use ast::{
     ExtensionCall, FunctionArg, FunctionValue, NumericEmphasis, Pipe, PromptAst, Randomizer,
@@ -18,3 +19,4 @@ pub use syntax::{
     ParsedPrompt, PromptSpan, PromptSyntaxKind, PromptSyntaxNode, PromptToken, PromptTokenKind,
     parse_prompt,
 };
+pub use text_edit::{TextEditError, replace_prompt_text};

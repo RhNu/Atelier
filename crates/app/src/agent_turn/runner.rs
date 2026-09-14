@@ -12,7 +12,7 @@ use atelier_agent::{
 use atelier_app_api::agent::{
     AgentTurnEventDto, AgentTurnResultDto, RunAgentTurnRequestDto, UndoAgentActionRequestDto,
 };
-use atelier_app_api::generation::{SaveGenerationDraftRequestDto, VersionedGenerationDraftDto};
+use atelier_app_api::generation::VersionedGenerationDraftDto;
 use atelier_secrets::{SecretRecordId, SecretStore};
 use atelier_vibe::EmbeddedVibeDocumentExtractor;
 use sha2::{Digest, Sha256};
@@ -49,14 +49,14 @@ where
     let user_sequence = next_sequence(&existing_events);
     let summary = refresh_summary(&app, &session_id, &existing_events).await?;
     let history = chat_history(&existing_events, summary.as_ref());
-    let draft = app.generation().get_draft().await?;
+    let draft = app.generation().ensure_draft().await?;
     let context = serde_json::to_string(&serde_json::json!({
         "route": request.context.route,
         "selected_resource_ids": request.context.selected_resource_ids,
-        "generation_draft": draft,
+        "generation_draft": draft.draft,
     }))
     .map_err(|error| AppError::new("agent_runtime", error.to_string()))?;
-    let image_model = draft.as_ref().map(|value| value.draft.model);
+    let image_model = Some(draft.draft.model);
     let family = if image_model
         .map(crate::mapping::image_model_to_domain)
         .is_some_and(|model| model.capabilities().uses_v5_extensions)
@@ -109,10 +109,10 @@ where
         app.clone(),
         session_id.clone(),
         permission_mode,
-        app.agent_turn.clone(),
         runtime_observer.clone(),
         cancellation.clone(),
         user_sequence.saturating_add(1),
+        draft,
     ));
     let outcome = runtime
         .agent_runtime
@@ -194,9 +194,22 @@ where
     let app = runtime
         .current_session()
         .map_err(|error| AppError::new(error.code, error.message))?;
+    undo_in_session(&app, &request.action_id).await
+}
+
+pub(super) async fn undo_in_session<S, F, E>(
+    app: &WorkspaceSession<S, F, E>,
+    action_id: &str,
+) -> AppResult<VersionedGenerationDraftDto>
+where
+    S: SecretStore + Clone + Send + Sync,
+    F: NovelAiClientFactory + Clone + Send + Sync,
+    E: EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
+{
+    let _guard = app.generation_draft_write.lock().await;
     let mut action = app
         .agent
-        .get_action(&atelier_agent::AgentActionId::new(request.action_id))
+        .get_action(&atelier_agent::AgentActionId::new(action_id))
         .await?
         .ok_or_else(|| AppError::new("agent_not_found", "agent action does not exist"))?;
     if action.state != atelier_agent::AgentActionState::Applied {
@@ -219,17 +232,17 @@ where
     }
     let draft = serde_json::from_str(&action.before_json)
         .map_err(|error| AppError::new("agent_repository", error.to_string()))?;
-    let restored = app
-        .generation()
-        .save_draft(SaveGenerationDraftRequestDto {
-            expected_revision: current.revision,
-            draft,
-        })
-        .await?;
     action.state = atelier_agent::AgentActionState::Undone;
     action.updated_at_ms = crate::time::unix_timestamp_ms();
-    app.agent.save_action(action).await?;
-    Ok(restored)
+    let restored = app.agent_edits.commit_draft(
+        current.revision,
+        &crate::mapping::generation_draft_to_domain(draft),
+        action,
+    )?;
+    Ok(VersionedGenerationDraftDto {
+        revision: restored.revision,
+        draft: crate::mapping::generation_draft_to_dto(&restored.snapshot),
+    })
 }
 
 async fn resolve_connection<S, F, E>(

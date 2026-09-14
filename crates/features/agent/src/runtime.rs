@@ -97,6 +97,11 @@ where
 
 #[async_trait]
 pub trait AgentToolExecutor: Send + Sync {
+    /// Promotes only observations delivered by completed tools to the next model request.
+    async fn begin_model_step(&self) -> AgentResult<()> {
+        Ok(())
+    }
+
     async fn execute(&self, tool_name: &str, arguments_json: &str) -> AgentResult<String>;
 }
 

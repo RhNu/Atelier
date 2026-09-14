@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { flushGenerationDraft } from "@/features/generation/state/draft-save-barrier";
 import { agentApi, queryKeys } from "@/platform/atelier";
 import { useToastStore } from "@/stores/toast-store";
 import type { AgentEventDto, AgentSessionDto } from "@/types";
@@ -110,6 +111,7 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
     setMessage("");
     drawer.beginTurn(sessionId, content);
     try {
+      await flushGenerationDraft();
       await agentApi.runTurn(
         {
           session_id: sessionId,
@@ -126,7 +128,11 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
       ]);
       drawer.finishTurn();
     } catch (error) {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.agent.events(sessionId) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.agent.events(sessionId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.agent.sessions() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.generation.root() }),
+      ]);
       drawer.finishTurn(formatError(error));
     }
   }, [drawer, message, queryClient, route, running]);

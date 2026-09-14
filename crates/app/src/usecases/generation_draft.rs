@@ -36,6 +36,23 @@ where
         }))
     }
 
+    pub async fn ensure_draft(&self) -> AppResult<VersionedGenerationDraftDto> {
+        let _guard = self.app.generation_draft_write.lock().await;
+        if let Some(draft) = self.get_draft().await? {
+            return Ok(draft);
+        }
+        let settings = self.app.settings.get_workspace_settings().await?;
+        let saved = self
+            .app
+            .generation_drafts
+            .save(0, default_draft(&settings))
+            .await?;
+        Ok(VersionedGenerationDraftDto {
+            revision: saved.revision,
+            draft: generation_draft_to_dto(&saved.snapshot),
+        })
+    }
+
     pub async fn save_draft(
         &self,
         request: SaveGenerationDraftRequestDto,
@@ -152,7 +169,7 @@ where
     }
 }
 
-fn default_draft(settings: &atelier_settings::WorkspaceSettings) -> GenerationDraftSnapshot {
+pub fn default_draft(settings: &atelier_settings::WorkspaceSettings) -> GenerationDraftSnapshot {
     let defaults = &settings.generation;
     GenerationDraftSnapshot {
         model: defaults.model,
