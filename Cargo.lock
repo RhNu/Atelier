@@ -359,6 +359,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "atelier-adapter-agent-config-fs"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "atelier-agent",
+ "futures-executor",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "atelier-adapter-danbooru"
 version = "0.1.0"
 dependencies = [
@@ -570,6 +582,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "atelier-agent"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-executor",
+ "thiserror 2.0.20",
+ "url",
+]
+
+[[package]]
 name = "atelier-app"
 version = "0.1.0"
 dependencies = [
@@ -580,6 +602,7 @@ dependencies = [
  "atelier-adapter-keyring",
  "atelier-adapter-novelai",
  "atelier-adapter-storage-fs",
+ "atelier-agent",
  "atelier-app-api",
  "atelier-artifacts",
  "atelier-danbooru",
@@ -648,6 +671,7 @@ name = "atelier-desktop"
 version = "0.1.0"
 dependencies = [
  "arboard",
+ "atelier-adapter-agent-config-fs",
  "atelier-adapter-danbooru",
  "atelier-adapter-downloadable-resources-fs",
  "atelier-adapter-image-analysis-onnx",
@@ -659,6 +683,7 @@ dependencies = [
  "atelier-adapter-onnx-runtime",
  "atelier-adapter-secrets-fs",
  "atelier-adapter-settings-fs",
+ "atelier-agent",
  "atelier-app",
  "atelier-app-api",
  "atelier-downloadable-resources",

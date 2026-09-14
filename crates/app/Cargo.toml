@@ -16,6 +16,7 @@ atelier-adapter-keyring = { workspace = true }
 atelier-adapter-novelai = { workspace = true }
 atelier-adapter-storage-fs = { workspace = true }
 atelier-app-api = { workspace = true }
+atelier-agent = { workspace = true }
 atelier-artifacts = { workspace = true }
 atelier-director = { workspace = true }
 atelier-downloadable-resources = { workspace = true }

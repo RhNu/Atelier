@@ -42,6 +42,9 @@ pub use downloads::*;
 mod account;
 pub use account::*;
 
+mod agent;
+pub use agent::*;
+
 mod prompt;
 pub use prompt::*;
 

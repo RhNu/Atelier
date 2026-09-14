@@ -8,6 +8,7 @@ use atelier_generation::{
 };
 
 mod account;
+mod agent;
 mod gallery;
 mod generation;
 mod generation_draft;
@@ -18,6 +19,7 @@ mod settings;
 mod vibe;
 
 pub use account::*;
+pub use agent::*;
 pub use gallery::*;
 pub use generation::*;
 pub use generation_draft::*;

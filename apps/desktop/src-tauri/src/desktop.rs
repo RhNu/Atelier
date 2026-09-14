@@ -1,4 +1,5 @@
 use crate::desktop_system::{DesktopPaths, DesktopSystem};
+use atelier_adapter_agent_config_fs::FileSystemAgentRegistryRepository;
 use atelier_adapter_danbooru::ReqwestDanbooruClient;
 use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_lexicon_bundle::ManagedLexiconBundle;
@@ -201,6 +202,9 @@ pub fn build_desktop_state(
         NovelAiEmbeddedVibeExtractor,
         global_settings,
         Arc::new(application_api_key_registry(&system)),
+        Arc::new(FileSystemAgentRegistryRepository::new(
+            system.paths().app_config_dir.join("agent-registry.json"),
+        )),
     );
     dependencies.safety_scanner = safety_pipeline
         .clone()

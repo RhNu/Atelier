@@ -21,7 +21,7 @@ pub use runtime::{AtelierRuntime, CommandResult};
 pub use session::WorkspaceSession;
 pub use worker::GenerationWorkerCancel;
 
-pub use usecases::AccountUseCases;
+pub use usecases::{AccountUseCases, AgentModelUseCases};
 
 mod time;
 

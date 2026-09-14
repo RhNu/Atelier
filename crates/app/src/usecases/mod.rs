@@ -5,6 +5,7 @@ pub use history::{HistoryUseCases, generation_history_records_from_queue_snapsho
 pub use resource::ResourceUseCases;
 
 mod account;
+mod agent;
 mod director;
 mod events;
 mod gallery;
@@ -20,6 +21,7 @@ mod vibe;
 mod workspace;
 
 pub use account::AccountUseCases;
+pub use agent::AgentModelUseCases;
 pub use director::DirectorUseCases;
 pub use events::EventsUseCases;
 pub use gallery::GalleryUseCases;

@@ -4,6 +4,7 @@ use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory,
 };
+use atelier_agent::AgentRegistryService;
 use atelier_app_api::error::ErrorEnvelopeDto;
 use atelier_app_api::event::AppEventDto;
 use atelier_danbooru::DanbooruClient;
@@ -41,6 +42,7 @@ pub struct AtelierRuntime<
     pub(crate) event_listeners: Mutex<Vec<AppEventListener>>,
     pub(crate) global_settings: GlobalSettingsService,
     pub(crate) api_keys: AppApiKeyService<S, F>,
+    pub(crate) agent_registry: AgentRegistryService,
 }
 
 impl<S, F, E> AtelierRuntime<S, F, E> {
@@ -58,6 +60,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             ),
         );
         let analysis = dependencies.image_analysis;
+        let agent_registry = AgentRegistryService::new(dependencies.agent_registry);
         Self {
             session: Mutex::new(None),
             secrets: dependencies.secrets,
@@ -75,6 +78,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             event_listeners: Mutex::new(Vec::new()),
             global_settings: dependencies.global_settings,
             api_keys,
+            agent_registry,
         }
     }
 
@@ -83,6 +87,15 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
     pub const fn account(&self) -> crate::usecases::AccountUseCases<'_, S, F> {
         crate::usecases::AccountUseCases {
             api_keys: &self.api_keys,
+        }
+    }
+
+    /// Borrows application-global Agent model configuration use cases.
+    #[must_use]
+    pub const fn agent_models(&self) -> crate::usecases::AgentModelUseCases<'_, S> {
+        crate::usecases::AgentModelUseCases {
+            registry: &self.agent_registry,
+            secrets: &self.secrets,
         }
     }
 

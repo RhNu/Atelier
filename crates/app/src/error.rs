@@ -164,6 +164,12 @@ impl From<atelier_resource_catalog::ResourceCatalogError> for AppError {
     }
 }
 
+impl From<atelier_agent::AgentError> for AppError {
+    fn from(error: atelier_agent::AgentError) -> Self {
+        Self::new(format!("agent_{}", error.kind), error.message)
+    }
+}
+
 impl From<atelier_resource_library::ResourceLibraryError> for AppError {
     fn from(error: atelier_resource_library::ResourceLibraryError) -> Self {
         Self::new(
