@@ -37,10 +37,11 @@ Cache keys include source identity and the Danbooru account revision. Invalidati
 does not claim to cancel an already-running Tauri HTTP request. `/inspiration` is only a redirect.
 
 `features/agent` owns the persistent workspace assistant drawer, conversation projection, command
-queries, and settings surfaces. The drawer is mounted at the workbench shell rather than within a
-route, so route changes and closing the drawer do not end an active turn. Zustand owns only transient
-drawer state; sessions, events, persona, permissions, and generation-draft mutations remain backend
-data. While a turn is active, the route surface is inert so Agent and user edits cannot race.
+queries, and settings surfaces. The drawer is mounted as an overlay at the workbench shell rather
+than within a route, so it does not resize the existing route layout, and route changes or closing the
+drawer do not end an active turn. Zustand owns only transient drawer state; sessions, events, persona,
+permissions, and generation-draft mutations remain backend data. While a turn is active, the route
+surface is inert so Agent and user edits cannot race.
 
 Feature folders should stay shallow and explicit:
 

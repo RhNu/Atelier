@@ -170,12 +170,12 @@ export function AppShell({
             </div>
           </nav>
 
-          <div className="flex min-h-0 min-w-0 overflow-hidden">
+          <div className="relative min-h-0 min-w-0 overflow-hidden">
             <main
               inert={agentRunning ? true : undefined}
               aria-disabled={agentRunning || undefined}
               className={[
-                "min-h-0 min-w-0 flex-1 overflow-hidden transition-opacity",
+                "h-full min-h-0 min-w-0 overflow-hidden transition-opacity",
                 agentRunning ? "pointer-events-none opacity-70" : "",
               ].join(" ")}
             >

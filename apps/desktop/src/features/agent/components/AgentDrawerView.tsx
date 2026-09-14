@@ -49,8 +49,9 @@ export function AgentDrawerView(props: AgentDrawerViewProps) {
     <aside
       aria-label={t("drawerLabel")}
       aria-hidden={!props.open}
+      inert={!props.open ? true : undefined}
       className={[
-        "relative min-h-0 shrink-0 border-l border-app-border bg-app-bg shadow-2xl transition-[width]",
+        "absolute inset-y-0 right-0 z-30 min-h-0 border-l border-app-border bg-app-bg shadow-2xl transition-[width]",
         props.open ? "" : "w-0 overflow-hidden border-l-0",
       ].join(" ")}
       style={props.open ? { width: props.width } : undefined}
