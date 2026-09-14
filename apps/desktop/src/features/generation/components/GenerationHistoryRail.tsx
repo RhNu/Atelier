@@ -115,7 +115,8 @@ export function GenerationHistoryRail({
           aria-label={t("filterHistory")}
           value={statusFilter}
           onValueChange={handleStatusChange}
-          className="h-7 w-28 px-2 pr-6 text-xs"
+          className="h-7 px-2 pr-6 text-xs"
+          containerClassName="w-28 shrink-0"
           options={statusOptions}
         />
         <div className="flex items-center gap-1">

@@ -16,6 +16,7 @@ import { AppChoiceChevron, AppChoicePopover } from "./AppChoicePopover";
 export type SelectOption = {
   value: string;
   label: string;
+  description?: string;
 };
 
 export type SelectOptionGroup = {
@@ -147,7 +148,7 @@ export function AppSelect({
   }
 
   return (
-    <span ref={anchorRef} className={["relative block w-full", containerClassName].join(" ")}>
+    <span ref={anchorRef} className={selectContainerClasses(containerClassName)}>
       <button
         {...props}
         type="button"
@@ -159,7 +160,7 @@ export function AppSelect({
         value={value}
         disabled={disabled}
         className={[
-          "flex h-9 w-full items-center border border-app-border bg-app-surface px-3 pr-8 text-left text-sm text-app-text outline-none",
+          "flex h-9 w-full min-w-0 items-center border border-app-border bg-app-surface px-3 pr-8 text-left text-sm text-app-text outline-none",
           "focus:border-brand-400 disabled:cursor-not-allowed disabled:opacity-50",
           className,
         ].join(" ")}
@@ -234,7 +235,7 @@ function AppSelectOptions({
           onSelect({ ...option, groupLabel });
         }}
       >
-        <span className="min-w-0 flex-1 truncate">{option.label}</span>
+        <AppSelectOptionContent option={option} />
         {option.value === value ? <Check aria-hidden="true" className="size-4 shrink-0" /> : null}
       </div>
     );
@@ -251,6 +252,23 @@ function AppSelectOptions({
     ) : (
       renderOption(option)
     ),
+  );
+}
+
+function selectContainerClasses(containerClassName: string) {
+  return ["relative block min-w-0", containerClassName || "w-full"].join(" ");
+}
+
+function AppSelectOptionContent({ option }: { option: SelectOption }) {
+  return (
+    <span className="min-w-0 flex-1">
+      <span className="block truncate">{option.label}</span>
+      {option.description ? (
+        <span className="mt-0.5 block text-[11px] leading-4 text-app-muted">
+          {option.description}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

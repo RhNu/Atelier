@@ -171,7 +171,7 @@ describe("UI primitives", () => {
         <AppSelect
           aria-label="Size preset"
           value="portrait"
-          containerClassName="!w-40"
+          containerClassName="w-40"
           options={groupedSelectItems}
           onValueChange={onValueChange}
         />
@@ -181,7 +181,8 @@ describe("UI primitives", () => {
     );
 
     const select = screen.getByRole("combobox", { name: "Size preset" });
-    expect(select.parentElement).toHaveClass("!w-40");
+    expect(select.parentElement).toHaveClass("w-40");
+    expect(select.parentElement).not.toHaveClass("w-full");
     await user.click(select);
     expect(screen.getByRole("group", { name: "Standard" })).toBeInTheDocument();
     expect(screen.getByRole("listbox", { name: "Size preset" })).toHaveClass(
@@ -194,6 +195,41 @@ describe("UI primitives", () => {
     expect(screen.queryByText("Empty inbox")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Hover help" })).not.toBeInTheDocument();
     expect(screen.getByRole("tooltip")).not.toHaveClass("group-focus-within:block");
+  });
+
+  it("keeps an upward-opening select menu attached to its trigger", async () => {
+    const user = userEvent.setup();
+    const heightSpy = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(104);
+    const viewportHeightSpy = vi
+      .spyOn(document.documentElement, "clientHeight", "get")
+      .mockReturnValue(400);
+
+    render(
+      <AppSelect aria-label="Permission mode" value="portrait" options={groupedSelectItems} />,
+    );
+    const select = screen.getByRole("combobox", { name: "Permission mode" });
+    const anchor = select.parentElement;
+    if (!anchor) throw new Error("Select anchor was not rendered.");
+    vi.spyOn(anchor, "getBoundingClientRect").mockReturnValue({
+      bottom: 382,
+      height: 32,
+      left: 300,
+      right: 428,
+      top: 350,
+      width: 128,
+      x: 300,
+      y: 350,
+      toJSON: () => ({}),
+    });
+
+    await user.click(select);
+
+    const listbox = screen.getByRole("listbox", { name: "Permission mode" });
+    expect(listbox).toHaveAttribute("data-placement", "above");
+    expect(listbox).toHaveStyle({ top: "242px" });
+
+    heightSpy.mockRestore();
+    viewportHeightSpy.mockRestore();
   });
 
   it("filters editable combobox suggestions and accepts free text", async () => {

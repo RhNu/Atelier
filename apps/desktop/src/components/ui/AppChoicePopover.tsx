@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -16,6 +17,7 @@ type PopoverPosition = {
   top: number;
   width: number;
   maxHeight: number;
+  placement: "above" | "below";
 };
 
 type AppChoicePopoverProps = {
@@ -59,6 +61,7 @@ export function AppChoicePopover({
     top: 0,
     width: MIN_WIDTH,
     maxHeight: MAX_HEIGHT,
+    placement: "below",
   });
 
   const updatePosition = useCallback(() => {
@@ -68,32 +71,43 @@ export function AppChoicePopover({
     const rect = anchor.getBoundingClientRect();
     const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
     const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
-    const width = Math.min(
-      Math.max(rect.width, MIN_WIDTH),
-      Math.max(MIN_WIDTH, viewportWidth - VIEWPORT_PADDING * 2),
-    );
+    const availableWidth = Math.max(0, viewportWidth - VIEWPORT_PADDING * 2);
+    const width = Math.min(Math.max(rect.width, MIN_WIDTH), availableWidth);
+    const idealLeft =
+      rect.left + width <= viewportWidth - VIEWPORT_PADDING ? rect.left : rect.right - width;
     const left = Math.min(
-      Math.max(VIEWPORT_PADDING, rect.left),
+      Math.max(VIEWPORT_PADDING, idealLeft),
       Math.max(VIEWPORT_PADDING, viewportWidth - width - VIEWPORT_PADDING),
     );
-    const below = viewportHeight - rect.bottom - POPOVER_GAP - VIEWPORT_PADDING;
-    const above = rect.top - POPOVER_GAP - VIEWPORT_PADDING;
+    const below = Math.max(0, viewportHeight - rect.bottom - POPOVER_GAP - VIEWPORT_PADDING);
+    const above = Math.max(0, rect.top - POPOVER_GAP - VIEWPORT_PADDING);
     const placeBelow = below >= MIN_HEIGHT || below >= above;
-    const availableHeight = Math.max(MIN_HEIGHT, placeBelow ? below : above);
+    const availableHeight = placeBelow ? below : above;
     const maxHeight = Math.min(MAX_HEIGHT, availableHeight);
+    const renderedHeight = Math.min(popoverRef.current?.scrollHeight ?? maxHeight, maxHeight);
     const top = placeBelow
       ? rect.bottom + POPOVER_GAP
-      : Math.max(VIEWPORT_PADDING, rect.top - POPOVER_GAP - maxHeight);
+      : Math.max(VIEWPORT_PADDING, rect.top - POPOVER_GAP - renderedHeight);
 
-    setPosition({ left, top, width, maxHeight });
+    setPosition({
+      left,
+      top,
+      width,
+      maxHeight,
+      placement: placeBelow ? "below" : "above",
+    });
   }, [anchorRef]);
 
   useLayoutEffect(() => {
     if (!open) return;
     updatePosition();
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updatePosition);
+    if (popoverRef.current) resizeObserver?.observe(popoverRef.current);
     window.addEventListener("resize", updatePosition);
     document.addEventListener("scroll", updatePosition, true);
     return () => {
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", updatePosition);
       document.removeEventListener("scroll", updatePosition, true);
     };
@@ -115,6 +129,15 @@ export function AppChoicePopover({
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [anchorRef, onClose, open]);
 
+  const popoverStyle = useMemo(
+    () => ({
+      left: position.left,
+      top: position.top,
+      width: position.width,
+      maxHeight: position.maxHeight,
+    }),
+    [position.left, position.maxHeight, position.top, position.width],
+  );
   if (!open) return null;
 
   return createPortal(
@@ -123,8 +146,9 @@ export function AppChoicePopover({
       id={id}
       role="listbox"
       aria-label={label}
+      data-placement={position.placement}
       className="fixed z-[70] overflow-y-auto border border-app-border bg-app-panel py-1 text-sm text-app-text shadow-app-panel"
-      style={position}
+      style={popoverStyle}
     >
       {children}
     </div>,

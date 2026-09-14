@@ -77,7 +77,7 @@ export function GenerationParamsPanel({
           aria-label={t("sizePreset")}
           value={selectedPreset}
           onValueChange={handlePresetChange}
-          containerClassName="!w-40 shrink-0"
+          containerClassName="w-40 shrink-0"
           className="h-9 min-w-0 px-3 pr-7 text-sm"
           options={[
             ...(["normal", "large", "small"] as const).map((group) => ({

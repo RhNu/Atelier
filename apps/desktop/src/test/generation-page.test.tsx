@@ -886,7 +886,7 @@ describe("GeneratePage", () => {
     expect(screen.getByRole("group", { name: "Normal" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Portrait (832×1216)" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Size preset" }).parentElement).toHaveClass(
-      "!w-40",
+      "w-40",
       "shrink-0",
     );
     expect(screen.getByTestId("generation-settings-sidebar")).toHaveStyle({ width: "360px" });

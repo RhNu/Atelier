@@ -1,4 +1,4 @@
-/* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop, react-perf/jsx-no-new-array-as-prop */
+/* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
 import {
   Bot,
   MessageSquarePlus,
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -73,6 +74,26 @@ export function AgentDrawerView(props: AgentDrawerViewProps) {
   const changePermission = (value: string) =>
     props.onPermissionModeChange(parsePermissionMode(value));
   const contextUsage = formatContextUsage(props.contextInputTokens, props.contextWindow);
+  const permissionOptions = useMemo<SelectOption[]>(
+    () => [
+      {
+        value: "standard",
+        label: t("permissionStandardName"),
+        description: t("permissionStandardDescription"),
+      },
+      {
+        value: "ask",
+        label: t("permissionAskName"),
+        description: t("permissionAskDescription"),
+      },
+      {
+        value: "bypass_all",
+        label: t("permissionBypassName"),
+        description: t("permissionBypassDescription"),
+      },
+    ],
+    [t],
+  );
 
   return (
     <aside
@@ -177,14 +198,10 @@ export function AgentDrawerView(props: AgentDrawerViewProps) {
             <AppSelect
               aria-label={t("permissionMode")}
               value={props.permissionMode}
-              options={[
-                { value: "standard", label: t("permissionStandard") },
-                { value: "ask", label: t("permissionAsk") },
-                { value: "bypass_all", label: t("permissionBypass") },
-              ]}
+              options={permissionOptions}
               disabled={props.running || props.updatingPermission}
               className="h-8 px-2 pr-6 text-xs"
-              containerClassName="w-32 shrink-0"
+              containerClassName="w-28 shrink-0"
               onValueChange={changePermission}
             />
             {props.running ? (
