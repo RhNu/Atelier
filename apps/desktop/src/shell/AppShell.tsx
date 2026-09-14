@@ -6,6 +6,7 @@ import { frontendLogger, reportBackgroundPromise } from "../app/logger";
 import { AppButton, AppPanel, AppToastHost, LanguageSelect } from "../components/ui";
 import { primaryRouteNavItems, settingsNavItem, type RouteNavItem } from "../routes/nav";
 import type { FrontendLanguageDto, WorkspaceRestoreFailureDto, WorkspaceStatusDto } from "../types";
+import { AgentNavButton } from "./AgentNavButton";
 
 export type AppShellProps = {
   workspaceStatus: WorkspaceStatusDto | null;
@@ -15,6 +16,10 @@ export type AppShellProps = {
   restoreFailure?: WorkspaceRestoreFailureDto | null;
   activePath?: string;
   children?: ReactNode;
+  agentDrawer?: ReactNode;
+  agentOpen?: boolean;
+  agentRunning?: boolean;
+  onToggleAgent?: () => void;
   onOpenWorkspace?: () => void;
   onRetryWorkspaceRestore?: () => void;
   onNavigate?: (to: RouteNavItem["to"]) => void;
@@ -73,6 +78,10 @@ export function AppShell({
   restoreFailure,
   activePath = getFallbackPath(),
   children,
+  agentDrawer,
+  agentOpen = false,
+  agentRunning = false,
+  onToggleAgent,
   onOpenWorkspace,
   onRetryWorkspaceRestore,
   onNavigate,
@@ -88,45 +97,7 @@ export function AppShell({
 
   return (
     <div className="flex h-svh min-h-0 flex-col overflow-hidden bg-app-bg text-app-text">
-      <header
-        data-tauri-drag-region
-        className="titlebar-drag flex h-11 shrink-0 items-center justify-between border-b border-app-border bg-app-panel pl-4"
-      >
-        <div data-tauri-drag-region className="flex items-center gap-3">
-          <div className="grid size-6 place-items-center border border-brand-400/50 bg-brand-500/20 text-[11px] font-black text-brand-100">
-            A
-          </div>
-          <div data-tauri-drag-region>
-            <p className="text-sm font-semibold text-white">Atelier</p>
-          </div>
-        </div>
-        <div className="titlebar-no-drag flex h-full items-center">
-          <button
-            type="button"
-            aria-label={t("minimizeWindow")}
-            className="grid h-full w-11 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
-            onClick={handleMinimizeWindow}
-          >
-            <Minus aria-hidden="true" className="size-4" />
-          </button>
-          <button
-            type="button"
-            aria-label={t("maximizeWindow")}
-            className="grid h-full w-11 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
-            onClick={handleMaximizeWindow}
-          >
-            <Square aria-hidden="true" className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            aria-label={t("closeWindow")}
-            className="grid h-full w-11 place-items-center text-app-muted hover:bg-rose-500 hover:text-white"
-            onClick={handleCloseWindow}
-          >
-            <X aria-hidden="true" className="size-4" />
-          </button>
-        </div>
-      </header>
+      <AppTitlebar />
 
       {showWorkspaceGate ? (
         <main className="flex min-h-0 flex-1 items-center justify-center p-6">
@@ -190,6 +161,7 @@ export function AppShell({
               })}
             </div>
             <div className="border-t border-app-border">
+              <AgentNavButton open={agentOpen} running={agentRunning} onClick={onToggleAgent} />
               <RouteNavLink
                 active={activePath === settingsNavItem.to}
                 item={settingsNavItem}
@@ -198,12 +170,69 @@ export function AppShell({
             </div>
           </nav>
 
-          <main className="min-h-0 min-w-0 overflow-hidden">{children}</main>
+          <div className="flex min-h-0 min-w-0 overflow-hidden">
+            <main
+              inert={agentRunning ? true : undefined}
+              aria-disabled={agentRunning || undefined}
+              className={[
+                "min-h-0 min-w-0 flex-1 overflow-hidden transition-opacity",
+                agentRunning ? "pointer-events-none opacity-70" : "",
+              ].join(" ")}
+            >
+              {children}
+            </main>
+            {agentDrawer}
+          </div>
         </div>
       )}
 
       <AppToastHost />
     </div>
+  );
+}
+
+function AppTitlebar() {
+  const { t } = useTranslation("shell");
+  return (
+    <header
+      data-tauri-drag-region
+      className="titlebar-drag flex h-11 shrink-0 items-center justify-between border-b border-app-border bg-app-panel pl-4"
+    >
+      <div data-tauri-drag-region className="flex items-center gap-3">
+        <div className="grid size-6 place-items-center border border-brand-400/50 bg-brand-500/20 text-[11px] font-black text-brand-100">
+          A
+        </div>
+        <p data-tauri-drag-region className="text-sm font-semibold text-white">
+          Atelier
+        </p>
+      </div>
+      <div className="titlebar-no-drag flex h-full items-center">
+        <button
+          type="button"
+          aria-label={t("minimizeWindow")}
+          className="grid h-full w-11 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
+          onClick={handleMinimizeWindow}
+        >
+          <Minus aria-hidden="true" className="size-4" />
+        </button>
+        <button
+          type="button"
+          aria-label={t("maximizeWindow")}
+          className="grid h-full w-11 place-items-center text-app-muted hover:bg-app-surface hover:text-app-text"
+          onClick={handleMaximizeWindow}
+        >
+          <Square aria-hidden="true" className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          aria-label={t("closeWindow")}
+          className="grid h-full w-11 place-items-center text-app-muted hover:bg-rose-500 hover:text-white"
+          onClick={handleCloseWindow}
+        >
+          <X aria-hidden="true" className="size-4" />
+        </button>
+      </div>
+    </header>
   );
 }
 

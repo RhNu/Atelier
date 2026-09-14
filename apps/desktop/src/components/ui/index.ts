@@ -6,6 +6,7 @@ export { AppModal } from "./AppModal";
 export { AppPanel } from "./AppPanel";
 export { AppRangeField } from "./AppRangeField";
 export { AppSelect } from "./AppSelect";
+export type { SelectOption, SelectOptionGroup } from "./AppSelect";
 export { AppTabs } from "./AppTabs";
 export { AppToastHost } from "./AppToastHost";
 export { AppToolbar } from "./AppToolbar";

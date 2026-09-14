@@ -13,6 +13,8 @@ export const settings = {
   updatesDescription: "Atelier application updates",
   connections: "Connections",
   connectionsDescription: "Application-wide external service accounts",
+  agent: "Agent",
+  agentDescription: "Prompt editing assistant and model access",
   workspace: "Workspace",
   workspaceDescription: "Current workspace and lifecycle",
   frontend: "Frontend",

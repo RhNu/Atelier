@@ -99,3 +99,48 @@
     app-region: no-drag;
   }
 }
+
+@layer components {
+  .agent-markdown > * + * {
+    margin-top: 0.65rem;
+  }
+
+  .agent-markdown ul,
+  .agent-markdown ol {
+    padding-left: 1.25rem;
+  }
+
+  .agent-markdown ul {
+    list-style: disc;
+  }
+
+  .agent-markdown ol {
+    list-style: decimal;
+  }
+
+  .agent-markdown code {
+    border: 1px solid var(--color-app-border);
+    background: rgba(0, 0, 0, 0.24);
+    padding: 0.1rem 0.25rem;
+    font-family: var(--font-prompt);
+    font-size: 0.82em;
+  }
+
+  .agent-markdown pre {
+    overflow: auto;
+    border: 1px solid var(--color-app-border);
+    background: rgba(0, 0, 0, 0.24);
+    padding: 0.65rem;
+  }
+
+  .agent-markdown pre code {
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .agent-markdown a {
+    color: var(--color-brand-200);
+    text-decoration: underline;
+  }
+}

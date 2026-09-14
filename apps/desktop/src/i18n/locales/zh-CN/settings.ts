@@ -16,6 +16,8 @@ export const settings = {
   updatesDescription: "Atelier 应用更新",
   connections: "服务连接",
   connectionsDescription: "应用级外部服务账户",
+  agent: "Agent",
+  agentDescription: "提示词编辑助手与模型访问",
   workspace: "工作区",
   workspaceDescription: "当前工作区及其生命周期",
   frontend: "界面",

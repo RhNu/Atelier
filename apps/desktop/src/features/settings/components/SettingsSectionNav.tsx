@@ -7,6 +7,7 @@ import {
   PackageOpen,
   ShieldCheck,
   WandSparkles,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 import { useCallback } from "react";
@@ -17,6 +18,7 @@ import { AppPanel } from "@/components/ui";
 export type SettingsSection =
   | "workspace"
   | "connections"
+  | "agent"
   | "generation"
   | "images"
   | "frontend"
@@ -30,6 +32,7 @@ type SettingSection = {
     | "interface"
     | "safety"
     | "connections"
+    | "agent"
     | "workspace"
     | "generation"
     | "images"
@@ -39,6 +42,7 @@ type SettingSection = {
     | "interfaceDescription"
     | "safetyDescription"
     | "connectionsDescription"
+    | "agentDescription"
     | "workspaceDescription"
     | "generationDescription"
     | "imagesDescription"
@@ -48,6 +52,12 @@ type SettingSection = {
 };
 
 const applicationSections: ReadonlyArray<SettingSection> = [
+  {
+    id: "agent",
+    labelKey: "agent",
+    descriptionKey: "agentDescription",
+    icon: Bot,
+  },
   {
     id: "resources",
     labelKey: "resources",

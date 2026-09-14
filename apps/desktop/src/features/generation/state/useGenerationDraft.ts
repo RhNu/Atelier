@@ -102,9 +102,13 @@ export function useGenerationDraft({
   );
 
   useEffect(() => {
-    if (!sourceReady || !settings || hydratedSettingsRef.current === settings) {
+    if (!sourceReady || !settings) {
       return;
     }
+    const sourceRevision = storedDraft?.revision ?? 0;
+    const settingsChanged = hydratedSettingsRef.current !== settings;
+    const newerExternalDraft = sourceRevision > revisionRef.current;
+    if (!settingsChanged && !newerExternalDraft) return;
     if (saveTimerRef.current !== null) {
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
@@ -115,7 +119,7 @@ export function useGenerationDraft({
     const next = storedDraft
       ? generationDraftFromDto(storedDraft.draft)
       : createGenerationDraft(settings);
-    revisionRef.current = storedDraft?.revision ?? 0;
+    revisionRef.current = sourceRevision;
     hydratedSettingsRef.current = settings;
     latestDraftRef.current = next;
     setDraft(next);

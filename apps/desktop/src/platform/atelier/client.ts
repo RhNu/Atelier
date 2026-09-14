@@ -2,6 +2,28 @@
 import { Channel } from "@tauri-apps/api/core";
 
 import type {
+  AgentEventDto,
+  AgentRegistryDto,
+  AgentSessionDto,
+  AgentTurnEventDto,
+  AgentTurnResultDto,
+  AgentWorkspaceSettingsDto,
+  CancelAgentTurnRequestDto,
+  CreateAgentSessionRequestDto,
+  DecideAgentApprovalRequestDto,
+  DeleteAgentConnectionRequestDto,
+  DeleteAgentModelRequestDto,
+  DeleteAgentSessionRequestDto,
+  DeleteAgentSessionResponseDto,
+  DiscoverAgentModelsRequestDto,
+  DiscoveredAgentModelDto,
+  ListAgentEventsRequestDto,
+  RenameAgentSessionRequestDto,
+  RunAgentTurnRequestDto,
+  SaveAgentConnectionRequestDto,
+  SaveAgentModelRequestDto,
+  UndoAgentActionRequestDto,
+  UpdateAgentWorkspaceSettingsRequestDto,
   ApiKeyRecordDto,
   AppendLexiconEntitiesRequestDto,
   AppBootstrapDto,
@@ -286,6 +308,52 @@ export const accountApi = {
     invokeAtelierCommand<SubscriptionSummaryDto>(atelierCommands.probeApiKey, { request }),
   probeActive: () =>
     invokeAtelierCommand<SubscriptionSummaryDto>(atelierCommands.probeActiveApiKey),
+};
+
+export const agentApi = {
+  registry: () => invokeAtelierCommand<AgentRegistryDto>(atelierCommands.getAgentRegistry),
+  discoverModels: (request: DiscoverAgentModelsRequestDto) =>
+    invokeAtelierCommand<DiscoveredAgentModelDto[]>(atelierCommands.discoverAgentModels, {
+      request,
+    }),
+  saveConnection: (request: SaveAgentConnectionRequestDto) =>
+    invokeAtelierCommand<AgentRegistryDto>(atelierCommands.saveAgentConnection, { request }),
+  deleteConnection: (request: DeleteAgentConnectionRequestDto) =>
+    invokeAtelierCommand<AgentRegistryDto>(atelierCommands.deleteAgentConnection, { request }),
+  saveModel: (request: SaveAgentModelRequestDto) =>
+    invokeAtelierCommand<AgentRegistryDto>(atelierCommands.saveAgentModel, { request }),
+  deleteModel: (request: DeleteAgentModelRequestDto) =>
+    invokeAtelierCommand<AgentRegistryDto>(atelierCommands.deleteAgentModel, { request }),
+  workspaceSettings: () =>
+    invokeAtelierCommand<AgentWorkspaceSettingsDto>(atelierCommands.getAgentWorkspaceSettings),
+  updateWorkspaceSettings: (request: UpdateAgentWorkspaceSettingsRequestDto) =>
+    invokeAtelierCommand<AgentWorkspaceSettingsDto>(atelierCommands.updateAgentWorkspaceSettings, {
+      request,
+    }),
+  createSession: (request: CreateAgentSessionRequestDto) =>
+    invokeAtelierCommand<AgentSessionDto>(atelierCommands.createAgentSession, { request }),
+  listSessions: () => invokeAtelierCommand<AgentSessionDto[]>(atelierCommands.listAgentSessions),
+  renameSession: (request: RenameAgentSessionRequestDto) =>
+    invokeAtelierCommand<AgentSessionDto>(atelierCommands.renameAgentSession, { request }),
+  deleteSession: (request: DeleteAgentSessionRequestDto) =>
+    invokeAtelierCommand<DeleteAgentSessionResponseDto>(atelierCommands.deleteAgentSession, {
+      request,
+    }),
+  listEvents: (request: ListAgentEventsRequestDto) =>
+    invokeAtelierCommand<AgentEventDto[]>(atelierCommands.listAgentEvents, { request }),
+  runTurn: (request: RunAgentTurnRequestDto, onEvent: (event: AgentTurnEventDto) => void) => {
+    const channel = new Channel<AgentTurnEventDto>(onEvent);
+    return invokeAtelierCommand<AgentTurnResultDto>(atelierCommands.runAgentTurn, {
+      request,
+      onEvent: channel,
+    });
+  },
+  decideApproval: (request: DecideAgentApprovalRequestDto) =>
+    invokeAtelierCommand<void>(atelierCommands.decideAgentApproval, { request }),
+  cancelTurn: (request: CancelAgentTurnRequestDto) =>
+    invokeAtelierCommand<boolean>(atelierCommands.cancelAgentTurn, { request }),
+  undoAction: (request: UndoAgentActionRequestDto) =>
+    invokeAtelierCommand<VersionedGenerationDraftDto>(atelierCommands.undoAgentAction, { request }),
 };
 
 export const promptApi = {

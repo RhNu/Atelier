@@ -39,6 +39,14 @@ export const queryKeys = {
     apiKeys: () => ["app", "account", "api-keys"] as const,
     activeSummary: () => ["app", "account", "active-summary"] as const,
   },
+  agent: {
+    root: () => ["agent"] as const,
+    registry: () => ["agent", "registry"] as const,
+    workspace: () => ["workspace", "agent"] as const,
+    settings: () => ["workspace", "agent", "settings"] as const,
+    sessions: () => ["workspace", "agent", "sessions"] as const,
+    events: (sessionId: string | null) => ["workspace", "agent", "events", sessionId] as const,
+  },
   explore: {
     sources: () => ["app", "explore", "sources"] as const,
     source: (source: ExploreSourceIdDto) => ["app", "explore", source] as const,

@@ -13,6 +13,8 @@ export const shell = {
   chooseAnotherWorkspace: "Choose another workspace",
   openWorkspace: "Open workspace",
   workspaceSections: "Workspace sections",
+  openAgent: "Open Agent",
+  agentRunning: "Agent is running",
   closeToast: "Close toast",
   viewNotFound: "View not found",
   unexpectedError: "Atelier encountered an unexpected error",

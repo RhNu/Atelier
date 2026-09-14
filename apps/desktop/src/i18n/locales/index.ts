@@ -1,3 +1,4 @@
+import { agent as enAgent } from "./en/agent";
 import { common as enCommon } from "./en/common";
 import { director as enDirector } from "./en/director";
 import { explore as enExplore } from "./en/explore";
@@ -8,6 +9,7 @@ import { promptEditor as enPromptEditor } from "./en/promptEditor";
 import { resources as enResources } from "./en/resources";
 import { settings as enSettings } from "./en/settings";
 import { shell as enShell } from "./en/shell";
+import { agent as zhAgent } from "./zh-CN/agent";
 import { common as zhCommon } from "./zh-CN/common";
 import { director as zhDirector } from "./zh-CN/director";
 import { explore as zhExplore } from "./zh-CN/explore";
@@ -20,6 +22,7 @@ import { settings as zhSettings } from "./zh-CN/settings";
 import { shell as zhShell } from "./zh-CN/shell";
 
 export const en = {
+  agent: enAgent,
   common: enCommon,
   promptEditor: enPromptEditor,
   shell: enShell,
@@ -33,6 +36,7 @@ export const en = {
 } as const;
 
 export const zhCN = {
+  agent: zhAgent,
   common: zhCommon,
   promptEditor: zhPromptEditor,
   shell: zhShell,

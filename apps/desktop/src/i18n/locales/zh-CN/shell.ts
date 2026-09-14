@@ -16,6 +16,8 @@ export const shell = {
   chooseAnotherWorkspace: "选择其他工作区",
   openWorkspace: "打开工作区",
   workspaceSections: "工作区功能",
+  openAgent: "打开 Agent",
+  agentRunning: "Agent 正在运行",
   closeToast: "关闭通知",
   viewNotFound: "未找到页面",
   unexpectedError: "Atelier 遇到了意外错误",

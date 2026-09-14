@@ -7,6 +7,7 @@ import { applyLanguagePreference } from "@/i18n";
 import { useToastStore } from "@/stores/toast-store";
 import type { GlobalSettingsDto, WorkspaceSettingsDto } from "@/types";
 
+import { AgentSettingsSection } from "../agent";
 import { useWorkspaceStatus } from "../workspace/useWorkspaceStatus";
 import { ConnectionsSettingsSection } from "./components/ConnectionsSettingsSection";
 import { FrontendSettingsSection } from "./components/FrontendSettingsSection";
@@ -38,7 +39,7 @@ export function SettingsPage() {
   const updateWorkspaceMutation = useUpdateWorkspaceSettingsMutation();
   const resetWorkspaceMutation = useResetWorkspaceSettingsMutation();
   const updateGlobalMutation = useUpdateGlobalSettingsMutation();
-  const [activeSection, setActiveSection] = useState<SettingsSection>("connections");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSettingsSection);
   const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceSettingsDto | null>(null);
   const [globalDraft, setGlobalDraft] = useState<GlobalSettingsDto | null>(null);
 
@@ -170,6 +171,14 @@ export function SettingsPage() {
 
 const SETTINGS_AUTOSAVE_DELAY_MS = 500;
 
+function initialSettingsSection(): SettingsSection {
+  if (window.sessionStorage.getItem("atelier.settings.section") === "agent") {
+    window.sessionStorage.removeItem("atelier.settings.section");
+    return "agent";
+  }
+  return "connections";
+}
+
 function SettingsContent({
   activeSection,
   workspace,
@@ -189,6 +198,9 @@ function SettingsContent({
   const { t } = useTranslation("settings");
   if (activeSection === "connections") {
     return <ConnectionsSettingsSection />;
+  }
+  if (activeSection === "agent") {
+    return <AgentSettingsSection />;
   }
   if (activeSection === "resources") {
     return <ResourcesSettingsSection />;

@@ -2,6 +2,7 @@ export { atelierCommands } from "./commands";
 export type { AtelierCommandName } from "./commands";
 export {
   accountApi,
+  agentApi,
   appUpdateApi,
   danbooruApi,
   desktopApi,
