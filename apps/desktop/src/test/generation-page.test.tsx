@@ -1928,7 +1928,7 @@ describe("GeneratePage queue and preview behavior", () => {
   it("supports tag and chunk completion in character prompts", async () => {
     const { user } = setup();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Add character prompt" }));
+    await user.click(await screen.findByRole("button", { name: "Add character prompt" }));
     const characterPrompt = await screen.findByLabelText("Character 1 prompt");
     typeInPromptEditor(characterPrompt, "cine");
     await screen.findByRole("option", { name: /cinematic_lighting/u });
