@@ -1,10 +1,25 @@
-/* eslint-disable react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
-import { Bot, MessageSquarePlus, PanelRightClose, Send, Square, Trash2 } from "lucide-react";
-import type { ChangeEvent, KeyboardEvent, PointerEvent } from "react";
+/* eslint-disable max-lines, max-lines-per-function, react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop, react-perf/jsx-no-new-array-as-prop */
+import {
+  Bot,
+  MessageSquarePlus,
+  MessagesSquare,
+  PanelRightClose,
+  Send,
+  Square,
+  Trash2,
+} from "lucide-react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { AppButton, AppIconButton, AppSelect, type SelectOption } from "@/components/ui";
-import type { AgentEventDto, AgentTurnEventDto } from "@/types";
+import type { AgentEventDto, AgentPermissionModeDto, AgentTurnEventDto } from "@/types";
 
 import { AgentEventList } from "./AgentEventList";
 
@@ -12,10 +27,16 @@ type AgentDrawerViewProps = {
   open: boolean;
   width: number;
   activeSessionId: string | null;
+  activeSessionTitle: string;
+  contextWindow: number | null;
+  contextInputTokens: number | null;
+  permissionMode: AgentPermissionModeDto;
+  updatingPermission: boolean;
   defaultModelId: string | null;
   running: boolean;
   creating: boolean;
   deleting: boolean;
+  renaming: boolean;
   sessionOptions: SelectOption[];
   events: AgentEventDto[];
   liveEvents: AgentTurnEventDto[];
@@ -28,6 +49,8 @@ type AgentDrawerViewProps = {
   onSelectSession: (sessionId: string) => void;
   onCreateSession: () => void;
   onDeleteSession: () => void;
+  onRenameSession: (title: string) => void;
+  onPermissionModeChange: (mode: AgentPermissionModeDto) => void;
   onOpenSettings: () => void;
   onApproval: (approvalId: string, approved: boolean) => void;
   onUndo: (actionId: string) => void;
@@ -45,6 +68,12 @@ export function AgentDrawerView(props: AgentDrawerViewProps) {
       props.onSend();
     }
   };
+  const changeSession = (event: ChangeEvent<HTMLSelectElement>) =>
+    props.onSelectSession(event.target.value);
+  const changePermission = (value: string) =>
+    props.onPermissionModeChange(parsePermissionMode(value));
+  const contextUsage = formatContextUsage(props.contextInputTokens, props.contextWindow);
+
   return (
     <aside
       aria-label={t("drawerLabel")}
@@ -62,12 +91,16 @@ export function AgentDrawerView(props: AgentDrawerViewProps) {
         onPointerDown={props.onResize}
       />
       <div className="flex h-full min-w-[360px] flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-app-border px-3">
-          <Bot aria-hidden="true" className="size-5 text-brand-200" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">{t("title")}</p>
-            <p className="truncate text-[10px] text-app-muted">{t("subtitle")}</p>
-          </div>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-app-border px-3">
+          <Bot aria-hidden="true" className="size-4 shrink-0 text-brand-200" />
+          <p className="shrink-0 text-sm font-semibold text-white">{t("title")}</p>
+          <span aria-hidden="true" className="h-4 w-px bg-app-border" />
+          <SessionTitleEditor
+            key={`${props.activeSessionId ?? "none"}-${props.activeSessionTitle}`}
+            title={props.activeSessionTitle}
+            disabled={!props.activeSessionId || props.running || props.renaming}
+            onRename={props.onRenameSession}
+          />
           <AppIconButton
             icon={PanelRightClose}
             label={t("close")}
@@ -75,15 +108,27 @@ export function AgentDrawerView(props: AgentDrawerViewProps) {
             onClick={props.onClose}
           />
         </header>
-        <div className="flex items-center gap-1 border-b border-app-border p-2">
-          <AppSelect
-            aria-label={t("session")}
-            value={props.activeSessionId ?? ""}
-            options={props.sessionOptions}
-            disabled={props.running || props.sessionOptions.length === 0}
-            containerClassName="min-w-0 flex-1"
-            onValueChange={props.onSelectSession}
-          />
+        <div className="flex h-10 shrink-0 items-center justify-end gap-1 border-b border-app-border px-2">
+          <label
+            className="relative inline-flex size-8 items-center justify-center text-app-muted hover:bg-app-surface hover:text-app-text"
+            title={t("switchSession")}
+          >
+            <span className="sr-only">{t("switchSession")}</span>
+            <MessagesSquare aria-hidden="true" className="size-4" />
+            <select
+              aria-label={t("switchSession")}
+              value={props.activeSessionId ?? ""}
+              disabled={props.running || props.sessionOptions.length === 0}
+              className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+              onChange={changeSession}
+            >
+              {props.sessionOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <AppIconButton
             icon={MessageSquarePlus}
             label={t("newSession")}
@@ -106,7 +151,7 @@ export function AgentDrawerView(props: AgentDrawerViewProps) {
             {props.error}
           </p>
         ) : null}
-        <footer className="shrink-0 border-t border-app-border p-3">
+        <footer className="shrink-0 border-t border-app-border p-2.5">
           <label className="sr-only" htmlFor="agent-message">
             {t("message")}
           </label>
@@ -116,30 +161,110 @@ export function AgentDrawerView(props: AgentDrawerViewProps) {
             rows={3}
             placeholder={t("messagePlaceholder")}
             disabled={props.running || !props.activeSessionId}
-            className="w-full resize-none border border-app-border bg-app-surface p-3 text-sm text-app-text outline-none placeholder:text-app-muted focus:border-brand-400 disabled:opacity-60"
+            className="w-full resize-none border border-app-border bg-app-surface p-2.5 text-sm text-app-text outline-none placeholder:text-app-muted focus:border-brand-400 disabled:opacity-60"
             onChange={changeMessage}
             onKeyDown={handleMessageKey}
           />
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-[10px] text-app-muted">{t("sendHint")}</span>
+          <div className="mt-1.5 flex items-center justify-end gap-1.5">
+            <span
+              className="mr-auto truncate text-[10px] text-app-muted tabular-nums"
+              title={t("contextUsage")}
+            >
+              {props.contextInputTokens === null
+                ? t("contextUsageEmpty", { limit: contextUsage.limit })
+                : t("contextUsageValue", contextUsage)}
+            </span>
+            <AppSelect
+              aria-label={t("permissionMode")}
+              value={props.permissionMode}
+              options={[
+                { value: "standard", label: t("permissionStandard") },
+                { value: "ask", label: t("permissionAsk") },
+                { value: "bypass_all", label: t("permissionBypass") },
+              ]}
+              disabled={props.running || props.updatingPermission}
+              className="h-8 px-2 pr-6 text-xs"
+              containerClassName="w-32 shrink-0"
+              onValueChange={changePermission}
+            />
             {props.running ? (
-              <AppButton variant="danger" onClick={props.onStop}>
-                <Square aria-hidden="true" className="size-3.5 fill-current" />
-                {t("stop")}
-              </AppButton>
+              <AppIconButton
+                icon={Square}
+                label={t("stop")}
+                size="sm"
+                variant="danger"
+                onClick={props.onStop}
+              />
             ) : (
-              <AppButton
+              <AppIconButton
+                icon={Send}
+                label={t("send")}
+                size="sm"
                 disabled={!props.message.trim() || !props.activeSessionId}
                 onClick={props.onSend}
-              >
-                <Send aria-hidden="true" className="size-4" />
-                {t("send")}
-              </AppButton>
+              />
             )}
           </div>
         </footer>
       </div>
     </aside>
+  );
+}
+
+function SessionTitleEditor({
+  title,
+  disabled,
+  onRename,
+}: {
+  title: string;
+  disabled: boolean;
+  onRename: (title: string) => void;
+}) {
+  const { t } = useTranslation("agent");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const commit = () => {
+    const nextTitle = draft.trim();
+    setEditing(false);
+    if (nextTitle && nextTitle !== title) onRename(nextTitle);
+    else setDraft(title);
+  };
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") commit();
+    if (event.key === "Escape") {
+      setDraft(title);
+      setEditing(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        aria-label={t("editSessionTitle")}
+        value={draft}
+        className="h-7 min-w-0 flex-1 border border-brand-400 bg-black/20 px-2 text-xs text-app-text outline-none"
+        onBlur={commit}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={handleKeyDown}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      title={t("editSessionTitle")}
+      disabled={disabled}
+      className="min-w-0 flex-1 truncate text-left text-xs text-app-muted hover:text-white disabled:cursor-default disabled:hover:text-app-muted"
+      onClick={() => setEditing(true)}
+    >
+      {title || t("newSessionTitle")}
+    </button>
   );
 }
 
@@ -175,4 +300,23 @@ function DrawerConversation(props: AgentDrawerViewProps) {
       onUndo={props.onUndo}
     />
   );
+}
+
+function formatContextUsage(used: number | null, limit: number | null) {
+  return {
+    used: used === null ? "—" : compactNumber(used),
+    limit: limit === null ? "—" : compactNumber(limit),
+  };
+}
+
+function compactNumber(value: number): string {
+  if (value < 1_000) return value.toLocaleString();
+  const digits = value < 10_000 ? 1 : 0;
+  return `${(value / 1_000).toFixed(digits)}k`;
+}
+
+function parsePermissionMode(value: string): AgentPermissionModeDto {
+  if (value === "ask") return "ask";
+  if (value === "bypass_all") return "bypass_all";
+  return "standard";
 }

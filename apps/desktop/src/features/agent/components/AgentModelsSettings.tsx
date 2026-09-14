@@ -1,9 +1,9 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-array-as-prop */
-import { PencilLine, RefreshCw, Save, Trash2 } from "lucide-react";
-import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { PencilLine, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppIconButton } from "@/components/ui";
+import { AppButton, AppIconButton, AppModal } from "@/components/ui";
 import { agentApi } from "@/platform/atelier";
 import { useToastStore } from "@/stores/toast-store";
 import type { AgentModelDto, DiscoveredAgentModelDto, SaveAgentModelRequestDto } from "@/types";
@@ -18,6 +18,8 @@ import {
   SettingsBlock,
 } from "./agent-settings-shared";
 
+type ModelEditorState = { draft: SaveAgentModelRequestDto; editing: boolean };
+
 export function AgentModelsSettings() {
   const { t } = useTranslation("agent");
   const pushToast = useToastStore((state) => state.push);
@@ -28,11 +30,8 @@ export function AgentModelsSettings() {
   const connectionId = selectedConnectionId || firstConnectionId;
   const [discovered, setDiscovered] = useState<DiscoveredAgentModelDto[]>([]);
   const [discovering, setDiscovering] = useState(false);
-  const [draft, setDraft] = useState<SaveAgentModelRequestDto>(() => newModelDraft(""));
-  const effectiveDraft = useMemo(
-    () => (draft.connection_id ? draft : { ...draft, connection_id: connectionId }),
-    [connectionId, draft],
-  );
+  const [editor, setEditor] = useState<ModelEditorState | null>(null);
+  const busy = mutations.saveModel.isPending || mutations.deleteModel.isPending;
 
   const discover = useCallback(() => {
     if (!connectionId) return;
@@ -45,14 +44,15 @@ export function AgentModelsSettings() {
   }, [connectionId, pushToast, t]);
 
   const save = useCallback(() => {
-    mutations.saveModel.mutate(effectiveDraft, {
+    if (!editor) return;
+    mutations.saveModel.mutate(editor.draft, {
       onSuccess: () => {
-        setDraft(newModelDraft(connectionId));
+        setEditor(null);
         pushToast({ level: "success", message: t("modelSaved") });
       },
       onError: (error) => notifyAgentSettingsError(pushToast, t("modelSaveFailed"), error),
     });
-  }, [connectionId, effectiveDraft, mutations.saveModel, pushToast, t]);
+  }, [editor, mutations.saveModel, pushToast, t]);
 
   if (!registry.data?.connections.length) {
     return (
@@ -66,7 +66,8 @@ export function AgentModelsSettings() {
     <SettingsBlock title={t("modelsTitle")} description={t("modelsDescription")}>
       <ModelRows
         models={registry.data.models}
-        onEdit={setDraft}
+        busy={busy}
+        onEdit={(draft) => setEditor({ draft, editing: true })}
         onDelete={(id) =>
           mutations.deleteModel.mutate(
             { id },
@@ -77,7 +78,7 @@ export function AgentModelsSettings() {
           )
         }
       />
-      <div className="flex items-end gap-2 border-t border-app-border pt-4">
+      <div className="flex flex-wrap items-end gap-2">
         <SelectField
           label={t("connection")}
           value={connectionId}
@@ -88,7 +89,6 @@ export function AgentModelsSettings() {
           onChange={(value) => {
             setSelectedConnectionId(value);
             setDiscovered([]);
-            setDraft(newModelDraft(value));
           }}
         />
         <AppButton variant="secondary" disabled={discovering} onClick={discover}>
@@ -98,33 +98,57 @@ export function AgentModelsSettings() {
           />
           {t("discoverModels")}
         </AppButton>
-      </div>
-      <DiscoveredModels models={discovered} connectionId={connectionId} onSelect={setDraft} />
-      <ModelEditor draft={effectiveDraft} setDraft={setDraft} />
-      <div className="flex justify-end">
         <AppButton
-          disabled={
-            mutations.saveModel.isPending ||
-            !effectiveDraft.connection_id ||
-            !effectiveDraft.wire_model_id.trim() ||
-            !effectiveDraft.display_name.trim()
-          }
-          onClick={save}
+          variant="secondary"
+          disabled={busy}
+          onClick={() => setEditor({ draft: newModelDraft(connectionId), editing: false })}
         >
-          <Save aria-hidden="true" className="size-4" />
-          {t("saveModel")}
+          <Plus aria-hidden="true" className="size-4" />
+          {t("newModel")}
         </AppButton>
       </div>
+      <DiscoveredModels
+        models={discovered}
+        connectionId={connectionId}
+        onSelect={(draft) => setEditor({ draft, editing: false })}
+      />
+      <AppModal
+        open={editor !== null}
+        title={editor?.editing ? t("modelEditorEdit") : t("modelEditorNew")}
+        density="compact"
+        onClose={() => setEditor(null)}
+      >
+        {editor ? (
+          <ModelEditor
+            draft={editor.draft}
+            setDraft={(next) =>
+              setEditor((current) =>
+                current
+                  ? {
+                      ...current,
+                      draft: typeof next === "function" ? next(current.draft) : next,
+                    }
+                  : null,
+              )
+            }
+            busy={busy}
+            onCancel={() => setEditor(null)}
+            onSave={save}
+          />
+        ) : null}
+      </AppModal>
     </SettingsBlock>
   );
 }
 
 function ModelRows({
   models,
+  busy,
   onEdit,
   onDelete,
 }: {
   models: AgentModelDto[];
+  busy: boolean;
   onEdit: (model: SaveAgentModelRequestDto) => void;
   onDelete: (id: string) => void;
 }) {
@@ -147,6 +171,7 @@ function ModelRows({
             icon={PencilLine}
             label={t("editModel")}
             size="sm"
+            disabled={busy}
             onClick={() => onEdit(model)}
           />
           <AppIconButton
@@ -154,6 +179,7 @@ function ModelRows({
             label={t("deleteModel")}
             size="sm"
             variant="danger"
+            disabled={busy}
             onClick={() => onDelete(model.id)}
           />
         </div>
@@ -199,9 +225,15 @@ function DiscoveredModels({
 function ModelEditor({
   draft,
   setDraft,
+  busy,
+  onCancel,
+  onSave,
 }: {
   draft: SaveAgentModelRequestDto;
   setDraft: Dispatch<SetStateAction<SaveAgentModelRequestDto>>;
+  busy: boolean;
+  onCancel: () => void;
+  onSave: () => void;
 }) {
   const { t } = useTranslation("agent");
   return (
@@ -232,6 +264,23 @@ function ModelEditor({
         step="0.1"
         onChange={(temperature) => setDraft((current) => ({ ...current, temperature }))}
       />
+      <div className="flex items-end justify-end gap-2 md:col-span-2">
+        <AppButton variant="ghost" disabled={busy} onClick={onCancel}>
+          {t("cancel")}
+        </AppButton>
+        <AppButton
+          disabled={
+            busy ||
+            !draft.connection_id ||
+            !draft.wire_model_id.trim() ||
+            !draft.display_name.trim()
+          }
+          onClick={onSave}
+        >
+          <Save aria-hidden="true" className="size-4" />
+          {t("saveModel")}
+        </AppButton>
+      </div>
     </div>
   );
 }

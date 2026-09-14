@@ -3,7 +3,7 @@ import { AlertTriangle, PencilLine, Plus, Save, Trash2 } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppButton, AppIconButton } from "@/components/ui";
+import { AppButton, AppIconButton, AppModal } from "@/components/ui";
 import { useToastStore } from "@/stores/toast-store";
 import type { AgentAuthKindDto, SaveAgentConnectionRequestDto } from "@/types";
 
@@ -20,22 +20,21 @@ export function AgentConnectionsSettings() {
   const pushToast = useToastStore((state) => state.push);
   const registry = useAgentRegistryQuery();
   const mutations = useAgentRegistryMutations();
-  const [draft, setDraft] = useState<SaveAgentConnectionRequestDto>(newConnectionDraft);
+  const [draft, setDraft] = useState<SaveAgentConnectionRequestDto | null>(null);
   const busy = mutations.saveConnection.isPending || mutations.deleteConnection.isPending;
   const save = useCallback(() => {
+    if (!draft) return;
     mutations.saveConnection.mutate(
       { ...draft, display_name: draft.display_name.trim(), base_url: draft.base_url.trim() },
       {
         onSuccess: () => {
-          setDraft(newConnectionDraft());
+          setDraft(null);
           pushToast({ level: "success", message: t("connectionSaved") });
         },
         onError: (error) => notifyAgentSettingsError(pushToast, t("connectionSaveFailed"), error),
       },
     );
   }, [draft, mutations.saveConnection, pushToast, t]);
-  const changeAuth = (value: string) =>
-    setDraft((current) => ({ ...current, auth_kind: parseAuthKind(value) }));
 
   return (
     <SettingsBlock title={t("connectionsTitle")} description={t("connectionsDescription")}>
@@ -89,50 +88,87 @@ export function AgentConnectionsSettings() {
           </div>
         ))}
       </div>
-      <div className="grid gap-3 border-t border-app-border pt-4 md:grid-cols-2">
-        <TextField
-          label={t("connectionName")}
-          value={draft.display_name}
-          onChange={(display_name) => setDraft((current) => ({ ...current, display_name }))}
-        />
-        <TextField
-          label={t("baseUrl")}
-          value={draft.base_url}
-          placeholder={t("baseUrlPlaceholder")}
-          onChange={(base_url) => setDraft((current) => ({ ...current, base_url }))}
-        />
-        <SelectField
-          label={t("authentication")}
-          value={draft.auth_kind}
-          options={[
-            { value: "none", label: t("authNone") },
-            { value: "bearer", label: t("authBearer") },
-          ]}
-          onChange={changeAuth}
-        />
-        <TextField
-          label={t("apiKey")}
-          value={draft.secret ?? ""}
-          type="password"
-          disabled={draft.auth_kind === "none"}
-          placeholder={t("apiKeyPlaceholder")}
-          onChange={(secret) => setDraft((current) => ({ ...current, secret: secret || null }))}
-        />
-      </div>
-      <div className="flex justify-end gap-2">
-        <AppButton variant="ghost" disabled={busy} onClick={() => setDraft(newConnectionDraft())}>
+      <div className="flex justify-end">
+        <AppButton
+          variant="secondary"
+          disabled={busy}
+          onClick={() => setDraft(newConnectionDraft())}
+        >
           <Plus aria-hidden="true" className="size-4" />
           {t("newConnection")}
         </AppButton>
+      </div>
+      <AppModal
+        open={draft !== null}
+        title={draft?.display_name ? t("connectionEditorEdit") : t("connectionEditorNew")}
+        density="compact"
+        onClose={() => setDraft(null)}
+      >
+        {draft ? (
+          <ConnectionEditor draft={draft} setDraft={setDraft} busy={busy} onSave={save} />
+        ) : null}
+      </AppModal>
+    </SettingsBlock>
+  );
+}
+
+function ConnectionEditor({
+  draft,
+  setDraft,
+  busy,
+  onSave,
+}: {
+  draft: SaveAgentConnectionRequestDto;
+  setDraft: (draft: SaveAgentConnectionRequestDto | null) => void;
+  busy: boolean;
+  onSave: () => void;
+}) {
+  const { t } = useTranslation("agent");
+  const update = (change: Partial<SaveAgentConnectionRequestDto>) =>
+    setDraft({ ...draft, ...change });
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      <TextField
+        label={t("connectionName")}
+        value={draft.display_name}
+        onChange={(display_name) => update({ display_name })}
+      />
+      <TextField
+        label={t("baseUrl")}
+        value={draft.base_url}
+        placeholder={t("baseUrlPlaceholder")}
+        onChange={(base_url) => update({ base_url })}
+      />
+      <SelectField
+        label={t("authentication")}
+        value={draft.auth_kind}
+        options={[
+          { value: "none", label: t("authNone") },
+          { value: "bearer", label: t("authBearer") },
+        ]}
+        onChange={(auth_kind) => update({ auth_kind: parseAuthKind(auth_kind) })}
+      />
+      <TextField
+        label={t("apiKey")}
+        value={draft.secret ?? ""}
+        type="password"
+        disabled={draft.auth_kind === "none"}
+        placeholder={t("apiKeyPlaceholder")}
+        onChange={(secret) => update({ secret: secret || null })}
+      />
+      <div className="flex justify-end gap-2 md:col-span-2">
+        <AppButton variant="ghost" disabled={busy} onClick={() => setDraft(null)}>
+          {t("cancel")}
+        </AppButton>
         <AppButton
           disabled={busy || !draft.display_name.trim() || !draft.base_url.trim()}
-          onClick={save}
+          onClick={onSave}
         >
           <Save aria-hidden="true" className="size-4" />
           {t("saveConnection")}
         </AppButton>
       </div>
-    </SettingsBlock>
+    </div>
   );
 }
 

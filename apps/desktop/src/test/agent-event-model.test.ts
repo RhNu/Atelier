@@ -24,7 +24,7 @@ describe("Agent event presentation", () => {
       }),
     ).toEqual([
       { id: "live-user", kind: "user", content: "Create a portrait" },
-      { id: "live-assistant-2", kind: "assistant", content: "First draft" },
+      { id: "live-assistant-0", kind: "assistant", content: "First draft" },
     ]);
   });
 
@@ -53,6 +53,68 @@ describe("Agent event presentation", () => {
 
     expect(displayed[0]).toMatchObject({ actionId: "action-1", state: "succeeded" });
     expect(displayed[1]).toMatchObject({ actionId: undefined, state: "failed" });
+  });
+
+  it("renders a tool start and finish as one updated item", () => {
+    const displayed = buildDisplayAgentEvents({
+      events: [],
+      liveEvents: [
+        {
+          kind: "tool_started",
+          name: "update_main_prompt",
+          arguments_json: '{"expected_revision":1}',
+        },
+        {
+          kind: "tool_finished",
+          name: "update_main_prompt",
+          result_json: '{"action_id":"action-1"}',
+          failed: false,
+        },
+      ],
+      pendingUserMessage: null,
+      running: true,
+    });
+
+    expect(displayed).toEqual([
+      {
+        id: "live-tool-0",
+        kind: "tool",
+        name: "update_main_prompt",
+        arguments: '{"expected_revision":1}',
+        result: '{"action_id":"action-1"}',
+        state: "succeeded",
+        actionId: "action-1",
+      },
+    ]);
+  });
+
+  it("merges persisted tool calls with their results", () => {
+    const displayed = buildDisplayAgentEvents({
+      events: [
+        event("call", {
+          kind: "tool_call",
+          tool_name: "get_generation_draft",
+          arguments_json: "{}",
+        }),
+        event("result", {
+          kind: "tool_result",
+          tool_name: "get_generation_draft",
+          result_json: '{"revision":2}',
+          failed: false,
+        }),
+      ],
+      liveEvents: [],
+      pendingUserMessage: null,
+      running: false,
+    });
+
+    expect(displayed).toHaveLength(1);
+    expect(displayed[0]).toMatchObject({
+      id: "call",
+      arguments: "{}",
+      result: '{"revision":2}',
+      state: "succeeded",
+    });
   });
 });
 

@@ -9,6 +9,7 @@ type AgentDrawerState = {
   runningSessionId: string | null;
   pendingUserMessage: string | null;
   liveEvents: AgentTurnEventDto[];
+  contextInputTokens: number | null;
   error: string | null;
   setOpen: (open: boolean) => void;
   toggle: () => void;
@@ -30,15 +31,21 @@ export const useAgentDrawerStore = create<AgentDrawerState>((set) => ({
   runningSessionId: null,
   pendingUserMessage: null,
   liveEvents: [],
+  contextInputTokens: null,
   error: null,
   setOpen: (open) => set({ open }),
   toggle: () => set((state) => ({ open: !state.open })),
   setWidth: (width) =>
     set({ width: Math.min(MAX_DRAWER_WIDTH, Math.max(MIN_DRAWER_WIDTH, width)) }),
-  selectSession: (activeSessionId) => set({ activeSessionId, liveEvents: [], error: null }),
+  selectSession: (activeSessionId) =>
+    set({ activeSessionId, liveEvents: [], contextInputTokens: null, error: null }),
   beginTurn: (runningSessionId, pendingUserMessage) =>
     set({ runningSessionId, pendingUserMessage, liveEvents: [], error: null }),
-  pushEvent: (event) => set((state) => ({ liveEvents: [...state.liveEvents, event] })),
+  pushEvent: (event) =>
+    set((state) => ({
+      liveEvents: [...state.liveEvents, event],
+      contextInputTokens: event.kind === "usage" ? event.input_tokens : state.contextInputTokens,
+    })),
   finishTurn: (error) =>
     set({ runningSessionId: null, pendingUserMessage: null, liveEvents: [], error: error ?? null }),
   resetWorkspace: () =>
@@ -47,6 +54,7 @@ export const useAgentDrawerStore = create<AgentDrawerState>((set) => ({
       runningSessionId: null,
       pendingUserMessage: null,
       liveEvents: [],
+      contextInputTokens: null,
       error: null,
     }),
 }));

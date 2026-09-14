@@ -11,6 +11,7 @@ import {
   useAgentRegistryQuery,
   useAgentSessionMutations,
   useAgentSessionsQuery,
+  useUpdateAgentWorkspaceSettingsMutation,
   useAgentWorkspaceSettingsQuery,
 } from "../data/useAgentQueries";
 import { useAgentDrawerStore } from "../state/agent-drawer-store";
@@ -24,6 +25,7 @@ type AgentDrawerProps = {
 
 const EMPTY_EVENTS: AgentEventDto[] = [];
 
+// eslint-disable-next-line max-lines-per-function
 export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerProps) {
   const { t } = useTranslation("agent");
   const queryClient = useQueryClient();
@@ -33,6 +35,7 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
   const settings = useAgentWorkspaceSettingsQuery(true);
   const sessions = useAgentSessionsQuery(true);
   const sessionMutations = useAgentSessionMutations();
+  const settingsMutation = useUpdateAgentWorkspaceSettingsMutation();
   const events = useAgentEventsQuery(drawer.activeSessionId, true);
   const [message, setMessage] = useState("");
   const running = drawer.runningSessionId !== null;
@@ -46,6 +49,7 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
   });
 
   const sessionOptions = useAgentSessionOptions(sessions.data);
+  const activeSession = sessions.data?.find((session) => session.id === drawer.activeSessionId);
   const defaultModelId = resolveDefaultModelId(
     settings.data?.default_model_id,
     registry.data?.models ?? [],
@@ -72,6 +76,32 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
       },
     );
   }, [drawer, pushToast, sessionMutations.remove, t]);
+
+  const renameSession = useCallback(
+    (title: string) => {
+      if (!drawer.activeSessionId) return;
+      sessionMutations.rename.mutate(
+        { session_id: drawer.activeSessionId, title },
+        {
+          onError: (error) => notifyError(pushToast, t("sessionRenameFailed"), error),
+        },
+      );
+    },
+    [drawer.activeSessionId, pushToast, sessionMutations.rename, t],
+  );
+
+  const changePermissionMode = useCallback(
+    (permissionMode: NonNullable<typeof settings.data>["permission_mode"]) => {
+      if (!settings.data) return;
+      settingsMutation.mutate(
+        { settings: { ...settings.data, permission_mode: permissionMode } },
+        {
+          onError: (error) => notifyError(pushToast, t("personaSaveFailed"), error),
+        },
+      );
+    },
+    [pushToast, settings.data, settingsMutation, t],
+  );
 
   const send = useCallback(async () => {
     const content = message.trim();
@@ -153,10 +183,16 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
       open={drawer.open}
       width={drawer.width}
       activeSessionId={drawer.activeSessionId}
+      activeSessionTitle={activeSession?.title ?? ""}
+      contextWindow={activeSession?.model.context_window ?? null}
+      contextInputTokens={drawer.contextInputTokens}
+      permissionMode={settings.data?.permission_mode ?? "standard"}
+      updatingPermission={settingsMutation.isPending || !settings.data}
       defaultModelId={defaultModelId}
       running={running}
       creating={sessionMutations.create.isPending}
       deleting={sessionMutations.remove.isPending}
+      renaming={sessionMutations.rename.isPending}
       sessionOptions={sessionOptions}
       events={events.data ?? EMPTY_EVENTS}
       liveEvents={drawer.liveEvents}
@@ -169,6 +205,8 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
       onSelectSession={drawer.selectSession}
       onCreateSession={createSession}
       onDeleteSession={removeSession}
+      onRenameSession={renameSession}
+      onPermissionModeChange={changePermissionMode}
       onOpenSettings={onOpenSettings}
       onApproval={decideApproval}
       onUndo={undo}

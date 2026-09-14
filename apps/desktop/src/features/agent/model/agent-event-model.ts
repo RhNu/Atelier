@@ -8,7 +8,8 @@ export type DisplayAgentEvent =
       id: string;
       kind: "tool";
       name: string;
-      details: string;
+      arguments: string | null;
+      result: string | null;
       state: "requested" | "running" | "succeeded" | "failed";
       actionId?: string;
     }
@@ -19,7 +20,35 @@ export type DisplayAgentEvent =
       name: string;
       details: string;
     }
+  | { id: string; kind: "approval_status"; name: string; approved: boolean }
   | { id: string; kind: "generation" };
+
+export type AgentToolNameKey =
+  | "toolNames.getGenerationDraft"
+  | "toolNames.listPromptChunks"
+  | "toolNames.listPromptPresets"
+  | "toolNames.updateMainPrompt"
+  | "toolNames.upsertCharacter"
+  | "toolNames.removeCharacter"
+  | "toolNames.setImageSize"
+  | "toolNames.setGenerationParameters"
+  | "toolNames.applyPromptChunk"
+  | "toolNames.applyPromptPreset"
+  | "toolNames.submitGeneration";
+
+export const AGENT_TOOL_NAME_KEYS: Readonly<Record<string, AgentToolNameKey>> = {
+  get_generation_draft: "toolNames.getGenerationDraft",
+  list_prompt_chunks: "toolNames.listPromptChunks",
+  list_prompt_presets: "toolNames.listPromptPresets",
+  update_main_prompt: "toolNames.updateMainPrompt",
+  upsert_character: "toolNames.upsertCharacter",
+  remove_character: "toolNames.removeCharacter",
+  set_image_size: "toolNames.setImageSize",
+  set_generation_parameters: "toolNames.setGenerationParameters",
+  apply_prompt_chunk: "toolNames.applyPromptChunk",
+  apply_prompt_preset: "toolNames.applyPromptPreset",
+  submit_generation: "toolNames.submitGeneration",
+};
 
 export function buildDisplayAgentEvents(input: {
   events: AgentEventDto[];
@@ -27,33 +56,9 @@ export function buildDisplayAgentEvents(input: {
   pendingUserMessage: string | null;
   running: boolean;
 }): DisplayAgentEvent[] {
-  const persisted = input.events.map(mapPersistedEvent);
+  const persisted = projectPersistedEvents(input.events);
   if (!input.running) return persisted;
-  const live: DisplayAgentEvent[] = input.pendingUserMessage
-    ? [{ id: "live-user", kind: "user", content: input.pendingUserMessage }]
-    : [];
-  let assistantText = "";
-  const resolvedApprovals = new Set(
-    input.liveEvents
-      .filter((event) => event.kind === "approval_resolved")
-      .map((event) => event.approval_id),
-  );
-  for (const [index, event] of input.liveEvents.entries()) {
-    if (event.kind === "assistant_text_delta") {
-      assistantText += event.text;
-      continue;
-    }
-    if (assistantText) {
-      live.push({ id: `live-assistant-${index}`, kind: "assistant", content: assistantText });
-      assistantText = "";
-    }
-    const mapped = mapLiveEvent(event, index, resolvedApprovals);
-    if (mapped) live.push(mapped);
-  }
-  if (assistantText) {
-    live.push({ id: "live-assistant-tail", kind: "assistant", content: assistantText });
-  }
-  return [...persisted, ...live];
+  return [...persisted, ...projectLiveEvents(input.liveEvents, input.pendingUserMessage)];
 }
 
 export function prettyAgentJson(value: string): string {
@@ -68,7 +73,54 @@ export function humanizeAgentToolName(value: string): string {
   return value.replaceAll("_", " ");
 }
 
-function mapPersistedEvent(value: AgentEventDto): DisplayAgentEvent {
+function projectPersistedEvents(events: AgentEventDto[]): DisplayAgentEvent[] {
+  const projected: DisplayAgentEvent[] = [];
+  const pendingTools = new Map<string, number[]>();
+  for (const value of events) {
+    const event = value.event;
+    if (event.kind === "tool_call") {
+      const index = projected.length;
+      projected.push({
+        id: value.id,
+        kind: "tool",
+        name: event.tool_name,
+        arguments: event.arguments_json,
+        result: null,
+        state: "requested",
+      });
+      const pending = pendingTools.get(event.tool_name) ?? [];
+      pending.push(index);
+      pendingTools.set(event.tool_name, pending);
+      continue;
+    }
+    if (event.kind === "tool_result") {
+      const pending = pendingTools.get(event.tool_name);
+      const index = pending?.shift();
+      const result = {
+        result: event.result_json,
+        state: event.failed ? ("failed" as const) : ("succeeded" as const),
+        actionId: event.failed ? undefined : readActionId(event.result_json),
+      };
+      if (index === undefined) {
+        projected.push({
+          id: value.id,
+          kind: "tool",
+          name: event.tool_name,
+          arguments: null,
+          ...result,
+        });
+      } else {
+        const tool = projected[index];
+        if (tool.kind === "tool") projected[index] = { ...tool, ...result };
+      }
+      continue;
+    }
+    projected.push(mapPersistedNonToolEvent(value));
+  }
+  return projected;
+}
+
+function mapPersistedNonToolEvent(value: AgentEventDto): DisplayAgentEvent {
   const event = value.event;
   switch (event.kind) {
     case "user_message":
@@ -82,70 +134,106 @@ function mapPersistedEvent(value: AgentEventDto): DisplayAgentEvent {
       };
     case "warning":
       return { id: value.id, kind: "warning", content: event.content };
-    case "tool_call":
-      return {
-        id: value.id,
-        kind: "tool",
-        name: event.tool_name,
-        details: event.arguments_json,
-        state: "requested",
-      };
-    case "tool_result":
-      return {
-        id: value.id,
-        kind: "tool",
-        name: event.tool_name,
-        details: event.result_json,
-        state: event.failed ? "failed" : "succeeded",
-        actionId: event.failed ? undefined : readActionId(event.result_json),
-      };
     case "approval":
       return {
         id: value.id,
-        kind: "warning",
-        content: `${humanizeAgentToolName(event.tool_name)} · ${event.approved ? "approved" : "denied"}`,
+        kind: "approval_status",
+        name: event.tool_name,
+        approved: event.approved,
       };
+    case "tool_call":
+    case "tool_result":
+      throw new Error("tool events are projected as a pair");
   }
 }
 
-function mapLiveEvent(
-  event: AgentTurnEventDto,
-  index: number,
-  resolvedApprovals: ReadonlySet<string>,
-): DisplayAgentEvent | null {
-  if (event.kind === "tool_started") {
-    return {
-      id: `live-tool-start-${index}`,
-      kind: "tool",
-      name: event.name,
-      details: event.arguments_json,
-      state: "running",
-    };
+function projectLiveEvents(
+  events: AgentTurnEventDto[],
+  pendingUserMessage: string | null,
+): DisplayAgentEvent[] {
+  const projected: DisplayAgentEvent[] = pendingUserMessage
+    ? [{ id: "live-user", kind: "user", content: pendingUserMessage }]
+    : [];
+  const resolvedApprovals = new Set(
+    events.filter((event) => event.kind === "approval_resolved").map((event) => event.approval_id),
+  );
+  const pendingTools = new Map<string, number[]>();
+  let assistantText = "";
+  let assistantSegment = 0;
+
+  const flushAssistant = () => {
+    if (!assistantText) return;
+    projected.push({
+      id: `live-assistant-${assistantSegment}`,
+      kind: "assistant",
+      content: assistantText,
+    });
+    assistantSegment += 1;
+    assistantText = "";
+  };
+
+  for (const [index, event] of events.entries()) {
+    if (event.kind === "assistant_text_delta") {
+      assistantText += event.text;
+      continue;
+    }
+    if (event.kind === "tool_started") {
+      flushAssistant();
+      const projectedIndex = projected.length;
+      projected.push({
+        id: `live-tool-${index}`,
+        kind: "tool",
+        name: event.name,
+        arguments: event.arguments_json,
+        result: null,
+        state: "running",
+      });
+      const pending = pendingTools.get(event.name) ?? [];
+      pending.push(projectedIndex);
+      pendingTools.set(event.name, pending);
+      continue;
+    }
+    if (event.kind === "tool_finished") {
+      const pending = pendingTools.get(event.name);
+      const projectedIndex = pending?.shift();
+      const result = {
+        result: event.result_json,
+        state: event.failed ? ("failed" as const) : ("succeeded" as const),
+        actionId: event.failed ? undefined : readActionId(event.result_json),
+      };
+      if (projectedIndex === undefined) {
+        flushAssistant();
+        projected.push({
+          id: `live-tool-${index}`,
+          kind: "tool",
+          name: event.name,
+          arguments: null,
+          ...result,
+        });
+      } else {
+        const tool = projected[projectedIndex];
+        if (tool.kind === "tool") projected[projectedIndex] = { ...tool, ...result };
+      }
+      continue;
+    }
+    if (event.kind === "approval_requested" && !resolvedApprovals.has(event.approval_id)) {
+      flushAssistant();
+      projected.push({
+        id: `live-approval-${event.approval_id}`,
+        kind: "approval",
+        approvalId: event.approval_id,
+        name: event.name,
+        details: event.arguments_json,
+      });
+      continue;
+    }
+    if (event.kind === "generation_submitted") {
+      flushAssistant();
+      projected.push({ id: `live-generation-${index}`, kind: "generation" });
+    }
   }
-  if (event.kind === "tool_finished") {
-    return {
-      id: `live-tool-finish-${index}`,
-      kind: "tool",
-      name: event.name,
-      details: event.result_json,
-      state: event.failed ? "failed" : "succeeded",
-      actionId: event.failed ? undefined : readActionId(event.result_json),
-    };
-  }
-  if (event.kind === "approval_requested") {
-    if (resolvedApprovals.has(event.approval_id)) return null;
-    return {
-      id: `live-approval-${event.approval_id}`,
-      kind: "approval",
-      approvalId: event.approval_id,
-      name: event.name,
-      details: event.arguments_json,
-    };
-  }
-  if (event.kind === "generation_submitted") {
-    return { id: `live-generation-${index}`, kind: "generation" };
-  }
-  return null;
+  flushAssistant();
+  return projected;
 }
 
 function readActionId(value: string): string | undefined {

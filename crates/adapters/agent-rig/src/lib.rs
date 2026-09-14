@@ -101,8 +101,8 @@ impl AgentModelRuntime for RigAgentRuntime {
                         .output_tokens
                         .saturating_add(call.usage.output_tokens);
                     observer.emit(AgentRuntimeEvent::Usage {
-                        input_tokens: outcome.input_tokens,
-                        output_tokens: outcome.output_tokens,
+                        input_tokens: call.usage.input_tokens,
+                        output_tokens: call.usage.output_tokens,
                     });
                 }
                 MultiTurnStreamItem::FinalResponse(response)

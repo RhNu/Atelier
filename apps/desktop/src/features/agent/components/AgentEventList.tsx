@@ -1,6 +1,6 @@
 /* eslint-disable react-perf/jsx-no-new-function-as-prop, react-perf/jsx-no-new-object-as-prop */
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { AlertTriangle, Check, Loader2, RotateCcw, Wrench, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronRight, Loader2, RotateCcw, Wrench, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
@@ -11,6 +11,7 @@ import type { AgentEventDto, AgentTurnEventDto } from "@/types";
 
 import {
   buildDisplayAgentEvents,
+  AGENT_TOOL_NAME_KEYS,
   humanizeAgentToolName,
   prettyAgentJson,
   type DisplayAgentEvent,
@@ -115,14 +116,24 @@ function AgentEventCard({
       </div>
     );
   }
+  if (item.kind === "approval_status") {
+    return (
+      <div className="flex items-center gap-2 border border-app-border bg-black/10 px-2.5 py-2 text-xs text-app-muted">
+        {item.approved ? (
+          <Check aria-hidden="true" className="size-3.5 text-emerald-300" />
+        ) : (
+          <X aria-hidden="true" className="size-3.5 text-rose-300" />
+        )}
+        {toolDisplayName(item.name, t)} · {item.approved ? t("approved") : t("denied")}
+      </div>
+    );
+  }
   if (item.kind === "approval") {
     return (
       <article className="border border-amber-500/50 bg-amber-500/8 p-3">
         <p className="text-xs font-semibold text-amber-100">{t("approvalTitle")}</p>
-        <p className="mt-1 text-sm text-white">{humanizeAgentToolName(item.name)}</p>
-        <pre className="mt-2 max-h-32 overflow-auto bg-black/25 p-2 text-[11px] whitespace-pre-wrap text-app-muted">
-          {prettyAgentJson(item.details)}
-        </pre>
+        <p className="mt-1 text-sm text-white">{toolDisplayName(item.name, t)}</p>
+        <ToolDetails label={t("toolArguments")} value={item.details} />
         <div className="mt-3 flex justify-end gap-2">
           <AppButton variant="ghost" onClick={() => onApproval(item.approvalId, false)}>
             {t("deny")}
@@ -141,7 +152,7 @@ function AgentEventCard({
     );
   }
   return (
-    <article className="border border-app-border bg-black/15 p-3">
+    <article className="border border-app-border bg-black/15 px-2.5 py-2">
       <div className="flex items-center gap-2 text-xs font-semibold text-app-text">
         {item.state === "running" ? (
           <Loader2 aria-hidden="true" className="size-4 animate-spin text-brand-200" />
@@ -150,14 +161,38 @@ function AgentEventCard({
         ) : (
           <Wrench aria-hidden="true" className="size-4 text-brand-200" />
         )}
-        <span className="truncate">{humanizeAgentToolName(item.name)}</span>
+        <span className="min-w-0 flex-1 truncate">{toolDisplayName(item.name, t)}</span>
+        <span className="shrink-0 text-[10px] font-normal text-app-muted">
+          {t(`toolState.${item.state}`)}
+        </span>
       </div>
-      <pre className="mt-2 max-h-40 overflow-auto text-[11px] whitespace-pre-wrap text-app-muted">
-        {prettyAgentJson(item.details)}
-      </pre>
+      {item.arguments ? <ToolDetails label={t("toolArguments")} value={item.arguments} /> : null}
+      {item.result ? <ToolDetails label={t("toolResult")} value={item.result} /> : null}
       {item.actionId ? <UndoButton actionId={item.actionId} onUndo={onUndo} /> : null}
     </article>
   );
+}
+
+function ToolDetails({ label, value }: { label: string; value: string }) {
+  return (
+    <details className="group mt-1.5 border-t border-app-border/70 pt-1.5">
+      <summary className="flex cursor-pointer list-none items-center gap-1 text-[10px] text-app-muted select-none hover:text-app-text">
+        <ChevronRight
+          aria-hidden="true"
+          className="size-3 transition-transform group-open:rotate-90"
+        />
+        {label}
+      </summary>
+      <pre className="mt-1.5 max-h-40 overflow-auto bg-black/20 p-2 text-[11px] whitespace-pre-wrap text-app-muted">
+        {prettyAgentJson(value)}
+      </pre>
+    </details>
+  );
+}
+
+function toolDisplayName(name: string, t: ReturnType<typeof useTranslation<"agent">>["t"]): string {
+  const key = AGENT_TOOL_NAME_KEYS[name];
+  return key ? t(key) : humanizeAgentToolName(name);
 }
 
 function UndoButton({
