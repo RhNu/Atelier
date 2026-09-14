@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { agentApi, queryKeys } from "@/platform/atelier";
 import { useToastStore } from "@/stores/toast-store";
-import type { AgentEventDto } from "@/types";
+import type { AgentEventDto, AgentSessionDto } from "@/types";
 
 import {
   useAgentEventsQuery,
@@ -45,19 +45,11 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
     toggle: drawer.toggle,
   });
 
-  const sessionOptions = useMemo(
-    () =>
-      sessions.data?.map((session) => ({
-        value: session.id,
-        label: `${session.title} · ${session.model.display_name}`,
-      })) ?? [],
-    [sessions.data],
+  const sessionOptions = useAgentSessionOptions(sessions.data);
+  const defaultModelId = resolveDefaultModelId(
+    settings.data?.default_model_id,
+    registry.data?.models ?? [],
   );
-  const preferredModelId = settings.data?.default_model_id;
-  const defaultModelId =
-    registry.data?.models.find((model) => model.id === preferredModelId)?.id ??
-    registry.data?.models.at(0)?.id ??
-    null;
 
   const createSession = useCallback(() => {
     if (!defaultModelId) return;
@@ -186,6 +178,17 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
   );
 }
 
+function useAgentSessionOptions(sessions: AgentSessionDto[] | undefined) {
+  return useMemo(
+    () =>
+      sessions?.map((session) => ({
+        value: session.id,
+        label: `${session.title} · ${session.model.display_name}`,
+      })) ?? [],
+    [sessions],
+  );
+}
+
 function useAgentDrawerLifecycle({
   workspaceId,
   activeSessionId,
@@ -225,6 +228,13 @@ function useAgentDrawerLifecycle({
 
 function formatError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function resolveDefaultModelId(
+  preferredModelId: string | null | undefined,
+  models: ReadonlyArray<{ id: string }>,
+): string | null {
+  return models.find((model) => model.id === preferredModelId)?.id ?? models.at(0)?.id ?? null;
 }
 
 function notifyError(
