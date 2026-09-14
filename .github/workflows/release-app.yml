@@ -31,10 +31,10 @@ jobs:
     outputs:
       source_sha: ${{ steps.prepare.outputs.source_sha }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
       - id: prepare
@@ -42,7 +42,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SOURCE_REF: ${{ inputs.commit }}
         run: node scripts/release/app.mjs prepare release-plan.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: application-plan
           path: release-plan.json
@@ -58,24 +58,24 @@ jobs:
       CARGO_BUILD_TARGET: x86_64-pc-windows-msvc
       CARGO_INCREMENTAL: "0"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           path: automation
           persist-credentials: false
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
           path: source
           lfs: false
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: application-plan
           path: plan
       - uses: pnpm/action-setup@v6
         with:
           package_json_file: source/package.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: source/.node-version
           cache: pnpm
@@ -89,7 +89,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - working-directory: source
         run: rustup show
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         id: rust-cache
         with:
           # Dependencies and fingerprints only: installers, signatures and secrets are not cached.
@@ -114,7 +114,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: node node_modules/@tauri-apps/cli/tauri.js build --ci --target x86_64-pc-windows-msvc --bundles nsis --config src-tauri/tauri.release.conf.json -- --locked
       - run: node automation/scripts/release/app.mjs pack source plan/release-plan.json artifact
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: application-release
           path: artifact/
@@ -122,7 +122,7 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           overwrite: true
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         if: steps.rust-cache.outputs.cache-hit != 'true'
         with:
           path: |
@@ -145,13 +145,13 @@ jobs:
       contents: write
       actions: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .node-version
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: application-release
           path: artifact
