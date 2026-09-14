@@ -6,6 +6,7 @@ use atelier_generation::{
     GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftReferenceInset,
     GenerationDraftRepository, GenerationDraftResult, GenerationDraftSeedMode,
     GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot, ImageSize,
+    VersionedGenerationDraft,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef, VariantId};
 use rusqlite::{OptionalExtension, params};
@@ -21,7 +22,7 @@ use crate::generation_codec::scalars::{
 use crate::{DatabaseConnection, DatabaseError};
 
 const DRAFT_KEY: &str = "generation.draft";
-const JSON_SCHEMA_VERSION: u32 = 3;
+const JSON_SCHEMA_VERSION: u32 = 4;
 
 #[derive(Clone, Debug)]
 pub struct DatabaseGenerationDraftRepository {
@@ -39,7 +40,7 @@ impl DatabaseGenerationDraftRepository {
 impl GenerationDraftRepository for DatabaseGenerationDraftRepository {
     async fn load_generation_draft(
         &self,
-    ) -> GenerationDraftResult<Option<GenerationDraftSnapshot>> {
+    ) -> GenerationDraftResult<Option<VersionedGenerationDraft>> {
         let json = {
             let connection = self.connection.lock().map_err(draft_database_error)?;
             connection
@@ -58,10 +59,32 @@ impl GenerationDraftRepository for DatabaseGenerationDraftRepository {
 
     async fn save_generation_draft(
         &self,
+        expected_revision: u64,
         draft: &GenerationDraftSnapshot,
-    ) -> GenerationDraftResult<()> {
-        let json = GenerationDraftDto::encode_domain(draft)?;
+    ) -> GenerationDraftResult<VersionedGenerationDraft> {
         let connection = self.connection.lock().map_err(draft_database_error)?;
+        let current = connection
+            .query_row(
+                "SELECT value_json FROM workspace_settings WHERE setting_key = ?1",
+                params![DRAFT_KEY],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(draft_sql_error)?
+            .as_deref()
+            .map(GenerationDraftDto::decode_domain)
+            .transpose()?;
+        let current_revision = current.as_ref().map_or(0, |value| value.revision);
+        if current_revision != expected_revision {
+            return Err(GenerationDraftError::conflict(format!(
+                "generation draft changed from revision {expected_revision} to {current_revision}"
+            )));
+        }
+        let saved = VersionedGenerationDraft {
+            revision: current_revision.saturating_add(1),
+            snapshot: draft.clone(),
+        };
+        let json = GenerationDraftDto::encode_domain(&saved)?;
         connection
             .execute(
                 r"
@@ -71,8 +94,9 @@ impl GenerationDraftRepository for DatabaseGenerationDraftRepository {
                 ",
                 params![DRAFT_KEY, json],
             )
-            .map(|_| ())
-            .map_err(draft_sql_error)
+            .map_err(draft_sql_error)?;
+        drop(connection);
+        Ok(saved)
     }
 
     async fn clear_generation_draft(&self) -> GenerationDraftResult<()> {
@@ -91,6 +115,8 @@ impl GenerationDraftRepository for DatabaseGenerationDraftRepository {
 #[allow(clippy::struct_excessive_bools)]
 struct GenerationDraftDto {
     schema_version: u32,
+    #[serde(default)]
+    revision: u64,
     model: String,
     prompt_states: Vec<GenerationDraftPromptStateDto>,
     width: u32,
@@ -117,39 +143,47 @@ struct GenerationDraftDto {
 }
 
 impl GenerationDraftDto {
-    fn from_domain(value: &GenerationDraftSnapshot) -> Self {
+    fn from_domain(value: &VersionedGenerationDraft) -> Self {
         Self {
             schema_version: JSON_SCHEMA_VERSION,
-            model: image_model_as_str(value.model).to_owned(),
+            revision: value.revision,
+            model: image_model_as_str(value.snapshot.model).to_owned(),
             prompt_states: value
+                .snapshot
                 .prompt_states
                 .iter()
                 .map(GenerationDraftPromptStateDto::from_domain)
                 .collect(),
-            width: value.size.width,
-            height: value.size.height,
-            quality: quality_preset_as_str(value.quality).to_owned(),
-            transparent_background: value.transparent_background,
-            uc_preset: uc_preset_as_str(value.uc_preset).to_owned(),
-            steps: value.steps,
-            scale: value.scale,
-            sampler: sampler_as_str(value.sampler).to_owned(),
-            noise_schedule: noise_schedule_as_str(value.noise_schedule).to_owned(),
-            seed_mode: draft_seed_mode_as_str(value.seed_mode).to_owned(),
-            seed: value.seed,
-            n_samples: value.n_samples,
-            request_count: value.request_count,
-            cfg_rescale: value.cfg_rescale,
-            variety_boost: value.variety_boost,
+            width: value.snapshot.size.width,
+            height: value.snapshot.size.height,
+            quality: quality_preset_as_str(value.snapshot.quality).to_owned(),
+            transparent_background: value.snapshot.transparent_background,
+            uc_preset: uc_preset_as_str(value.snapshot.uc_preset).to_owned(),
+            steps: value.snapshot.steps,
+            scale: value.snapshot.scale,
+            sampler: sampler_as_str(value.snapshot.sampler).to_owned(),
+            noise_schedule: noise_schedule_as_str(value.snapshot.noise_schedule).to_owned(),
+            seed_mode: draft_seed_mode_as_str(value.snapshot.seed_mode).to_owned(),
+            seed: value.snapshot.seed,
+            n_samples: value.snapshot.n_samples,
+            request_count: value.snapshot.request_count,
+            cfg_rescale: value.snapshot.cfg_rescale,
+            variety_boost: value.snapshot.variety_boost,
             image_format: value
+                .snapshot
                 .image_format
                 .map(image_format_as_str)
                 .map(str::to_owned),
-            strict_mode: value.strict_mode,
-            stream_enabled: value.stream_enabled,
-            i2i: value.i2i.as_ref().map(GenerationDraftI2iDto::from_domain),
-            vibe: GenerationDraftVibeDto::from_domain(&value.vibe),
+            strict_mode: value.snapshot.strict_mode,
+            stream_enabled: value.snapshot.stream_enabled,
+            i2i: value
+                .snapshot
+                .i2i
+                .as_ref()
+                .map(GenerationDraftI2iDto::from_domain),
+            vibe: GenerationDraftVibeDto::from_domain(&value.snapshot.vibe),
             precise_references: value
+                .snapshot
                 .precise_references
                 .iter()
                 .map(GenerationDraftPreciseReferenceDto::from_domain)
@@ -157,55 +191,59 @@ impl GenerationDraftDto {
         }
     }
 
-    fn into_domain(self) -> GenerationDraftResult<GenerationDraftSnapshot> {
+    fn into_domain(self) -> GenerationDraftResult<VersionedGenerationDraft> {
         ensure_schema(self.schema_version)?;
-        Ok(GenerationDraftSnapshot {
-            model: map_database(image_model_from_str(&self.model))?,
-            prompt_states: self
-                .prompt_states
-                .into_iter()
-                .map(GenerationDraftPromptStateDto::into_domain)
-                .collect::<GenerationDraftResult<_>>()?,
-            size: ImageSize {
-                width: self.width,
-                height: self.height,
+        let revision = if self.revision == 0 { 1 } else { self.revision };
+        Ok(VersionedGenerationDraft {
+            revision,
+            snapshot: GenerationDraftSnapshot {
+                model: map_database(image_model_from_str(&self.model))?,
+                prompt_states: self
+                    .prompt_states
+                    .into_iter()
+                    .map(GenerationDraftPromptStateDto::into_domain)
+                    .collect::<GenerationDraftResult<_>>()?,
+                size: ImageSize {
+                    width: self.width,
+                    height: self.height,
+                },
+                quality: map_database(quality_preset_from_str(&self.quality))?,
+                transparent_background: self.transparent_background,
+                uc_preset: map_database(uc_preset_from_str(&self.uc_preset))?,
+                steps: self.steps,
+                scale: self.scale,
+                sampler: map_database(sampler_from_str(&self.sampler))?,
+                noise_schedule: map_database(noise_schedule_from_str(&self.noise_schedule))?,
+                seed_mode: draft_seed_mode_from_str(&self.seed_mode)?,
+                seed: self.seed,
+                n_samples: self.n_samples,
+                request_count: self.request_count,
+                cfg_rescale: self.cfg_rescale,
+                variety_boost: self.variety_boost,
+                image_format: self
+                    .image_format
+                    .as_deref()
+                    .map(image_format_from_str)
+                    .transpose()
+                    .map_err(draft_database_error)?,
+                strict_mode: self.strict_mode,
+                stream_enabled: self.stream_enabled,
+                i2i: self.i2i.map(GenerationDraftI2iDto::into_domain),
+                vibe: self.vibe.into_domain()?,
+                precise_references: self
+                    .precise_references
+                    .into_iter()
+                    .map(GenerationDraftPreciseReferenceDto::into_domain)
+                    .collect::<GenerationDraftResult<_>>()?,
             },
-            quality: map_database(quality_preset_from_str(&self.quality))?,
-            transparent_background: self.transparent_background,
-            uc_preset: map_database(uc_preset_from_str(&self.uc_preset))?,
-            steps: self.steps,
-            scale: self.scale,
-            sampler: map_database(sampler_from_str(&self.sampler))?,
-            noise_schedule: map_database(noise_schedule_from_str(&self.noise_schedule))?,
-            seed_mode: draft_seed_mode_from_str(&self.seed_mode)?,
-            seed: self.seed,
-            n_samples: self.n_samples,
-            request_count: self.request_count,
-            cfg_rescale: self.cfg_rescale,
-            variety_boost: self.variety_boost,
-            image_format: self
-                .image_format
-                .as_deref()
-                .map(image_format_from_str)
-                .transpose()
-                .map_err(draft_database_error)?,
-            strict_mode: self.strict_mode,
-            stream_enabled: self.stream_enabled,
-            i2i: self.i2i.map(GenerationDraftI2iDto::into_domain),
-            vibe: self.vibe.into_domain()?,
-            precise_references: self
-                .precise_references
-                .into_iter()
-                .map(GenerationDraftPreciseReferenceDto::into_domain)
-                .collect::<GenerationDraftResult<_>>()?,
         })
     }
 
-    fn encode_domain(value: &GenerationDraftSnapshot) -> GenerationDraftResult<String> {
+    fn encode_domain(value: &VersionedGenerationDraft) -> GenerationDraftResult<String> {
         encode_json(&Self::from_domain(value)).map_err(draft_database_error)
     }
 
-    fn decode_domain(value: &str) -> GenerationDraftResult<GenerationDraftSnapshot> {
+    fn decode_domain(value: &str) -> GenerationDraftResult<VersionedGenerationDraft> {
         decode_json::<Self>(value)
             .map_err(draft_database_error)?
             .into_domain()
@@ -639,7 +677,7 @@ fn position_mode_from_str(
 }
 
 fn ensure_schema(value: u32) -> GenerationDraftResult<()> {
-    if value == JSON_SCHEMA_VERSION || value == 2 {
+    if matches!(value, 2 | 3 | JSON_SCHEMA_VERSION) {
         Ok(())
     } else {
         Err(GenerationDraftError::repository(format!(

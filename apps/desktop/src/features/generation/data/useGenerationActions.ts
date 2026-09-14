@@ -78,8 +78,17 @@ export function loadGenerationResourceImage(resource: ResourceRefDto) {
 
 export function useSaveGenerationDraftMutation() {
   return useMutation({
-    mutationFn: (draft: GenerationDraft) =>
-      generationApi.saveDraft({ draft: generationDraftToDto(draft) }),
+    mutationFn: ({
+      draft,
+      expectedRevision,
+    }: {
+      draft: GenerationDraft;
+      expectedRevision: number;
+    }) =>
+      generationApi.saveDraft({
+        expected_revision: expectedRevision,
+        draft: generationDraftToDto(draft),
+      }),
   });
 }
 

@@ -43,7 +43,6 @@ import type {
   GalleryPageDto,
   GalleryQueryDto,
   GlobalSettingsDto,
-  GenerationDraftDto,
   GenerationStatusDto,
   GenerationAnlasEstimateDto,
   GenerationEstimateRequestDto,
@@ -123,6 +122,7 @@ import type {
   VibeDocumentPageDto,
   WorkspaceSettingsDto,
   WorkspaceStatusDto,
+  VersionedGenerationDraftDto,
 } from "@/types";
 
 import { atelierCommands } from "./commands";
@@ -374,12 +374,14 @@ export const generationApi = {
   countPromptTokens: (request: CountPromptTokensRequestDto) =>
     invokeAtelierCommand<PromptTokenUsageDto>(atelierCommands.countPromptTokens, { request }),
   getDraft: () =>
-    invokeAtelierCommand<GenerationDraftDto | null>(atelierCommands.getGenerationDraft),
+    invokeAtelierCommand<VersionedGenerationDraftDto | null>(atelierCommands.getGenerationDraft),
   saveDraft: (request: SaveGenerationDraftRequestDto) =>
-    invokeAtelierCommand<GenerationDraftDto>(atelierCommands.saveGenerationDraft, { request }),
+    invokeAtelierCommand<VersionedGenerationDraftDto>(atelierCommands.saveGenerationDraft, {
+      request,
+    }),
   clearDraft: () => invokeAtelierCommand<void>(atelierCommands.clearGenerationDraft),
   appendLexiconEntities: (request: AppendLexiconEntitiesRequestDto) =>
-    invokeAtelierCommand<GenerationDraftDto>(
+    invokeAtelierCommand<VersionedGenerationDraftDto>(
       atelierCommands.appendLexiconEntitiesToGenerationDraft,
       { request },
     ),

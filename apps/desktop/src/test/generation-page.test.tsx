@@ -73,6 +73,7 @@ import type {
   EnsuredVibeEncodingDto,
   VibeDocumentPageDto,
   VibeDocumentEntryDto,
+  VersionedGenerationDraftDto,
   WorkspaceSettingsDto,
 } from "../types";
 import {
@@ -91,8 +92,9 @@ const mocks = vi.hoisted(() => ({
     countPromptTokens:
       vi.fn<(request: CountPromptTokensRequestDto) => Promise<PromptTokenUsageDto>>(),
     listModels: vi.fn<() => Promise<ImageModelDescriptorDto[]>>(),
-    getDraft: vi.fn<() => Promise<GenerationDraftDto | null>>(),
-    saveDraft: vi.fn<(request: SaveGenerationDraftRequestDto) => Promise<GenerationDraftDto>>(),
+    getDraft: vi.fn<() => Promise<VersionedGenerationDraftDto | null>>(),
+    saveDraft:
+      vi.fn<(request: SaveGenerationDraftRequestDto) => Promise<VersionedGenerationDraftDto>>(),
     clearDraft: vi.fn<() => Promise<void>>(),
     submitBatch: vi.fn<(request: SubmitGenerationBatchRequestDto) => Promise<QueueDirectiveDto>>(),
     estimate:
@@ -453,9 +455,14 @@ function setup(options?: {
   if (options?.draftError) {
     mocks.generationApi.getDraft.mockRejectedValue(options.draftError);
   } else {
-    mocks.generationApi.getDraft.mockResolvedValue(options?.storedDraft ?? null);
+    mocks.generationApi.getDraft.mockResolvedValue(
+      options?.storedDraft ? { revision: 1, draft: options.storedDraft } : null,
+    );
   }
-  mocks.generationApi.saveDraft.mockImplementation(async (request) => request.draft);
+  mocks.generationApi.saveDraft.mockImplementation(async (request) => ({
+    revision: request.expected_revision + 1,
+    draft: request.draft,
+  }));
   mocks.generationApi.clearDraft.mockResolvedValue();
   mocks.generationApi.estimate.mockResolvedValue({
     status: "available",
@@ -1030,6 +1037,7 @@ describe("GeneratePage", () => {
       timeout: 2_000,
     });
     const savedRequest = mocks.generationApi.saveDraft.mock.lastCall?.[0];
+    expect(savedRequest?.expected_revision).toBe(1);
     expect(savedRequest?.draft.prompt_states[0]?.prompt).toBe("restored prompt, detailed eyes");
   });
 
@@ -1154,7 +1162,10 @@ describe("GeneratePage", () => {
     const { user } = setup({ storedDraft: storedDraft() });
     mocks.generationApi.saveDraft
       .mockRejectedValueOnce(new Error("draft database busy"))
-      .mockImplementation(async (request) => request.draft);
+      .mockImplementation(async (request) => ({
+        revision: request.expected_revision + 1,
+        draft: request.draft,
+      }));
 
     typeInPromptEditor(await screen.findByLabelText("Positive prompt"), ", retry me");
     expect(await screen.findByText("draft database busy")).toBeInTheDocument();

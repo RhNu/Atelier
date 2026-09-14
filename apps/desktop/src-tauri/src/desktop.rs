@@ -91,6 +91,7 @@ fn current_notification_language(language: &Mutex<NotificationLanguage>) -> Noti
     language.lock().map_or_default(|current| *current)
 }
 
+#[derive(Clone)]
 pub struct DesktopState {
     pub app_handle: AppHandle,
     pub host: Arc<NativeAtelierRuntime>,
@@ -206,6 +207,7 @@ pub fn build_desktop_state(
             system.paths().app_config_dir.join("agent-registry.json"),
         )),
     );
+    dependencies.agent_runtime = Arc::new(atelier_adapter_agent_rig::RigAgentRuntime);
     dependencies.safety_scanner = safety_pipeline
         .clone()
         .map(|value| value as Arc<dyn atelier_safety::SafetyScanner>);

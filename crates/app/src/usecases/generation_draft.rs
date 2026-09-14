@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use atelier_adapter_novelai::NovelAiClientFactory;
-use atelier_app_api::generation::{GenerationDraftDto, SaveGenerationDraftRequestDto};
+use atelier_app_api::generation::{SaveGenerationDraftRequestDto, VersionedGenerationDraftDto};
 use atelier_app_api::prompt::LexiconDraftTargetDto;
 use atelier_generation::{
     GenerationDraftCharacterPositionMode, GenerationDraftPromptState, GenerationDraftSeedMode,
@@ -28,21 +28,25 @@ where
     F: NovelAiClientFactory + Clone + Send + Sync,
     E: EmbeddedVibeDocumentExtractor + Clone + Send + Sync,
 {
-    pub async fn get_draft(&self) -> AppResult<Option<GenerationDraftDto>> {
+    pub async fn get_draft(&self) -> AppResult<Option<VersionedGenerationDraftDto>> {
         let draft = self.app.generation_drafts.load().await?;
-        Ok(draft.as_ref().map(generation_draft_to_dto))
+        Ok(draft.as_ref().map(|value| VersionedGenerationDraftDto {
+            revision: value.revision,
+            draft: generation_draft_to_dto(&value.snapshot),
+        }))
     }
 
     pub async fn save_draft(
         &self,
         request: SaveGenerationDraftRequestDto,
-    ) -> AppResult<GenerationDraftDto> {
+    ) -> AppResult<VersionedGenerationDraftDto> {
         let _write_guard = self.app.generation_draft_write.lock().await;
+        let expected_revision = request.expected_revision;
         let draft = generation_draft_to_domain(request.draft);
         let previous = self.app.generation_drafts.load().await?;
         let old_links = previous
             .as_ref()
-            .map(draft_resource_links)
+            .map(|value| draft_resource_links(&value.snapshot))
             .unwrap_or_default();
         let new_links = draft_resource_links(&draft);
         let owner = generation_draft_owner();
@@ -60,7 +64,12 @@ where
             }
         }
 
-        let saved = match self.app.generation_drafts.save(draft.clone()).await {
+        let saved = match self
+            .app
+            .generation_drafts
+            .save(expected_revision, draft.clone())
+            .await
+        {
             Ok(value) => value,
             Err(error) => {
                 let catalog = &self.app.resources;
@@ -87,7 +96,10 @@ where
             catalog.cleanup_delete_pending().await?;
         }
 
-        Ok(generation_draft_to_dto(&saved))
+        Ok(VersionedGenerationDraftDto {
+            revision: saved.revision,
+            draft: generation_draft_to_dto(&saved.snapshot),
+        })
     }
 
     pub async fn clear_draft(&self) -> AppResult<()> {
@@ -108,13 +120,13 @@ where
         &self,
         target: LexiconDraftTargetDto,
         entities: &[ResolvedLexiconEntity],
-    ) -> AppResult<GenerationDraftDto> {
+    ) -> AppResult<VersionedGenerationDraftDto> {
         let _write_guard = self.app.generation_draft_write.lock().await;
-        let mut draft = if let Some(draft) = self.app.generation_drafts.load().await? {
-            draft
+        let (revision, mut draft) = if let Some(draft) = self.app.generation_drafts.load().await? {
+            (draft.revision, draft.snapshot)
         } else {
             let settings = self.app.settings.get_workspace_settings().await?;
-            default_draft(&settings)
+            (0, default_draft(&settings))
         };
         let current_model = draft.model;
         let state = draft
@@ -132,8 +144,11 @@ where
             LexiconDraftTargetDto::Negative => &mut state.negative_prompt,
         };
         append_canonical_tags(prompt, entities);
-        let saved = self.app.generation_drafts.save(draft).await?;
-        Ok(generation_draft_to_dto(&saved))
+        let saved = self.app.generation_drafts.save(revision, draft).await?;
+        Ok(VersionedGenerationDraftDto {
+            revision: saved.revision,
+            draft: generation_draft_to_dto(&saved.snapshot),
+        })
     }
 }
 

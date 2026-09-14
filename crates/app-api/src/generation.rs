@@ -404,7 +404,14 @@ pub struct GenerationDraftDto {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct VersionedGenerationDraftDto {
+    pub revision: u64,
+    pub draft: GenerationDraftDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct SaveGenerationDraftRequestDto {
+    pub expected_revision: u64,
     pub draft: GenerationDraftDto,
 }
 

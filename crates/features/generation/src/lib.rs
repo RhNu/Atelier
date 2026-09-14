@@ -16,6 +16,7 @@ pub use draft::{
     GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftReferenceInset,
     GenerationDraftRepository, GenerationDraftResult, GenerationDraftSeedMode,
     GenerationDraftService, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
+    VersionedGenerationDraft,
 };
 pub use error::{
     ClientApiErrorContext, ClientApiErrorReason, ClientDecodeContext, ClientDecodeTarget,

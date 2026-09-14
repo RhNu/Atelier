@@ -1,9 +1,10 @@
 use crate::desktop::DesktopState;
 use atelier_app::CommandResult;
 use atelier_app_api::generation::{
-    GenerationAnlasEstimateDto, GenerationDraftDto, GenerationEstimateRequestDto,
-    GenerationStatusDto, GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
+    GenerationAnlasEstimateDto, GenerationEstimateRequestDto, GenerationStatusDto,
+    GenerationStatusQueryDto, QueueDirectiveDto, RunGenerationJobRequestDto,
     SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
+    VersionedGenerationDraftDto,
 };
 use atelier_app_api::prompt::{
     AppendLexiconEntitiesRequestDto, CompileGenerationPromptRequestDto, CompiledGenerationPromptDto,
@@ -21,7 +22,7 @@ pub async fn compile_generation_prompt_preview(
 #[tauri::command]
 pub async fn get_generation_draft(
     state: State<'_, DesktopState>,
-) -> CommandResult<Option<GenerationDraftDto>> {
+) -> CommandResult<Option<VersionedGenerationDraftDto>> {
     state.host.get_generation_draft().await
 }
 
@@ -29,7 +30,7 @@ pub async fn get_generation_draft(
 pub async fn save_generation_draft(
     state: State<'_, DesktopState>,
     request: SaveGenerationDraftRequestDto,
-) -> CommandResult<GenerationDraftDto> {
+) -> CommandResult<VersionedGenerationDraftDto> {
     state.host.save_generation_draft(request).await
 }
 
@@ -42,7 +43,7 @@ pub async fn clear_generation_draft(state: State<'_, DesktopState>) -> CommandRe
 pub async fn append_lexicon_entities_to_generation_draft(
     state: State<'_, DesktopState>,
     request: AppendLexiconEntitiesRequestDto,
-) -> CommandResult<GenerationDraftDto> {
+) -> CommandResult<VersionedGenerationDraftDto> {
     state
         .host
         .append_lexicon_entities_to_generation_draft(request)

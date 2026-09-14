@@ -92,8 +92,10 @@ export function GeneratePage() {
   const compileMutation = useCompilePromptMutation();
   const canvasCommitMutation = useCommitGenerationCanvasMutation();
   const saveDraft = useCallback(
-    (draft: Parameters<typeof saveDraftMutation.mutateAsync>[0]) =>
-      saveDraftMutation.mutateAsync(draft),
+    (
+      draft: Parameters<typeof saveDraftMutation.mutateAsync>[0]["draft"],
+      expectedRevision: number,
+    ) => saveDraftMutation.mutateAsync({ draft, expectedRevision }),
     [saveDraftMutation],
   );
   const {
@@ -101,6 +103,7 @@ export function GeneratePage() {
     patchDraft,
     patchSize,
     replaceDraft,
+    resetDraft,
     flushDraft,
     retrySave,
     saveError: draftSaveError,
@@ -395,7 +398,7 @@ export function GeneratePage() {
     void clearDraftMutation
       .mutateAsync()
       .then(async () => {
-        replaceDraft(createGenerationDraft(settingsQuery.data), { persist: "immediate" });
+        resetDraft(createGenerationDraft(settingsQuery.data));
         await storedDraftQuery.refetch();
         frontendLogger.info("Generation draft reset completed");
       })
@@ -405,7 +408,7 @@ export function GeneratePage() {
         });
         setSubmitError(formatError(error));
       });
-  }, [clearDraftMutation, replaceDraft, settingsQuery.data, storedDraftQuery]);
+  }, [clearDraftMutation, resetDraft, settingsQuery.data, storedDraftQuery]);
 
   if (settingsQuery.isError) {
     return <GenerationSettingsError error={settingsQuery.error} />;

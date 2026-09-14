@@ -12,6 +12,7 @@ pub type GenerationDraftResult<T> = Result<T, GenerationDraftError>;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum GenerationDraftErrorKind {
     InvalidValue,
+    Conflict,
     Repository,
 }
 
@@ -19,6 +20,7 @@ impl std::fmt::Display for GenerationDraftErrorKind {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
             Self::InvalidValue => "generation_draft_invalid_value",
+            Self::Conflict => "generation_draft_conflict",
             Self::Repository => "generation_draft_repository",
         })
     }
@@ -46,6 +48,15 @@ impl GenerationDraftError {
     pub fn repository(message: impl Into<String>) -> Self {
         Self {
             kind: GenerationDraftErrorKind::Repository,
+            field: None,
+            message: message.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn conflict(message: impl Into<String>) -> Self {
+        Self {
+            kind: GenerationDraftErrorKind::Conflict,
             field: None,
             message: message.into(),
         }
@@ -204,6 +215,12 @@ pub struct GenerationDraftSnapshot {
     pub i2i: Option<GenerationDraftI2i>,
     pub vibe: GenerationDraftVibe,
     pub precise_references: Vec<GenerationDraftPreciseReference>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct VersionedGenerationDraft {
+    pub revision: u64,
+    pub snapshot: GenerationDraftSnapshot,
 }
 
 impl GenerationDraftSnapshot {
@@ -420,13 +437,15 @@ fn validate_draft_character(
 
 #[async_trait]
 pub trait GenerationDraftRepository: Send + Sync {
-    async fn load_generation_draft(&self)
-    -> GenerationDraftResult<Option<GenerationDraftSnapshot>>;
+    async fn load_generation_draft(
+        &self,
+    ) -> GenerationDraftResult<Option<VersionedGenerationDraft>>;
 
     async fn save_generation_draft(
         &self,
+        expected_revision: u64,
         draft: &GenerationDraftSnapshot,
-    ) -> GenerationDraftResult<()>;
+    ) -> GenerationDraftResult<VersionedGenerationDraft>;
 
     async fn clear_generation_draft(&self) -> GenerationDraftResult<()>;
 }
@@ -451,10 +470,10 @@ where
     ///
     /// # Errors
     /// Returns an error when persisted data cannot be decoded or is invalid.
-    pub async fn load(&self) -> GenerationDraftResult<Option<GenerationDraftSnapshot>> {
+    pub async fn load(&self) -> GenerationDraftResult<Option<VersionedGenerationDraft>> {
         let draft = self.repository.load_generation_draft().await?;
         if let Some(value) = &draft {
-            value.validate()?;
+            value.snapshot.validate()?;
         }
         Ok(draft)
     }
@@ -465,11 +484,13 @@ where
     /// Returns an error when the draft is invalid or persistence fails.
     pub async fn save(
         &self,
+        expected_revision: u64,
         draft: GenerationDraftSnapshot,
-    ) -> GenerationDraftResult<GenerationDraftSnapshot> {
+    ) -> GenerationDraftResult<VersionedGenerationDraft> {
         draft.validate()?;
-        self.repository.save_generation_draft(&draft).await?;
-        Ok(draft)
+        self.repository
+            .save_generation_draft(expected_revision, &draft)
+            .await
     }
 
     /// Removes the current workspace draft.

@@ -39,6 +39,7 @@ pub struct WorkspaceSession<
     pub(crate) api_keys: AppApiKeyService<S, F>,
     pub(crate) settings: WorkspaceSettingsService<DatabaseSettingsRepository>,
     pub(crate) agent: AgentWorkspaceService<DatabaseAgentWorkspaceRepository>,
+    pub(crate) agent_turn: Arc<crate::agent_turn::AgentTurnCoordinator>,
     pub(crate) generation_drafts:
         atelier_generation::GenerationDraftService<DatabaseGenerationDraftRepository>,
     pub(crate) generation_draft_write: Mutex<()>,

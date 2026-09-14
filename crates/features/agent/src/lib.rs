@@ -3,6 +3,8 @@
 mod error;
 mod model;
 mod ports;
+mod prompt;
+mod runtime;
 mod service;
 
 pub use error::{AgentError, AgentErrorKind, AgentResult};
@@ -13,4 +15,6 @@ pub use model::{
     AgentSessionId, AgentSessionStatus, AgentSummary, AgentWorkspaceSettings,
 };
 pub use ports::{AgentRegistryRepository, AgentWorkspaceRepository};
+pub use prompt::{AgentPromptFamily, build_agent_system_prompt};
+pub use runtime::*;
 pub use service::{AgentRegistryService, AgentWorkspaceService};

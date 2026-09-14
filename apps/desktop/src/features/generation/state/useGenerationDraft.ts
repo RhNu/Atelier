@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { describeError, frontendLogger, reportBackgroundPromise } from "@/app/logger";
-import type { GenerationDraftDto, WorkspaceSettingsDto } from "@/types";
+import type { VersionedGenerationDraftDto, WorkspaceSettingsDto } from "@/types";
 
 import {
   createGenerationDraft,
@@ -16,13 +16,18 @@ export type GenerationDraftPatchOptions = {
 
 type UseGenerationDraftOptions = {
   settings: WorkspaceSettingsDto | undefined;
-  storedDraft: GenerationDraftDto | null | undefined;
+  storedDraft: VersionedGenerationDraftDto | null | undefined;
   sourceReady: boolean;
-  saveDraft: (draft: GenerationDraft) => Promise<unknown>;
+  saveDraft: (
+    draft: GenerationDraft,
+    expectedRevision: number,
+  ) => Promise<VersionedGenerationDraftDto>;
 };
 
 const SAVE_DEBOUNCE_MS = 250;
 
+// Draft hydration and its serialized, debounced CAS save queue form one state machine.
+// eslint-disable-next-line max-lines-per-function
 export function useGenerationDraft({
   settings,
   storedDraft,
@@ -32,6 +37,7 @@ export function useGenerationDraft({
   const [draft, setDraft] = useState<GenerationDraft | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const latestDraftRef = useRef<GenerationDraft | null>(null);
+  const revisionRef = useRef(0);
   const pendingDraftRef = useRef<GenerationDraft | null>(null);
   const failedDraftRef = useRef<GenerationDraft | null>(null);
   const saveDraftRef = useRef(saveDraft);
@@ -54,7 +60,8 @@ export function useGenerationDraft({
         pendingDraftRef.current = null;
         frontendLogger.debug("Generation draft save started");
         try {
-          await saveDraftRef.current(next);
+          const saved = await saveDraftRef.current(next, revisionRef.current);
+          revisionRef.current = saved.revision;
           failedDraftRef.current = null;
           frontendLogger.info("Generation draft saved");
           if (mountedRef.current) {
@@ -106,8 +113,9 @@ export function useGenerationDraft({
     failedDraftRef.current = null;
     setSaveError(null);
     const next = storedDraft
-      ? generationDraftFromDto(storedDraft)
+      ? generationDraftFromDto(storedDraft.draft)
       : createGenerationDraft(settings);
+    revisionRef.current = storedDraft?.revision ?? 0;
     hydratedSettingsRef.current = settings;
     latestDraftRef.current = next;
     setDraft(next);
@@ -122,7 +130,7 @@ export function useGenerationDraft({
       }
       const pending = pendingDraftRef.current;
       if (pending) {
-        reportPendingGenerationDraftSave(saveDraftRef.current(pending));
+        reportPendingGenerationDraftSave(saveDraftRef.current(pending, revisionRef.current));
       }
     };
   }, []);
@@ -172,11 +180,20 @@ export function useGenerationDraft({
     }
   }, [queueSave]);
 
+  const resetDraft = useCallback(
+    (next: GenerationDraft) => {
+      revisionRef.current = 0;
+      replaceDraft(next, { persist: "immediate" });
+    },
+    [replaceDraft],
+  );
+
   return {
     draft,
     patchDraft,
     patchSize,
     replaceDraft,
+    resetDraft,
     flushDraft,
     retrySave,
     saveError,

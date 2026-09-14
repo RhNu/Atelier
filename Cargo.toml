@@ -5,6 +5,7 @@ members = [
     "crates/app-api",
     "crates/adapters/keyring",
     "crates/adapters/agent-config-fs",
+    "crates/adapters/agent-rig",
     "crates/adapters/secrets-fs",
     "crates/adapters/novelai",
     "crates/adapters/image-analysis-onnx",
@@ -70,6 +71,7 @@ semver = "1"
 tokenizers = { version = "0.23", default-features = false, features = ["onig"] }
 atelier-adapter-database = { path = "crates/adapters/database" }
 atelier-adapter-agent-config-fs = { path = "crates/adapters/agent-config-fs" }
+atelier-adapter-agent-rig = { path = "crates/adapters/agent-rig" }
 atelier-adapter-danbooru = { path = "crates/adapters/danbooru" }
 atelier-adapter-novelai-explore = { path = "crates/adapters/novelai-explore" }
 atelier-adapter-downloadable-resources-fs = { path = "crates/adapters/downloadable-resources-fs" }
@@ -118,6 +120,10 @@ sha2 = "0.11"
 tempfile = "3"
 thiserror = "2"
 tokio = { version = "1", features = ["rt", "sync"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+rig-core = { version = "0.42.0", default-features = false, features = ["reqwest", "rustls"] }
+rig-agent = { version = "0.42.0", default-features = false }
+rig-memory = "0.42.0"
 ts-rs = { version = "12", features = ["serde-compat", "serde-json-impl", "format"] }
 unicode-normalization = "0.1"
 unicode-ident = "1"

@@ -1,6 +1,10 @@
-use atelier_agent::{AgentAuth, AgentConnectionId, AgentModelId, AgentRegistryService};
+use atelier_agent::{
+    AgentAuth, AgentConnectionId, AgentModelId, AgentModelRuntime, AgentRegistryService,
+    AgentResolvedConnection,
+};
 use atelier_app_api::agent::{
-    AgentRegistryDto, SaveAgentConnectionRequestDto, SaveAgentModelRequestDto,
+    AgentRegistryDto, DiscoveredAgentModelDto, SaveAgentConnectionRequestDto,
+    SaveAgentModelRequestDto,
 };
 use atelier_secrets::{SecretRecordId, SecretStore, SecretValue};
 
@@ -10,6 +14,7 @@ use crate::{AppError, AppResult};
 pub struct AgentModelUseCases<'a, S> {
     pub(crate) registry: &'a AgentRegistryService,
     pub(crate) secrets: &'a S,
+    pub(crate) runtime: &'a std::sync::Arc<dyn AgentModelRuntime>,
 }
 
 impl<S> AgentModelUseCases<'_, S>
@@ -25,6 +30,50 @@ where
             .get_registry()
             .await
             .map(|registry| agent_registry_to_dto(&registry))
+            .map_err(AppError::from)
+    }
+
+    /// Lists models exposed by one configured OpenAI-compatible connection.
+    ///
+    /// # Errors
+    /// Returns an error when the connection, secret, or provider request is unavailable.
+    pub async fn discover_models(
+        &self,
+        connection_id: &str,
+    ) -> AppResult<Vec<DiscoveredAgentModelDto>> {
+        let registry = self.registry.get_registry().await?;
+        let connection = registry
+            .connections
+            .iter()
+            .find(|value| value.id.as_str() == connection_id)
+            .ok_or_else(|| AppError::new("agent_not_found", "agent connection does not exist"))?;
+        let bearer_token = match &connection.auth {
+            AgentAuth::None => None,
+            AgentAuth::Bearer { secret_record_id } => Some(
+                self.secrets
+                    .read_secret(&SecretRecordId::new(secret_record_id.clone()))
+                    .await?
+                    .expose_secret()
+                    .to_owned(),
+            ),
+        };
+        self.runtime
+            .discover_models(AgentResolvedConnection {
+                base_url: connection.base_url.clone(),
+                bearer_token,
+            })
+            .await
+            .map(|models| {
+                models
+                    .into_iter()
+                    .map(|model| DiscoveredAgentModelDto {
+                        wire_model_id: model.wire_model_id,
+                        display_name: model.display_name,
+                        context_window: model.context_window,
+                        max_output_tokens: model.max_output_tokens,
+                    })
+                    .collect()
+            })
             .map_err(AppError::from)
     }
 

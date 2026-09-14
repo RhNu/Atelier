@@ -3,11 +3,12 @@ use atelier_adapter_database::{
 };
 use atelier_generation::{
     CharacterPosition, CharacterReferenceType, GenerationDraftCharacter,
-    GenerationDraftCharacterPositionMode, GenerationDraftFocusRegion, GenerationDraftI2i,
-    GenerationDraftInpaintSession, GenerationDraftMaskDisplay, GenerationDraftPreciseReference,
-    GenerationDraftPromptState, GenerationDraftReferenceInset, GenerationDraftRepository,
-    GenerationDraftSeedMode, GenerationDraftSnapshot, GenerationDraftVibe, GenerationDraftVibeSlot,
-    ImageFormat, ImageModel, ImageSize, NoiseSchedule, QualityPreset, Sampler, UcPreset,
+    GenerationDraftCharacterPositionMode, GenerationDraftErrorKind, GenerationDraftFocusRegion,
+    GenerationDraftI2i, GenerationDraftInpaintSession, GenerationDraftMaskDisplay,
+    GenerationDraftPreciseReference, GenerationDraftPromptState, GenerationDraftReferenceInset,
+    GenerationDraftRepository, GenerationDraftSeedMode, GenerationDraftSnapshot,
+    GenerationDraftVibe, GenerationDraftVibeSlot, ImageFormat, ImageModel, ImageSize,
+    NoiseSchedule, QualityPreset, Sampler, UcPreset, VersionedGenerationDraft,
 };
 use atelier_resource_catalog::{ResourceId, ResourceRef};
 use atelier_settings::{WorkspaceSettings, WorkspaceSettingsRepository};
@@ -58,12 +59,15 @@ fn draft_round_trips_all_fields_without_overwriting_workspace_settings() {
                 border_width: 4,
             });
         draft_repository
-            .save_generation_draft(&draft)
+            .save_generation_draft(0, &draft)
             .await
             .unwrap();
         assert_eq!(
             draft_repository.load_generation_draft().await.unwrap(),
-            Some(draft)
+            Some(VersionedGenerationDraft {
+                revision: 1,
+                snapshot: draft,
+            })
         );
         assert_eq!(
             settings_repository.get_workspace_settings().await.unwrap(),
@@ -79,6 +83,26 @@ fn draft_round_trips_all_fields_without_overwriting_workspace_settings() {
             settings_repository.get_workspace_settings().await.unwrap(),
             settings
         );
+    });
+}
+
+#[test]
+fn draft_rejects_a_stale_expected_revision() {
+    block_on(async {
+        let connection = DatabaseConnection::open_memory().unwrap();
+        let repository = DatabaseGenerationDraftRepository::new(connection);
+        let first = repository
+            .save_generation_draft(0, &sample_draft())
+            .await
+            .unwrap();
+
+        let error = repository
+            .save_generation_draft(0, &sample_draft())
+            .await
+            .unwrap_err();
+
+        assert_eq!(first.revision, 1);
+        assert_eq!(error.kind, GenerationDraftErrorKind::Conflict);
     });
 }
 
@@ -113,7 +137,10 @@ fn draft_migrates_schema_v2_mask_to_semantic_inpaint_session() {
         let repository =
             DatabaseGenerationDraftRepository::new(DatabaseConnection::open(&path).unwrap());
         let expected = sample_draft();
-        repository.save_generation_draft(&expected).await.unwrap();
+        repository
+            .save_generation_draft(0, &expected)
+            .await
+            .unwrap();
 
         let raw_connection = Connection::open(&path).unwrap();
         let raw: String = raw_connection
@@ -137,7 +164,10 @@ fn draft_migrates_schema_v2_mask_to_semantic_inpaint_session() {
 
         assert_eq!(
             repository.load_generation_draft().await.unwrap(),
-            Some(expected)
+            Some(VersionedGenerationDraft {
+                revision: 1,
+                snapshot: expected,
+            })
         );
     });
 }

@@ -393,11 +393,15 @@ fn generation_draft_promotes_resources_survives_reopen_and_clears_owners() {
 
         assert_eq!(
             host.save_generation_draft(SaveGenerationDraftRequestDto {
+                expected_revision: 0,
                 draft: draft.clone(),
             })
             .await
             .unwrap(),
-            draft
+            atelier_app_api::generation::VersionedGenerationDraftDto {
+                revision: 1,
+                draft: draft.clone(),
+            }
         );
         assert_eq!(
             host.release_imported_image_resources(ReleaseImportedImageResourcesRequestDto {
@@ -411,7 +415,10 @@ fn generation_draft_promotes_resources_survives_reopen_and_clears_owners() {
 
         host.close_workspace().unwrap();
         open_workspace(&host, &temp).await;
-        assert_eq!(host.get_generation_draft().await.unwrap(), Some(draft));
+        assert_eq!(
+            host.get_generation_draft().await.unwrap(),
+            Some(atelier_app_api::generation::VersionedGenerationDraftDto { revision: 1, draft })
+        );
         host.get_resource_image(GetResourceImageRequestDto {
             resource: imported.clone(),
         })

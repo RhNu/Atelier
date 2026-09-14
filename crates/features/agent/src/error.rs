@@ -8,6 +8,8 @@ pub enum AgentErrorKind {
     NotFound,
     Conflict,
     Repository,
+    Runtime,
+    Cancelled,
 }
 
 impl std::fmt::Display for AgentErrorKind {
@@ -17,6 +19,8 @@ impl std::fmt::Display for AgentErrorKind {
             Self::NotFound => "not_found",
             Self::Conflict => "conflict",
             Self::Repository => "repository",
+            Self::Runtime => "runtime",
+            Self::Cancelled => "cancelled",
         })
     }
 }
@@ -47,6 +51,16 @@ impl AgentError {
     #[must_use]
     pub fn repository(message: impl Into<String>) -> Self {
         Self::new(AgentErrorKind::Repository, message)
+    }
+
+    #[must_use]
+    pub fn runtime(message: impl Into<String>) -> Self {
+        Self::new(AgentErrorKind::Runtime, message)
+    }
+
+    #[must_use]
+    pub fn cancelled() -> Self {
+        Self::new(AgentErrorKind::Cancelled, "agent turn was cancelled")
     }
 
     #[must_use]

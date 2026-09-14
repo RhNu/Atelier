@@ -1,6 +1,6 @@
 use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_novelai::{NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory};
-use atelier_agent::AgentRegistryRepository;
+use atelier_agent::{AgentModelRuntime, AgentRegistryRepository, UnavailableAgentModelRuntime};
 use atelier_danbooru::{DanbooruClient, UnavailableDanbooruClient};
 use atelier_downloadable_resources::DownloadableResourceManager;
 use atelier_image_analysis::ImageAnalysisSessionControl;
@@ -22,6 +22,7 @@ pub struct RuntimeDependencies<
     pub global_settings: GlobalSettingsService,
     pub api_key_registry: Arc<dyn ApiKeyRegistryStore>,
     pub agent_registry: Arc<dyn AgentRegistryRepository>,
+    pub agent_runtime: Arc<dyn AgentModelRuntime>,
     pub safety_scanner: Option<Arc<dyn SafetyScanner>>,
     pub downloadable_resources: Option<Arc<dyn DownloadableResourceManager>>,
     pub image_analysis: Option<ImageAnalysisDependencies>,
@@ -52,6 +53,7 @@ impl<S, F, E> RuntimeDependencies<S, F, E> {
             global_settings,
             api_key_registry,
             agent_registry,
+            agent_runtime: Arc::new(UnavailableAgentModelRuntime),
             safety_scanner: None,
             downloadable_resources: None,
             image_analysis: None,

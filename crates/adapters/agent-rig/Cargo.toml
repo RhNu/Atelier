@@ -1,0 +1,17 @@
+[package]
+name = "atelier-adapter-agent-rig"
+version = "0.1.0"
+edition = "2024"
+publish.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+atelier-agent = { workspace = true }
+futures-util = { workspace = true }
+rig-agent = { workspace = true }
+rig-core = { workspace = true }
+rig-memory = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
+tokio-util = { workspace = true }

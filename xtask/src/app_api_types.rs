@@ -18,6 +18,18 @@ use atelier_app_api::{
         ProbeApiKeyRequestDto, SetActiveApiKeyRequestDto, SubscriptionSummaryDto,
         UpdateApiKeyRequestDto, V5UsageStatusDto,
     },
+    agent::{
+        AgentAuthKindDto, AgentConnectionDto, AgentEventDto, AgentEventKindDto, AgentModelDto,
+        AgentModelSnapshotDto, AgentPermissionModeDto, AgentPersonaSnapshotDto,
+        AgentProbeStatusDto, AgentRegistryDto, AgentSessionDto, AgentSessionStatusDto,
+        AgentTurnContextDto, AgentTurnEventDto, AgentTurnResultDto, AgentWorkspaceSettingsDto,
+        CancelAgentTurnRequestDto, CreateAgentSessionRequestDto, DecideAgentApprovalRequestDto,
+        DeleteAgentConnectionRequestDto, DeleteAgentModelRequestDto, DeleteAgentSessionRequestDto,
+        DeleteAgentSessionResponseDto, DiscoverAgentModelsRequestDto, DiscoveredAgentModelDto,
+        ListAgentEventsRequestDto, RenameAgentSessionRequestDto, RunAgentTurnRequestDto,
+        SaveAgentConnectionRequestDto, SaveAgentModelRequestDto, UndoAgentActionRequestDto,
+        UpdateAgentWorkspaceSettingsRequestDto,
+    },
     danbooru::{
         DanbooruAccountDto, DanbooruAccountStateDto, DanbooruMediaVariantDto,
         DanbooruPostDetailDto, DanbooruPostSummaryDto, DanbooruRatingDto, DanbooruTagCategoryDto,
@@ -56,7 +68,7 @@ use atelier_app_api::{
         PromptTokenUsageDto, QualityPresetDto, QueueDelayDto, QueueDirectiveDto,
         RunGenerationJobRequestDto, SamplerDto, SaveGenerationDraftRequestDto, StreamModeDto,
         SubmitGenerationBatchJobDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
-        UcPresetDto, VibeReferenceDto, VibeTransferConfigDto,
+        UcPresetDto, VersionedGenerationDraftDto, VibeReferenceDto, VibeTransferConfigDto,
     },
     history::{
         DeleteGenerationHistoryBatchesRequestDto, DeleteGenerationHistoryBatchesResponseDto,
@@ -157,6 +169,7 @@ pub fn export_app_api_types(config: &AppApiTypeExportConfig) -> Result<(), Strin
         .with_out_dir(&config.out_dir);
 
     export_account_types(&ts_config)?;
+    export_agent_types(&ts_config)?;
     export_director_types(&ts_config)?;
     export_danbooru_types(&ts_config)?;
     export_event_types(&ts_config)?;
@@ -174,6 +187,44 @@ pub fn export_app_api_types(config: &AppApiTypeExportConfig) -> Result<(), Strin
 
     write_index_file(&config.out_dir)?;
     Ok(())
+}
+
+fn export_agent_types(config: &Config) -> Result<(), String> {
+    export_types!(
+        config,
+        AgentAuthKindDto,
+        SaveAgentConnectionRequestDto,
+        DeleteAgentConnectionRequestDto,
+        AgentConnectionDto,
+        AgentProbeStatusDto,
+        SaveAgentModelRequestDto,
+        DeleteAgentModelRequestDto,
+        AgentModelDto,
+        AgentRegistryDto,
+        DiscoverAgentModelsRequestDto,
+        DiscoveredAgentModelDto,
+        AgentPermissionModeDto,
+        AgentWorkspaceSettingsDto,
+        UpdateAgentWorkspaceSettingsRequestDto,
+        CreateAgentSessionRequestDto,
+        RenameAgentSessionRequestDto,
+        DeleteAgentSessionRequestDto,
+        DeleteAgentSessionResponseDto,
+        AgentSessionStatusDto,
+        AgentModelSnapshotDto,
+        AgentPersonaSnapshotDto,
+        AgentSessionDto,
+        ListAgentEventsRequestDto,
+        AgentEventKindDto,
+        AgentEventDto,
+        AgentTurnContextDto,
+        RunAgentTurnRequestDto,
+        DecideAgentApprovalRequestDto,
+        CancelAgentTurnRequestDto,
+        UndoAgentActionRequestDto,
+        AgentTurnResultDto,
+        AgentTurnEventDto,
+    )
 }
 
 fn export_danbooru_types(config: &Config) -> Result<(), String> {
@@ -293,6 +344,7 @@ fn export_generation_types(config: &Config) -> Result<(), String> {
         GenerationDraftCharacterDto,
         GenerationDraftPromptStateDto,
         GenerationDraftDto,
+        VersionedGenerationDraftDto,
         SaveGenerationDraftRequestDto,
         GenerateImageRequestDto,
         GenerateImageStreamRequestDto,

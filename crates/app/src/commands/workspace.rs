@@ -34,6 +34,7 @@ where
             return Ok(session.workspace().status());
         }
 
+        let previous = self.current_session_optional()?;
         let session = self.build_session(request.root.clone()).await?;
         self.global_settings
             .record_last_workspace(request.root)
@@ -41,6 +42,9 @@ where
             .map_err(crate::AppError::from)
             .map_err(|error| error.envelope())?;
         let status = session.workspace().status();
+        if let Some(previous) = previous {
+            let _ = previous.agent_turn.cancel(None);
+        }
         self.publish_session(session)?;
         Ok(status)
     }
@@ -113,6 +117,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
         let Some(session) = session else {
             return Ok(CloseWorkspaceResponseDto { was_open: false });
         };
+        let _ = session.agent_turn.cancel(None);
         if let Err(error) = session.release_workspace_lock() {
             // Put the session back so callers can retry a failed close.
             *self.lock_session()? = Some(session);

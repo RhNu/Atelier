@@ -4,7 +4,7 @@ use atelier_adapter_keyring::KeyringSecretStore;
 use atelier_adapter_novelai::{
     NovelAiClientFactory, NovelAiEmbeddedVibeExtractor, ReqwestNovelAiClientFactory,
 };
-use atelier_agent::AgentRegistryService;
+use atelier_agent::{AgentModelRuntime, AgentRegistryService};
 use atelier_app_api::error::ErrorEnvelopeDto;
 use atelier_app_api::event::AppEventDto;
 use atelier_danbooru::DanbooruClient;
@@ -43,6 +43,7 @@ pub struct AtelierRuntime<
     pub(crate) global_settings: GlobalSettingsService,
     pub(crate) api_keys: AppApiKeyService<S, F>,
     pub(crate) agent_registry: AgentRegistryService,
+    pub(crate) agent_runtime: Arc<dyn AgentModelRuntime>,
 }
 
 impl<S, F, E> AtelierRuntime<S, F, E> {
@@ -79,6 +80,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
             global_settings: dependencies.global_settings,
             api_keys,
             agent_registry,
+            agent_runtime: dependencies.agent_runtime,
         }
     }
 
@@ -96,6 +98,7 @@ impl<S, F, E> AtelierRuntime<S, F, E> {
         crate::usecases::AgentModelUseCases {
             registry: &self.agent_registry,
             secrets: &self.secrets,
+            runtime: &self.agent_runtime,
         }
     }
 

@@ -1,5 +1,6 @@
 //! Host-neutral application use cases for Atelier.
 
+mod agent_turn;
 mod commands;
 mod composition;
 mod dependencies;

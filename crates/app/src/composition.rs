@@ -130,6 +130,7 @@ where
             api_keys,
             settings,
             agent,
+            agent_turn: Arc::new(crate::agent_turn::AgentTurnCoordinator::default()),
             generation_drafts,
             generation_draft_write: Mutex::new(()),
             gallery_safety_rescan: Mutex::new(()),

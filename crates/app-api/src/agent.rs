@@ -88,6 +88,21 @@ pub struct AgentRegistryDto {
     pub models: Vec<AgentModelDto>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DiscoverAgentModelsRequestDto {
+    pub connection_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DiscoveredAgentModelDto {
+    pub wire_model_id: String,
+    pub display_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_window: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentPermissionModeDto {
@@ -212,4 +227,84 @@ pub struct AgentEventDto {
     pub sequence: u64,
     pub created_at_ms: u64,
     pub event: AgentEventKindDto,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct AgentTurnContextDto {
+    pub route: String,
+    #[serde(default)]
+    pub selected_resource_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct RunAgentTurnRequestDto {
+    pub session_id: String,
+    pub message: String,
+    #[serde(default)]
+    pub context: AgentTurnContextDto,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DecideAgentApprovalRequestDto {
+    pub approval_id: String,
+    pub approved: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CancelAgentTurnRequestDto {
+    pub session_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UndoAgentActionRequestDto {
+    pub action_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct AgentTurnResultDto {
+    pub session_id: String,
+    pub assistant_message: String,
+    pub interrupted: bool,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub model_calls: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AgentTurnEventDto {
+    Started {
+        session_id: String,
+    },
+    AssistantTextDelta {
+        text: String,
+    },
+    ToolStarted {
+        name: String,
+        arguments_json: String,
+    },
+    ToolFinished {
+        name: String,
+        result_json: String,
+        failed: bool,
+    },
+    ApprovalRequested {
+        approval_id: String,
+        name: String,
+        arguments_json: String,
+    },
+    ApprovalResolved {
+        approval_id: String,
+        approved: bool,
+    },
+    Usage {
+        input_tokens: u64,
+        output_tokens: u64,
+    },
+    GenerationSubmitted {
+        directive: crate::generation::QueueDirectiveDto,
+    },
+    Completed {
+        interrupted: bool,
+    },
 }

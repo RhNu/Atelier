@@ -1,9 +1,9 @@
 use atelier_adapter_novelai::NovelAiClientFactory;
 use atelier_app_api::generation::{
-    CountPromptTokensRequestDto, GenerationAnlasEstimateDto, GenerationDraftDto,
-    GenerationEstimateRequestDto, GenerationStatusDto, GenerationStatusQueryDto,
-    ImageModelDescriptorDto, PromptTokenUsageDto, QueueDirectiveDto, RunGenerationJobRequestDto,
-    SaveGenerationDraftRequestDto, SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto,
+    CountPromptTokensRequestDto, GenerationAnlasEstimateDto, GenerationEstimateRequestDto,
+    GenerationStatusDto, GenerationStatusQueryDto, ImageModelDescriptorDto, PromptTokenUsageDto,
+    QueueDirectiveDto, RunGenerationJobRequestDto, SaveGenerationDraftRequestDto,
+    SubmitGenerationBatchRequestDto, SubmitGenerationRequestDto, VersionedGenerationDraftDto,
 };
 use atelier_app_api::prompt::AppendLexiconEntitiesRequestDto;
 use atelier_secrets::SecretStore;
@@ -49,7 +49,7 @@ where
     ///
     /// # Errors
     /// Returns an error envelope when no workspace is open or the draft cannot be decoded.
-    pub async fn get_generation_draft(&self) -> CommandResult<Option<GenerationDraftDto>> {
+    pub async fn get_generation_draft(&self) -> CommandResult<Option<VersionedGenerationDraftDto>> {
         Self::command_result(self.current_session()?.generation().get_draft().await)
     }
 
@@ -60,7 +60,7 @@ where
     pub async fn save_generation_draft(
         &self,
         request: SaveGenerationDraftRequestDto,
-    ) -> CommandResult<GenerationDraftDto> {
+    ) -> CommandResult<VersionedGenerationDraftDto> {
         Self::command_result(
             self.current_session()?
                 .generation()
@@ -84,7 +84,7 @@ where
     pub async fn append_lexicon_entities_to_generation_draft(
         &self,
         request: AppendLexiconEntitiesRequestDto,
-    ) -> CommandResult<GenerationDraftDto> {
+    ) -> CommandResult<VersionedGenerationDraftDto> {
         let entities = self
             .lexicon
             .resolve_entities(&request.entity_ids)
