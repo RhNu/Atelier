@@ -149,3 +149,22 @@ fn parameter_schema() -> Value {
     properties["image_format"] = json!({"enum":[ImageFormatDto::Png, ImageFormatDto::Webp, null]});
     object(properties, &[])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::tool_specs;
+
+    #[test]
+    fn every_tool_exposes_an_object_parameter_schema() {
+        for tool in tool_specs() {
+            let schema: serde_json::Value = serde_json::from_str(&tool.parameters_json)
+                .unwrap_or_else(|error| panic!("{} has invalid JSON schema: {error}", tool.name));
+            assert_eq!(
+                schema.get("type").and_then(serde_json::Value::as_str),
+                Some("object"),
+                "{} must expose an object parameter schema",
+                tool.name
+            );
+        }
+    }
+}

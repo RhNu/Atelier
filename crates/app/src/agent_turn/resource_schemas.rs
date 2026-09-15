@@ -30,7 +30,7 @@ pub fn specs() -> Vec<AgentToolSpec> {
         spec(
             "create_prompt_resource",
             "Create a text chunk or a complete main/character preset. Preview images are outside this tool. Use a valid existing folder_id for nested paths.",
-            json!({"oneOf":[
+            json!({"type":"object","oneOf":[
                 object(json!({"kind":{"const":"chunk"},"metadata":metadata(false),"content":{"type":"string"}}), &["kind","metadata","content"]),
                 object(json!({"kind":{"const":"preset"},"metadata":metadata(false),"preset_kind":{"enum":["main","character"]},"prompt_behavior":behavior(),"uc_behavior":behavior(),"quality_override":quality(),"uc_preset_override":uc_preset()}), &["kind","metadata","preset_kind","prompt_behavior","uc_behavior"])
             ]}),
