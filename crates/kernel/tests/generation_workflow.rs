@@ -563,14 +563,15 @@ fn pause_resume_and_stop_wrap_queue_directives() {
 #[test]
 fn active_stream_cancellation_invokes_the_stream_cancel_hook() {
     block_on(async {
-        struct CancelNow;
-        impl atelier_kernel::GenerationTaskCancellation for CancelNow {
+        struct CancelAfterStreamStarts(MemoryKernelPorts);
+        impl atelier_kernel::GenerationTaskCancellation for CancelAfterStreamStarts {
             fn is_cancelled(&self) -> bool {
-                true
+                !self.0.stream_requests().is_empty()
             }
         }
 
         let ports = MemoryKernelPorts::default().with_pending_stream();
+        let cancellation = CancelAfterStreamStarts(ports.clone());
         let mut runtime = KernelRuntime::new(ports.clone());
         let job_id = JobId::new("job-cancel");
         runtime
@@ -579,7 +580,7 @@ fn active_stream_cancellation_invokes_the_stream_cancel_hook() {
             .unwrap();
 
         let result = runtime
-            .run_scheduled_generation_job_cancellable(&job_id, &CancelNow)
+            .run_scheduled_generation_job_cancellable(&job_id, &cancellation)
             .await;
 
         assert_eq!(

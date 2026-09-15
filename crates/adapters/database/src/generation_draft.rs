@@ -73,8 +73,10 @@ impl GenerationDraftRepository for DatabaseGenerationDraftRepository {
     async fn clear_generation_draft(&self) -> GenerationDraftResult<()> {
         let mut connection = self.connection.lock().map_err(draft_database_error)?;
         let transaction = connection.transaction().map_err(draft_sql_error)?;
-        let current = load_on_connection(&transaction)?;
-        let revision = current.as_ref().map_or(0, |value| value.revision);
+        let revision = load_json_on_connection(&transaction)?
+            .as_deref()
+            .and_then(recover_draft_revision)
+            .unwrap_or(0);
         preserve_revision(&transaction, revision)?;
         transaction
             .execute(
@@ -91,20 +93,38 @@ impl GenerationDraftRepository for DatabaseGenerationDraftRepository {
 pub fn load_on_connection(
     connection: &rusqlite::Connection,
 ) -> GenerationDraftResult<Option<VersionedGenerationDraft>> {
-    let json = connection
+    let json = load_json_on_connection(connection)?;
+    json.as_deref()
+        .map(GenerationDraftDto::decode_domain)
+        .transpose()
+}
+
+fn load_json_on_connection(
+    connection: &rusqlite::Connection,
+) -> GenerationDraftResult<Option<String>> {
+    connection
         .query_row(
             "SELECT value_json FROM workspace_settings WHERE setting_key = ?1",
             [DRAFT_KEY],
             |row| row.get::<_, String>(0),
         )
         .optional()
-        .map_err(draft_sql_error)?;
-    json.as_deref()
-        .map(GenerationDraftDto::decode_domain)
-        .transpose()
+        .map_err(draft_sql_error)
 }
 
 const REVISION_KEY: &str = "generation.draft_revision";
+
+#[derive(Deserialize)]
+struct GenerationDraftRevisionDto {
+    #[serde(default)]
+    revision: u64,
+}
+
+fn recover_draft_revision(value: &str) -> Option<u64> {
+    serde_json::from_str::<GenerationDraftRevisionDto>(value)
+        .ok()
+        .map(|value| value.revision.max(1))
+}
 
 fn revision_counter(connection: &rusqlite::Connection) -> GenerationDraftResult<u64> {
     let value = connection

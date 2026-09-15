@@ -89,7 +89,7 @@ fn open_workspace_and_generation_are_explicitly_driven() {
 
         let missing_key = app
             .generation()
-            .submit(submit_request("batch-1", "job-1", "$chunk(hero)"))
+            .submit(submit_request("batch-1", "job-1", "1girl"))
             .await
             .unwrap_err();
         assert_eq!(missing_key.code(), "missing_active_key");

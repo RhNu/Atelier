@@ -7,6 +7,7 @@ fn generation_events_and_gallery_commands_share_session() {
         let factory = RecordingFactory::default();
         let host = test_host_with_factory(factory.clone());
         open_workspace(&host, &temp).await;
+        upsert_hero_chunk(&host).await;
 
         let missing_key = host
             .submit_generation(submit_request("batch-1", "job-1"))
@@ -14,7 +15,6 @@ fn generation_events_and_gallery_commands_share_session() {
         assert_eq!(missing_key.unwrap_err().code, "missing_active_key");
 
         create_active_key(&host).await;
-        upsert_hero_chunk(&host).await;
         submit_and_run_generation(&host, "batch-1", "job-1").await;
         assert_eq!(factory.secrets(), vec!["active-secret".to_owned()]);
 

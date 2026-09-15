@@ -108,7 +108,10 @@ fn draft_rejects_a_stale_expected_revision() {
 
 #[test]
 fn draft_reports_corrupt_and_unknown_schema_payloads() {
-    for payload in ["not-json", r#"{"schema_version":99}"#] {
+    for (payload, expected_next_revision) in [
+        ("not-json", 1),
+        (r#"{"schema_version":99,"revision":41}"#, 42),
+    ] {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("atelier.sqlite3");
         drop(DatabaseConnection::open(&path).unwrap());
@@ -126,6 +129,8 @@ fn draft_reports_corrupt_and_unknown_schema_payloads() {
         assert!(error.to_string().contains("generation_draft_repository"));
         block_on(repository.clear_generation_draft()).unwrap();
         assert_eq!(block_on(repository.load_generation_draft()).unwrap(), None);
+        let saved = block_on(repository.save_generation_draft(0, &sample_draft())).unwrap();
+        assert_eq!(saved.revision, expected_next_revision);
     }
 }
 

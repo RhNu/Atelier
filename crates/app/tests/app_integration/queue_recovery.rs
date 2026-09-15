@@ -108,7 +108,7 @@ fn failed_terminal_commit_keeps_outputs_and_does_not_reissue_generation() {
             outputs > 0,
             "outputs must survive a terminal queue commit failure"
         );
-        assert!(app.generation().run_job("job").await.is_err());
+        app.generation().run_job("job").await.unwrap();
         assert_eq!(factory.generated_requests().len(), 1);
     });
 }
