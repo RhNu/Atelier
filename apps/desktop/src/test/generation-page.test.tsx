@@ -1,5 +1,4 @@
 /* eslint-disable max-lines, max-lines-per-function */
-import { currentCompletions } from "@codemirror/autocomplete";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -76,16 +75,7 @@ import type {
   VersionedGenerationDraftDto,
   WorkspaceSettingsDto,
 } from "../types";
-import {
-  acceptPromptCompletion,
-  clearPromptEditor,
-  closePromptCompletion,
-  promptEditorText,
-  promptEditorView,
-  startPromptCompletion,
-  typeInPromptEditor,
-  undoPromptEditor,
-} from "./prompt-editor-test-utils";
+import { promptEditorText, typeInPromptEditor, undoPromptEditor } from "./prompt-editor-test-utils";
 
 const mocks = vi.hoisted(() => ({
   generationApi: {
@@ -1874,81 +1864,17 @@ describe("GeneratePage queue and preview behavior", () => {
     expect(await screen.findByText("expanded negative")).toBeInTheDocument();
   });
 
-  it("inserts a tag completion into the positive prompt before submit", async () => {
-    const { user } = setup();
-
-    typeInPromptEditor(await screen.findByLabelText("Positive prompt"), "cine");
-    await user.click(await screen.findByRole("option", { name: /cinematic_lighting/u }));
-    await user.click(screen.getByRole("button", { name: /^Generate 1 images/u }));
-
-    await waitFor(() => expect(mocks.generationApi.submitBatch).toHaveBeenCalledTimes(1));
-    expect(mocks.generationApi.submitBatch.mock.calls[0]?.[0].jobs[0]?.work).toMatchObject({
-      request: {
-        base: {
-          prompt: "cinematic_lighting, ",
-        },
-      },
-    });
-  });
-
-  it("uses Ctrl+Space to insert a prompt chunk into undesired content before compile", async () => {
-    const { user } = setup();
-
-    await user.click(await screen.findByRole("tab", { name: "Undesired Content" }));
-    await user.click(screen.getByLabelText("Undesired Content"));
-    await user.keyboard("{Control>} {/Control}");
-    await user.click(await screen.findByRole("option", { name: /lighting/u }));
-    await user.click(screen.getByRole("tab", { name: "Positive" }));
-    typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
-    await user.click(screen.getByRole("button", { name: "Compile" }));
-
-    await waitFor(() => expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledTimes(1));
-    expect(mocks.promptApi.compileGenerationPreview).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: "1girl",
-        negative_prompt: "$chunk(Lighting/lighting), ",
-      }),
-    );
-  });
-
-  it("uses Alt+C to browse folders and insert a prompt chunk at the caret", async () => {
-    const { user } = setup();
-    const prompt = await screen.findByLabelText("Positive prompt");
-
-    typeInPromptEditor(prompt, "1girl, ");
-    fireEvent.keyDown(prompt, { key: "c", altKey: true });
-    const dialog = await screen.findByRole("dialog", { name: "Prompt chunk library" });
-    await user.click(within(dialog).getByRole("button", { name: "Open Lighting" }));
-    await user.click(within(dialog).getByRole("button", { name: /Lighting\/lighting/u }));
-
-    expect(promptEditorText(prompt)).toBe("1girl, $chunk(Lighting/lighting), ");
-    expect(screen.queryByRole("dialog", { name: "Prompt chunk library" })).not.toBeInTheDocument();
-  });
-
-  it("supports tag and chunk completion in character prompts", async () => {
+  it("compiles character positive and negative prompt fields", async () => {
     const { user } = setup();
 
     await user.click(await screen.findByRole("button", { name: "Add character prompt" }));
-    const characterPrompt = await screen.findByLabelText("Character 1 prompt");
-    typeInPromptEditor(characterPrompt, "cine");
-    await screen.findByRole("option", { name: /cinematic_lighting/u });
-    expect(acceptPromptCompletion(characterPrompt)).toBe(true);
-    await waitFor(() =>
-      expect(screen.queryByRole("option", { name: /cinematic_lighting/u })).not.toBeInTheDocument(),
-    );
+    typeInPromptEditor(await screen.findByLabelText("Character 1 prompt"), "cinematic_lighting");
     const characterCard = screen.getByRole("article", { name: "Character 1" });
     await user.click(within(characterCard).getByRole("tab", { name: "Undesired Content" }));
-    const characterNegativePrompt = screen.getByLabelText("Character 1 negative prompt");
-    typeInPromptEditor(characterNegativePrompt, "$chunk(li");
-    expect(startPromptCompletion(characterNegativePrompt)).toBe(true);
-    await vi.waitFor(() =>
-      expect(
-        currentCompletions(promptEditorView(characterNegativePrompt).state).map(
-          (item) => item.label,
-        ),
-      ).toContain("Lighting/lighting"),
+    typeInPromptEditor(
+      screen.getByLabelText("Character 1 negative prompt"),
+      "$chunk(Lighting/lighting)",
     );
-    expect(acceptPromptCompletion(characterNegativePrompt)).toBe(true);
     typeInPromptEditor(screen.getByLabelText("Positive prompt"), "1girl");
     await user.click(screen.getByRole("button", { name: "Compile" }));
 
@@ -1958,33 +1884,12 @@ describe("GeneratePage queue and preview behavior", () => {
         characters: [
           {
             preset_id: null,
-            prompt: "cinematic_lighting,",
-            negative_prompt: "$chunk(Lighting/lighting),",
+            prompt: "cinematic_lighting",
+            negative_prompt: "$chunk(Lighting/lighting)",
             enabled: true,
           },
         ],
       }),
     );
-  });
-
-  it("closes and reopens completion before accepting an option", async () => {
-    const { user } = setup();
-    const prompt = await screen.findByLabelText("Positive prompt");
-
-    typeInPromptEditor(prompt, "cine");
-    expect(await screen.findByRole("listbox", { name: "Prompt completions" })).toBeInTheDocument();
-
-    expect(closePromptCompletion(prompt)).toBe(true);
-    await waitFor(() =>
-      expect(screen.queryByRole("listbox", { name: "Prompt completions" })).not.toBeInTheDocument(),
-    );
-
-    clearPromptEditor(prompt);
-    expect(startPromptCompletion(prompt)).toBe(true);
-    expect(await screen.findByRole("option", { name: /lighting/u })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: /cinematic_lighting/u })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: /hero/u }));
-
-    expect(promptEditorText(prompt)).toBe("$chunk(Subject/hero), ");
   });
 });

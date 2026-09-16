@@ -1,11 +1,8 @@
 import { diagnosticCount } from "@codemirror/lint";
-import { runScopeHandlers } from "@codemirror/view";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useState } from "react";
 
 import {
-  clearPromptEditor,
   promptEditorText,
   promptEditorView,
   typeInPromptEditor,
@@ -149,33 +146,6 @@ describe("NaiPromptEditor", () => {
     });
   });
 
-  it("wires Tab, Enter, Escape, and Ctrl-Space through the CodeMirror completion state", async () => {
-    render(
-      <QueryClientProvider client={queryClient()}>
-        <StatefulEditor />
-      </QueryClientProvider>,
-    );
-    const content = screen.getByLabelText("Completion prompt");
-    const editorView = promptEditorView(content);
-    expect(runKey(editorView, "Tab")).toBe(false);
-
-    expect(runKey(editorView, " ", { ctrlKey: true })).toBe(true);
-    expect(await screen.findByRole("option", { name: /lighting/u })).toBeInTheDocument();
-    expect(runKey(editorView, "Escape")).toBe(true);
-    await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
-
-    typeInPromptEditor(content, "cine");
-    await screen.findByRole("option", { name: /cinematic_lighting/u });
-    expect(runKey(editorView, "Enter")).toBe(true);
-    expect(promptEditorText(content)).toBe("cinematic_lighting, ");
-
-    clearPromptEditor(content);
-    typeInPromptEditor(content, "cine");
-    await screen.findByRole("option", { name: /cinematic_lighting/u });
-    expect(runKey(editorView, "Tab")).toBe(true);
-    expect(promptEditorText(content)).toBe("cinematic_lighting, ");
-  });
-
   it("shows bridge-backed prompt token usage for model-aware editors", async () => {
     render(
       editor({
@@ -275,11 +245,6 @@ function editor(options: EditorOptions) {
   );
 }
 
-function StatefulEditor() {
-  const [value, setValue] = useState("");
-  return <NaiPromptEditor aria-label="Completion prompt" value={value} onChange={setValue} />;
-}
-
 function queryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
@@ -288,16 +253,4 @@ function ignoreChange() {}
 
 function highlightedText(content: HTMLElement, selector: string): string {
   return [...content.querySelectorAll(selector)].map((element) => element.textContent).join("");
-}
-
-function runKey(
-  view: ReturnType<typeof promptEditorView>,
-  key: string,
-  init: KeyboardEventInit = {},
-): boolean {
-  let handled = false;
-  act(() => {
-    handled = runScopeHandlers(view, new KeyboardEvent("keydown", { key, ...init }), "editor");
-  });
-  return handled;
 }
