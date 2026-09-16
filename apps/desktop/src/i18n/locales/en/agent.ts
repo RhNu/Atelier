@@ -1,7 +1,12 @@
 export const agent = {
-  modelSupportsVision: "Model accepts image input",
-  modelVisionDescription:
-    "Set according to the model on this connection. Changes apply to new conversations.",
+  imageInputMode: "Image input",
+  imageInputDescription:
+    "Choose how this model receives images. Changes apply to new conversations.",
+  imageInputOptions: {
+    none: "Disabled",
+    message: "Message content",
+    tool_result: "Tool result content",
+  },
   visionSaveFailed: "Could not save output vision setting",
   outputVision: "Allow Agent to read output images",
   visionDescription:
@@ -22,8 +27,7 @@ export const agent = {
   editSessionTitle: "Rename session",
   switchSession: "Switch session",
   modelRequired: "Configure an Agent model",
-  modelRequiredDescription:
-    "Add an OpenAI-compatible connection and model before starting a conversation.",
+  modelRequiredDescription: "Add a model connection and model before starting a conversation.",
   openSettings: "Open Agent settings",
   startSession: "Start a session",
   emptyConversation: "What would you like to create?",
@@ -84,10 +88,16 @@ export const agent = {
   settingsLoading: "Loading Agent settings",
   connectionsTitle: "Model connections",
   connectionsDescription:
-    "Application-wide OpenAI-compatible endpoints. Secrets are stored in the operating system keyring.",
+    "Application-wide model endpoints. Secrets are stored in the operating system keyring.",
   connectionName: "Connection name",
   baseUrl: "Base URL",
   baseUrlPlaceholder: "http://127.0.0.1:11434/v1",
+  protocol: "Protocol",
+  protocolOptions: {
+    chat_completions: "Chat Completions",
+    responses: "Responses",
+    messages: "Messages",
+  },
   authentication: "Authentication",
   authNone: "None",
   authBearer: "Bearer token",

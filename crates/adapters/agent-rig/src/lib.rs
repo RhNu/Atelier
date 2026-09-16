@@ -1,4 +1,4 @@
-//! Rig-backed OpenAI-compatible runtime for Atelier's internal Agent.
+//! Rig-backed model runtime for Atelier's internal Agent.
 
 mod context_budget;
 mod executions;
@@ -10,13 +10,13 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use atelier_agent::{
-    AgentChatRole, AgentError, AgentModelRuntime, AgentResolvedConnection, AgentResult,
-    AgentRunObserver, AgentRunOutcome, AgentRunRequest, AgentRuntimeEvent, AgentToolExecutor,
-    DiscoveredAgentModel,
+    AgentChatRole, AgentError, AgentModelRuntime, AgentProtocol, AgentResolvedConnection,
+    AgentResult, AgentRunObserver, AgentRunOutcome, AgentRunRequest, AgentRuntimeEvent,
+    AgentToolExecutor, DiscoveredAgentModel,
 };
 use futures_util::StreamExt;
 use rig_agent::{
-    AgentBuilder,
+    AgentBuilder, ModelHandle,
     agent::MultiTurnStreamItem,
     streaming::{StreamedAssistantContent, StreamingChat},
     tool::{DynamicTool, ToolExecutionError, ToolOutput},
@@ -24,7 +24,7 @@ use rig_agent::{
 use rig_core::{
     client::{CompletionClient, ModelListingClient},
     message::Message,
-    providers::openai,
+    providers::{anthropic, openai},
 };
 use rig_memory::{HeuristicTokenCounter, MemoryPolicy, TokenWindowMemory};
 use tokio_util::sync::CancellationToken;
@@ -42,11 +42,13 @@ impl AgentModelRuntime for RigAgentRuntime {
         &self,
         connection: AgentResolvedConnection,
     ) -> AgentResult<Vec<DiscoveredAgentModel>> {
-        let client = openai_client(&connection)?;
-        let models = client
-            .list_models()
-            .await
-            .map_err(|error| AgentError::runtime(format!("model discovery failed: {error}")))?;
+        let models = match connection.protocol {
+            AgentProtocol::ChatCompletions | AgentProtocol::Responses => {
+                openai_client(&connection)?.list_models().await
+            }
+            AgentProtocol::Messages => anthropic_client(&connection)?.list_models().await,
+        }
+        .map_err(|error| AgentError::runtime(format!("model discovery failed: {error}")))?;
         let mut discovered = models
             .into_iter()
             .map(|model| DiscoveredAgentModel {
@@ -67,12 +69,11 @@ impl AgentModelRuntime for RigAgentRuntime {
         observer: Arc<dyn AgentRunObserver>,
         cancellation: CancellationToken,
     ) -> AgentResult<AgentRunOutcome> {
-        let client = openai_client(&request.connection)?.completions_api();
-        let model = client.completion_model(request.model.wire_model_id.clone());
+        let model = model_handle(&request.connection, &request.model.wire_model_id)?;
         let invocation = Arc::new(InvocationSlot::default());
         let executions = Arc::new(ToolExecutions::default());
         let dynamic_tools = build_tools(&request, &tools, &observer, &invocation, &executions);
-        let agent = AgentBuilder::new(model)
+        let agent = AgentBuilder::from_model_handle(model)
             .name("Atelier Agent")
             .preamble(&request.system_prompt)
             .temperature(f64::from(request.model.temperature))
@@ -150,6 +151,32 @@ fn openai_client(
         .base_url(connection.base_url.trim_end_matches('/'))
         .build()
         .map_err(|error| AgentError::runtime(format!("failed to configure model client: {error}")))
+}
+
+fn anthropic_client(
+    connection: &AgentResolvedConnection,
+) -> AgentResult<anthropic::Client<reqwest::Client>> {
+    anthropic::Client::builder()
+        .api_key(connection.bearer_token.clone().unwrap_or_default())
+        .base_url(connection.base_url.trim_end_matches('/'))
+        .build()
+        .map_err(|error| AgentError::runtime(format!("failed to configure model client: {error}")))
+}
+
+fn model_handle(connection: &AgentResolvedConnection, model_id: &str) -> AgentResult<ModelHandle> {
+    Ok(match connection.protocol {
+        AgentProtocol::ChatCompletions => ModelHandle::new(
+            openai_client(connection)?
+                .completions_api()
+                .completion_model(model_id.to_owned()),
+        ),
+        AgentProtocol::Responses => {
+            ModelHandle::new(openai_client(connection)?.completion_model(model_id.to_owned()))
+        }
+        AgentProtocol::Messages => {
+            ModelHandle::new(anthropic_client(connection)?.completion_model(model_id.to_owned()))
+        }
+    })
 }
 
 fn build_tools(
@@ -252,7 +279,10 @@ fn shape_history(request: &AgentRunRequest) -> Vec<Message> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atelier_agent::{AgentChatMessage, AgentConnectionId, AgentModelId, AgentModelSnapshot};
+    use atelier_agent::{
+        AgentChatMessage, AgentConnectionId, AgentModelCapabilities, AgentModelId,
+        AgentModelSnapshot,
+    };
 
     #[test]
     fn history_window_keeps_the_latest_messages() {
@@ -260,6 +290,7 @@ mod tests {
             connection: AgentResolvedConnection {
                 base_url: "http://localhost:1234/v1".to_owned(),
                 bearer_token: None,
+                protocol: AgentProtocol::ChatCompletions,
             },
             model: AgentModelSnapshot {
                 model_id: AgentModelId::new("model"),
@@ -269,7 +300,7 @@ mod tests {
                 context_window: 3_200,
                 max_output_tokens: 1_000,
                 temperature: 0.3,
-                supports_vision: false,
+                capabilities: AgentModelCapabilities::default(),
             },
             system_prompt: String::new(),
             user_message: "next".to_owned(),

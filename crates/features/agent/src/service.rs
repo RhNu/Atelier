@@ -173,7 +173,7 @@ impl<R: AgentWorkspaceRepository> AgentWorkspaceService<R> {
                 context_window: model.context_window,
                 max_output_tokens: model.max_output_tokens,
                 temperature: model.temperature,
-                supports_vision: model.supports_vision,
+                capabilities: model.capabilities,
             },
             persona: AgentPersonaSnapshot {
                 display_name: settings.display_name,

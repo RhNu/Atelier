@@ -33,7 +33,7 @@ where
             .map_err(AppError::from)
     }
 
-    /// Lists models exposed by one configured OpenAI-compatible connection.
+    /// Lists models exposed by one configured Agent connection.
     ///
     /// # Errors
     /// Returns an error when the connection, secret, or provider request is unavailable.
@@ -61,6 +61,7 @@ where
             .discover_models(AgentResolvedConnection {
                 base_url: connection.base_url.clone(),
                 bearer_token,
+                protocol: connection.protocol,
             })
             .await
             .map(|models| {

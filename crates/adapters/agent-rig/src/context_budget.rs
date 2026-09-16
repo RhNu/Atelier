@@ -1,10 +1,11 @@
-use atelier_agent::{AgentError, AgentResult, AgentRunRequest};
+use atelier_agent::{AgentError, AgentImageInputMode, AgentResult, AgentRunRequest};
 use rig_core::message::{Message, ToolResultContent, UserContent};
 use rig_memory::{HeuristicTokenCounter, TokenCounter};
 
 pub struct ContextBudget {
     available: usize,
     counter: HeuristicTokenCounter,
+    image_input: AgentImageInputMode,
 }
 
 impl ContextBudget {
@@ -26,11 +27,18 @@ impl ContextBudget {
             .saturating_sub(request.model.max_output_tokens as usize)
             .saturating_sub(static_tokens)
             .saturating_sub(2_048);
-        Self { available, counter }
+        Self {
+            available,
+            counter,
+            image_input: request.model.capabilities.image_input,
+        }
     }
 
     pub fn prepare(&self, history: &[Message], prompt: &Message) -> AgentResult<Vec<Message>> {
         let mut history = history.to_vec();
+        if self.image_input == AgentImageInputMode::Message {
+            move_tool_images_to_messages(&mut history);
+        }
         let keep = 2_usize.saturating_sub(image_count(prompt));
         retain_recent_images(&mut history, keep);
         let used = self.counter.count(prompt)
@@ -44,6 +52,36 @@ impl ContextBudget {
             ));
         }
         Ok(history)
+    }
+}
+
+fn move_tool_images_to_messages(history: &mut [Message]) {
+    for message in history {
+        let Message::User { content } = message else {
+            continue;
+        };
+        let mut normalized = Vec::with_capacity(content.len());
+        for item in std::mem::take(content) {
+            match item {
+                UserContent::ToolResult(mut result) => {
+                    let mut images = Vec::new();
+                    result.content = std::mem::take(&mut result.content)
+                        .into_iter()
+                        .filter_map(|part| match part {
+                            ToolResultContent::Image(image) => {
+                                images.push(UserContent::Image(image));
+                                None
+                            }
+                            part => Some(part),
+                        })
+                        .collect();
+                    normalized.push(UserContent::ToolResult(result));
+                    normalized.extend(images);
+                }
+                item => normalized.push(item),
+            }
+        }
+        *content = normalized;
     }
 }
 
@@ -71,18 +109,27 @@ fn retain_recent_images(history: &mut [Message], mut remaining: usize) {
             continue;
         };
         for content in content.iter_mut().rev() {
-            if let UserContent::ToolResult(result) = content {
-                for content in result.content.iter_mut().rev() {
-                    if matches!(content, ToolResultContent::Image(_)) {
-                        if remaining > 0 {
-                            remaining -= 1;
-                        } else {
-                            *content = ToolResultContent::text(
-                                "Earlier image omitted from this request; its metadata remains. Use read_generation_output to inspect its pixels again.",
-                            );
+            match content {
+                UserContent::Image(_) if remaining > 0 => remaining -= 1,
+                UserContent::Image(_) => {
+                    *content = UserContent::text(
+                        "Earlier image omitted from this request; its metadata remains. Use read_generation_output to inspect its pixels again.",
+                    );
+                }
+                UserContent::ToolResult(result) => {
+                    for content in result.content.iter_mut().rev() {
+                        if matches!(content, ToolResultContent::Image(_)) {
+                            if remaining > 0 {
+                                remaining -= 1;
+                            } else {
+                                *content = ToolResultContent::text(
+                                    "Earlier image omitted from this request; its metadata remains. Use read_generation_output to inspect its pixels again.",
+                                );
+                            }
                         }
                     }
                 }
+                _ => {}
             }
         }
     }
@@ -114,6 +161,7 @@ mod tests {
         let budget = ContextBudget {
             available: 100_000,
             counter: HeuristicTokenCounter::openai(),
+            image_input: AgentImageInputMode::ToolResult,
         };
         let history = vec![output("old"), output("recent")];
         let prepared = budget.prepare(&history, &output("current")).unwrap();
@@ -129,10 +177,38 @@ mod tests {
     }
 
     #[test]
+    fn message_mode_moves_images_out_of_tool_results() {
+        let budget = ContextBudget {
+            available: 100_000,
+            counter: HeuristicTokenCounter::openai(),
+            image_input: AgentImageInputMode::Message,
+        };
+
+        let prepared = budget
+            .prepare(&[output("current")], &Message::user("next"))
+            .unwrap();
+        let Message::User { content } = &prepared[0] else {
+            panic!("user message");
+        };
+        assert!(matches!(content[0], UserContent::ToolResult(_)));
+        assert!(matches!(content[1], UserContent::Image(_)));
+        let UserContent::ToolResult(result) = &content[0] else {
+            panic!("tool result");
+        };
+        assert!(
+            result
+                .content
+                .iter()
+                .all(|part| !matches!(part, ToolResultContent::Image(_)))
+        );
+    }
+
+    #[test]
     fn text_observations_are_never_silently_trimmed() {
         let budget = ContextBudget {
             available: 1,
             counter: HeuristicTokenCounter::openai(),
+            image_input: AgentImageInputMode::None,
         };
         assert!(
             budget
@@ -142,6 +218,7 @@ mod tests {
         let budget = ContextBudget {
             available: 100,
             counter: HeuristicTokenCounter::openai(),
+            image_input: AgentImageInputMode::None,
         };
         let history = vec![Message::user("observed draft")];
         assert_eq!(

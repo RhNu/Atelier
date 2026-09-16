@@ -8,11 +8,22 @@ pub enum AgentAuthKindDto {
     Bearer,
 }
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentProtocolDto {
+    #[default]
+    ChatCompletions,
+    Responses,
+    Messages,
+}
+
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct SaveAgentConnectionRequestDto {
     pub id: String,
     pub display_name: String,
     pub base_url: String,
+    #[serde(default)]
+    pub protocol: AgentProtocolDto,
     pub auth_kind: AgentAuthKindDto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub secret: Option<String>,
@@ -25,6 +36,7 @@ impl std::fmt::Debug for SaveAgentConnectionRequestDto {
             .field("id", &self.id)
             .field("display_name", &self.display_name)
             .field("base_url", &self.base_url)
+            .field("protocol", &self.protocol)
             .field("auth_kind", &self.auth_kind)
             .field("secret", &self.secret.as_ref().map(|_| "<redacted>"))
             .finish()
@@ -41,9 +53,24 @@ pub struct AgentConnectionDto {
     pub id: String,
     pub display_name: String,
     pub base_url: String,
+    pub protocol: AgentProtocolDto,
     pub auth_kind: AgentAuthKindDto,
     pub secret_present: bool,
     pub insecure_remote_http: bool,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentImageInputModeDto {
+    #[default]
+    None,
+    Message,
+    ToolResult,
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct AgentModelCapabilitiesDto {
+    pub image_input: AgentImageInputModeDto,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -64,7 +91,7 @@ pub struct SaveAgentModelRequestDto {
     pub max_output_tokens: u32,
     pub temperature: f32,
     #[serde(default)]
-    pub supports_vision: bool,
+    pub capabilities: AgentModelCapabilitiesDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -82,7 +109,7 @@ pub struct AgentModelDto {
     pub max_output_tokens: u32,
     pub temperature: f32,
     #[serde(default)]
-    pub supports_vision: bool,
+    pub capabilities: AgentModelCapabilitiesDto,
     pub probe_status: AgentProbeStatusDto,
 }
 
@@ -172,7 +199,7 @@ pub struct AgentModelSnapshotDto {
     pub max_output_tokens: u32,
     pub temperature: f32,
     #[serde(default)]
-    pub supports_vision: bool,
+    pub capabilities: AgentModelCapabilitiesDto,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

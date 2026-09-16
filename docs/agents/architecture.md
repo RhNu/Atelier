@@ -16,7 +16,8 @@ Atelier is a desktop workspace for NovelAI image workflows. Internal language sh
 NovelAI protocol details belong behind the `novelai-bridge` adapter. The application should not become a generic provider abstraction unless a separate design note proves that need.
 
 The built-in Agent is an internal NovelAI workflow surface, not a coding or general computer-use
-agent. Its model transport may use an OpenAI-compatible chat endpoint, but the Agent can act only
+agent. Its model connection explicitly selects Chat Completions, Responses, or Messages transport,
+but the Agent can act only
 through Atelier-owned tools. It has no shell, arbitrary filesystem, plugin, credential, or image-pixel
 access.
 
@@ -164,8 +165,10 @@ Adapters are the boundary for real I/O:
 
 - `storage-fs`: workspace filesystem operations, locks, resource blob storage.
 - `agent-config-fs`: versioned application-global Agent connection and model registry persistence.
-- `agent-rig`: Rig-backed OpenAI-compatible chat streaming, model discovery, bounded history, and
-  dynamic-tool execution. Provider types stay inside this adapter.
+- `agent-rig`: Rig-backed Chat Completions, Responses, and Messages streaming, model discovery,
+  bounded history, and dynamic-tool execution. Provider types stay inside this adapter. Connections
+  select their protocol explicitly; model capabilities are user-configured and are never inferred
+  from endpoint URLs, provider identity, or model names.
 - `database`: SQLite-backed repositories and adapter-local JSON DTOs.
 - `image-codec`: PNG/JPEG/WebP probing plus deterministic gallery/export variant encoding.
 - `keyring`: system credential storage for secret values.
@@ -209,7 +212,9 @@ draft, resource-library and subscription inputs after approval. Submission uses 
 request directly rather than expanding prompt functions again. Preview currently invalidates on
 any prompt-library change; resource edits compare only the target resource.
 
-Optional output vision requires both a user workspace setting and an image-capable session model.
+Optional output vision requires both a user workspace setting and a session model whose explicit
+image-input mode is enabled. Image-input placement is a model capability snapshot and is not derived
+from the connection protocol.
 Image tools are limited to the output-area batch and batches submitted by this turn. Native image
 blocks are ephemeral; persisted events/history contain provenance metadata only. Status/wait read
 persisted generation history using event notifications instead of holding the generation lock.

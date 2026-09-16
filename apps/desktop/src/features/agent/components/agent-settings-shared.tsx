@@ -57,6 +57,7 @@ export function newConnectionDraft(): SaveAgentConnectionRequestDto {
     id: crypto.randomUUID(),
     display_name: "",
     base_url: "",
+    protocol: "chat_completions",
     auth_kind: "bearer",
     secret: null,
   };
@@ -71,7 +72,7 @@ export function newModelDraft(connectionId: string): SaveAgentModelRequestDto {
     context_window: DEFAULT_CONTEXT_WINDOW,
     max_output_tokens: DEFAULT_MAX_OUTPUT,
     temperature: DEFAULT_TEMPERATURE,
-    supports_vision: false,
+    capabilities: { image_input: "none" },
   };
 }
 

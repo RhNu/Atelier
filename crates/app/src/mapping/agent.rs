@@ -1,12 +1,13 @@
 use atelier_agent::{
-    AgentAuth, AgentConnection, AgentConnectionId, AgentEvent, AgentEventKind, AgentModel,
-    AgentModelId, AgentPermissionMode, AgentProbeStatus, AgentRegistry, AgentSession,
-    AgentSessionStatus, AgentWorkspaceSettings,
+    AgentAuth, AgentConnection, AgentConnectionId, AgentEvent, AgentEventKind, AgentImageInputMode,
+    AgentModel, AgentModelCapabilities, AgentModelId, AgentPermissionMode, AgentProbeStatus,
+    AgentProtocol, AgentRegistry, AgentSession, AgentSessionStatus, AgentWorkspaceSettings,
 };
 use atelier_app_api::agent::{
-    AgentAuthKindDto, AgentConnectionDto, AgentEventDto, AgentEventKindDto, AgentModelDto,
-    AgentModelSnapshotDto, AgentPermissionModeDto, AgentPersonaSnapshotDto, AgentProbeStatusDto,
-    AgentRegistryDto, AgentSessionDto, AgentSessionStatusDto, AgentWorkspaceSettingsDto,
+    AgentAuthKindDto, AgentConnectionDto, AgentEventDto, AgentEventKindDto, AgentImageInputModeDto,
+    AgentModelCapabilitiesDto, AgentModelDto, AgentModelSnapshotDto, AgentPermissionModeDto,
+    AgentPersonaSnapshotDto, AgentProbeStatusDto, AgentProtocolDto, AgentRegistryDto,
+    AgentSessionDto, AgentSessionStatusDto, AgentWorkspaceSettingsDto,
     SaveAgentConnectionRequestDto, SaveAgentModelRequestDto,
 };
 
@@ -20,6 +21,7 @@ pub fn agent_connection_to_domain(
         id: AgentConnectionId::new(request.id),
         display_name: request.display_name,
         base_url: request.base_url,
+        protocol: protocol_to_domain(request.protocol),
         auth: match request.auth_kind {
             AgentAuthKindDto::None => AgentAuth::None,
             AgentAuthKindDto::Bearer => AgentAuth::Bearer { secret_record_id },
@@ -80,7 +82,7 @@ pub fn agent_session_to_dto(value: &AgentSession) -> AgentSessionDto {
             context_window: value.model.context_window,
             max_output_tokens: value.model.max_output_tokens,
             temperature: value.model.temperature,
-            supports_vision: value.model.supports_vision,
+            capabilities: capabilities_to_dto(value.model.capabilities),
         },
         persona: AgentPersonaSnapshotDto {
             display_name: value.persona.display_name.clone(),
@@ -154,7 +156,7 @@ pub fn agent_model_to_domain(request: SaveAgentModelRequestDto, now_ms: u64) -> 
         context_window: request.context_window,
         max_output_tokens: request.max_output_tokens,
         temperature: request.temperature,
-        supports_vision: request.supports_vision,
+        capabilities: capabilities_to_domain(request.capabilities),
         probe_status: AgentProbeStatus::Unknown,
         updated_at_ms: now_ms,
     }
@@ -172,6 +174,7 @@ fn connection_to_dto(value: &AgentConnection) -> AgentConnectionDto {
         id: value.id.as_str().to_owned(),
         display_name: value.display_name.clone(),
         base_url: value.base_url.clone(),
+        protocol: protocol_to_dto(value.protocol),
         auth_kind: match value.auth {
             AgentAuth::None => AgentAuthKindDto::None,
             AgentAuth::Bearer { .. } => AgentAuthKindDto::Bearer,
@@ -190,11 +193,47 @@ fn model_to_dto(value: &AgentModel) -> AgentModelDto {
         context_window: value.context_window,
         max_output_tokens: value.max_output_tokens,
         temperature: value.temperature,
-        supports_vision: value.supports_vision,
+        capabilities: capabilities_to_dto(value.capabilities),
         probe_status: match value.probe_status {
             AgentProbeStatus::Unknown => AgentProbeStatusDto::Unknown,
             AgentProbeStatus::Verified => AgentProbeStatusDto::Verified,
             AgentProbeStatus::Failed => AgentProbeStatusDto::Failed,
+        },
+    }
+}
+
+const fn protocol_to_domain(value: AgentProtocolDto) -> AgentProtocol {
+    match value {
+        AgentProtocolDto::ChatCompletions => AgentProtocol::ChatCompletions,
+        AgentProtocolDto::Responses => AgentProtocol::Responses,
+        AgentProtocolDto::Messages => AgentProtocol::Messages,
+    }
+}
+
+const fn protocol_to_dto(value: AgentProtocol) -> AgentProtocolDto {
+    match value {
+        AgentProtocol::ChatCompletions => AgentProtocolDto::ChatCompletions,
+        AgentProtocol::Responses => AgentProtocolDto::Responses,
+        AgentProtocol::Messages => AgentProtocolDto::Messages,
+    }
+}
+
+const fn capabilities_to_domain(value: AgentModelCapabilitiesDto) -> AgentModelCapabilities {
+    AgentModelCapabilities {
+        image_input: match value.image_input {
+            AgentImageInputModeDto::None => AgentImageInputMode::None,
+            AgentImageInputModeDto::Message => AgentImageInputMode::Message,
+            AgentImageInputModeDto::ToolResult => AgentImageInputMode::ToolResult,
+        },
+    }
+}
+
+const fn capabilities_to_dto(value: AgentModelCapabilities) -> AgentModelCapabilitiesDto {
+    AgentModelCapabilitiesDto {
+        image_input: match value.image_input {
+            AgentImageInputMode::None => AgentImageInputModeDto::None,
+            AgentImageInputMode::Message => AgentImageInputModeDto::Message,
+            AgentImageInputMode::ToolResult => AgentImageInputModeDto::ToolResult,
         },
     }
 }

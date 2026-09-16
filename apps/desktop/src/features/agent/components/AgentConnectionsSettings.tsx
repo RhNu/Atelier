@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { AppButton, AppIconButton, AppModal } from "@/components/ui";
 import { useToastStore } from "@/stores/toast-store";
-import type { AgentAuthKindDto, SaveAgentConnectionRequestDto } from "@/types";
+import type { AgentAuthKindDto, AgentProtocolDto, SaveAgentConnectionRequestDto } from "@/types";
 
 import { SelectField, TextField } from "../../settings/components/SettingsControls";
 import { useAgentRegistryMutations, useAgentRegistryQuery } from "../data/useAgentQueries";
@@ -46,7 +46,9 @@ export function AgentConnectionsSettings() {
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-white">{connection.display_name}</p>
-              <p className="truncate text-xs text-app-muted">{connection.base_url}</p>
+              <p className="truncate text-xs text-app-muted">
+                {t(`protocolOptions.${connection.protocol}`)} · {connection.base_url}
+              </p>
               {connection.insecure_remote_http ? (
                 <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-200">
                   <AlertTriangle aria-hidden="true" className="size-3" />
@@ -64,6 +66,7 @@ export function AgentConnectionsSettings() {
                   id: connection.id,
                   display_name: connection.display_name,
                   base_url: connection.base_url,
+                  protocol: connection.protocol,
                   auth_kind: connection.auth_kind,
                   secret: null,
                 })
@@ -140,6 +143,16 @@ function ConnectionEditor({
         onChange={(base_url) => update({ base_url })}
       />
       <SelectField
+        label={t("protocol")}
+        value={draft.protocol}
+        options={[
+          { value: "chat_completions", label: t("protocolOptions.chat_completions") },
+          { value: "responses", label: t("protocolOptions.responses") },
+          { value: "messages", label: t("protocolOptions.messages") },
+        ]}
+        onChange={(protocol) => update({ protocol: parseProtocol(protocol) })}
+      />
+      <SelectField
         label={t("authentication")}
         value={draft.auth_kind}
         options={[
@@ -174,4 +187,9 @@ function ConnectionEditor({
 
 function parseAuthKind(value: string): AgentAuthKindDto {
   return value === "none" ? "none" : "bearer";
+}
+
+function parseProtocol(value: string): AgentProtocolDto {
+  if (value === "responses" || value === "messages") return value;
+  return "chat_completions";
 }

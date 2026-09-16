@@ -35,18 +35,47 @@ pub enum AgentAuth {
     Bearer { secret_record_id: String },
 }
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub enum AgentProtocol {
+    #[default]
+    ChatCompletions,
+    Responses,
+    Messages,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AgentConnection {
     pub id: AgentConnectionId,
     pub display_name: String,
     pub base_url: String,
+    pub protocol: AgentProtocol,
     pub auth: AgentAuth,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
 }
 
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub enum AgentImageInputMode {
+    #[default]
+    None,
+    Message,
+    ToolResult,
+}
+
+impl AgentImageInputMode {
+    #[must_use]
+    pub const fn is_enabled(self) -> bool {
+        !matches!(self, Self::None)
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct AgentModelCapabilities {
+    pub image_input: AgentImageInputMode,
+}
+
 impl AgentConnection {
-    /// Validates fields that are safe to persist and use for an OpenAI-compatible service.
+    /// Validates fields that are safe to persist and use for a model service.
     ///
     /// # Errors
     /// Returns an error for empty identifiers/names, invalid HTTP URLs, or empty secret references.
@@ -97,7 +126,7 @@ pub struct AgentModel {
     pub context_window: u32,
     pub max_output_tokens: u32,
     pub temperature: f32,
-    pub supports_vision: bool,
+    pub capabilities: AgentModelCapabilities,
     pub probe_status: AgentProbeStatus,
     pub updated_at_ms: u64,
 }
@@ -231,7 +260,7 @@ pub struct AgentModelSnapshot {
     pub context_window: u32,
     pub max_output_tokens: u32,
     pub temperature: f32,
-    pub supports_vision: bool,
+    pub capabilities: AgentModelCapabilities,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -352,6 +381,7 @@ mod tests {
             id: AgentConnectionId::new("connection"),
             display_name: "Connection".to_owned(),
             base_url: base_url.to_owned(),
+            protocol: AgentProtocol::ChatCompletions,
             auth: AgentAuth::None,
             created_at_ms: 1,
             updated_at_ms: 1,
@@ -376,7 +406,7 @@ mod tests {
             context_window: 4_096,
             max_output_tokens: 4_096,
             temperature: 0.3,
-            supports_vision: false,
+            capabilities: AgentModelCapabilities::default(),
             probe_status: AgentProbeStatus::Unknown,
             updated_at_ms: 1,
         };

@@ -6,14 +6,14 @@ import { useTranslation } from "react-i18next";
 import { AppButton, AppIconButton, AppModal } from "@/components/ui";
 import { agentApi } from "@/platform/atelier";
 import { useToastStore } from "@/stores/toast-store";
-import type { AgentModelDto, DiscoveredAgentModelDto, SaveAgentModelRequestDto } from "@/types";
+import type {
+  AgentImageInputModeDto,
+  AgentModelDto,
+  DiscoveredAgentModelDto,
+  SaveAgentModelRequestDto,
+} from "@/types";
 
-import {
-  CheckboxField,
-  NumberField,
-  SelectField,
-  TextField,
-} from "../../settings/components/SettingsControls";
+import { NumberField, SelectField, TextField } from "../../settings/components/SettingsControls";
 import { useAgentRegistryMutations, useAgentRegistryQuery } from "../data/useAgentQueries";
 import {
   DEFAULT_CONTEXT_WINDOW,
@@ -269,12 +269,22 @@ function ModelEditor({
         step="0.1"
         onChange={(temperature) => setDraft((current) => ({ ...current, temperature }))}
       />
-      <CheckboxField
-        label={t("modelSupportsVision")}
-        checked={draft.supports_vision}
-        onChange={(supports_vision) => setDraft((current) => ({ ...current, supports_vision }))}
+      <SelectField
+        label={t("imageInputMode")}
+        value={draft.capabilities.image_input}
+        options={[
+          { value: "none", label: t("imageInputOptions.none") },
+          { value: "message", label: t("imageInputOptions.message") },
+          { value: "tool_result", label: t("imageInputOptions.tool_result") },
+        ]}
+        onChange={(image_input) =>
+          setDraft((current) => ({
+            ...current,
+            capabilities: { image_input: parseImageInputMode(image_input) },
+          }))
+        }
       />
-      <p className="text-xs text-app-muted md:col-span-2">{t("modelVisionDescription")}</p>
+      <p className="text-xs text-app-muted md:col-span-2">{t("imageInputDescription")}</p>
       <div className="flex items-end justify-end gap-2 md:col-span-2">
         <AppButton variant="ghost" disabled={busy} onClick={onCancel}>
           {t("cancel")}
@@ -294,4 +304,9 @@ function ModelEditor({
       </div>
     </div>
   );
+}
+
+function parseImageInputMode(value: string): AgentImageInputModeDto {
+  if (value === "message" || value === "tool_result") return value;
+  return "none";
 }

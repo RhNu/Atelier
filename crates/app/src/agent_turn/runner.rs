@@ -53,7 +53,7 @@ where
     let settings = app.agent.get_settings().await?;
     let vision_enabled = super::output_vision::vision_allowed(
         settings.output_vision_enabled,
-        session.model.supports_vision,
+        session.model.capabilities.image_input.is_enabled(),
     );
     let context = serde_json::to_string(&serde_json::json!({
         "route": request.context.route,
@@ -296,6 +296,7 @@ where
     Ok(AgentResolvedConnection {
         base_url: connection.base_url.clone(),
         bearer_token,
+        protocol: connection.protocol,
     })
 }
 

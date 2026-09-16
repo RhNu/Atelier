@@ -131,8 +131,9 @@ The current Settings frontend separates application and workspace scopes:
 - Application / Connections: NovelAI API key registry, active-key switching, and automatically
   refreshed subscription summary shared across workspaces, followed by other service accounts such
   as Danbooru.
-- Application / Agent: OpenAI-compatible model connections and registered chat models shared across
-  workspaces. Provider secrets stay in the operating-system keyring.
+- Application / Agent: model connections with explicit Chat Completions, Responses, or Messages
+  protocol selection and registered chat models shared across workspaces. Model capabilities are
+  configured independently. Provider secrets stay in the operating-system keyring.
 - Workspace / Agent: persona instructions, prompt-family guidance, default model selection, and tool
   approval policy. Conversations and action history are also workspace-local.
 

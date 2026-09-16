@@ -5,7 +5,7 @@ use crate::error::{DatabaseError, DatabaseResult};
 mod migrations;
 
 const DATABASE_FORMAT: &str = "atelier-workspace-database";
-const DATABASE_SCHEMA_VERSION: i64 = 7;
+const DATABASE_SCHEMA_VERSION: i64 = 8;
 
 const SCHEMA_SQL: &str = r"
 CREATE TABLE atelier_schema (
@@ -15,7 +15,7 @@ CREATE TABLE atelier_schema (
 );
 
 INSERT INTO atelier_schema(singleton, format, schema_version)
-VALUES (1, 'atelier-workspace-database', 7);
+VALUES (1, 'atelier-workspace-database', 8);
 
 CREATE TABLE resources (
     id TEXT PRIMARY KEY,

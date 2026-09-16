@@ -222,7 +222,7 @@ export function AgentDrawer({ route, workspaceId, onOpenSettings }: AgentDrawerP
       contextWindow={activeSession?.model.context_window ?? null}
       contextInputTokens={drawer.contextInputTokens}
       visionEnabled={settings.data?.output_vision_enabled ?? false}
-      modelSupportsVision={activeSession?.model.supports_vision ?? false}
+      modelAcceptsImages={activeSession?.model.capabilities.image_input !== "none"}
       onVisionChange={changeVision}
       permissionMode={settings.data?.permission_mode ?? "standard"}
       updatingPermission={settingsMutation.isPending || !settings.data}

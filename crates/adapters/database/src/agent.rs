@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use atelier_agent::{
     AgentAction, AgentActionId, AgentActionState, AgentConnectionId, AgentError, AgentEvent,
-    AgentEventId, AgentEventKind, AgentModelId, AgentModelSnapshot, AgentPermissionMode,
-    AgentPersonaSnapshot, AgentResult, AgentSession, AgentSessionId, AgentSessionStatus,
-    AgentSummary, AgentWorkspaceRepository, AgentWorkspaceSettings,
+    AgentEventId, AgentEventKind, AgentImageInputMode, AgentModelCapabilities, AgentModelId,
+    AgentModelSnapshot, AgentPermissionMode, AgentPersonaSnapshot, AgentResult, AgentSession,
+    AgentSessionId, AgentSessionStatus, AgentSummary, AgentWorkspaceRepository,
+    AgentWorkspaceSettings,
 };
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -366,8 +367,7 @@ struct StoredModelSnapshot {
     context_window: u32,
     max_output_tokens: u32,
     temperature: f32,
-    #[serde(default)]
-    supports_vision: bool,
+    capabilities: StoredModelCapabilities,
 }
 
 impl StoredModelSnapshot {
@@ -380,7 +380,7 @@ impl StoredModelSnapshot {
             context_window: value.context_window,
             max_output_tokens: value.max_output_tokens,
             temperature: value.temperature,
-            supports_vision: value.supports_vision,
+            capabilities: StoredModelCapabilities::from_domain(value.capabilities),
         }
     }
 
@@ -393,7 +393,52 @@ impl StoredModelSnapshot {
             context_window: self.context_window,
             max_output_tokens: self.max_output_tokens,
             temperature: self.temperature,
-            supports_vision: self.supports_vision,
+            capabilities: self.capabilities.into_domain(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+struct StoredModelCapabilities {
+    image_input: StoredImageInputMode,
+}
+
+impl StoredModelCapabilities {
+    const fn from_domain(value: AgentModelCapabilities) -> Self {
+        Self {
+            image_input: StoredImageInputMode::from_domain(value.image_input),
+        }
+    }
+
+    const fn into_domain(self) -> AgentModelCapabilities {
+        AgentModelCapabilities {
+            image_input: self.image_input.into_domain(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum StoredImageInputMode {
+    None,
+    Message,
+    ToolResult,
+}
+
+impl StoredImageInputMode {
+    const fn from_domain(value: AgentImageInputMode) -> Self {
+        match value {
+            AgentImageInputMode::None => Self::None,
+            AgentImageInputMode::Message => Self::Message,
+            AgentImageInputMode::ToolResult => Self::ToolResult,
+        }
+    }
+
+    const fn into_domain(self) -> AgentImageInputMode {
+        match self {
+            Self::None => AgentImageInputMode::None,
+            Self::Message => AgentImageInputMode::Message,
+            Self::ToolResult => AgentImageInputMode::ToolResult,
         }
     }
 }
@@ -696,7 +741,7 @@ mod tests {
                 context_window: 32_768,
                 max_output_tokens: 4_096,
                 temperature: 0.3,
-                supports_vision: false,
+                capabilities: AgentModelCapabilities::default(),
             },
             persona: AgentPersonaSnapshot {
                 display_name: "Atelier Agent".to_owned(),

@@ -26,7 +26,7 @@ fn schema_initializes_once_and_file_backed_database_reopens() {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .unwrap();
-        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 7));
+        assert_eq!(metadata, ("atelier-workspace-database".to_owned(), 8));
         drop(raw);
 
         let reopened = DatabaseConnection::open(&path).unwrap();
@@ -128,7 +128,7 @@ fn version_one_database_migrates_at_a_single_testable_boundary() {
                 |row| row.get::<_, i64>(0)
             )
             .unwrap(),
-            7
+            8
         );
         let row: (String, Option<String>) = raw
             .query_row(
@@ -189,7 +189,7 @@ fn version_two_database_drops_workspace_api_key_metadata() {
             |row| row.get::<_, i64>(0)
         )
         .unwrap(),
-        7
+        8
     );
 }
 
@@ -295,8 +295,8 @@ fn old_migration_database_is_rejected_without_changes() {
 fn database_rejects_unknown_format_and_non_current_versions() {
     for (format, version) in [
         ("atelier-workspace-database", 0),
-        ("atelier-workspace-database", 8),
-        ("another-database", 7),
+        ("atelier-workspace-database", 9),
+        ("another-database", 8),
     ] {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("atelier.sqlite3");

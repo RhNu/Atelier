@@ -11,8 +11,9 @@ mod service;
 pub use error::{AgentError, AgentErrorKind, AgentResult};
 pub use model::{
     AgentAction, AgentActionId, AgentActionState, AgentAuth, AgentConnection, AgentConnectionId,
-    AgentEvent, AgentEventId, AgentEventKind, AgentModel, AgentModelId, AgentModelSnapshot,
-    AgentPermissionMode, AgentPersonaSnapshot, AgentProbeStatus, AgentRegistry, AgentSession,
+    AgentEvent, AgentEventId, AgentEventKind, AgentImageInputMode, AgentModel,
+    AgentModelCapabilities, AgentModelId, AgentModelSnapshot, AgentPermissionMode,
+    AgentPersonaSnapshot, AgentProbeStatus, AgentProtocol, AgentRegistry, AgentSession,
     AgentSessionId, AgentSessionStatus, AgentSummary, AgentWorkspaceSettings,
 };
 pub use observation::AgentObservation;

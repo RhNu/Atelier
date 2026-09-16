@@ -3,12 +3,13 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio_util::sync::CancellationToken;
 
-use crate::{AgentModelSnapshot, AgentResult};
+use crate::{AgentModelSnapshot, AgentProtocol, AgentResult};
 
 #[derive(Clone)]
 pub struct AgentResolvedConnection {
     pub base_url: String,
     pub bearer_token: Option<String>,
+    pub protocol: AgentProtocol,
 }
 
 impl std::fmt::Debug for AgentResolvedConnection {
@@ -16,6 +17,7 @@ impl std::fmt::Debug for AgentResolvedConnection {
         formatter
             .debug_struct("AgentResolvedConnection")
             .field("base_url", &self.base_url)
+            .field("protocol", &self.protocol)
             .field(
                 "bearer_token",
                 &self.bearer_token.as_ref().map(|_| "<redacted>"),

@@ -1,5 +1,7 @@
 //! Filesystem persistence for application-global Agent connections and models.
 
+mod migrations;
+
 use std::{
     fs,
     io::Write,
@@ -9,14 +11,15 @@ use std::{
 
 use async_trait::async_trait;
 use atelier_agent::{
-    AgentAuth, AgentConnection, AgentConnectionId, AgentError, AgentModel, AgentModelId,
-    AgentProbeStatus, AgentRegistry, AgentRegistryRepository, AgentResult,
+    AgentAuth, AgentConnection, AgentConnectionId, AgentError, AgentImageInputMode, AgentModel,
+    AgentModelCapabilities, AgentModelId, AgentProbeStatus, AgentProtocol, AgentRegistry,
+    AgentRegistryRepository, AgentResult,
 };
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 
 const JSON_FORMAT: &str = "atelier-agent-registry";
-const JSON_SCHEMA_VERSION: u32 = 1;
+const JSON_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Clone, Debug)]
 pub struct FileSystemAgentRegistryRepository {
@@ -46,8 +49,10 @@ impl FileSystemAgentRegistryRepository {
             }
             Err(error) => return Err(path_error("read", &self.path, error)),
         };
-        let stored: StoredRegistry =
+        let value =
             serde_json::from_str(&text).map_err(|error| registry_error(error.to_string()))?;
+        let stored: StoredRegistry = serde_json::from_value(migrations::upgrade(value)?)
+            .map_err(|error| registry_error(error.to_string()))?;
         stored.into_domain()
     }
 
@@ -133,6 +138,7 @@ struct StoredConnection {
     id: String,
     display_name: String,
     base_url: String,
+    protocol: StoredProtocol,
     auth: StoredAuth,
     created_at_ms: u64,
     updated_at_ms: u64,
@@ -144,6 +150,7 @@ impl StoredConnection {
             id: value.id.as_str().to_owned(),
             display_name: value.display_name.clone(),
             base_url: value.base_url.clone(),
+            protocol: StoredProtocol::from_domain(value.protocol),
             auth: StoredAuth::from_domain(&value.auth),
             created_at_ms: value.created_at_ms,
             updated_at_ms: value.updated_at_ms,
@@ -155,9 +162,36 @@ impl StoredConnection {
             id: AgentConnectionId::new(self.id),
             display_name: self.display_name,
             base_url: self.base_url,
+            protocol: self.protocol.into_domain(),
             auth: self.auth.into_domain(),
             created_at_ms: self.created_at_ms,
             updated_at_ms: self.updated_at_ms,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum StoredProtocol {
+    ChatCompletions,
+    Responses,
+    Messages,
+}
+
+impl StoredProtocol {
+    const fn from_domain(value: AgentProtocol) -> Self {
+        match value {
+            AgentProtocol::ChatCompletions => Self::ChatCompletions,
+            AgentProtocol::Responses => Self::Responses,
+            AgentProtocol::Messages => Self::Messages,
+        }
+    }
+
+    const fn into_domain(self) -> AgentProtocol {
+        match self {
+            Self::ChatCompletions => AgentProtocol::ChatCompletions,
+            Self::Responses => AgentProtocol::Responses,
+            Self::Messages => AgentProtocol::Messages,
         }
     }
 }
@@ -196,8 +230,7 @@ struct StoredModel {
     context_window: u32,
     max_output_tokens: u32,
     temperature: f32,
-    #[serde(default)]
-    supports_vision: bool,
+    capabilities: StoredCapabilities,
     probe_status: StoredProbeStatus,
     updated_at_ms: u64,
 }
@@ -212,7 +245,7 @@ impl StoredModel {
             context_window: value.context_window,
             max_output_tokens: value.max_output_tokens,
             temperature: value.temperature,
-            supports_vision: value.supports_vision,
+            capabilities: StoredCapabilities::from_domain(value.capabilities),
             probe_status: StoredProbeStatus::from_domain(value.probe_status),
             updated_at_ms: value.updated_at_ms,
         }
@@ -227,9 +260,54 @@ impl StoredModel {
             context_window: self.context_window,
             max_output_tokens: self.max_output_tokens,
             temperature: self.temperature,
-            supports_vision: self.supports_vision,
+            capabilities: self.capabilities.into_domain(),
             probe_status: self.probe_status.into_domain(),
             updated_at_ms: self.updated_at_ms,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+struct StoredCapabilities {
+    image_input: StoredImageInputMode,
+}
+
+impl StoredCapabilities {
+    const fn from_domain(value: AgentModelCapabilities) -> Self {
+        Self {
+            image_input: StoredImageInputMode::from_domain(value.image_input),
+        }
+    }
+
+    const fn into_domain(self) -> AgentModelCapabilities {
+        AgentModelCapabilities {
+            image_input: self.image_input.into_domain(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum StoredImageInputMode {
+    None,
+    Message,
+    ToolResult,
+}
+
+impl StoredImageInputMode {
+    const fn from_domain(value: AgentImageInputMode) -> Self {
+        match value {
+            AgentImageInputMode::None => Self::None,
+            AgentImageInputMode::Message => Self::Message,
+            AgentImageInputMode::ToolResult => Self::ToolResult,
+        }
+    }
+
+    const fn into_domain(self) -> AgentImageInputMode {
+        match self {
+            Self::None => AgentImageInputMode::None,
+            Self::Message => AgentImageInputMode::Message,
+            Self::ToolResult => AgentImageInputMode::ToolResult,
         }
     }
 }
@@ -303,6 +381,7 @@ mod tests {
                 id: AgentConnectionId::new("local"),
                 display_name: "Local".to_owned(),
                 base_url: "http://127.0.0.1:1234/v1".to_owned(),
+                protocol: AgentProtocol::Responses,
                 auth: AgentAuth::Bearer {
                     secret_record_id: "agent-connection:local".to_owned(),
                 },
@@ -317,7 +396,9 @@ mod tests {
                 context_window: 32_768,
                 max_output_tokens: 4_096,
                 temperature: 0.3,
-                supports_vision: false,
+                capabilities: AgentModelCapabilities {
+                    image_input: AgentImageInputMode::Message,
+                },
                 probe_status: AgentProbeStatus::Verified,
                 updated_at_ms: 2,
             }],

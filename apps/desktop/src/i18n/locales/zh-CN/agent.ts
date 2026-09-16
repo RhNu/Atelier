@@ -2,8 +2,13 @@ import type { LocaleShape } from "../../locale-types";
 import { agent as enAgent } from "../en/agent";
 
 export const agent = {
-  modelSupportsVision: "模型支持图片输入",
-  modelVisionDescription: "按当前接口的模型能力设置；修改仅影响新建对话。",
+  imageInputMode: "图片输入",
+  imageInputDescription: "选择此模型接收图片的方式；修改仅影响新建对话。",
+  imageInputOptions: {
+    none: "禁用",
+    message: "消息内容",
+    tool_result: "工具结果内容",
+  },
   visionSaveFailed: "读图设置保存失败",
   outputVision: "允许 Agent 读取输出图片",
   visionDescription: "将输出图片发送给当前 Agent 模型用于分析；关闭会停止正在进行的 Agent 回合。",
@@ -22,7 +27,7 @@ export const agent = {
   editSessionTitle: "重命名会话",
   switchSession: "切换会话",
   modelRequired: "请先配置 Agent 模型",
-  modelRequiredDescription: "添加 OpenAI 兼容连接和模型后，即可开始对话。",
+  modelRequiredDescription: "添加模型连接和模型后，即可开始对话。",
   openSettings: "打开 Agent 设置",
   startSession: "开始会话",
   emptyConversation: "想创作什么？",
@@ -82,10 +87,16 @@ export const agent = {
   settingsTitle: "Agent",
   settingsLoading: "正在加载 Agent 设置",
   connectionsTitle: "模型连接",
-  connectionsDescription: "应用级 OpenAI 兼容端点。密钥存放在操作系统 Keyring 中。",
+  connectionsDescription: "应用级模型端点。密钥存放在操作系统 Keyring 中。",
   connectionName: "连接名称",
   baseUrl: "基础 URL",
   baseUrlPlaceholder: "http://127.0.0.1:11434/v1",
+  protocol: "协议",
+  protocolOptions: {
+    chat_completions: "Chat Completions",
+    responses: "Responses",
+    messages: "Messages",
+  },
   authentication: "认证方式",
   authNone: "无",
   authBearer: "Bearer Token",
